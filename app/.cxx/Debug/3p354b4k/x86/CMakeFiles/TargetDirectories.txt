@@ -1,9 +1,0 @@
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/CMakeFiles/hiddenriskncnn.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/CMakeFiles/edit_cache.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/CMakeFiles/rebuild_cache.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/third_party/ncnn/CMakeFiles/edit_cache.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/third_party/ncnn/CMakeFiles/rebuild_cache.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/third_party/ncnn/src/CMakeFiles/ncnn-generate-spirv.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/third_party/ncnn/src/CMakeFiles/ncnn.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/third_party/ncnn/src/CMakeFiles/edit_cache.dir
-C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/Debug/3p354b4k/x86/third_party/ncnn/src/CMakeFiles/rebuild_cache.dir

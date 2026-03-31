@@ -3,6 +3,7 @@
 .idea
 local.properties
 .DS_Store
+build/
 .cache/
 .reports/
 .serena/
@@ -12,5 +13,8 @@ third_party/
 models/
 error.png
 safe.png
+app/.cxx/
+app/.gradle/
+app/build/
 models/.venv/
 models/tools/
