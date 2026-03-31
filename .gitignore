@@ -1,0 +1,16 @@
+*.iml
+.gradle
+.idea
+local.properties
+.DS_Store
+.cache/
+.reports/
+.serena/
+.vscode/
+shots/
+third_party/
+models/
+error.png
+safe.png
+models/.venv/
+models/tools/

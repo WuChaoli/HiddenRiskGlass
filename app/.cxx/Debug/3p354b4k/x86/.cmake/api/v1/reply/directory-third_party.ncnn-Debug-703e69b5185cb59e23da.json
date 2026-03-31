@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "third_party/ncnn",
+		"source" : "C:/Users/wuchaoli/Desktop/codespace/glassdemo/third_party/ncnn"
+	}
+}

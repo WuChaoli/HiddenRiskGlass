@@ -1,0 +1,243 @@
+# HiddenRisk 验证与排障
+
+本文档统一收敛 HiddenRisk 在 `glassdemo` 项目中的模型验证方法、准确率基线、已验证结论、以及历史排障经验。
+
+## 适用范围
+
+- HiddenRisk 模型导出后的一致性验证
+- ONNX / standalone NCNN / 项目 runtime 的逐环节对比
+- `stress_test.jpg` 等样图的数量一致性检查
+- 探针页自动抓帧、相机生命周期相关问题排查
+
+## 当前基线
+
+- 当前正式小模型基线：`models/source/hidden_risk_mini_0330.onnx`
+- 当前运行时资产：
+  - `app/src/main/assets/hiddenrisk.ncnn.param`
+  - `app/src/main/assets/hiddenrisk.ncnn.bin`
+- 当前正式输出 blob：`out0_raw`
+- 当前 mini 模型检测头：单输出 `1x30x8400`
+
+### 基线原则
+
+- HiddenRisk 的“准确率 / 语义一致性”排查，统一以 `hidden_risk_mini_0330.onnx` 作为第一基线。
+- 不以调试页显示数量作为模型基线。
+- 不以历史 `model_20251218.onnx` 作为正式验证基线。
+- 不以旧 patch 资产或混搭 `param/bin` 作为正式验证基线。
+
+## 推荐验证顺序
+
+正式对比顺序固定为：
+
+1. ONNX 基线
+2. standalone NCNN
+3. 项目内 CPU runtime
+4. 项目内 `System Vulkan` runtime
+
+原因：
+
+- 只有这样，才能回答“漂移最早出现在哪一层”
+- 先对齐 ONNX 与 standalone NCNN，才能排除导出链路问题
+- 再看项目 CPU / Vulkan，才能把问题收敛到 runtime、profile、后处理或生命周期链路
+
+## 正式验证入口
+
+正式逐环节对比入口固定为：
+
+- `models/scripts/compare_hiddenrisk_pipeline.py`
+
+它会固定使用 JNI 一致的处理路径：
+
+- `letterbox + pad114 + /255 -> out0_raw -> decoded postprocess`
+
+它会输出：
+
+- `.reports/<date>_project_vs_onnx/summary.json`
+- `onnx_raw.npy`
+- `standalone_ncnn_raw.npy`
+- `onnx_detections.json`
+- `standalone_ncnn_detections.json`
+- 设备端 CPU / Vulkan 日志
+
+## 推荐命令
+
+```bash
+cd /mnt/c/Users/wuchaoli/Desktop/codespace/glassdemo/models
+
+python scripts/compare_hiddenrisk_pipeline.py \
+    --image ../stress_test.jpg
+```
+
+如果设备在线，脚本会自动拉起项目内 `CPU` 与 `System Vulkan` 两条链路一起比。
+
+## 项目内对比的强制参数
+
+项目内 runtime 对比必须带上：
+
+- `hiddenrisk.max_results_override=0`
+- `hiddenrisk.debug_compare=true`
+- `hiddenrisk.sample_image_path=/sdcard/Download/stress_test.jpg` 或其他明确样图
+
+原因：
+
+- `hiddenrisk.max_results_override=0` 用于关闭结果裁剪
+- `hiddenrisk.debug_compare=true` 用于输出 `before_nms / after_nms`
+- 样图模式可以消除实时抓帧链路对复现的干扰
+
+如果不带这些参数，看到的数量可能只是项目自身限流、UI 裁剪或探针页过滤后的结果。
+
+## 当前已验证结论
+
+以 `stress_test.jpg` 为样例，当前已验证结论是：
+
+- ONNX `after_nms=2`
+- standalone NCNN `after_nms=2`
+- 项目 CPU `before_nms=20 after_nms=2 detections=2`
+- 项目 Vulkan `before_nms=20 after_nms=2 detections=2`
+
+这说明当前仓库中的：
+
+- ONNX 基线
+- 原生 standalone NCNN
+- 项目内 CPU runtime
+- 项目内 `System Vulkan` runtime
+
+在该样图上已经完成数量对齐。
+
+## 如何解释 `summary.json`
+
+优先看下面两个字段：
+
+- `first_drift_stage`
+- `first_count_drift_stage`
+
+判断规则：
+
+- 如果 `standalone_ncnn` 和 `onnx` 的 `detection_count_after_nms` 不一致，优先排查 NCNN 导出或 standalone 后处理
+- 如果 `raw_diff.max_abs_diff > 1e-3`，优先看 standalone NCNN 与 ONNX 的原始输出
+- 如果 ONNX 与 standalone NCNN 一致，但项目 CPU 不一致，说明漂移首次出现在项目 runtime
+- 如果 CPU 一致、Vulkan 不一致，优先排查 backend / profile / fp16 / packing
+
+## 已定位过的高价值问题
+
+### 1. 旧对比脚本不能作为最终语义基线
+
+- `models/scripts/compare_onnx_ncnn.py` 只做 `Resize(640,640)`
+- 它没有复现 JNI 的 `letterbox + pad114`
+- 因此它只能做粗看，不能作为 HiddenRisk 最终语义一致性的判断依据
+
+### 2. `normalize_prediction_layout` 曾导致 decoded 输出被错误解释
+
+历史上项目内出现过 ONNX / NCNN / runtime 语义漂移，核心根因之一是：
+
+- `app/src/main/jni/yolov8_det.cpp`
+- `normalize_prediction_layout`
+
+问题本质：
+
+- 对 decoded `30x8400` 输出错误使用了 `reshape` 语义
+- 正确做法应是按 `8400x30` 真正转置后再进入后处理
+
+修复后，三路结果重新对齐。
+
+### 3. “稳定 5 detections” 不是模型本体结论
+
+此前看到“稳定 5 detections”并不代表模型只检测到 5 个目标，真实原因是项目链路存在额外限制：
+
+- JNI 返回层结果上限
+- Java 调试页显示上限
+- multi overlay 过滤
+
+所以做正式验证时，必须先关闭项目级裁剪，再看模型本体输出。
+
+### 4. 如果 ONNX 与 standalone NCNN 已对齐，不要先怀疑导出链路
+
+当 ONNX 与 standalone NCNN 已经对齐，而项目内 CPU / Vulkan 仍不一致时，优先排查：
+
+- runtime backend
+- GPU profile
+- fp16 / packing
+- 项目内生命周期或抓帧链路
+
+不要先回头怀疑 ONNX 源文件拿错，或重复质疑导出链路。
+
+## 当前已验证可运行的 GPU 组合
+
+- 推理尺寸：`640`
+- 后端：`System Vulkan`
+- GPU Profile：`Balanced FP16`
+- `ncnn::Option.lightmode = true`
+- `ncnn::Option.use_local_pool_allocator = true`
+
+该组合下，`detect ex.extract` 已可稳定完成，不再像 `960 + No Packing FP32` 那样在 extract 阶段被 `lmkd` 杀进程。
+
+## 探针页与相机生命周期经验
+
+### 自动抓帧前台态约束
+
+`HiddenRiskProbeActivity` 的这些逻辑都必须受前台态约束：
+
+- 自动抓帧
+- warmup 延时
+- 相机初始化回调
+
+统一门禁条件：
+
+- `isActivityResumed && isWorkflowActive`
+
+不要只依赖：
+
+- 权限已授权
+- SDK READY
+- 模型已加载
+
+### 生命周期退出时必须取消排队任务
+
+`onPause()` 与 `onStop()` 必须主动取消：
+
+- `autoCaptureRunnable`
+- `captureDelayRunnable`
+
+并同步清理：
+
+- `autoCaptureScheduled`
+- `captureDelayScheduled`
+
+否则页面退到后台后，已排队任务仍可能继续执行并触发后台开相机。
+
+### 相机初始化回调也要二次检查前台态
+
+即使 `QuickCameraManager.initialize()` 是在前台发起，回调也可能晚于生命周期切换返回。
+
+因此回调落地时，仍需再次检查前台态：
+
+- 不在前台就直接 `releaseCamera()`
+- 不要继续 warmup
+- 不要继续抓帧
+
+### 已定位过的启动问题
+
+若忽略上述约束，眼镜端很容易复现：
+
+- `CAMERA_DISABLED ... cannot open camera "0" from background`
+
+排查这类启动或切后台问题时，应优先检查探针页调度链路，而不是先怀疑权限声明或相机 HAL。
+
+## 推荐排查顺序
+
+1. 确认运行时 assets 是否来自 `models/source/hidden_risk_mini_0330.onnx` 的同次重导
+2. 运行 `models/scripts/compare_hiddenrisk_pipeline.py --image stress_test.jpg`
+3. 查看 `summary.json` 的 `first_drift_stage`
+4. 若需要复现项目内结果，确认启动参数包含：
+   - `hiddenrisk.sample_image_path`
+   - `hiddenrisk.max_results_override=0`
+   - `hiddenrisk.debug_compare=true`
+5. 若 ONNX 与 standalone NCNN 已对齐，再排查项目 runtime 的 CPU / Vulkan / profile 差异
+6. 若问题出现在探针页启动、切后台或自动抓帧阶段，再检查生命周期与相机前台态约束
+
+## 相关入口
+
+- 导出：`models/scripts/export_hiddenrisk_640.sh`
+- 资产校验：`models/scripts/validate_hiddenrisk_assets.sh`
+- 正式逐环节对比：`models/scripts/compare_hiddenrisk_pipeline.py`
+- 模型总说明：`models/README.md`
