@@ -1,0 +1,22 @@
+name: Sync to Gitee
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  sync-to-gitee:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync to Gitee
+        uses: yesolutions/mirror-action@master
+        with:
+          REMOTE: 'https://${{ secrets.GITEE_USERNAME }}:${{ secrets.GITEE_PAT }}@gitee.com/hangzhou-fengjing/hiddenriskglass.git'
+          GIT_USERNAME: '吴超利'
+          GIT_EMAIL: '434518591@qq.com'
+          PUSH_ALL_REFS: 'false'

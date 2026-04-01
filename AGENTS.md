@@ -1,6 +1,117 @@
-# 项目特定配置
+# glassdemo - AGENTS.md
 
-本文档仅记录 `glassdemo` 项目的项目级约定与已验证经验，避免和全局 `AGENTS.md` 混淆。
+Rokid Glass Android 应用，包含相机、人脸识别、车牌识别、HiddenRisk NCNN 推理等功能。
+
+## 构建/测试命令
+
+### Gradle 构建
+```bash
+# 构建 debug APK
+./gradlew assembleDebug
+
+# 构建 release APK
+./gradlew assembleRelease
+
+# 清理并构建
+./gradlew clean assembleDebug
+
+# 安装到设备
+./gradlew installDebug
+```
+
+### 测试
+```bash
+# 运行所有单元测试
+./gradlew test
+
+# 运行所有仪器测试
+./gradlew connectedAndroidTest
+
+# 运行单个单元测试 (指定类)
+./gradlew test --tests "com.rokid.glesse.ExampleUnitTest"
+
+# 运行单个测试方法
+./gradlew test --tests "com.rokid.glesse.ExampleUnitTest.addition_isCorrect"
+
+# 运行特定模块测试
+./gradlew :app:testDebugUnitTest
+```
+
+### Python 模型脚本
+```bash
+cd models
+source .venv/bin/activate  # 或 .venv/Scripts/activate (Windows)
+
+# 导出 HiddenRisk 模型
+bash scripts/export_hiddenrisk_640.sh
+
+# 验证模型资产
+bash scripts/validate_hiddenrisk_assets.sh
+```
+
+### C++ JNI 构建
+JNI 代码由 Gradle 自动通过 CMake 构建。CMake 配置在 `app/src/main/jni/CMakeLists.txt`。
+
+## 代码风格
+
+### 语言约定
+- **目录/文件/代码命名**: English
+- **注释/文档**: 简体中文
+- Kotlin 代码风格: `official` (见 gradle.properties)
+
+### Kotlin 规范
+- 使用 `kotlin.code.style=official`
+- JVM 目标: `1.8`
+- 类名: PascalCase (`HiddenRiskProbeActivity`)
+- 函数/变量: camelCase (`detectPreprocess`)
+- 常量: UPPER_SNAKE_CASE (`TARGET_INPUT_SIZE`)
+- 工具类/扩展: 前缀 `kt_ext_` 或放在 `utils/` 包
+- 使用 `data class` 表示纯数据载体
+- 优先使用 `val` 而非 `var`
+
+### Java 规范
+- 仅用于 JNI 接口层和部分旧代码
+- 类名: PascalCase, 方法: camelCase
+- 新代码优先用 Kotlin
+
+### C++ (JNI) 规范
+- 文件名: snake_case (`yolov8_det.cpp`)
+- 函数名: snake_case (JNI 风格)
+- 使用 ncnn 框架进行推理
+- OpenCV 用于图像预处理
+- 包含路径相对 `jni/` 目录
+
+### 包结构
+```
+com.rokid.glass/
+├── annotation/     # 注解
+├── adapter/        # RecyclerView 适配器
+├── base/           # 基类 Activity
+├── bean/           # 数据模型
+├── camera/         # 相机管理
+├── component/      # UI 组件
+├── data/           # 全局数据/事件
+├── enum/           # 枚举
+├── hiddenrisk/     # HiddenRisk NCNN 推理
+├── recycleview/    # RecyclerView 相关
+├── utils/          # 工具类
+└── *.kt            # Activity 入口
+```
+
+### 错误处理
+- JNI 层: 使用 `__android_log_print` 输出日志, 返回错误码
+- Kotlin/Java: 使用 try-catch, 关键操作记录日志
+- 模型推理失败时, 记录日志并降级处理, 不崩溃
+
+### 关键依赖
+- AndroidX Core KTX, AppCompat, Material3
+- Jetpack Compose (UI)
+- ncnn (NCNN 推理, Vulkan 后端)
+- OpenCV (图像预处理)
+- ML Kit (条码扫描)
+- Glide (图片加载)
+- Gson (JSON 序列化)
+- Rokid Glass SDK (`com.rokid.security:glass3.open.sdk:2.1.5-E`)
 
 ## HiddenRisk NCNN 经验
 
@@ -22,7 +133,7 @@
 
 - `app/src/main/assets/hiddenrisk.ncnn.param` 与 `app/src/main/assets/hiddenrisk.ncnn.bin` 已由同一次正式重导成对替换。
 - 当前正式小模型源目标为 `models/source/hidden_risk_mini_0330.onnx`。
-- 若运行时资产不是由该源同次重导得到，需先重导 `param + bin` 再做验证，避免“源模型与资产不一致”。
+- 若运行时资产不是由该源同次重导得到，需先重导 `param + bin` 再做验证，避免"源模型与资产不一致"。
 - `models/generated/hiddenrisk_640` 这套由 `hidden_risk_mini_0330.onnx` 重导出的 ONNX/NCNN 产物已在 CPU 端按 JNI 一致的 `letterbox + pad114 + /255 -> out0_raw -> decoded postprocess` 流程验证与 ONNX 输出对齐；出现语义漂移时请优先排查运行时 profile，而不是重提转换链漂移。
 - 旧的 `models/scripts/compare_onnx_ncnn.py` 仅对图像执行 `Resize(640,640)`，没有复用 JNI 中的 `letterbox+pad114` 流程，因此不应作为 HiddenRisk 语义结论的直接依据。
 - 原生侧统一读取 `out0_raw`，C++ 后处理兼容：
@@ -53,11 +164,11 @@
 
 ### 后续更推荐的正式方案
 
-- 正式发布前，优先采用“从源模型重导”的完整链路：
+- 正式发布前，优先采用"从源模型重导"的完整链路：
   - `best.pt -> torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`
 - 若已经拿到定型的小模型 ONNX，可直接走：
   - `hidden_risk_mini_0330.onnx -> pnnx(fp16=1) -> ncnn`
-- 重导后应使用新生成的 `param + bin` 成对替换当前资产，不要长期维持“新 param + 旧 bin + 绕过 decode tail”的混合状态。
+- 重导后应使用新生成的 `param + bin` 成对替换当前资产，不要长期维持"新 param + 旧 bin + 绕过 decode tail"的混合状态。
 - 正式重导与校验入口固定为：
   - `models/scripts/export_hiddenrisk_640.sh`
   - `models/scripts/validate_hiddenrisk_assets.sh`
