@@ -2,7 +2,7 @@ name: Sync to Gitee
 
 on:
   push:
-    branches: [master]
+    branches: [main]
 
 jobs:
   sync-to-gitee:
@@ -20,3 +20,5 @@ jobs:
           GIT_USERNAME: '吴超利'
           GIT_EMAIL: '434518591@qq.com'
           PUSH_ALL_REFS: 'false'
+          REF: 'refs/heads/main'
+          DEST_REF: 'refs/heads/master'
