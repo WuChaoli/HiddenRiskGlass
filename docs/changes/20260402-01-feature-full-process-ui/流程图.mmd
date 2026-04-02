@@ -1,0 +1,71 @@
+# 全流程图
+
+```mermaid
+flowchart TB
+    subgraph UI_01["01-初始界面.png"]
+        Start([佩戴AI眼镜开机/待机]) --> ModeSelect{选择巡检模式}
+        ModeSelect -->|手势点击| AIRecog["AI识患"]
+        ModeSelect -->|手势点击| TaskCheck["任务检查"]
+    end
+    
+    subgraph UI_02_Load["02-加载界面.png"]
+        AIRecog -->|10~15s| AppLoad{应用加载}
+    end
+    
+    subgraph UI_02_Error["02-1-加载异常界面.png"]
+        AppLoad -->|加载失败| LoadFail["加载异常,请重试<br/>单击'重试'重新加载<br/>双击退出"]
+        LoadFail -->|单击重试| AppLoad
+    end
+    
+    subgraph UI_02_Block["02-2镜头遮挡页面.png"]
+        AppLoad -->|镜头遮挡检测| LensBlock["镜头有遮挡,请检查<br/>清除遮挡后自动继续"]
+        LensBlock -->|清除遮挡| AppLoad
+    end
+    
+    AppLoad -->|加载成功| ConfirmStart
+    
+    subgraph UI_06["06-确认开始指引界面.png"]
+        ConfirmStart["是否开启检查指引?<br/>单击确认或双击取消"]
+    end
+    
+    subgraph UI_06_Error["06-1-设备异常界面.png"]
+        ConfirmStart -->|设备异常| DeviceError["设备异常,巡检失败<br/>设备重新启动中"]
+    end
+    
+    ConfirmStart -->|单击确认| GuideShow
+    
+    subgraph UI_06_2["06-2-检查过程中界面.png"]
+        GuideShow["显示检查指引<br/>自动取景识别中"]
+    end
+    
+    GuideShow --> AutoInspect
+    
+    subgraph Loop["自动巡检循环"]
+        AutoInspect["自动拍照循环巡检<br/>每0.5s拍照一次"] --> LocalInfer[本地推理]
+        LocalInfer --> RiskCheck{AI是否识别出隐患?}
+    end
+    
+    subgraph UI_07["07-无隐患界面.png"]
+        RiskCheck -->|无任何隐患| SafeArea["此区域无隐患<br/>是否继续巡检其他区域?"]
+    end
+    
+    subgraph UI_07_1["07-1-发现隐患界面.png"]
+        RiskCheck -->|检测到隐患| RiskAlert["发现安全隐患<br/>AR视野绿色框锁定<br/>语音循环告警+镜腿震动"]
+    end
+    
+    subgraph UI_07_2["07-2-显示隐患界面.png"]
+        RiskAlert --> ShowDetail[显示隐患内容详情<br/>隐患信息是否同步手机端?]
+    end
+    
+    subgraph UI_07_3["07-3-隐患同步界面.png"]
+        ShowDetail -->|手势点击'是'| SyncSuccess["隐患已同步<br/>前往手机查看详情<br/>是否继续巡检其他区域?"]
+        ShowDetail -->|手势点击'否'| ContinueAsk2[询问是否继续巡检]
+    end
+    
+    SafeArea -->|手势点击'继续'| AutoInspect
+    SafeArea -->|手势点击'结束'或双击| EndProcess[生成报告并同步手机<br/>巡检流程结束]
+    SyncSuccess -->|手势点击'继续'| AutoInspect
+    SyncSuccess -->|手势点击'结束'或双击| EndProcess
+    ContinueAsk2 -->|手势点击'继续'| AutoInspect
+    ContinueAsk2 -->|手势点击'结束'或双击| EndProcess
+```

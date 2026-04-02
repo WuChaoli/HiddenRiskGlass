@@ -105,6 +105,10 @@ dependencies {
 //    implementation "org.java-websocket:Java-WebSocket:1.6.0"
 //    implementation 'com.rokid.ai:aicore:2.0.0-20250911.133110-42'
     implementation "pub.devrel:easypermissions:2.0.1"
+    implementation libs.okhttp
+    implementation libs.okhttp.logging.interceptor
+    implementation libs.retrofit
+    implementation libs.retrofit.converter.gson
     implementation libs.androidx.appcompat
     implementation libs.material
     implementation libs.androidx.activity

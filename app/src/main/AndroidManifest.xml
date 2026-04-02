@@ -99,27 +99,18 @@
         <!-- </intent-filter> -->
         <!-- </activity> -->
         <activity
-            android:name="com.rokid.glass.hiddenrisk.HiddenRiskProbeActivity"
+            android:name="com.rokid.glass.HomeActivity"
             android:exported="true"
-            android:label="@string/hidden_risk_probe_label"
+            android:label="@string/app_name"
             android:theme="@style/Theme.Glessedemo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
-            android:name="com.rokid.glass.HomeActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.Glessedemo" />
-        <activity
             android:name="com.rokid.glass.CameraPageActivity"
             android:exported="true" />
-        <!--        <activity-->
-        <!--            android:name="com.rokid.glass.MainActivity"-->
-        <!--            android:exported="true" />-->
         <activity
             android:name="com.rokid.glass.GlassLprTrackActivity"
             android:exported="true" />
@@ -132,6 +123,9 @@
         <activity
             android:name="com.rokid.glass.TestNetworkActivity"
             android:exported="true" />
+        <activity
+            android:name="com.rokid.glass.TestMediaActivity"
+            android:exported="true" />
 
         <service
             android:name="com.rokid.glass.AudioService"
@@ -139,9 +133,16 @@
             android:exported="true"
             android:foregroundServiceType="connectedDevice|location|microphone|dataSync|camera"
             tools:ignore="ForegroundServicePermission" />
+
+        <!-- AI隐患检测流程页面 -->
         <activity
-            android:name="com.rokid.glass.TestMediaActivity"
-            android:exported="true" />
+            android:name="com.rokid.glass.hiddenrisk.InspectionModeActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.AiInspectionActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
     </application>
 
 </manifest>

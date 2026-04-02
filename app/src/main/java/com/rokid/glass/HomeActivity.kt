@@ -321,6 +321,17 @@ class HomeActivity : BaseActivity() {
                     false
                 )
             )
+            add(
+                MenuItem(
+                    "AI识患",
+                    MenuConfigType.MenuInfoType.MENU_HIDDEN_RISK,
+                    R.mipmap.icon_take_photo,  // 使用现有图标作为占位
+                    R.mipmap.icon_take_photo,
+                    R.drawable.home_bg,
+                    R.drawable.home_bg_focus,
+                    false
+                )
+            )
         }
         totalPageNum = ceil(menuList.size.toDouble() / showMenuMax.toDouble()).toInt()
         if (totalPageNum <= 0) {
@@ -430,6 +441,10 @@ class HomeActivity : BaseActivity() {
 
             MenuConfigType.MenuInfoType.MENU_TAKE_PHOTO -> {
                 startActivity(Intent(this, CameraPageActivity::class.java))
+            }
+
+            MenuConfigType.MenuInfoType.MENU_HIDDEN_RISK -> {
+                startActivity(Intent(this, com.rokid.glass.hiddenrisk.InspectionModeActivity::class.java))
             }
         }
     }

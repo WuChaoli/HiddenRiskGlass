@@ -41,6 +41,27 @@
     <string name="connect_device_tip">请先完成设备连接</string>
     <string name="connect_bt_device_tip">请先完成蓝牙设备连接</string>
     <string name="low_memory">当前低内存状态，请稍后再试</string>
+    <string name="inspection_mode_title">请选择巡检模式</string>
+    <string name="inspection_mode_ai">AI识患</string>
+    <string name="inspection_mode_task">任务检查</string>
+    <string name="inspection_mode_hint">说出 \"AI识患\" 或 \"自由检查\" 或 前后滑动点击选择</string>
+
+    <string name="ai_inspection_loading_title">系统初始化</string>
+    <string name="ai_inspection_loading_subtitle">正在准备检测设备…</string>
+    <string name="ai_inspection_loading_hint">双击\"右触控板\"返回主页</string>
+    <string name="ai_inspection_status_detecting">AI 隐患识别中</string>
+    <string name="ai_inspection_default_location">华北制造基地</string>
+    <string name="ai_inspection_default_workshop">装配车间</string>
+    <string name="ai_inspection_auto_capture">自动取景识别中</string>
+    <string name="ai_inspection_keep_steady">请保持眼镜稳定，不要遮挡镜头</string>
+    <string name="ai_inspection_hazard_found">发现安全隐患</string>
+    <string name="ai_inspection_sync_prompt">隐患信息是否同步手机端？</string>
+    <string name="ai_inspection_sync_hint">说出 \"是\" 或 \"否\" 或 单击确认 或 双击退出</string>
+    <string name="ai_inspection_synced">隐患已同步</string>
+    <string name="ai_inspection_synced_detail">前往手机查看详情</string>
+    <string name="ai_inspection_continue_prompt">是否继续巡检其他区域？</string>
+    <string name="ai_inspection_continue_hint">说出 \"继续\" 或 \"结束\" 或双击退出</string>
+
     <string name="hidden_risk_probe_label">隐患巡检</string>
     <string name="hidden_risk_loading">正在加载中</string>
     <string name="hidden_risk_alert_message">检测到可能存在的隐患</string>
