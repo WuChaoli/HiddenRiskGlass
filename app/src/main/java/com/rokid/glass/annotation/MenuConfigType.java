@@ -11,6 +11,7 @@ public interface MenuConfigType {
         String RECEIVE_MSG = "receive_msg";   // 接收消息
         String SEND_MSG = "send_msg";   // 发送消息
         String MENU_TAKE_PHOTO = "menu_take_photo";   // 拍照
+        String MENU_HANGXIAOYING = "menu_hangxiaoying";   // 杭小应
     }
     interface ZSMenuInfoType {
         String MENU_INSPECTION_SCHOOL = "menu_inspection_school";   // 护学岗

@@ -321,6 +321,17 @@ class HomeActivity : BaseActivity() {
                     false
                 )
             )
+            add(
+                MenuItem(
+                    "杭小应",
+                    MenuConfigType.MenuInfoType.MENU_HANGXIAOYING,
+                    R.mipmap.icon_ai_chat,
+                    R.mipmap.icon_ai_chat,
+                    R.drawable.home_bg,
+                    R.drawable.home_bg_focus,
+                    false
+                )
+            )
         }
         totalPageNum = ceil(menuList.size.toDouble() / showMenuMax.toDouble()).toInt()
         if (totalPageNum <= 0) {
@@ -430,6 +441,10 @@ class HomeActivity : BaseActivity() {
 
             MenuConfigType.MenuInfoType.MENU_TAKE_PHOTO -> {
                 startActivity(Intent(this, CameraPageActivity::class.java))
+            }
+
+            MenuConfigType.MenuInfoType.MENU_HANGXIAOYING -> {
+                startActivity(Intent(this, com.rokid.glass.inspection.InspectionModeActivity::class.java))
             }
         }
     }

@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <!-- ========== 加载状态 ========== -->
+    <LinearLayout
+        android:id="@+id/layoutLoading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <!-- 旋转加载图标 -->
+        <ImageView
+            android:id="@+id/ivLoadingSpinner"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:contentDescription="@string/ai_inspection_loading_title"
+            android:src="@mipmap/ic_loading" />
+
+        <!-- 系统初始化 -->
+        <TextView
+            android:id="@+id/tvLoadingTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/ai_inspection_loading_title"
+            android:textColor="#FFFFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <!-- 正在准备检测设备... -->
+        <TextView
+            android:id="@+id/tvLoadingSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/ai_inspection_loading_subtitle"
+            android:textColor="#99FFFFFF"
+            android:textSize="14sp" />
+
+        <!-- 进度条 -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="240dp"
+            android:layout_height="8dp"
+            android:layout_marginTop="24dp"
+            android:max="100"
+            android:progress="0"
+            android:progressDrawable="@drawable/progress_bar_fill" />
+
+        <!-- 百分比 -->
+        <TextView
+            android:id="@+id/tvProgressPercent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="0%"
+            android:textColor="@color/green"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <!-- 加载状态底部提示 -->
+    <TextView
+        android:id="@+id/tvLoadingHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="20dp"
+        android:text="@string/ai_inspection_loading_hint"
+        android:textColor="#99FFFFFF"
+        android:textSize="12sp" />
+
+    <!-- ========== 识别状态 ========== -->
+    <FrameLayout
+        android:id="@+id/layoutDetection"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <!-- 左上角 - 地点信息 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvLocationName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_inspection_default_location"
+                android:textColor="@color/green"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvLocationDetail"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/ai_inspection_default_workshop"
+                android:textColor="@color/green"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- 右上角 - AI状态 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/viewStatusDot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/green_dot" />
+
+            <TextView
+                android:id="@+id/tvDetectionStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/ai_inspection_status_detecting"
+                android:textColor="@color/green"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- 中间 - 引导提示 -->
+        <TextView
+            android:id="@+id/tvGuidePrompt"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/ai_inspection_guide_prompt"
+            android:textColor="@color/green"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <!-- 底部信息区 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="16dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical">
+
+            <!-- 自动取景识别中 -->
+            <TextView
+                android:id="@+id/tvAutoCapture"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_inspection_auto_capture"
+                android:textColor="@color/green"
+                android:textSize="14sp" />
+
+            <!-- 请保持眼镜稳定 -->
+            <TextView
+                android:id="@+id/tvKeepSteady"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/ai_inspection_keep_steady"
+                android:textColor="@color/green"
+                android:textSize="14sp" />
+
+            <!-- 操作提示 -->
+            <TextView
+                android:id="@+id/tvOperationHint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/ai_inspection_operation_hint"
+                android:textColor="#99FFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- 检测结果图标（居中，和 HiddenRiskProbeActivity 一致） -->
+        <ImageView
+            android:id="@+id/imageResultIcon"
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/hidden_risk_probe_label"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+    </FrameLayout>
+
+</FrameLayout>

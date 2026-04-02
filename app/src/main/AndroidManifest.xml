@@ -102,13 +102,7 @@
             android:name="com.rokid.glass.hiddenrisk.HiddenRiskProbeActivity"
             android:exported="true"
             android:label="@string/hidden_risk_probe_label"
-            android:theme="@style/Theme.Glessedemo">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.HomeActivity"
             android:exported="true"
@@ -142,6 +136,20 @@
         <activity
             android:name="com.rokid.glass.TestMediaActivity"
             android:exported="true" />
+        <activity
+            android:name="com.rokid.glass.inspection.InspectionModeActivity"
+            android:exported="true"
+            android:label="杭小应"
+            android:theme="@style/Theme.Glessedemo">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.rokid.glass.inspection.AiInspectionActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
     </application>
 
 </manifest>
