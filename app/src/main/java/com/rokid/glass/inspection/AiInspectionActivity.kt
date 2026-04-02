@@ -11,6 +11,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import android.view.View
+import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.view.animation.RotateAnimation
@@ -18,6 +19,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -36,8 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * AI 巡检页面。
- * 进入后先显示加载动画（初始化 SDK、加载模型、预热相机），
- * 完成后自动进入检测模式，循环拍照+推理。
+ * 流程：加载初始化 → 自动拍照检测 → 发现隐患提示 → 流式回答 → 同步确认。
  */
 class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -46,7 +47,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val CAPTURE_TIMEOUT_MS = 15000L
         private const val CAPTURE_WARMUP_MS = 1200L
-        private const val RESULT_HOLD_MS = 2000L
+        private const val HAZARD_ALERT_HOLD_MS = 2500L
         private const val AUTO_CAPTURE_INTERVAL_MS = 1000L
         private val QUICK_CAPTURE_SIZE = Size(960, 960)
 
@@ -55,19 +56,36 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val DEFAULT_TARGET_INPUT_SIZE = 640
     }
 
+    /**
+     * 页面的四种可见状态。
+     */
+    private enum class PageState {
+        LOADING,          // 系统初始化
+        DETECTING,        // 自动取景识别中
+        HAZARD_ALERT,     // 发现安全隐患
+        STREAM_RESPONSE,  // 流式回答 + 同步确认
+        SYNC_SUCCESS,     // 同步成功
+    }
+
     // --- UI ---
     private lateinit var layoutLoading: LinearLayout
     private lateinit var layoutDetection: FrameLayout
+    private lateinit var layoutHazardAlert: LinearLayout
+    private lateinit var layoutHazardAlertBottom: LinearLayout
+    private lateinit var layoutStreamResponse: FrameLayout
     private lateinit var ivLoadingSpinner: ImageView
     private lateinit var tvLoadingTitle: TextView
     private lateinit var tvLoadingSubtitle: TextView
     private lateinit var progressBar: ProgressBar
     private lateinit var tvProgressPercent: TextView
     private lateinit var tvLoadingHint: TextView
-    private lateinit var tvGuidePrompt: TextView
     private lateinit var tvDetectionStatus: TextView
     private lateinit var viewStatusDot: View
-    private lateinit var imageResultIcon: ImageView
+    private lateinit var tvStreamContent: TextView
+    private lateinit var scrollContent: ScrollView
+    private lateinit var tvSyncPrompt: TextView
+    private lateinit var layoutSyncSuccess: LinearLayout
+    private lateinit var tvSyncSuccessHint: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -88,7 +106,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var quickCameraReadyAtElapsedMs = 0L
     private var sdkReadyAtElapsedMs = 0L
     private var autoCaptureScheduled = false
-    private var showingGuidePrompt = true
+    private var pageState = PageState.LOADING
+    private var streamingInProgress = false
+    private var lastAnalysisText = ""
 
     // 加载进度模拟
     private var currentProgress = 0
@@ -139,11 +159,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         startSampleCaptureIfNeeded()
     }
 
-    private val resultDismissRunnable = Runnable {
-        if (destroyed) return@Runnable
-        imageResultIcon.visibility = View.GONE
-    }
-
     // ==================== 生命周期 ====================
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -152,18 +167,24 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         layoutLoading = findViewById(R.id.layoutLoading)
         layoutDetection = findViewById(R.id.layoutDetection)
+        layoutHazardAlert = findViewById(R.id.layoutHazardAlert)
+        layoutHazardAlertBottom = findViewById(R.id.layoutHazardAlertBottom)
+        layoutStreamResponse = findViewById(R.id.layoutStreamResponse)
         ivLoadingSpinner = findViewById(R.id.ivLoadingSpinner)
         tvLoadingTitle = findViewById(R.id.tvLoadingTitle)
         tvLoadingSubtitle = findViewById(R.id.tvLoadingSubtitle)
         progressBar = findViewById(R.id.progressBar)
         tvProgressPercent = findViewById(R.id.tvProgressPercent)
         tvLoadingHint = findViewById(R.id.tvLoadingHint)
-        tvGuidePrompt = findViewById(R.id.tvGuidePrompt)
         tvDetectionStatus = findViewById(R.id.tvDetectionStatus)
         viewStatusDot = findViewById(R.id.viewStatusDot)
-        imageResultIcon = findViewById(R.id.imageResultIcon)
+        tvStreamContent = findViewById(R.id.tvStreamContent)
+        scrollContent = findViewById(R.id.scrollContent)
+        tvSyncPrompt = findViewById(R.id.tvSyncPrompt)
+        layoutSyncSuccess = findViewById(R.id.layoutSyncSuccess)
+        tvSyncSuccessHint = findViewById(R.id.tvSyncSuccessHint)
 
-        showLoadingState()
+        showPage(PageState.LOADING)
 
         RokidSdkManager.initialize(application as Application)
         RokidSdkManager.addListener(this)
@@ -176,7 +197,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         super.onResume()
         isActivityResumed = true
         ensureMediaPermissionOrStart()
-        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+        if (pageState == PageState.DETECTING) {
+            scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+        }
     }
 
     override fun onStart() {
@@ -207,7 +230,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
-        uiHandler.removeCallbacks(resultDismissRunnable)
         uiHandler.removeCallbacks(progressRunnable)
         quickCameraInitializing = false
         quickCameraReady = false
@@ -226,12 +248,39 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // ==================== 输入事件 ====================
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        if (keyEvent == GlassKeyEvent.KEYCODE_CLICK) {
-            if (showingGuidePrompt) {
-                showingGuidePrompt = false
-                tvGuidePrompt.visibility = View.GONE
+        when (keyEvent) {
+            GlassKeyEvent.KEYCODE_CLICK -> {
+                when (pageState) {
+                    PageState.STREAM_RESPONSE -> {
+                        if (!streamingInProgress) {
+                            // 单击确认同步
+                            syncToPhone()
+                            return true
+                        }
+                    }
+                    PageState.SYNC_SUCCESS -> {
+                        // 单击继续巡检
+                        returnToDetecting()
+                        return true
+                    }
+                    else -> {}
+                }
             }
-            return true
+            GlassKeyEvent.KEYCODE_DOUBLE_CLICK -> {
+                when (pageState) {
+                    PageState.STREAM_RESPONSE -> {
+                        // 双击退出 → 跳过同步，回到检测
+                        returnToDetecting()
+                        return true
+                    }
+                    PageState.SYNC_SUCCESS -> {
+                        // 双击退出
+                        finish()
+                        return true
+                    }
+                    else -> {}
+                }
+            }
         }
         return super.onGlassKeyEvent(keyEvent)
     }
@@ -327,7 +376,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        if (!captureInProgress && !inferenceRunning.get()) {
+        if (!captureInProgress && !inferenceRunning.get() && pageState == PageState.DETECTING) {
             scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
         }
     }
@@ -391,7 +440,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
                 animateProgressTo(100)
                 tvLoadingSubtitle.text = "准备就绪"
-                // 短暂延迟后切换到检测界面
                 uiHandler.postDelayed({
                     if (!destroyed) transitionToDetection()
                 }, CAPTURE_WARMUP_MS)
@@ -401,10 +449,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun transitionToDetection() {
         ivLoadingSpinner.clearAnimation()
-        layoutLoading.visibility = View.GONE
-        tvLoadingHint.visibility = View.GONE
-        layoutDetection.visibility = View.VISIBLE
+        showPage(PageState.DETECTING)
 
+        pendingCaptureRequest = true
+        startSampleCaptureIfNeeded()
+        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+    }
+
+    private fun returnToDetecting() {
+        showPage(PageState.DETECTING)
         pendingCaptureRequest = true
         startSampleCaptureIfNeeded()
         scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
@@ -415,6 +468,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun startSampleCaptureIfNeeded() {
         if (!pendingCaptureRequest || captureInProgress) return
         if (!isActivityResumed || !isWorkflowActive) return
+        if (pageState != PageState.DETECTING) return
 
         if (!quickCameraReady || !QuickCameraManager.isGpuCaptureWarm()) {
             if (!quickCameraReady) {
@@ -483,10 +537,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 uiHandler.post {
                     inferenceRunning.set(false)
                     if (destroyed) return@post
-                    if (success) {
-                        applyResult(hasHazard)
+                    if (success && hasHazard) {
+                        onHazardDetected()
+                    } else {
+                        // 未发现隐患，继续自动检测
+                        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
                     }
-                    scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
                 }
             }) {
             frame.hardwareBuffer.close()
@@ -500,16 +556,102 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return count > 0
     }
 
-    private fun applyResult(hasHazard: Boolean) {
-        if (hasHazard) {
-            imageResultIcon.setImageResource(R.drawable.hidden_risk_alert)
-            imageResultIcon.visibility = View.VISIBLE
-        } else {
-            imageResultIcon.setImageResource(R.drawable.hidden_risk_safe)
-            imageResultIcon.visibility = View.VISIBLE
-        }
-        uiHandler.removeCallbacks(resultDismissRunnable)
-        uiHandler.postDelayed(resultDismissRunnable, RESULT_HOLD_MS)
+    // ==================== 隐患处理流程 ====================
+
+    /**
+     * 检测到隐患：显示警告 → 调用流式接口 → 显示回答。
+     */
+    private fun onHazardDetected() {
+        // 停止自动拍照
+        uiHandler.removeCallbacks(autoCaptureRunnable)
+        autoCaptureScheduled = false
+
+        // 显示隐患警告页面
+        showPage(PageState.HAZARD_ALERT)
+
+        // 停留一段时间后开始流式请求
+        uiHandler.postDelayed({
+            if (!destroyed) {
+                startStreamingAnalysis()
+            }
+        }, HAZARD_ALERT_HOLD_MS)
+    }
+
+    private fun startStreamingAnalysis() {
+        showPage(PageState.STREAM_RESPONSE)
+        tvStreamContent.text = ""
+        streamingInProgress = true
+        tvSyncPrompt.visibility = View.INVISIBLE
+
+        // 调用流式接口（当前使用模拟数据）
+        HazardStreamService.analyze(null, object : HazardStreamService.StreamCallback {
+            override fun onChunk(text: String) {
+                if (destroyed) return
+                tvStreamContent.text = text
+                scrollContent.post {
+                    scrollContent.fullScroll(View.FOCUS_DOWN)
+                }
+            }
+
+            override fun onComplete(fullText: String) {
+                if (destroyed) return
+                streamingInProgress = false
+                lastAnalysisText = fullText
+                tvSyncPrompt.visibility = View.VISIBLE
+            }
+
+            override fun onError(message: String) {
+                if (destroyed) return
+                streamingInProgress = false
+                tvStreamContent.text = "分析失败：$message"
+                tvSyncPrompt.visibility = View.VISIBLE
+            }
+        })
+    }
+
+    /**
+     * 调用后端接口同步隐患记录，成功后显示同步成功页面。
+     */
+    private fun syncToPhone() {
+        HazardStreamService.syncToPhone(lastAnalysisText, object : HazardStreamService.SyncCallback {
+            override fun onSuccess() {
+                if (destroyed) return
+                showSyncSuccess()
+            }
+
+            override fun onError(message: String) {
+                if (destroyed) return
+                Log.e(TAG, "sync failed: $message")
+                // 同步失败也显示成功页面（后续可改为错误提示）
+                showSyncSuccess()
+            }
+        })
+    }
+
+    private fun showSyncSuccess() {
+        showPage(PageState.SYNC_SUCCESS)
+
+        // 3 秒后渐隐，然后回到检测状态
+        uiHandler.postDelayed({
+            if (destroyed || pageState != PageState.SYNC_SUCCESS) return@postDelayed
+            val fadeOut = AlphaAnimation(1f, 0f).apply {
+                duration = 800L
+                fillAfter = true
+                setAnimationListener(object : Animation.AnimationListener {
+                    override fun onAnimationStart(animation: Animation?) {}
+                    override fun onAnimationRepeat(animation: Animation?) {}
+                    override fun onAnimationEnd(animation: Animation?) {
+                        if (!destroyed) {
+                            layoutSyncSuccess.clearAnimation()
+                            tvSyncSuccessHint.clearAnimation()
+                            returnToDetecting()
+                        }
+                    }
+                })
+            }
+            layoutSyncSuccess.startAnimation(fadeOut)
+            tvSyncSuccessHint.startAnimation(fadeOut)
+        }, 3000L)
     }
 
     // ==================== 自动拍摄调度 ====================
@@ -521,26 +663,38 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!modelLoaded || modelLoading) return false
         if (captureInProgress || captureDelayScheduled || quickCameraInitializing || pendingCaptureRequest) return false
         if (inferenceRunning.get()) return false
-        if (layoutLoading.visibility == View.VISIBLE) return false
+        if (pageState != PageState.DETECTING) return false
         return true
     }
 
     private fun scheduleAutoCaptureIfNeeded(delayMs: Long) {
         if (autoCaptureScheduled || destroyed || !isActivityResumed || !isWorkflowActive) return
-        if (layoutLoading.visibility == View.VISIBLE) return
+        if (pageState != PageState.DETECTING) return
         autoCaptureScheduled = true
         uiHandler.postDelayed(autoCaptureRunnable, delayMs)
     }
 
-    // ==================== UI 状态 ====================
+    // ==================== UI 页面切换 ====================
 
-    private fun showLoadingState() {
-        layoutLoading.visibility = View.VISIBLE
-        layoutDetection.visibility = View.GONE
-        tvLoadingHint.visibility = View.VISIBLE
-        ivLoadingSpinner.startAnimation(loadingRotateAnimation)
-        progressBar.progress = 0
-        tvProgressPercent.text = "0%"
+    private fun showPage(state: PageState) {
+        pageState = state
+        layoutLoading.visibility = if (state == PageState.LOADING) View.VISIBLE else View.GONE
+        tvLoadingHint.visibility = if (state == PageState.LOADING) View.VISIBLE else View.GONE
+        layoutDetection.visibility = if (state == PageState.DETECTING) View.VISIBLE else View.GONE
+        layoutHazardAlert.visibility = if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
+        layoutHazardAlertBottom.visibility = if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
+        layoutStreamResponse.visibility = if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
+        layoutSyncSuccess.visibility = if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
+        tvSyncSuccessHint.visibility = if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
+
+        if (state == PageState.LOADING) {
+            ivLoadingSpinner.startAnimation(loadingRotateAnimation)
+        }
+        if (state == PageState.SYNC_SUCCESS) {
+            // 重置透明度（上次渐隐后可能为0）
+            layoutSyncSuccess.alpha = 1f
+            tvSyncSuccessHint.alpha = 1f
+        }
     }
 
     private fun animateProgressTo(target: Int) {
@@ -562,10 +716,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
-        uiHandler.removeCallbacks(resultDismissRunnable)
         QuickCameraManager.releaseCamera()
 
-        if (layoutLoading.visibility == View.VISIBLE) {
+        if (pageState == PageState.LOADING) {
             ivLoadingSpinner.clearAnimation()
             tvLoadingTitle.text = "初始化失败"
             tvLoadingSubtitle.text = message
