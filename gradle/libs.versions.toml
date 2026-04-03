@@ -8,15 +8,6 @@ espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.6.1"
 activityCompose = "1.8.0"
 composeBom = "2023.08.00"
-material = "1.10.0"
-appcompat = "1.6.1"
-constraintlayout = "2.1.4"
-navigationFragmentKtx = "2.6.0"
-navigationUiKtx = "2.6.0"
-appcompatVersion = "1.6.1"
-materialVersion = "1.10.0"
-activity = "1.9.0"
-constraintlayoutVersion = "2.1.4"
 androidxConstraintlayout = "2.2.1"
 androidxAppcompat = "1.7.1"
 googleMaterial = "1.12.0"
@@ -26,6 +17,12 @@ playServicesMlkitBarcodeScanning = "18.3.1"
 firebaseFirestoreKtx = "25.1.4"
 okhttp = "4.12.0"
 retrofit = "2.9.0"
+rokidGlassSdk = "2.1.5-E"
+mlkitBarcode = "17.2.0"
+utilcodex = "1.31.0"
+gson = "2.8.6"
+glide = "4.11.0"
+easypermissions = "2.0.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,8 +50,14 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
 retrofit-converter-gson = { group = "com.squareup.retrofit2", name = "converter-gson", version.ref = "retrofit" }
+rokid-glass-sdk = { group = "com.rokid.security", name = "glass3.open.sdk", version.ref = "rokidGlassSdk" }
+mlkit-barcode-scanning = { group = "com.google.mlkit", name = "barcode-scanning", version.ref = "mlkitBarcode" }
+utilcodex = { group = "com.blankj", name = "utilcodex", version.ref = "utilcodex" }
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", version.ref = "glide" }
+easypermissions = { group = "pub.devrel", name = "easypermissions", version.ref = "easypermissions" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
-

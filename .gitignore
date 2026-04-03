@@ -18,3 +18,10 @@ app/.gradle/
 app/build/
 models/.venv/
 models/tools/
+
+# Firebase 配置文件（包含敏感信息）
+**/google-services.json
+
+# ncnn / OpenCV 预编译库（体积大，通过脚本下载）
+app/src/main/jni/ncnn-*/
+app/src/main/jni/opencv-*/

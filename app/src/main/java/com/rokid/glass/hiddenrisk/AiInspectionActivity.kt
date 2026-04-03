@@ -3,6 +3,7 @@ package com.rokid.glass.hiddenrisk
 import android.Manifest
 import android.app.Application
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -40,7 +41,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     companion object {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
-        private const val CAPTURE_TIMEOUT_MS = 15000L
+        private const val CAPTURE_TIMEOUT_MS = 1000L  // 从15000改为1000，快速超时并自动重试
+        private const val MAX_CONSECUTIVE_TIMEOUTS = 3
+        private const val MAX_CAMERA_RESTART_ATTEMPTS = 3
         private const val CAPTURE_WARMUP_MS = 1200L
         private const val HAZARD_ALERT_HOLD_MS = 2500L
         private const val AUTO_CAPTURE_INTERVAL_MS = 1000L
@@ -67,6 +70,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         STREAM_RESPONSE,  // 流式回答 + 同步确认
         SYNC_SUCCESS,     // 同步成功
         END_REPORT,       // 巡检结束报告
+    }
+
+    /**
+     * 隐患判断结果。
+     */
+    private enum class HazardJudgeResult { NO_HAZARD, HAS_HAZARD }
+
+    /**
+     * 检测状态，用于图标提示逻辑。
+     */
+    private enum class DetectionStatus {
+        NONE,       // 初始/检测中
+        HAS_HAZARD, // 有隐患
+        NO_HAZARD   // 无隐患
+    }
+
+    private fun evaluateHazardWithJudgment(snapshot: NativeInferenceStats?): HazardJudgeResult {
+        // 调用方已保证 detectionCount > 0
+        // TODO: 后续接入真实判断逻辑（置信度过滤、类别过滤等）
+        return HazardJudgeResult.HAS_HAZARD
     }
 
     // --- UI ---
@@ -126,7 +149,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var autoCaptureScheduled = false
     private var pageState = PageState.LOADING
     private var streamingInProgress = false
+    private var streamCallbackActive = false
     private var lastAnalysisText = ""
+    private var latestHazardBitmap: Bitmap? = null
+
+    // 检测状态图标提示
+    private var currentDetectionStatus: DetectionStatus = DetectionStatus.NONE
+    private var statusIndicatorVisible = false
+    private val STATUS_INDICATOR_DURATION_MS = 3000L
+
+    // 拍摄超时恢复机制
+    private var consecutiveTimeoutCount = 0
+    private var cameraRestartAttempts = 0
+    private var isCameraRestarting = false
+
+    private val statusIndicatorHideRunnable = Runnable {
+        hideStatusIndicator()
+    }
 
     // 加载进度模拟
     private var currentProgress = 0
@@ -157,8 +196,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val captureTimeoutRunnable = Runnable {
         if (!captureInProgress || destroyed) return@Runnable
+
+        Log.w(TAG, "拍摄超时，连续超时次数: ${consecutiveTimeoutCount + 1}")
         captureInProgress = false
-        failWorkflow("样图拍摄超时")
+        consecutiveTimeoutCount++
+
+        when {
+            consecutiveTimeoutCount >= MAX_CONSECUTIVE_TIMEOUTS -> {
+                // 连续3次超时，尝试静默重启摄像头
+                Log.w(TAG, "连续3次拍摄超时，准备静默重启摄像头")
+                silentRestartCamera()
+            }
+            else -> {
+                // 记录异常但继续自动拍摄
+                Log.d(TAG, "拍摄超时，自动获取下一帧")
+                scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+            }
+        }
     }
 
     private val captureDelayRunnable = Runnable {
@@ -261,18 +315,28 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onDestroy() {
         destroyed = true
+        streamCallbackActive = false
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         uiHandler.removeCallbacks(progressRunnable)
+        uiHandler.removeCallbacks(statusIndicatorHideRunnable)
+        currentDetectionStatus = DetectionStatus.NONE
+        statusIndicatorVisible = false
         quickCameraInitializing = false
         quickCameraReady = false
         quickCameraReadyAtElapsedMs = 0L
+        // 重置超时恢复计数器
+        consecutiveTimeoutCount = 0
+        cameraRestartAttempts = 0
+        isCameraRestarting = false
         QuickCameraManager.releaseCamera()
         RokidSdkManager.removeListener(this)
         hiddenRiskNcnn?.clearFrameState()
         nativeExecutor.shutdown()
         runCatching { nativeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
+        latestHazardBitmap?.recycle()
+        latestHazardBitmap = null
         if (isFinishing && !isChangingConfigurations) {
             RokidSdkManager.release()
         }
@@ -301,6 +365,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         ensureMediaPermissionOrStart()
                         return true
                     }
+                    PageState.HAZARD_ALERT -> {
+                        val bitmap = latestHazardBitmap
+                        startStreamingAnalysis(bitmap)
+                        return true
+                    }
+                    PageState.DETECTING -> {
+                        // 隐患图标显示期间单击：进入流式响应
+                        if (currentDetectionStatus == DetectionStatus.HAS_HAZARD && statusIndicatorVisible) {
+                            // 清除倒计时和状态
+                            uiHandler.removeCallbacks(statusIndicatorHideRunnable)
+                            hideStatusIndicator()
+                            // 进入流式响应
+                            startStreamingAnalysis(latestHazardBitmap)
+                            return true
+                        }
+                    }
                     PageState.STREAM_RESPONSE -> {
                         if (!streamingInProgress) {
                             syncToPhone()
@@ -319,6 +399,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
             }
             GlassKeyEvent.KEYCODE_DOUBLE_CLICK -> {
+                Log.d(TAG, "双击事件，当前页面状态: $pageState")
                 when (pageState) {
                     PageState.INSPECTION_GUIDE,
                     PageState.CONFIRM_GUIDE,
@@ -326,13 +407,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     PageState.DEVICE_ERROR,
                     PageState.LENS_BLOCKED,
                     PageState.SAFE_AREA,
-                    PageState.STREAM_RESPONSE,
-                    PageState.SYNC_SUCCESS,
                     PageState.END_REPORT -> {
+                        Log.d(TAG, "双击: 退出页面")
                         finish()
                         return true
                     }
-                    else -> {}
+                    PageState.HAZARD_ALERT,
+                    PageState.STREAM_RESPONSE,
+                    PageState.SYNC_SUCCESS -> {
+                        Log.d(TAG, "双击: 返回检测页面")
+                        returnToDetecting()
+                        return true
+                    }
+                    else -> {
+                        Log.d(TAG, "双击: 未匹配状态，调用父类")
+                    }
                 }
             }
         }
@@ -510,7 +599,76 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
     }
 
+    /**
+     * 静默重启摄像头，不显示错误页面。
+     * 用于连续超时后的自动恢复。
+     */
+    private fun silentRestartCamera() {
+        if (isCameraRestarting || destroyed) return
+
+        cameraRestartAttempts++
+
+        if (cameraRestartAttempts > MAX_CAMERA_RESTART_ATTEMPTS) {
+            // 3次重启都失败，显示错误
+            Log.e(TAG, "摄像头重启${MAX_CAMERA_RESTART_ATTEMPTS}次失败，显示错误")
+            failWorkflow("相机连续超时，请检查设备")
+            return
+        }
+
+        Log.i(TAG, "静默重启摄像头 (尝试 ${cameraRestartAttempts}/${MAX_CAMERA_RESTART_ATTEMPTS})")
+        isCameraRestarting = true
+
+        // 重置相机状态
+        quickCameraReady = false
+        quickCameraReadyAtElapsedMs = 0L
+        QuickCameraManager.releaseCamera()
+
+        // 延迟后重新初始化
+        uiHandler.postDelayed({
+            if (destroyed) {
+                isCameraRestarting = false
+                return@postDelayed
+            }
+
+            QuickCameraManager.initialize(
+                size = QUICK_CAPTURE_SIZE,
+                quickCapture = true,
+            ) { success ->
+                uiHandler.post {
+                    isCameraRestarting = false
+
+                    if (success) {
+                        Log.i(TAG, "摄像头静默重启成功")
+                        // 重置计数器
+                        consecutiveTimeoutCount = 0
+                        cameraRestartAttempts = 0
+                        quickCameraReady = true
+                        quickCameraReadyAtElapsedMs = SystemClock.elapsedRealtime()
+                        // 恢复检测
+                        pendingCaptureRequest = true
+                        startSampleCaptureIfNeeded()
+                        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+                    } else {
+                        Log.e(TAG, "摄像头静默重启失败")
+                        // 递归调用，再次尝试重启
+                        silentRestartCamera()
+                    }
+                }
+            }
+        }, 500L)  // 500ms延迟确保资源释放
+    }
+
     private fun returnToDetecting() {
+        streamCallbackActive = false
+        streamingInProgress = false
+        // 清除状态指示器
+        uiHandler.removeCallbacks(statusIndicatorHideRunnable)
+        hideStatusIndicator()
+        currentDetectionStatus = DetectionStatus.NONE
+        // 重置超时恢复计数器
+        consecutiveTimeoutCount = 0
+        cameraRestartAttempts = 0
+        isCameraRestarting = false
         showPage(PageState.DETECTING)
         pendingCaptureRequest = true
         startSampleCaptureIfNeeded()
@@ -553,6 +711,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 if (destroyed || !captureInProgress) return@post
                 captureInProgress = false
                 uiHandler.removeCallbacks(captureTimeoutRunnable)
+
+                // 拍摄成功，重置超时计数器
+                if (consecutiveTimeoutCount > 0) {
+                    Log.d(TAG, "拍摄成功，重置超时计数器")
+                    consecutiveTimeoutCount = 0
+                }
+
                 if (frame == null) {
                     Log.w(TAG, "takeGpuFrame failed")
                     scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
@@ -573,6 +738,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
+        // 保存检测到隐患时的图片，并回收旧 Bitmap
+        latestHazardBitmap?.recycle()
+        latestHazardBitmap = frame.previewBitmap
+
         if (!submitNativeTask {
                 val success = runCatching {
                     local.submitHardwareBuffer(
@@ -586,16 +755,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 frame.hardwareBuffer.close()
 
                 val snapshot = runCatching { local.getLatestInferenceStats() }.getOrNull()
-                val hasHazard = evaluateHazard(snapshot)
 
                 uiHandler.post {
                     inferenceRunning.set(false)
+                    Log.d(TAG, "inference success=$success detectionCount=${snapshot?.detectionCount ?: -1}")
                     if (destroyed) return@post
-                    if (success && hasHazard) {
-                        onHazardDetected()
+                    if (!success) {
+                        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
                     } else {
-                        // 未发现隐患，显示安全区域后自动回到检测
-                        showSafeAreaThenDetect()
+                        val count = snapshot?.detectionCount ?: 0
+                        if (count == 0) {
+                            // 未检测到目标：跳过，不改变任何状态，让现有倒计时继续
+                            scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+                        } else {
+                            // detectionCount > 0，进入隐患判断
+                            val newStatus = when (evaluateHazardWithJudgment(snapshot)) {
+                                HazardJudgeResult.NO_HAZARD -> DetectionStatus.NO_HAZARD
+                                HazardJudgeResult.HAS_HAZARD -> DetectionStatus.HAS_HAZARD
+                            }
+                            handleDetectionResult(newStatus)
+                        }
                     }
                 }
             }) {
@@ -605,42 +784,74 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun evaluateHazard(snapshot: NativeInferenceStats?): Boolean {
-        val count = snapshot?.detectionCount ?: 0
-        return count > 0
-    }
-
     // ==================== 隐患处理流程 ====================
 
     /**
-     * 检测到隐患：显示警告 -> 调用流式接口 -> 显示回答。
+     * 处理检测结果，控制图标显示和倒计时。
      */
-    private fun onHazardDetected() {
-        // 停止自动拍照
-        uiHandler.removeCallbacks(autoCaptureRunnable)
-        autoCaptureScheduled = false
+    private fun handleDetectionResult(newStatus: DetectionStatus) {
+        val previousStatus = currentDetectionStatus
+        currentDetectionStatus = newStatus
 
-        // 显示隐患警告页面
-        showPage(PageState.HAZARD_ALERT)
-
-        // 停留一段时间后开始流式请求
-        uiHandler.postDelayed({
-            if (!destroyed) {
-                startStreamingAnalysis()
+        when {
+            // 状态相同且正在显示：重置倒计时
+            previousStatus == newStatus && statusIndicatorVisible -> {
+                uiHandler.removeCallbacks(statusIndicatorHideRunnable)
+                uiHandler.postDelayed(statusIndicatorHideRunnable, STATUS_INDICATOR_DURATION_MS)
             }
-        }, HAZARD_ALERT_HOLD_MS)
+            // 状态不同或未显示：立即切换并开始新倒计时
+            else -> {
+                showStatusIndicator(newStatus)
+                uiHandler.removeCallbacks(statusIndicatorHideRunnable)
+                uiHandler.postDelayed(statusIndicatorHideRunnable, STATUS_INDICATOR_DURATION_MS)
+            }
+        }
+
+        // 持续自动拍摄
+        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
     }
 
-    private fun startStreamingAnalysis() {
+    /**
+     * 显示状态指示器图标。
+     */
+    private fun showStatusIndicator(status: DetectionStatus) {
+        statusIndicatorVisible = true
+        when (status) {
+            DetectionStatus.HAS_HAZARD -> {
+                layoutHazardAlert.visibility = View.VISIBLE
+                layoutHazardAlertBottom.visibility = View.VISIBLE
+                layoutSafeArea.visibility = View.GONE
+            }
+            DetectionStatus.NO_HAZARD -> {
+                layoutHazardAlert.visibility = View.GONE
+                layoutHazardAlertBottom.visibility = View.GONE
+                layoutSafeArea.visibility = View.VISIBLE
+            }
+            else -> hideStatusIndicator()
+        }
+    }
+
+    /**
+     * 隐藏状态指示器图标。
+     */
+    private fun hideStatusIndicator() {
+        statusIndicatorVisible = false
+        layoutHazardAlert.visibility = View.GONE
+        layoutHazardAlertBottom.visibility = View.GONE
+        layoutSafeArea.visibility = View.GONE
+    }
+
+    private fun startStreamingAnalysis(bitmap: Bitmap?) {
         showPage(PageState.STREAM_RESPONSE)
         tvStreamContent.text = ""
         streamingInProgress = true
+        streamCallbackActive = true
         tvSyncPrompt.visibility = View.INVISIBLE
 
         // 调用流式接口（当前使用模拟数据）
-        HazardStreamService.analyze(null, object : HazardStreamService.StreamCallback {
+        HazardStreamService.analyze(bitmap, object : HazardStreamService.StreamCallback {
             override fun onChunk(text: String) {
-                if (destroyed) return
+                if (destroyed || !streamCallbackActive) return
                 tvStreamContent.text = text
                 scrollContent.post {
                     scrollContent.fullScroll(View.FOCUS_DOWN)
@@ -648,14 +859,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
 
             override fun onComplete(fullText: String) {
-                if (destroyed) return
+                if (destroyed || !streamCallbackActive) return
                 streamingInProgress = false
                 lastAnalysisText = fullText
                 tvSyncPrompt.visibility = View.VISIBLE
             }
 
             override fun onError(message: String) {
-                if (destroyed) return
+                if (destroyed || !streamCallbackActive) return
                 streamingInProgress = false
                 tvStreamContent.text = "分析失败：$message"
                 tvSyncPrompt.visibility = View.VISIBLE
@@ -680,15 +891,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 showSyncSuccess()
             }
         })
-    }
-
-    private fun showSafeAreaThenDetect() {
-        showPage(PageState.SAFE_AREA)
-        uiHandler.postDelayed({
-            if (!destroyed && pageState == PageState.SAFE_AREA) {
-                returnToDetecting()
-            }
-        }, 1500L)
     }
 
     private fun showEndReport(report: String) {
@@ -781,6 +983,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
+        uiHandler.removeCallbacks(statusIndicatorHideRunnable)
+        currentDetectionStatus = DetectionStatus.NONE
+        statusIndicatorVisible = false
+        // 重置超时恢复计数器
+        consecutiveTimeoutCount = 0
+        cameraRestartAttempts = 0
+        isCameraRestarting = false
         QuickCameraManager.releaseCamera()
     }
 

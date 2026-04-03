@@ -103,10 +103,11 @@
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.Glessedemo">
-            <intent-filter>
+            <!-- 暂时移除 LAUNCHER，主入口改为 InspectionModeActivity -->
+            <!-- <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            </intent-filter> -->
         </activity>
         <activity
             android:name="com.rokid.glass.CameraPageActivity"
@@ -138,7 +139,13 @@
         <activity
             android:name="com.rokid.glass.hiddenrisk.InspectionModeActivity"
             android:exported="true"
-            android:theme="@style/Theme.Glessedemo" />
+            android:label="@string/app_name"
+            android:theme="@style/Theme.Glessedemo">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name="com.rokid.glass.hiddenrisk.AiInspectionActivity"
             android:exported="true"

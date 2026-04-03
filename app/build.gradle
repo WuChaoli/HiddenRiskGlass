@@ -70,8 +70,59 @@ android {
 
 }
 
+// 编译前检查原生依赖是否存在
+task checkNativeDependencies {
+    def ncnnDir = file("src/main/jni/ncnn-20260113-android-vulkan")
+    def opencvDir = file("src/main/jni/opencv-mobile-4.13.0-android")
+
+    doLast {
+        if (!ncnnDir.exists()) {
+            throw new GradleException(
+                "\n❌ 缺少 ncnn 原生依赖！\n" +
+                "请运行依赖安装脚本：\n" +
+                "  Windows: .\\scripts\\setup_dependencies.ps1\n" +
+                "  macOS/Linux: ./scripts/setup_dependencies.sh\n" +
+                "详见 SETUP.md 或 README.md\n"
+            )
+        }
+        if (!opencvDir.exists()) {
+            throw new GradleException(
+                "\n❌ 缺少 OpenCV 原生依赖！\n" +
+                "请运行依赖安装脚本：\n" +
+                "  Windows: .\\scripts\\setup_dependencies.ps1\n" +
+                "  macOS/Linux: ./scripts/setup_dependencies.sh\n" +
+                "详见 SETUP.md 或 README.md\n"
+            )
+        }
+    }
+}
+
+preBuild.dependsOn checkNativeDependencies
+
 dependencies {
-//    implementation files('libs/sdk-glass-release-1.2.0.aar')
+    // Rokid Glass SDK
+    implementation(libs.rokid.glass.sdk) {
+        exclude group: "org.slf4j"
+    }
+
+    // 识别相关
+    implementation libs.mlkit.barcode.scanning
+    implementation libs.play.services.mlkit.barcode.scanning
+
+    // 网络
+    implementation libs.okhttp
+    implementation libs.okhttp.logging.interceptor
+    implementation libs.retrofit
+    implementation libs.retrofit.converter.gson
+
+    // 工具
+    implementation libs.utilcodex
+    implementation libs.gson
+    implementation libs.glide
+    annotationProcessor libs.glide.compiler
+    implementation libs.easypermissions
+
+    // UI
     implementation libs.androidx.core.ktx
     implementation libs.androidx.lifecycle.runtime.ktx
     implementation libs.androidx.activity.compose
@@ -81,40 +132,15 @@ dependencies {
     implementation libs.androidx.ui.tooling.preview
     implementation libs.androidx.material3
     implementation libs.androidx.constraintlayout
-    implementation ('com.rokid.security:glass3.open.sdk:2.1.5-E'){
-        exclude group: "org.slf4j"
-    }
-//    implementation ('com.rokid.security:glass3.open.sdk:2.1.04-E'){
-//        exclude group: "org.slf4j"
-//    }
-//    implementation ('com.rokid.security:glass3.open.sdk:2.1.2-E'){
-//        exclude group: "org.slf4j"
-//    }
-//    implementation ('com.rokid.security:glass3.open.sdk:2.1.0-E'){
-//        exclude group: "org.slf4j"
-//    }
-    implementation "com.google.mlkit:barcode-scanning:17.2.0"
-    implementation "com.blankj:utilcodex:1.31.0"
-    implementation "com.google.code.gson:gson:2.8.6"
-    implementation "com.github.bumptech.glide:glide:4.11.0"
-    implementation "com.github.bumptech.glide:compiler:4.11.0"
-//    implementation "com.squareup.okhttp3:okhttp:4.9.1,"
-//    implementation "com.squareup.okhttp3:logging-interceptor:4.9.3"
-//    implementation "com.squareup.retrofit2:retrofit:2.9.0"
-//    implementation  "com.squareup.retrofit2:converter-gson:2.9.0"
-//    implementation "org.java-websocket:Java-WebSocket:1.6.0"
-//    implementation 'com.rokid.ai:aicore:2.0.0-20250911.133110-42'
-    implementation "pub.devrel:easypermissions:2.0.1"
-    implementation libs.okhttp
-    implementation libs.okhttp.logging.interceptor
-    implementation libs.retrofit
-    implementation libs.retrofit.converter.gson
     implementation libs.androidx.appcompat
     implementation libs.material
     implementation libs.androidx.activity
     implementation libs.androidx.datastore.core.android
-    implementation libs.play.services.mlkit.barcode.scanning
+
+    // Firebase
     implementation libs.firebase.firestore.ktx
+
+    // 测试
     testImplementation libs.junit
     androidTestImplementation libs.androidx.junit
     androidTestImplementation libs.androidx.espresso.core
