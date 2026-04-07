@@ -22,3 +22,4 @@ app/build/
 models/.venv/
 models/tools/
 lightshot_samples/
+hazard_captures/
