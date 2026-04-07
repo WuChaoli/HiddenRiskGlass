@@ -26,6 +26,7 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.HttpUtils
 import com.rokid.glass.utils.SSEUtil
 import com.rokid.glesse.R
@@ -858,8 +859,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             val newStatus = when (evaluateHazardWithJudgment(snapshot)) {
                                 HazardJudgeResult.NO_HAZARD -> DetectionStatus.NO_HAZARD
                                 HazardJudgeResult.HAS_HAZARD -> {
-                                    // 保存隐患图片和结果到本地
-                                    ensureHazardCaptureService().saveHazardCapture(latestHazardBitmap, snapshot)
+                                    // 中心裁剪后保存隐患图片和结果到本地
+                                    val croppedBitmap = BitmapUtils.cropCenterTo640(latestHazardBitmap)
+                                    ensureHazardCaptureService().saveHazardCapture(croppedBitmap, snapshot)
+                                    croppedBitmap?.recycle()
                                     DetectionStatus.HAS_HAZARD
                                 }
                             }

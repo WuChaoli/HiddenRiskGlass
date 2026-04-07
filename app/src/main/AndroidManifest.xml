@@ -151,6 +151,10 @@
             android:name="com.rokid.glass.hiddenrisk.AiInspectionActivity"
             android:exported="true"
             android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.LightshotActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
     </application>
 
 </manifest>

@@ -24,6 +24,7 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -726,9 +727,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 )
                 val hazardDecision = evaluateHazardDecision(snapshot)
 
-                // 如果检测到隐患，保存图片和结果
+                // 如果检测到隐患，中心裁剪后保存图片和结果
                 if (hazardDecision == HazardDecision.ABNORMAL) {
-                    ensureHazardCaptureService().saveHazardCapture(frameBitmap, snapshot)
+                    val croppedBitmap = BitmapUtils.cropCenterTo640(frameBitmap)
+                    ensureHazardCaptureService().saveHazardCapture(croppedBitmap, snapshot)
+                    croppedBitmap?.recycle()
                 }
 
                 uiHandler.post {

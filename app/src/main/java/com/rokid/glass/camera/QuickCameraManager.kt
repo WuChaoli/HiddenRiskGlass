@@ -854,6 +854,8 @@ object QuickCameraManager {
         val outputSizes = map?.getOutputSizes(ImageFormat.PRIVATE)
             ?: map?.getOutputSizes(SurfaceTexture::class.java)
             ?: emptyArray()
+        // 提高分辨率以支持640x640中心裁剪，相当于数字变焦效果
+        // 1280x720裁剪640x640 = 2x变焦
         val requested = mSize ?: Size(1280, 720)
         val fallbackSize = outputSizes
             .filter { it.width > 0 && it.height > 0 }
@@ -1120,7 +1122,7 @@ object QuickCameraManager {
     private fun setupPreviewSurface() {
         if (surfaceTexture == null) {
             surfaceTexture = SurfaceTexture(0)
-            surfaceTexture?.setDefaultBufferSize(1920, 1080)
+            surfaceTexture?.setDefaultBufferSize(1280, 720)
         }
         if (previewSurface == null) {
             previewSurface = Surface(surfaceTexture)

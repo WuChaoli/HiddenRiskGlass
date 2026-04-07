@@ -68,13 +68,20 @@ class LightshotActivity : BaseGlassActivity() {
     /** 初始化相机（quickCapture 模式，复用 QuickCameraManager 的常驻预览帧能力） */
     private fun initCamera() {
         tvHint.text = "相机初始化中..."
-        QuickCameraManager.initialize(quickCapture = true) { success ->
-            runOnUiThread {
-                isCameraReady = success
-                tvHint.text = if (success) "单击右触控板拍摄" else "相机初始化失败，请退出重试"
-                Log.d(TAG, "camera init success=$success")
+
+        // 防御性清理：强制释放可能残留的相机资源，避免状态不一致
+        QuickCameraManager.releaseCamera()
+
+        // 延迟初始化，确保系统相机服务完全释放资源
+        tvHint.postDelayed({
+            QuickCameraManager.initialize(quickCapture = true) { success ->
+                runOnUiThread {
+                    isCameraReady = success
+                    tvHint.text = if (success) "单击右触控板拍摄" else "相机初始化失败，请退出重试"
+                    Log.d(TAG, "camera init success=$success")
+                }
             }
-        }
+        }, 300)
     }
 
     // ──────────────────────────────────────────────
@@ -165,20 +172,14 @@ class LightshotActivity : BaseGlassActivity() {
 
     /**
      * 将 previewBitmap 处理为 640×640 并写入文件。
+     * 优先中心裁剪（数字变焦），若图像小于640则fallback到resize。
      * @return 保存成功的 File，失败返回 null
      */
     private fun processBitmapAndSave(source: Bitmap): File? {
-        // 1. 居中裁剪为正方形（取短边）
-        val squareBitmap = cropToSquare(source)
+        // 1. 中心裁剪640×640（数字变焦效果）
+        val outputBitmap = cropCenterTo640(source)
 
-        // 2. 缩放为 640×640（若本身已是 640 则 createScaledBitmap 直接返回原对象）
-        val scaledBitmap = if (squareBitmap.width == OUTPUT_SIZE && squareBitmap.height == OUTPUT_SIZE) {
-            squareBitmap
-        } else {
-            Bitmap.createScaledBitmap(squareBitmap, OUTPUT_SIZE, OUTPUT_SIZE, true)
-        }
-
-        // 3. 确保输出目录存在
+        // 2. 确保输出目录存在
         val saveDir = File(
             Environment.getExternalStorageDirectory(),
             SAVE_DIR_NAME
@@ -188,21 +189,20 @@ class LightshotActivity : BaseGlassActivity() {
             return null
         }
 
-        // 4. 以时间戳生成文件名（精确到毫秒，避免连续拍摄重名）
+        // 3. 以时间戳生成文件名（精确到毫秒，避免连续拍摄重名）
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.getDefault()).format(Date())
         val outputFile = File(saveDir, "$timestamp.jpg")
 
-        // 5. 写入 JPEG 文件
+        // 4. 写入 JPEG 文件
         FileOutputStream(outputFile).use { out ->
-            scaledBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            outputBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
             out.flush()
         }
 
-        // 6. 回收中间 Bitmap（避免内存泄漏）
-        if (squareBitmap !== source && !squareBitmap.isRecycled) squareBitmap.recycle()
-        if (scaledBitmap !== squareBitmap && !scaledBitmap.isRecycled) scaledBitmap.recycle()
+        // 5. 回收中间 Bitmap（避免内存泄漏）
+        if (outputBitmap !== source && !outputBitmap.isRecycled) outputBitmap.recycle()
 
-        // 7. 通知媒体扫描（让文件管理器、PC 端能看到）
+        // 6. 通知媒体扫描（让文件管理器、PC 端能看到）
         val mediaScanIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
         mediaScanIntent.data = Uri.fromFile(outputFile)
         sendBroadcast(mediaScanIntent)
@@ -211,18 +211,42 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     /**
-     * 将 Bitmap 从中心裁剪为正方形（取短边长度）。
+     * 将 Bitmap 从中心裁剪为640×640。
+     * 如果图像大于640×640，直接裁剪中心区域（数字变焦）。
+     * 如果图像小于640×640，fallback到letterbox resize。
+     * @return 640×640的Bitmap
      */
-    private fun cropToSquare(source: Bitmap): Bitmap {
-        val side = minOf(source.width, source.height)
-        val x = (source.width - side) / 2
-        val y = (source.height - side) / 2
-        return if (x == 0 && y == 0 && source.width == side) {
-            // 已经是正方形，不需要裁剪
-            source
-        } else {
-            Bitmap.createBitmap(source, x, y, side, side)
+    private fun cropCenterTo640(source: Bitmap): Bitmap {
+        val targetSize = OUTPUT_SIZE
+
+        // 如果图像已经等于目标尺寸，直接返回
+        if (source.width == targetSize && source.height == targetSize) {
+            return source
         }
+
+        // 如果图像任一维度小于目标尺寸，使用letterbox resize
+        if (source.width < targetSize || source.height < targetSize) {
+            Log.d(TAG, "cropCenterTo640: image ${source.width}x${source.height} smaller than ${targetSize}x${targetSize}, using letterbox resize")
+            // 居中裁剪为正方形（取短边）
+            val side = minOf(source.width, source.height)
+            val x = (source.width - side) / 2
+            val y = (source.height - side) / 2
+            val squareBitmap = if (x == 0 && y == 0) source else Bitmap.createBitmap(source, x, y, side, side)
+            // 缩放为640×640
+            return if (squareBitmap.width == targetSize) {
+                squareBitmap
+            } else {
+                Bitmap.createScaledBitmap(squareBitmap, targetSize, targetSize, true).also {
+                    if (squareBitmap !== source) squareBitmap.recycle()
+                }
+            }
+        }
+
+        // 中心裁剪640×640
+        val x = (source.width - targetSize) / 2
+        val y = (source.height - targetSize) / 2
+        Log.d(TAG, "cropCenterTo640: cropping ${targetSize}x${targetSize} from ${source.width}x${source.height} at ($x, $y)")
+        return Bitmap.createBitmap(source, x, y, targetSize, targetSize)
     }
 
     // ──────────────────────────────────────────────

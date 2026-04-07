@@ -448,6 +448,50 @@ static bool compute_letterbox_geometry(
     return true;
 }
 
+// 中心裁剪几何计算 - 当输入图像大于目标尺寸时，直接裁剪中心区域
+// 这相当于数字变焦，避免了resize导致的信息丢失
+static bool compute_center_crop_geometry(
+    int source_width,
+    int source_height,
+    int target_size,
+    int& crop_x,
+    int& crop_y,
+    int& crop_width,
+    int& crop_height,
+    float& scale)
+{
+    if (source_width <= 0 || source_height <= 0 || target_size <= 0)
+    {
+        return false;
+    }
+
+    // 如果图像已经等于目标尺寸，直接返回
+    if (source_width == target_size && source_height == target_size)
+    {
+        crop_x = 0;
+        crop_y = 0;
+        crop_width = target_size;
+        crop_height = target_size;
+        scale = 1.0f;
+        return true;
+    }
+
+    // 如果图像任一维度小于目标尺寸，无法裁剪
+    if (source_width < target_size || source_height < target_size)
+    {
+        return false;
+    }
+
+    // 计算中心裁剪区域
+    crop_width = target_size;
+    crop_height = target_size;
+    crop_x = (source_width - target_size) / 2;
+    crop_y = (source_height - target_size) / 2;
+    scale = 1.0f;  // 裁剪模式下无缩放
+
+    return true;
+}
+
 static int rotation_degrees_to_rotate_from(int rotation_degrees)
 {
     switch (rotation_degrees)
@@ -485,7 +529,9 @@ static int postprocess_hiddenrisk_output(
     std::vector<Object>& objects,
     std::string* error_stage,
     int* error_code,
-    std::string* error_message)
+    std::string* error_message,
+    int crop_offset_x = 0,
+    int crop_offset_y = 0)
 {
     const float prob_threshold = 0.60f;
     const float nms_threshold = 0.45f;
@@ -526,8 +572,9 @@ static int postprocess_hiddenrisk_output(
 
     std::vector<Object> proposals;
     ncnn::Mat normalized_pred;
-    const int raw_feature_size = 64 + 26;
-    const int decoded_feature_size = 4 + 26;
+    // YOLOv11 模型: 32个类别 (37 = 5 + 32)
+    const int raw_feature_size = 64 + 32;
+    const int decoded_feature_size = 4 + 32;
     if (normalize_prediction_layout(out, raw_feature_size, anchor_count, normalized_pred))
     {
         ncnn::Mat in_pad_shape;
@@ -608,10 +655,11 @@ static int postprocess_hiddenrisk_output(
     {
         objects[i] = proposals[picked[i]];
 
-        float x0 = (objects[i].rect.x - (wpad / 2)) / scale;
-        float y0 = (objects[i].rect.y - (hpad / 2)) / scale;
-        float x1 = (objects[i].rect.x + objects[i].rect.width - (wpad / 2)) / scale;
-        float y1 = (objects[i].rect.y + objects[i].rect.height - (hpad / 2)) / scale;
+        // 坐标映射：考虑letterbox padding和裁剪偏移量
+        float x0 = (objects[i].rect.x - (wpad / 2)) / scale + crop_offset_x;
+        float y0 = (objects[i].rect.y - (hpad / 2)) / scale + crop_offset_y;
+        float x1 = (objects[i].rect.x + objects[i].rect.width - (wpad / 2)) / scale + crop_offset_x;
+        float y1 = (objects[i].rect.y + objects[i].rect.height - (hpad / 2)) / scale + crop_offset_y;
 
         x0 = std::max(std::min(x0, (float)(image_width - 1)), 0.f);
         y0 = std::max(std::min(y0, (float)(image_height - 1)), 0.f);
@@ -659,36 +707,60 @@ int YOLOv8_det::detect(
     int img_w = rgb.cols;
     int img_h = rgb.rows;
 
-    // Hidden Risk 当前模型固定消费 640x640 输入，不能只 pad 到 stride 对齐。
-    int w = 0;
-    int h = 0;
-    int wpad = 0;
-    int hpad = 0;
+    // 尝试中心裁剪模式（数字变焦）
+    int crop_x = 0, crop_y = 0;
+    int crop_w = 0, crop_h = 0;
     float scale = 1.f;
-    if (!compute_letterbox_geometry(img_w, img_h, target_size, w, h, wpad, hpad, scale))
-    {
-        set_detect_error(error_stage, error_code, error_message, "geometry", -1, "invalid input image size");
-        return -1;
-    }
-
-    __android_log_print(
-        ANDROID_LOG_INFO,
-        "HiddenRiskNcnn",
-        "detect preprocess target=%d input=%dx%d resized=%dx%d scale=%.4f",
-        target_size,
-        img_w,
-        img_h,
-        w,
-        h,
-        scale);
-
-    // 输入尺寸已经匹配时直接走 from_pixels，避免每轮都进入 resize 路径。
-    ncnn::Mat in = (img_w == w && img_h == h)
-        ? ncnn::Mat::from_pixels(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h)
-        : ncnn::Mat::from_pixels_resize(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h, w, h);
-
+    int wpad = 0, hpad = 0;
+    int letterbox_w = 0, letterbox_h = 0;  // letterbox路径下resize后的尺寸（不含padding）
     ncnn::Mat in_pad;
-    ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
+
+    if (compute_center_crop_geometry(img_w, img_h, target_size, crop_x, crop_y, crop_w, crop_h, scale))
+    {
+        // 中心裁剪路径：从原始图像直接裁剪640x640中心区域
+        __android_log_print(
+            ANDROID_LOG_INFO,
+            "HiddenRiskNcnn",
+            "detect center_crop input=%dx%d crop=[%d,%d,%d,%d] (digital zoom)",
+            img_w, img_h, crop_x, crop_y, crop_w, crop_h);
+
+        // 使用OpenCV裁剪ROI区域，避免全图处理
+        cv::Mat cropped = rgb(cv::Rect(crop_x, crop_y, crop_w, crop_h));
+
+        // 直接转换为ncnn::Mat，无需resize
+        in_pad = ncnn::Mat::from_pixels(cropped.data, ncnn::Mat::PIXEL_RGB, crop_w, crop_h);
+
+        // 裁剪模式下无padding
+        wpad = 0;
+        hpad = 0;
+        scale = 1.0f;
+    }
+    else
+    {
+        // Fallback: 原有letterbox resize路径，将结果存入外层变量
+        if (!compute_letterbox_geometry(img_w, img_h, target_size, letterbox_w, letterbox_h, wpad, hpad, scale))
+        {
+            set_detect_error(error_stage, error_code, error_message, "geometry", -1, "invalid input image size");
+            return -1;
+        }
+
+        __android_log_print(
+            ANDROID_LOG_INFO,
+            "HiddenRiskNcnn",
+            "detect letterbox target=%d input=%dx%d resized=%dx%d scale=%.4f",
+            target_size,
+            img_w,
+            img_h,
+            letterbox_w,
+            letterbox_h,
+            scale);
+
+        ncnn::Mat in = (img_w == letterbox_w && img_h == letterbox_h)
+            ? ncnn::Mat::from_pixels(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h)
+            : ncnn::Mat::from_pixels_resize(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h, letterbox_w, letterbox_h);
+
+        ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
+    }
 
     const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
     in_pad.substract_mean_normalize(0, norm_vals);
@@ -743,19 +815,27 @@ int YOLOv8_det::detect(
         out.c,
         out.total());
 
+    // 对于中心裁剪模式，需要调整坐标映射参数
+    int effective_w = (crop_w > 0) ? crop_w : letterbox_w;
+    int effective_h = (crop_h > 0) ? crop_h : letterbox_h;
+    int crop_offset_x = (crop_w > 0) ? crop_x : 0;
+    int crop_offset_y = (crop_h > 0) ? crop_y : 0;
+
     return postprocess_hiddenrisk_output(
         out,
         img_w,
         img_h,
-        w,
-        h,
+        effective_w,
+        effective_h,
         wpad,
         hpad,
         scale,
         objects,
         error_stage,
         error_code,
-        error_message);
+        error_message,
+        crop_offset_x,
+        crop_offset_y);
 }
 
 #if __ANDROID_API__ >= 26
@@ -1114,33 +1194,42 @@ int YOLOv8_det::detect_hardware_buffer(
 
 int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects)
 {
+    // YOLOv11: 32个类别 (索引0-31)
     static const char* class_names[] = {
-        "T_btn",
-        "tee_joint",
-        "cutoff_linkage",
-        "cassette_stove",
-        "exit_sign",
-        "gas_alarm",
-        "industrial_gas_detector",
-        "emergency_light",
-        "exhaust_fan",
-        "regulator",
-        "oxygen_cylinder",
-        "hydrant",
-        "fire_cabinet",
-        "lpg_cylinder",
-        "extinguisher",
-        "extinguisher_box",
-        "charcoal_stove",
-        "igniter",
-        "coal_stove",
-        "lighting_fixture",
-        "flameout_protection",
-        "gas_range",
-        "electric_tricycle",
-        "electric_bike",
-        "load_switch",
-        "hose"
+        "T_btn",                    // 0: T字按钮
+        "tee_joint",                // 1: 三通接口
+        "cutoff_linkage",           // 2: 切断联动装置
+        "cassette_stove",           // 3: 卡式炉
+        "gas_alarm",                // 4: 可燃气体报警器
+        "exit_sign",                // 5: 安全出口标志
+        "fire_cabinet",             // 6: 室内消火栓箱
+        "hydrant_outdoor",          // 7: 室外消火栓
+        "industrial_gas_detector",  // 8: 工业可燃气体探测器
+        "emergency_light",          // 9: 应急灯
+        "exhaust_fan",              // 10: 排气扇
+        "hydrant_nozzle",           // 11: 栓口
+        "regulator",                // 12: 气瓶调压阀
+        "oxygen_cylinder",          // 13: 氧气瓶
+        "hose",                     // 14: 水带
+        "nozzle",                   // 15: 水枪
+        "pump_connector",           // 16: 水泵接合器
+        "lpg_cylinder",             // 17: 液化石油气瓶
+        "extinguisher",             // 18: 灭火器
+        "extinguisher_box",         // 19: 灭火器箱
+        "charcoal_stove",           // 20: 炭炉
+        "igniter",                  // 21: 点火针
+        "coal_stove",               // 22: 煤炉
+        "lighting_fixture",         // 23: 照明灯具
+        "flameout_protection",      // 24: 熄火保护装置
+        "gas_range",                // 25: 燃气灶
+        "electric_tricycle",        // 26: 电动三轮车
+        "electric_bike",            // 27: 电动车
+        "load_switch",              // 28: 负荷开关
+        "gas_hose",                 // 29: 软管
+        "door_closer",              // 30: 防火门闭门器
+        "door_sequencer"            // 31: 防火门顺序器
+        // 注意: metadata显示有32类(0-32)，但模型输出只有37维(5+32)
+        // "security_window"           // 32: 防盗窗 (模型未输出)
     };
 
     static cv::Scalar colors[] = {
@@ -1173,7 +1262,7 @@ int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects
         __android_log_print(
             ANDROID_LOG_INFO,
             "HiddenRiskNcnn",
-            "draw object[%zu] label=%d prob=%.4f rect=[x=%d y=%d w=%d h=%d]",
+            "draw object[%zu] label=%d prob=%.4f rect=[x=%.1f y=%.1f w=%.1f h=%.1f]",
             i,
             obj.label,
             obj.prob,
@@ -1214,12 +1303,40 @@ int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects
 
 const char* YOLOv8_det_hiddenrisk::label_name(int label) const
 {
+    // YOLOv11: 32个类别
     static const char* class_names[] = {
-        "T_btn", "tee_joint", "cutoff_linkage", "cassette_stove", "exit_sign", "gas_alarm",
-        "industrial_gas_detector", "emergency_light", "exhaust_fan", "regulator", "oxygen_cylinder",
-        "hydrant", "fire_cabinet", "lpg_cylinder", "extinguisher", "extinguisher_box", "charcoal_stove",
-        "igniter", "coal_stove", "lighting_fixture", "flameout_protection", "gas_range",
-        "electric_tricycle", "electric_bike", "load_switch", "hose"
+        "T_btn",                    // 0: T字按钮
+        "tee_joint",                // 1: 三通接口
+        "cutoff_linkage",           // 2: 切断联动装置
+        "cassette_stove",           // 3: 卡式炉
+        "gas_alarm",                // 4: 可燃气体报警器
+        "exit_sign",                // 5: 安全出口标志
+        "fire_cabinet",             // 6: 室内消火栓箱
+        "hydrant_outdoor",          // 7: 室外消火栓
+        "industrial_gas_detector",  // 8: 工业可燃气体探测器
+        "emergency_light",          // 9: 应急灯
+        "exhaust_fan",              // 10: 排气扇
+        "hydrant_nozzle",           // 11: 栓口
+        "regulator",                // 12: 气瓶调压阀
+        "oxygen_cylinder",          // 13: 氧气瓶
+        "hose",                     // 14: 水带
+        "nozzle",                   // 15: 水枪
+        "pump_connector",           // 16: 水泵接合器
+        "lpg_cylinder",             // 17: 液化石油气瓶
+        "extinguisher",             // 18: 灭火器
+        "extinguisher_box",         // 19: 灭火器箱
+        "charcoal_stove",           // 20: 炭炉
+        "igniter",                  // 21: 点火针
+        "coal_stove",               // 22: 煤炉
+        "lighting_fixture",         // 23: 照明灯具
+        "flameout_protection",      // 24: 熄火保护装置
+        "gas_range",                // 25: 燃气灶
+        "electric_tricycle",        // 26: 电动三轮车
+        "electric_bike",            // 27: 电动车
+        "load_switch",              // 28: 负荷开关
+        "gas_hose",                 // 29: 软管
+        "door_closer",              // 30: 防火门闭门器
+        "door_sequencer"            // 31: 防火门顺序器
     };
     int class_count = sizeof(class_names) / sizeof(class_names[0]);
     if (label < 0 || label >= class_count)
