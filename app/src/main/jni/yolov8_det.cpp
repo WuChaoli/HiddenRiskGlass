@@ -559,14 +559,14 @@ static int postprocess_hiddenrisk_output(
 
     if (out.empty())
     {
-        __android_log_print(ANDROID_LOG_ERROR, "HiddenRiskNcnn", "extract out0_raw returned empty tensor");
+        __android_log_print(ANDROID_LOG_ERROR, "HiddenRiskNcnn", "extract out0 returned empty tensor");
         set_detect_error(
             error_stage,
             error_code,
             error_message,
             "extract_empty",
             -1,
-            "extract out0_raw returned empty tensor");
+            "extract out0 returned empty tensor");
         return -1;
     }
 
@@ -602,7 +602,7 @@ static int postprocess_hiddenrisk_output(
         __android_log_print(
             ANDROID_LOG_ERROR,
             "HiddenRiskNcnn",
-            "unexpected out0_raw shape dims=%d w=%d h=%d c=%d total=%zu anchors=%d",
+            "unexpected out0 shape dims=%d w=%d h=%d c=%d total=%zu anchors=%d",
             out.dims,
             out.w,
             out.h,
@@ -615,7 +615,7 @@ static int postprocess_hiddenrisk_output(
             error_message,
             "output_shape",
             -1,
-            "unexpected out0_raw shape dims=" + std::to_string(out.dims)
+            "unexpected out0 shape dims=" + std::to_string(out.dims)
                 + " w=" + std::to_string(out.w)
                 + " h=" + std::to_string(out.h)
                 + " c=" + std::to_string(out.c)
@@ -783,7 +783,7 @@ int YOLOv8_det::detect(
     }
     __android_log_print(ANDROID_LOG_INFO, "HiddenRiskNcnn", "detect ex.input done");
 
-    static const char* kFormalOutputBlobName = "out0_raw";
+    static const char* kFormalOutputBlobName = "out0";
     ncnn::Mat out;
     __android_log_print(ANDROID_LOG_INFO, "HiddenRiskNcnn", "detect ex.extract start");
     const int extract_rc = ex.extract(kFormalOutputBlobName, out);
@@ -1148,7 +1148,7 @@ int YOLOv8_det::detect_hardware_buffer(
             return input_rc;
         }
 
-        static const char* kFormalOutputBlobName = "out0_raw";
+        static const char* kFormalOutputBlobName = "out0";
         const int extract_rc = ex.extract(kFormalOutputBlobName, out);
         if (extract_rc != 0)
         {
@@ -1194,7 +1194,7 @@ int YOLOv8_det::detect_hardware_buffer(
 
 int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects)
 {
-    // YOLOv11: 32个类别 (索引0-31)
+    // YOLOv11: 33个类别 (索引0-32)
     static const char* class_names[] = {
         "T_btn",                    // 0: T字按钮
         "tee_joint",                // 1: 三通接口
@@ -1227,9 +1227,8 @@ int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects
         "load_switch",              // 28: 负荷开关
         "gas_hose",                 // 29: 软管
         "door_closer",              // 30: 防火门闭门器
-        "door_sequencer"            // 31: 防火门顺序器
-        // 注意: metadata显示有32类(0-32)，但模型输出只有37维(5+32)
-        // "security_window"           // 32: 防盗窗 (模型未输出)
+        "door_sequencer",           // 31: 防火门顺序器
+        "security_window"           // 32: 防盗窗
     };
 
     static cv::Scalar colors[] = {
@@ -1303,7 +1302,7 @@ int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects
 
 const char* YOLOv8_det_hiddenrisk::label_name(int label) const
 {
-    // YOLOv11: 32个类别
+    // YOLOv11: 33个类别
     static const char* class_names[] = {
         "T_btn",                    // 0: T字按钮
         "tee_joint",                // 1: 三通接口
@@ -1336,7 +1335,8 @@ const char* YOLOv8_det_hiddenrisk::label_name(int label) const
         "load_switch",              // 28: 负荷开关
         "gas_hose",                 // 29: 软管
         "door_closer",              // 30: 防火门闭门器
-        "door_sequencer"            // 31: 防火门顺序器
+        "door_sequencer",           // 31: 防火门顺序器
+        "security_window"           // 32: 防盗窗
     };
     int class_count = sizeof(class_names) / sizeof(class_names[0]);
     if (label < 0 || label >= class_count)
