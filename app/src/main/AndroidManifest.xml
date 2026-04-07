@@ -138,7 +138,7 @@
             android:name="com.rokid.glass.TestMediaActivity"
             android:exported="true" />
         <activity
-            android:name="com.rokid.glass.inspection.InspectionModeActivity"
+            android:name="com.rokid.glass.hiddenrisk.InspectionModeActivity"
             android:exported="true"
             android:label="杭小应"
             android:theme="@style/Theme.Glessedemo">
@@ -148,7 +148,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.rokid.glass.inspection.AiInspectionActivity"
+            android:name="com.rokid.glass.hiddenrisk.AiInspectionActivity"
             android:exported="true"
             android:theme="@style/Theme.Glessedemo" />
     </application>

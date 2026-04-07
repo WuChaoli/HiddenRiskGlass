@@ -487,7 +487,7 @@ static int postprocess_hiddenrisk_output(
     int* error_code,
     std::string* error_message)
 {
-    const float prob_threshold = 0.40f;
+    const float prob_threshold = 0.60f;
     const float nms_threshold = 0.45f;
 
     std::vector<int> strides(3);

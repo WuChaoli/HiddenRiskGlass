@@ -102,6 +102,16 @@ object RokidSdkManager {
         listeners.remove(listener)
     }
 
+    fun getSerialNumber(): String {
+        val localDeviceService = deviceService
+            ?: runCatching { GlassSdk.getGlassDeviceService() }.getOrNull()
+            ?: return ""
+        return runCatching { localDeviceService.serialNumber }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?: ""
+    }
+
     fun getDeviceSummary(): String? {
         val localDeviceService = deviceService
             ?: runCatching { GlassSdk.getGlassDeviceService() }.getOrNull()

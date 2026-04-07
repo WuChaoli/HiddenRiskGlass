@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Base64
 import android.util.Log
 import android.util.Size
 import android.view.View
@@ -25,7 +26,12 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.utils.HttpUtils
+import com.rokid.glass.utils.SSEUtil
 import com.rokid.glesse.R
+import okhttp3.Response
+import okhttp3.sse.EventSource
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -202,6 +208,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var lastAnalysisText = ""
     private var latestHazardBitmap: Bitmap? = null
 
+    // SSE 相关
+    private var currentEventSource: EventSource? = null
+    private var sseUtil: SSEUtil = SSEUtil()
+
+    // 本次拍照上传的会话 ID，用于与 save 接口保持一致的指纹
+    private var sessionId = ""
+
     // 检测状态图标提示
     private var currentDetectionStatus: DetectionStatus = DetectionStatus.NONE
     private var statusIndicatorVisible = false
@@ -350,6 +363,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
         autoCaptureScheduled = false
+        // 关闭当前 SSE 连接
+        currentEventSource?.cancel()
+        currentEventSource = null
         super.onPause()
     }
 
@@ -359,6 +375,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
         autoCaptureScheduled = false
+        // 关闭当前 SSE 连接
+        currentEventSource?.cancel()
+        currentEventSource = null
         super.onStop()
     }
 
@@ -389,12 +408,31 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (isFinishing && !isChangingConfigurations) {
             RokidSdkManager.release()
         }
+        // 关闭当前 SSE 连接
+        currentEventSource?.cancel()
+        currentEventSource = null
         super.onDestroy()
     }
 
     // ==================== 输入事件 ====================
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        // 拦截 back/双击：在流式回答和同步成功页面应返回检测，而不是退出 Activity
+        if (keyEvent == GlassKeyEvent.KEYCODE_BACK || keyEvent == GlassKeyEvent.KEYCODE_DOUBLE_CLICK) {
+            Log.d(TAG, "back/双击事件，当前页面状态: $pageState")
+            when (pageState) {
+                PageState.STREAM_RESPONSE,
+                PageState.SYNC_SUCCESS -> {
+                    returnToDetecting()
+                    return true
+                }
+                PageState.DETECTING -> {
+                    // 检测页面不退出 Activity
+                    return true
+                }
+                else -> {}
+            }
+        }
         when (keyEvent) {
             GlassKeyEvent.KEYCODE_CLICK -> {
                 when (pageState) {
@@ -414,21 +452,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         ensureMediaPermissionOrStart()
                         return true
                     }
-                    PageState.HAZARD_ALERT -> {
-                        val bitmap = latestHazardBitmap
-                        startStreamingAnalysis(bitmap)
-                        return true
-                    }
                     PageState.DETECTING -> {
-                        // 隐患图标显示期间单击：进入流式响应
-                        if (currentDetectionStatus == DetectionStatus.HAS_HAZARD && statusIndicatorVisible) {
-                            // 清除倒计时和状态
-                            uiHandler.removeCallbacks(statusIndicatorHideRunnable)
-                            hideStatusIndicator()
-                            // 进入流式响应
-                            startStreamingAnalysis(latestHazardBitmap)
-                            return true
-                        }
+                        // DETECTING 状态下，单击直接进入流式分析（拍照上传）
+                        captureAndSendToSSE()
+                        return true
                     }
                     PageState.STREAM_RESPONSE -> {
                         if (!streamingInProgress) {
@@ -461,11 +488,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         finish()
                         return true
                     }
-                    PageState.HAZARD_ALERT,
                     PageState.STREAM_RESPONSE,
                     PageState.SYNC_SUCCESS -> {
                         Log.d(TAG, "双击: 返回检测页面")
                         returnToDetecting()
+                        return true
+                    }
+                    PageState.DETECTING -> {
+                        // 检测页面双击不退出 Activity
                         return true
                     }
                     else -> {
@@ -890,44 +920,24 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutSafeArea.visibility = View.GONE
     }
 
+    /**
+     * 开始流式分析（直接使用 SSE 实现）
+     */
     private fun startStreamingAnalysis(bitmap: Bitmap?) {
-        showPage(PageState.STREAM_RESPONSE)
-        tvStreamContent.text = ""
-        streamingInProgress = true
-        streamCallbackActive = true
-        tvSyncPrompt.visibility = View.INVISIBLE
-
-        // 调用流式接口（当前使用模拟数据）
-        HazardStreamService.analyze(bitmap, object : HazardStreamService.StreamCallback {
-            override fun onChunk(text: String) {
-                if (destroyed || !streamCallbackActive) return
-                tvStreamContent.text = text
-                scrollContent.post {
-                    scrollContent.fullScroll(View.FOCUS_DOWN)
-                }
-            }
-
-            override fun onComplete(fullText: String) {
-                if (destroyed || !streamCallbackActive) return
-                streamingInProgress = false
-                lastAnalysisText = fullText
-                tvSyncPrompt.visibility = View.VISIBLE
-            }
-
-            override fun onError(message: String) {
-                if (destroyed || !streamCallbackActive) return
-                streamingInProgress = false
-                tvStreamContent.text = "分析失败：$message"
-                tvSyncPrompt.visibility = View.VISIBLE
-            }
-        })
+        // 保存传入的 bitmap 用于显示
+        bitmap?.let {
+            latestHazardBitmap?.recycle()
+            latestHazardBitmap = it
+        }
+        // 直接使用 SSE 进行流式分析
+        captureAndSendToSSE()
     }
 
     /**
      * 调用后端接口同步隐患记录，成功后显示同步成功页面。
      */
     private fun syncToPhone() {
-        HazardStreamService.syncToPhone(lastAnalysisText, object : HazardStreamService.SyncCallback {
+        HazardStreamService.syncToPhone(lastAnalysisText, sessionId, object : HazardStreamService.SyncCallback {
             override fun onSuccess() {
                 if (destroyed) return
                 showSyncSuccess()
@@ -1072,6 +1082,120 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         } catch (e: RejectedExecutionException) {
             Log.w(TAG, "native task rejected", e)
             false
+        }
+    }
+
+    // ==================== SSE 流式分析相关方法 ====================
+
+    /**
+     * 拍照并通过 SSE 接口发送数据
+     */
+    private fun captureAndSendToSSE() {
+        QuickCameraManager.takeGpuFrame { frame ->
+            uiHandler.post {
+                if (frame == null) {
+                    Log.e(TAG, "拍照失败")
+                    handleSSEError("拍照失败")
+                    return@post
+                }
+
+                // 将 HardwareBuffer 转换为 Bitmap
+                val bitmap = frame.previewBitmap
+                frame.hardwareBuffer.close()
+
+                if (bitmap == null) {
+                    Log.e(TAG, "HardwareBuffer 转换为 Bitmap 失败")
+                    handleSSEError("拍照失败")
+                    return@post
+                }
+
+                // 将 Bitmap 转换为 Base64 字符串
+                val base64Image = bitmapToBase64(bitmap)
+
+                // 通过 SSE 接口发送数据
+                sendImageToSSE(base64Image)
+            }
+        }
+    }
+
+    /**
+     * 将 Bitmap 转换为 Base64 字符串
+     */
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+        val byteArray = outputStream.toByteArray()
+        return Base64.encodeToString(byteArray, Base64.NO_WRAP)
+    }
+
+    /**
+     * 通过 SSE 接口发送图像数据
+     */
+    private fun sendImageToSSE(base64Image: String) {
+        // 关闭之前的连接
+        currentEventSource?.cancel()
+        // 每次拍照生成新 sessionId，格式：时间戳_snCode
+        val snCode = RokidSdkManager.getSerialNumber()
+        sessionId = "${System.currentTimeMillis()}_${snCode}"
+
+        showPage(PageState.STREAM_RESPONSE)
+        tvStreamContent.text = ""
+        streamingInProgress = true
+        streamCallbackActive = true
+        tvSyncPrompt.visibility = View.INVISIBLE
+
+        sseUtil.connect(
+            imageUrl = base64Image,
+            snCode = snCode,
+            sessionId = sessionId,
+            listener = object : SSEUtil.SSEListener {
+                override fun onOpened() {
+                    Log.d(TAG, "SSE 连接已建立")
+                    uiHandler.post {
+                        tvStreamContent.text = "正在分析隐患..."
+                    }
+                }
+
+                override fun onMessage(data: String) {
+                    Log.d(TAG, "收到 SSE 消息: $data")
+                    uiHandler.post {
+                        tvStreamContent.text = data
+                        scrollContent.post {
+                            scrollContent.fullScroll(View.FOCUS_DOWN)
+                        }
+                    }
+                }
+
+                override fun onClosed() {
+                    Log.d(TAG, "SSE 连接已关闭")
+                    uiHandler.post {
+                        streamingInProgress = false
+                        lastAnalysisText = tvStreamContent.text.toString()
+                        tvSyncPrompt.visibility = View.VISIBLE
+                    }
+                }
+
+                override fun onFailure(t: Throwable?, response: Response?) {
+                    Log.e(TAG, "SSE 连接失败", t)
+                    val errorMessage = t?.message ?: response?.message ?: "未知错误"
+                    handleSSEError(errorMessage)
+                }
+
+                override fun onEventSourceCreated(eventSource: EventSource) {
+                    currentEventSource = eventSource
+                }
+            }
+        )
+    }
+
+    /**
+     * 处理 SSE 错误
+     */
+    private fun handleSSEError(errorMsg: String) {
+        uiHandler.post {
+            streamingInProgress = false
+            tvStreamContent.text = "分析失败：$errorMsg"
+            tvSyncPrompt.visibility = View.VISIBLE
         }
     }
 }
