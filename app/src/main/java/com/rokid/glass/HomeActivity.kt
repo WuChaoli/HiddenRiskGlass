@@ -23,6 +23,7 @@ import com.rokid.glass.base.BaseActivity
 import com.rokid.glass.base.GlassKeyEvent
 import com.rokid.glass.component.MenuItem
 import com.rokid.glass.data.GlobalData
+import com.rokid.glass.utils.DebugConfig
 import com.rokid.glass.utils.GlassSdkUtils
 import com.rokid.glass.utils.collect
 import com.rokid.glesse.R
@@ -56,6 +57,11 @@ class HomeActivity : BaseActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // 初始化 Debug 配置
+        DebugConfig.init(this)
+        setupDebugTrigger()
+
         setSystemProp("persist.vendor.boot.pkg", this.packageName)
         val bluetoothManager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
         bluetoothAdapter = bluetoothManager.adapter
@@ -445,6 +451,34 @@ class HomeActivity : BaseActivity() {
 
             MenuConfigType.MenuInfoType.MENU_HIDDEN_RISK -> {
                 startActivity(Intent(this, com.rokid.glass.hiddenrisk.InspectionModeActivity::class.java))
+            }
+        }
+    }
+
+    /**
+     * 设置 Debug 触发器（隐藏方式：连续点击标题5次）
+     */
+    private fun setupDebugTrigger() {
+        var clickCount = 0
+        var lastClickTime = 0L
+        val CLICK_THRESHOLD = 5
+        val TIME_WINDOW_MS = 3000L // 3秒内完成点击
+
+        binding.textA?.setOnClickListener {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastClickTime > TIME_WINDOW_MS) {
+                clickCount = 1
+            } else {
+                clickCount++
+            }
+            lastClickTime = currentTime
+
+            if (clickCount >= CLICK_THRESHOLD) {
+                clickCount = 0
+                val newState = DebugConfig.toggleDebugMode()
+                val msg = if (newState) "Debug模式已开启" else "Debug模式已关闭"
+                Toast.makeText(this@HomeActivity, msg, Toast.LENGTH_SHORT).show()
+                Log.d(TAG, "Debug模式切换: $newState")
             }
         }
     }

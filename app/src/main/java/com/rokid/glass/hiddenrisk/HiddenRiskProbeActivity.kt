@@ -99,6 +99,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var sdkReadyAtElapsedMs = 0L
 
     private var latestNativeSnapshot: NativeInferenceStats? = null
+    private var hazardCaptureService: HazardCaptureService? = null
     private var targetBackend = BACKEND_GPU
     private var targetGpuProfile = GPU_PROFILE_BALANCED_FP16
     private var targetInputSize = DEFAULT_TARGET_INPUT_SIZE
@@ -248,6 +249,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         sampleSourceBitmap?.recycle()
         sampleSourceBitmap = null
         hiddenRiskNcnn?.clearFrameState()
+        hazardCaptureService?.shutdown()
         nativeExecutor.shutdown()
         runCatching { nativeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         if (isFinishing && !isChangingConfigurations) {
@@ -724,6 +726,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 )
                 val hazardDecision = evaluateHazardDecision(snapshot)
 
+                // 如果检测到隐患，保存图片和结果
+                if (hazardDecision == HazardDecision.ABNORMAL) {
+                    ensureHazardCaptureService().saveHazardCapture(frameBitmap, snapshot)
+                }
+
                 uiHandler.post {
                     inferenceRunning.set(false)
                     latestNativeSnapshot = snapshot
@@ -1000,6 +1007,13 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 hiddenRiskNcnn = it
                 nativeInitError = null
             }
+    }
+
+    private fun ensureHazardCaptureService(): HazardCaptureService {
+        hazardCaptureService?.let { return it }
+        return HazardCaptureService(this).also {
+            hazardCaptureService = it
+        }
     }
 
     private fun loadSampleBitmapIfNeeded(path: String): Bitmap? {

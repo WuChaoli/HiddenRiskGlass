@@ -45,6 +45,7 @@
             android:textColor="@color/ar_glass_green"
             app:layout_constraintLeft_toRightOf="@id/tv_bt_status"
             app:layout_constraintTop_toTopOf="parent" />
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout

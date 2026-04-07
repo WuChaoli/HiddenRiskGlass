@@ -207,6 +207,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var streamCallbackActive = false
     private var lastAnalysisText = ""
     private var latestHazardBitmap: Bitmap? = null
+    private var hazardCaptureService: HazardCaptureService? = null
+
+    // 连续推理模式：不设固定间隔，推理空闲立即取下一帧
+    private var continuousInferenceMode = true
 
     // SSE 相关
     private var currentEventSource: EventSource? = null
@@ -218,7 +222,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // 检测状态图标提示
     private var currentDetectionStatus: DetectionStatus = DetectionStatus.NONE
     private var statusIndicatorVisible = false
-    private val STATUS_INDICATOR_DURATION_MS = 3000L
+    private val STATUS_INDICATOR_DURATION_MS = 2000L
 
     // 拍摄超时恢复机制
     private var consecutiveTimeoutCount = 0
@@ -405,6 +409,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runCatching { nativeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         latestHazardBitmap?.recycle()
         latestHazardBitmap = null
+        hazardCaptureService?.shutdown()
         if (isFinishing && !isChangingConfigurations) {
             RokidSdkManager.release()
         }
@@ -427,7 +432,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     return true
                 }
                 PageState.DETECTING -> {
-                    // 检测页面不退出 Activity
+                    // 检测页面双击返回菜单
+                    finish()
                     return true
                 }
                 else -> {}
@@ -495,7 +501,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         return true
                     }
                     PageState.DETECTING -> {
-                        // 检测页面双击不退出 Activity
+                        // 检测页面双击返回菜单
+                        finish()
                         return true
                     }
                     else -> {
@@ -850,7 +857,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             // detectionCount > 0，进入隐患判断
                             val newStatus = when (evaluateHazardWithJudgment(snapshot)) {
                                 HazardJudgeResult.NO_HAZARD -> DetectionStatus.NO_HAZARD
-                                HazardJudgeResult.HAS_HAZARD -> DetectionStatus.HAS_HAZARD
+                                HazardJudgeResult.HAS_HAZARD -> {
+                                    // 保存隐患图片和结果到本地
+                                    ensureHazardCaptureService().saveHazardCapture(latestHazardBitmap, snapshot)
+                                    DetectionStatus.HAS_HAZARD
+                                }
                             }
                             handleDetectionResult(newStatus)
                         }
@@ -985,7 +996,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (autoCaptureScheduled || destroyed || !isActivityResumed || !isWorkflowActive) return
         if (pageState != PageState.DETECTING) return
         autoCaptureScheduled = true
-        uiHandler.postDelayed(autoCaptureRunnable, delayMs)
+        // 连续推理模式下，延迟设为0，推理空闲立即取下一帧
+        val actualDelay = if (continuousInferenceMode) 0L else delayMs
+        uiHandler.postDelayed(autoCaptureRunnable, actualDelay)
     }
 
     // ==================== UI 页面切换 ====================
@@ -1073,6 +1086,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .onFailure { e -> Log.e(TAG, "HiddenRiskNcnn init failed", e) }
             .getOrNull()
             ?.also { hiddenRiskNcnn = it }
+    }
+
+    private fun ensureHazardCaptureService(): HazardCaptureService {
+        hazardCaptureService?.let { return it }
+        return HazardCaptureService(this).also {
+            hazardCaptureService = it
+        }
     }
 
     private fun submitNativeTask(task: () -> Unit): Boolean {
