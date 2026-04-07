@@ -42,7 +42,7 @@ set_target_properties(glslang PROPERTIES
 add_library(ncnn STATIC IMPORTED GLOBAL)
 set_target_properties(ncnn PROPERTIES
     IMPORTED_LOCATION ${NCNN_PREBUILT_ROOT}/lib/libncnn.a
-    INTERFACE_INCLUDE_DIRECTORIES ${NCNN_PREBUILT_ROOT}/include
+    INTERFACE_INCLUDE_DIRECTORIES ${NCNN_PREBUILT_ROOT}/include/ncnn
     INTERFACE_LINK_LIBRARIES "glslang"
 )
 
