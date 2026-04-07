@@ -154,7 +154,7 @@ object HiddenRiskMultiOverlayRenderer {
         return annotated
     }
 
-    private fun labelFor(detection: DetectionResult): String {
+    public fun labelFor(detection: DetectionResult): String {
         val labelId = detection.labelId
         return if (labelId in classNames.indices) {
             classNames[labelId]

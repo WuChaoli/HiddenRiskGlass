@@ -98,29 +98,29 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (snapshot == null || snapshot.detections == null) {
             return HazardJudgeResult.HAS_HAZARD
         }
-        
+
         // 定义三组必须配对出现的label
         val requiredPairs = listOf(
             Pair("T_btn", "load_switch"),          // T字按钮 + 负荷开关
             Pair("lpg_cylinder", "gas_alarm"),     // 液化石油气瓶 + 可燃气体报警器
             Pair("gas_range", "flameout_protection") // 燃气灶 + 熄火保护装置
         )
-        
+
         // 收集当前检测到的所有label
         val detectedLabels = snapshot.detections.map { it.label }.toSet()
-        
+
         // 如果没有检测到任何相关label，认为有隐患
         val allRelevantLabels = requiredPairs.flatMap { listOf(it.first, it.second) }.toSet()
         if (detectedLabels.none { it in allRelevantLabels }) {
             Log.d(TAG, "未检测到任何配对相关的label，判定为有隐患")
             return HazardJudgeResult.HAS_HAZARD
         }
-        
+
         // 检查每一组配对
         for ((labelA, labelB) in requiredPairs) {
             val hasA = labelA in detectedLabels
             val hasB = labelB in detectedLabels
-            
+
             when {
                 // 两个都没出现：这组不完整，有隐患
                 !hasA && !hasB -> {
@@ -132,6 +132,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     Log.d(TAG, "配对不完整: 检测到 $labelA 但未检测到 $labelB，判定为有隐患")
                     return HazardJudgeResult.HAS_HAZARD
                 }
+
                 !hasA && hasB -> {
                     Log.d(TAG, "配对不完整: 检测到 $labelB 但未检测到 $labelA，判定为有隐患")
                     return HazardJudgeResult.HAS_HAZARD
@@ -142,7 +143,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
             }
         }
-        
+
         // 所有组都配对完整
         Log.d(TAG, "所有配对组都完整，判定为安全")
         return HazardJudgeResult.NO_HAZARD
@@ -274,6 +275,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 Log.w(TAG, "连续3次拍摄超时，准备静默重启摄像头")
                 silentRestartCamera()
             }
+
             else -> {
                 // 记录异常但继续自动拍摄
                 Log.d(TAG, "拍摄超时，自动获取下一帧")
@@ -432,11 +434,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     returnToDetecting()
                     return true
                 }
+
                 PageState.DETECTING -> {
                     // 检测页面双击返回菜单
                     finish()
                     return true
                 }
+
                 else -> {}
             }
         }
@@ -447,10 +451,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         showPage(PageState.CONFIRM_GUIDE)
                         return true
                     }
+
                     PageState.CONFIRM_GUIDE -> {
                         transitionToDetection()
                         return true
                     }
+
                     PageState.LOAD_ERROR, PageState.DEVICE_ERROR -> {
                         resetForRetry()
                         showPage(PageState.LOADING)
@@ -459,28 +465,34 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         ensureMediaPermissionOrStart()
                         return true
                     }
+
                     PageState.DETECTING -> {
                         // DETECTING 状态下，单击直接进入流式分析（拍照上传）
                         captureAndSendToSSE()
                         return true
                     }
+
                     PageState.STREAM_RESPONSE -> {
                         if (!streamingInProgress) {
                             syncToPhone()
                             return true
                         }
                     }
+
                     PageState.SYNC_SUCCESS -> {
                         returnToDetecting()
                         return true
                     }
+
                     PageState.END_REPORT -> {
                         finish()
                         return true
                     }
+
                     else -> {}
                 }
             }
+
             GlassKeyEvent.KEYCODE_DOUBLE_CLICK -> {
                 Log.d(TAG, "双击事件，当前页面状态: $pageState")
                 when (pageState) {
@@ -495,17 +507,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         finish()
                         return true
                     }
+
                     PageState.STREAM_RESPONSE,
                     PageState.SYNC_SUCCESS -> {
                         Log.d(TAG, "双击: 返回检测页面")
                         returnToDetecting()
                         return true
                     }
+
                     PageState.DETECTING -> {
                         // 检测页面双击返回菜单
                         finish()
                         return true
                     }
+
                     else -> {
                         Log.d(TAG, "双击: 未匹配状态，调用父类")
                     }
@@ -542,7 +557,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != REQUEST_MEDIA_PERMISSION) return
-        val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
+        val granted =
+            grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
         if (granted) {
             maybeAdvanceWorkflow()
         } else {
@@ -554,7 +570,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!hasRequiredPermissions()) {
             if (!mediaPermissionRequested) {
                 mediaPermissionRequested = true
-                ActivityCompat.requestPermissions(this, requiredPermissions(), REQUEST_MEDIA_PERMISSION)
+                ActivityCompat.requestPermissions(
+                    this,
+                    requiredPermissions(),
+                    REQUEST_MEDIA_PERMISSION
+                )
             }
             return
         }
@@ -587,6 +607,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 failWorkflow(RokidSdkManager.lastErrorMessage ?: "Rokid SDK 初始化失败")
                 return
             }
+
             RokidSdkManager.SdkState.READY -> Unit
             else -> return
         }
@@ -622,7 +643,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 local.setDebugResultLimit(5)
                 local.setDebugCompareEnabled(false)
                 val success = runCatching {
-                    local.loadModel(assets, BACKEND_GPU, GPU_PROFILE_BALANCED_FP16, DEFAULT_TARGET_INPUT_SIZE)
+                    local.loadModel(
+                        assets,
+                        BACKEND_GPU,
+                        GPU_PROFILE_BALANCED_FP16,
+                        DEFAULT_TARGET_INPUT_SIZE
+                    )
                 }.onFailure { e -> Log.e(TAG, "loadModel failed", e) }
                     .getOrDefault(false)
 
@@ -779,7 +805,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val readyElapsedMs = quickCameraReadyAtElapsedMs.takeIf { it > 0L } ?: sdkReadyAtElapsedMs
         val warmupRemainingMs = when {
             readyElapsedMs <= 0L -> CAPTURE_WARMUP_MS
-            else -> (CAPTURE_WARMUP_MS - (SystemClock.elapsedRealtime() - readyElapsedMs)).coerceAtLeast(0L)
+            else -> (CAPTURE_WARMUP_MS - (SystemClock.elapsedRealtime() - readyElapsedMs)).coerceAtLeast(
+                0L
+            )
         }
         if (warmupRemainingMs > 0L) {
             uiHandler.removeCallbacks(captureDelayRunnable)
@@ -843,9 +871,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
                 val snapshot = runCatching { local.getLatestInferenceStats() }.getOrNull()
 
+
+
                 uiHandler.post {
                     inferenceRunning.set(false)
-                    Log.d(TAG, "inference success=$success detectionCount=${snapshot?.detectionCount ?: -1}")
+                    Log.d(
+                        TAG,
+                        "inference success=$success detectionCount=${snapshot?.detectionCount ?: -1}"
+                    )
                     if (destroyed) return@post
                     if (!success) {
                         scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
@@ -860,12 +893,33 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                 HazardJudgeResult.NO_HAZARD -> DetectionStatus.NO_HAZARD
                                 HazardJudgeResult.HAS_HAZARD -> {
                                     // 中心裁剪后保存隐患图片和结果到本地
-                                    val croppedBitmap = BitmapUtils.cropCenterTo640(latestHazardBitmap)
-                                    ensureHazardCaptureService().saveHazardCapture(croppedBitmap, snapshot)
+                                    val croppedBitmap =
+                                        BitmapUtils.cropCenterTo640(latestHazardBitmap)
+                                    ensureHazardCaptureService().saveHazardCapture(
+                                        croppedBitmap,
+                                        snapshot
+                                    )
                                     croppedBitmap?.recycle()
                                     DetectionStatus.HAS_HAZARD
                                 }
                             }
+
+                            val yinguhan = snapshot!!.detections
+                            var str = ""
+                            val  list1= mutableListOf<String>()
+                            yinguhan.forEach {
+                                list1.add( com.rokid.glass.hiddenrisk.HiddenRiskMultiOverlayRenderer.labelFor(
+                                    it
+                                ))
+
+                            }
+                            //list1 去重
+                            val list2 = list1.distinct()
+                            list2.forEach {
+                                str += it + "\n"
+                            }
+                            findViewById<TextView>(R.id.tvLabel).text = str
+
                             handleDetectionResult(newStatus)
                         }
                     }
@@ -912,14 +966,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         when (status) {
             DetectionStatus.HAS_HAZARD -> {
                 layoutHazardAlert.visibility = View.VISIBLE
+                findViewById<View>(R.id.tvLabel).visibility = View.VISIBLE
                 layoutHazardAlertBottom.visibility = View.VISIBLE
                 layoutSafeArea.visibility = View.GONE
             }
+
             DetectionStatus.NO_HAZARD -> {
                 layoutHazardAlert.visibility = View.GONE
+                findViewById<View>(R.id.tvLabel).visibility = View.GONE
+
                 layoutHazardAlertBottom.visibility = View.GONE
                 layoutSafeArea.visibility = View.VISIBLE
             }
+
             else -> hideStatusIndicator()
         }
     }
@@ -931,6 +990,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         statusIndicatorVisible = false
         layoutHazardAlert.visibility = View.GONE
         layoutHazardAlertBottom.visibility = View.GONE
+        findViewById<View>(R.id.tvLabel).visibility = View.GONE
+
         layoutSafeArea.visibility = View.GONE
     }
 
@@ -951,19 +1012,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 调用后端接口同步隐患记录，成功后显示同步成功页面。
      */
     private fun syncToPhone() {
-        HazardStreamService.syncToPhone(lastAnalysisText, sessionId, object : HazardStreamService.SyncCallback {
-            override fun onSuccess() {
-                if (destroyed) return
-                showSyncSuccess()
-            }
+        HazardStreamService.syncToPhone(
+            lastAnalysisText,
+            sessionId,
+            object : HazardStreamService.SyncCallback {
+                override fun onSuccess() {
+                    if (destroyed) return
+                    showSyncSuccess()
+                }
 
-            override fun onError(message: String) {
-                if (destroyed) return
-                Log.e(TAG, "sync failed: $message")
-                // 同步失败也显示成功页面（后续可改为错误提示）
-                showSyncSuccess()
-            }
-        })
+                override fun onError(message: String) {
+                    if (destroyed) return
+                    Log.e(TAG, "sync failed: $message")
+                    // 同步失败也显示成功页面（后续可改为错误提示）
+                    showSyncSuccess()
+                }
+            })
     }
 
     private fun showEndReport(report: String) {
@@ -1011,17 +1075,28 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutLoading.visibility = if (state == PageState.LOADING) View.VISIBLE else View.GONE
         tvLoadingHint.visibility = if (state == PageState.LOADING) View.VISIBLE else View.GONE
         layoutDetection.visibility = if (state == PageState.DETECTING) View.VISIBLE else View.GONE
-        layoutHazardAlert.visibility = if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
-        layoutHazardAlertBottom.visibility = if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
-        layoutStreamResponse.visibility = if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
-        layoutSyncSuccess.visibility = if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
-        tvSyncSuccessHint.visibility = if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
+        layoutHazardAlert.visibility =
+            if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.tvLabel).visibility = if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
+
+        layoutHazardAlertBottom.visibility =
+            if (state == PageState.HAZARD_ALERT) View.VISIBLE else View.GONE
+        layoutStreamResponse.visibility =
+            if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
+        layoutSyncSuccess.visibility =
+            if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
+        tvSyncSuccessHint.visibility =
+            if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
 
         layoutLoadError.visibility = if (state == PageState.LOAD_ERROR) View.VISIBLE else View.GONE
-        layoutLensBlocked.visibility = if (state == PageState.LENS_BLOCKED) View.VISIBLE else View.GONE
-        layoutConfirmGuide.visibility = if (state == PageState.CONFIRM_GUIDE) View.VISIBLE else View.GONE
-        layoutDeviceError.visibility = if (state == PageState.DEVICE_ERROR) View.VISIBLE else View.GONE
-        layoutInspectionGuide.visibility = if (state == PageState.INSPECTION_GUIDE) View.VISIBLE else View.GONE
+        layoutLensBlocked.visibility =
+            if (state == PageState.LENS_BLOCKED) View.VISIBLE else View.GONE
+        layoutConfirmGuide.visibility =
+            if (state == PageState.CONFIRM_GUIDE) View.VISIBLE else View.GONE
+        layoutDeviceError.visibility =
+            if (state == PageState.DEVICE_ERROR) View.VISIBLE else View.GONE
+        layoutInspectionGuide.visibility =
+            if (state == PageState.INSPECTION_GUIDE) View.VISIBLE else View.GONE
         layoutSafeArea.visibility = if (state == PageState.SAFE_AREA) View.VISIBLE else View.GONE
         layoutEndReport.visibility = if (state == PageState.END_REPORT) View.VISIBLE else View.GONE
 
