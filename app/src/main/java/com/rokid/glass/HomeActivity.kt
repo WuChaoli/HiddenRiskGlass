@@ -323,10 +323,10 @@ class HomeActivity : BaseActivity() {
             )
             add(
                 MenuItem(
-                    "杭小应",
-                    MenuConfigType.MenuInfoType.MENU_HANGXIAOYING,
-                    R.mipmap.icon_ai_chat,
-                    R.mipmap.icon_ai_chat,
+                    "AI识患",
+                    MenuConfigType.MenuInfoType.MENU_HIDDEN_RISK,
+                    R.mipmap.icon_take_photo,  // 使用现有图标作为占位
+                    R.mipmap.icon_take_photo,
                     R.drawable.home_bg,
                     R.drawable.home_bg_focus,
                     false
@@ -443,8 +443,8 @@ class HomeActivity : BaseActivity() {
                 startActivity(Intent(this, CameraPageActivity::class.java))
             }
 
-            MenuConfigType.MenuInfoType.MENU_HANGXIAOYING -> {
-                startActivity(Intent(this, com.rokid.glass.inspection.InspectionModeActivity::class.java))
+            MenuConfigType.MenuInfoType.MENU_HIDDEN_RISK -> {
+                startActivity(Intent(this, com.rokid.glass.hiddenrisk.InspectionModeActivity::class.java))
             }
         }
     }

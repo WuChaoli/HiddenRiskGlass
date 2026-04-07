@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.security.glass3.open.sdk.uitls.log.L
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ open class BaseActivity : AppCompatActivity() {
     private var TAG = "BaseActivity"
 
     override fun setContentView(layoutResID: Int) {
+        L.d("startActivity", this.javaClass.name)
         super.setContentView(layoutResID)
         initContentView()
     }

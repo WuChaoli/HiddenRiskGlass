@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.util.Log
 import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
@@ -72,6 +73,7 @@ open class BaseGlassActivity : AppCompatActivity() {
     }
 
     override fun onResume() {
+        Log.e("startActivity",this.javaClass.name)
         super.onResume()
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }

@@ -1,4 +1,4 @@
-//package com.rokid.glass
+package com.rokid.glass//package com.rokid.glass
 //
 //import android.content.Context
 //import android.os.Bundle

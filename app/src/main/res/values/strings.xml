@@ -44,11 +44,11 @@
     <string name="inspection_mode_title">请选择巡检模式</string>
     <string name="inspection_mode_ai">AI识患</string>
     <string name="inspection_mode_task">任务检查</string>
-    <string name="inspection_mode_hint">说出 \"AI识患\" 或 \"自由检查\" 或 前后滑动点击选择</string>
+    <string name="inspection_mode_hint">说出 "AI识患" 或 "自由检查" 或 前后滑动点击选择</string>
 
     <string name="ai_inspection_loading_title">系统初始化</string>
     <string name="ai_inspection_loading_subtitle">正在准备检测设备…</string>
-    <string name="ai_inspection_loading_hint">双击\"右触控板\"返回主页</string>
+    <string name="ai_inspection_loading_hint">双击"右触控板"返回主页</string>
     <string name="ai_inspection_status_detecting">AI 隐患识别中</string>
     <string name="ai_inspection_default_location">华北制造基地</string>
     <string name="ai_inspection_default_workshop">装配车间</string>
@@ -56,11 +56,30 @@
     <string name="ai_inspection_keep_steady">请保持眼镜稳定，不要遮挡镜头</string>
     <string name="ai_inspection_hazard_found">发现安全隐患</string>
     <string name="ai_inspection_sync_prompt">隐患信息是否同步手机端？</string>
-    <string name="ai_inspection_sync_hint">说出 \"是\" 或 \"否\" 或 单击确认 或 双击退出</string>
+    <string name="ai_inspection_sync_hint">说出 "是" 或 "否" 或 单击确认 或 双击退出</string>
     <string name="ai_inspection_synced">隐患已同步</string>
     <string name="ai_inspection_synced_detail">前往手机查看详情</string>
     <string name="ai_inspection_continue_prompt">是否继续巡检其他区域？</string>
-    <string name="ai_inspection_continue_hint">说出 \"继续\" 或 \"结束\" 或双击退出</string>
+    <string name="ai_inspection_continue_hint">说出 "继续" 或 "结束" 或双击退出</string>
+
+    <string name="ai_inspection_load_error_title">加载失败</string>
+    <string name="ai_inspection_load_error_hint">单击重试 / 双击返回</string>
+    <string name="ai_inspection_lens_blocked_title">镜头被遮挡</string>
+    <string name="ai_inspection_lens_blocked_subtitle">请移除遮挡物，保持镜头清洁</string>
+    <string name="ai_inspection_lens_blocked_hint">恢复后自动继续检测</string>
+    <string name="ai_inspection_confirm_guide_title">确认开始巡检？</string>
+    <string name="ai_inspection_confirm_guide_subtitle">即将进入自动检测模式，请保持眼镜稳定</string>
+    <string name="ai_inspection_confirm_guide_hint">单击确认 / 双击退出</string>
+    <string name="ai_inspection_device_error_title">设备异常</string>
+    <string name="ai_inspection_device_error_hint">单击重试 / 双击退出</string>
+    <string name="ai_inspection_guide_title">巡检操作说明</string>
+    <string name="ai_inspection_guide_content">1. 保持眼镜稳定，自动取景识别隐患\n2. 发现隐患后自动分析并生成整改方案\n3. 确认后将隐患同步至手机端</string>
+    <string name="ai_inspection_guide_hint">单击继续</string>
+    <string name="ai_inspection_safe_area_title">未检测到隐患</string>
+    <string name="ai_inspection_safe_area_subtitle">当前区域安全</string>
+    <string name="ai_inspection_safe_area_hint">自动继续检测</string>
+    <string name="ai_inspection_end_report_title">巡检结束</string>
+    <string name="ai_inspection_end_report_hint">单击返回主页</string>
 
     <string name="hidden_risk_probe_label">隐患巡检</string>
     <string name="hidden_risk_loading">正在加载中</string>

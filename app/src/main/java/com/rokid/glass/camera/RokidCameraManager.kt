@@ -1,4 +1,4 @@
-//package com.rokid.glass.camera
+package com.rokid.glass.camera//package com.rokid.glass.camera
 //
 //import android.annotation.SuppressLint
 //import android.content.Context

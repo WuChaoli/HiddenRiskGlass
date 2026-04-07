@@ -324,4 +324,13 @@
         android:textSize="12sp"
         android:visibility="gone" />
 
+    <!-- ========== 扩展状态页面 ========== -->
+    <include layout="@layout/include_page_load_error" />
+    <include layout="@layout/include_page_lens_blocked" />
+    <include layout="@layout/include_page_confirm_guide" />
+    <include layout="@layout/include_page_device_error" />
+    <include layout="@layout/include_page_inspection_guide" />
+    <include layout="@layout/include_page_safe_area" />
+    <include layout="@layout/include_page_end_report" />
+
 </FrameLayout>

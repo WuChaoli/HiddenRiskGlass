@@ -3,7 +3,16 @@ package com.rokid.glass.inspection
 import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import com.blankj.utilcode.util.ThreadUtils.runOnUiThread
+import com.google.gson.Gson
+import com.rokid.glass.data.YXData
+import com.rokid.glass.utils.HttpUtils
+import com.rokid.glass.utils.SSEUtil
+import okhttp3.Response
+import okhttp3.sse.EventSource
 import java.io.ByteArrayOutputStream
+import java.util.Date
 
 /**
  * 隐患分析流式接口。
@@ -18,11 +27,16 @@ object HazardStreamService {
     interface StreamCallback {
         /** 收到一段流式文本 */
         fun onChunk(text: String)
+
         /** 流式传输完成 */
         fun onComplete(fullText: String)
+
         /** 出错 */
         fun onError(message: String)
     }
+
+    val sseUtil = SSEUtil()
+    val gson = Gson()
 
     /**
      * 提交图片并开始流式获取分析结果。
@@ -30,15 +44,52 @@ object HazardStreamService {
      * @param callback 流式回调，在主线程调用
      */
     fun analyze(bitmap: Bitmap?, callback: StreamCallback) {
-        // TODO: 替换为真实接口调用
-        // 真实实现示例：
-        // val baos = ByteArrayOutputStream()
-        // bitmap?.compress(Bitmap.CompressFormat.JPEG, 85, baos)
-        // val imageBytes = baos.toByteArray()
-        // OkHttpClient + EventSource 调用后端 SSE 接口
-        // 每收到一段 data: {...} 回调 onChunk
+        // 在 Activity 或其他地方使用
 
-        simulateStream(callback)
+        sseUtil.connect(
+            imageUrl = "base64_encoded_image_string",
+            snCode = "1901092534052934",
+            sessionId = System.currentTimeMillis().toString(),
+            authorization = "eyJhbGciOiJIUzI1NiIsInppcCI6IkdaSVAifQ.H4sIAAAAAAAAAFWMMQqAMAxF75K5HVIb03ibtLaggwhWEMS7G3DyDW_48P4Nx5lhAhRJBhvgYNEOEzJTSMQSHGy5_Ye1L1a1VLUhiY9jZlMir_MgXrGRRipcdLS7eu1fPXBACc8LKuQZRnUAAAA.ExvZFAtVR-0XMoheQ0UKoLAV5liwtnZI4Wbk_O7bEs0",
+            timestamp = System.currentTimeMillis().toString(),
+            listener = object : SSEUtil.SSEListener {
+                override fun onOpened() {
+                    // 连接成功
+                    runOnUiThread {
+                    }
+                }
+
+                override fun onMessage(data: String) {
+                    // 收到消息
+                    runOnUiThread {
+                        val data = gson.fromJson<YXData>(data, YXData::class.java)
+                        if (data.end == 0) {
+                            callback.onChunk(data.answer)
+                        } else {
+                            callback.onComplete(data.answer)
+                        }
+                    }
+                }
+
+                override fun onClosed() {
+                    // 连接关闭
+                    runOnUiThread {
+                    }
+                }
+
+                override fun onFailure(t: Throwable?, response: Response?) {
+                    // 连接失败
+                    runOnUiThread {
+                    }
+                }
+
+                override fun onEventSourceCreated(eventSource: EventSource) {
+                    // 保存引用以便手动关闭
+                    // this.currentEventSource = eventSource
+                }
+            }
+        )
+
     }
 
     interface SyncCallback {
@@ -52,11 +103,40 @@ object HazardStreamService {
      * @param callback 同步结果回调，在主线程调用
      */
     fun syncToPhone(analysisText: String, callback: SyncCallback) {
-        // TODO: 替换为真实后端接口
-        val handler = Handler(Looper.getMainLooper())
-        handler.postDelayed({
-            callback.onSuccess()
-        }, 500L)
+        // 创建 HttpUtils 实例
+        val httpUtils = HttpUtils()
+// 调用上报接口
+        httpUtils.reportSaveResult(
+            snCode = "1901092534052934",
+            authorization = "eyJhbGciOiJIUzI1NiIsInppcCI6IkdaSVAifQ.H4sIAAAAAAAAAFWMMQqAMAxF75K5HVIb03ibtLaggwhWEMS7G3DyDW_48P4Nx5lhAhRJBhvgYNEOEzJTSMQSHGy5_Ye1L1a1VLUhiY9jZlMir_MgXrGRRipcdLS7eu1fPXBACc8LKuQZRnUAAAA.ExvZFAtVR-0XMoheQ0UKoLAV5liwtnZI4Wbk_O7bEs0",
+            isSave = "1", // 1-保存，0-不保存
+            sessionId = AiInspectionActivity.sessionId,
+            callback = object : HttpUtils.SaveResultCallback {
+                override fun onSuccess(response: HttpUtils.ApiResponse) {
+                    runOnUiThread {
+                        Log.d("SaveResult", "上报成功: code=${response.code}, msg=${response.msg}")
+                        // 处理成功逻辑
+                        if (response.code == 200) {
+                            // 上报成功
+                            callback.onSuccess()
+                        } else {
+                            // 业务逻辑错误
+                            Log.e("SaveResult", "业务错误: ${response.msg}")
+                        }
+                    }
+                }
+
+                override fun onFailure(e: Exception) {
+                    runOnUiThread {
+                        Log.e("SaveResult", "上报失败", e)
+                        // 处理失败逻辑
+                        // 即使上报失败，也可以继续流程
+                        callback.onSuccess()
+                    }
+                }
+            }
+        )
+
     }
 
     private fun simulateStream(callback: StreamCallback) {
