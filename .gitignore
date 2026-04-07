@@ -8,6 +8,9 @@ build/
 .reports/
 .serena/
 .vscode/
+.claude/
+.opencode/
+.playwright-mcp/
 shots/
 third_party/
 models/
@@ -18,3 +21,4 @@ app/.gradle/
 app/build/
 models/.venv/
 models/tools/
+lightshot_samples/
