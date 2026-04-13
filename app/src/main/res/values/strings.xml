@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">glassdemo</string>
+    <string name="app_name">基层应消</string>
     <string name="s_sdk_init_failed">SDK初始化失败</string>
     <string name="s_bt_idle">蓝牙未连接</string>
     <string name="s_bt_connected">蓝牙已连接</string>
@@ -48,7 +48,7 @@
 
     <string name="ai_inspection_loading_title">系统初始化</string>
     <string name="ai_inspection_loading_subtitle">正在准备检测设备…</string>
-    <string name="ai_inspection_loading_hint">双击"右触控板"返回主页</string>
+    <string name="ai_inspection_loading_hint"></string>
     <string name="ai_inspection_status_detecting">AI 隐患识别中</string>
     <string name="ai_inspection_default_location">华北制造基地</string>
     <string name="ai_inspection_default_workshop">装配车间</string>
@@ -75,6 +75,10 @@
     <string name="ai_inspection_guide_title">巡检操作说明</string>
     <string name="ai_inspection_guide_content">1. 保持眼镜稳定，自动取景识别隐患\n2. 发现隐患后自动分析并生成整改方案\n3. 确认后将隐患同步至手机端</string>
     <string name="ai_inspection_guide_hint">语音指令：开始\n触控指令：单击 | 双击</string>
+    <string name="ai_inspection_guide_step1">1、保持眼镜稳定，自动取景识别隐患</string>
+    <string name="ai_inspection_guide_step2">2、加载完成后，系统自动拍照、上传识别</string>
+    <string name="ai_inspection_guide_step3">3、有隐患 → AI预警 + 是否同步手机\n    无隐患 → 选择继续 / 结束</string>
+    <string name="ai_inspection_confirm_prompt">点击或说"开始"进入巡检</string>
     <string name="ai_inspection_safe_area_title">未检测到隐患</string>
     <string name="ai_inspection_safe_area_subtitle">当前区域安全</string>
     <string name="ai_inspection_safe_area_hint">自动继续检测</string>
