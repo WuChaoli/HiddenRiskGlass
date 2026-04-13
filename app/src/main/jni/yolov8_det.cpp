@@ -31,18 +31,13 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-static int g_hiddenrisk_detect_result_limit = 5;
 static int g_hiddenrisk_last_raw_detection_count = 0;
 static bool g_hiddenrisk_debug_compare_enabled = false;
 
 void set_hiddenrisk_detect_result_limit(int limit)
 {
-    g_hiddenrisk_detect_result_limit = limit;
-}
-
-int get_hiddenrisk_detect_result_limit()
-{
-    return g_hiddenrisk_detect_result_limit;
+    // 兼容保留 JNI 接口，但不再对 NMS 后结果做截断。
+    (void)limit;
 }
 
 int get_hiddenrisk_last_raw_detection_count()
@@ -184,6 +179,32 @@ static inline float sigmoid(float x)
     return 1.0f / (1.0f + expf(-x));
 }
 
+// 白名单模式：只保留与隐患检测相关的目标类别，其余全部过滤
+static inline bool is_filtered_label(int label)
+{
+    switch (label)
+    {
+    case 0:  // T_btn               T字按钮
+    case 4:  // gas_alarm           可燃气体报警器
+    case 6:  // fire_cabinet        室内消火栓箱
+    case 9:  // emergency_light     应急灯
+    case 11: // hydrant_nozzle      栓口
+    case 12: // regulator           气瓶调压阀
+    case 14: // hose                水带
+    case 15: // nozzle              水枪
+    case 17: // lpg_cylinder        液化石油气瓶
+    case 18: // extinguisher        灭火器
+    case 24: // flameout_protection 熄火保护装置
+    case 25: // gas_range           燃气灶
+    case 26: // electric_tricycle   电动三轮车
+    case 27: // electric_bike       电动车
+    case 28: // load_switch         负荷开关
+        return false; // 白名单内，不过滤
+    default:
+        return true;  // 白名单外，过滤掉
+    }
+}
+
 static void generate_proposals(const ncnn::Mat& pred, int stride, const ncnn::Mat& in_pad, float prob_threshold, std::vector<Object>& objects)
 {
     const int w = in_pad.w;
@@ -220,6 +241,9 @@ static void generate_proposals(const ncnn::Mat& pred, int stride, const ncnn::Ma
                 // 模型输出已经过 sigmoid，无需重复应用
                 // score = sigmoid(score);
             }
+
+            if (is_filtered_label(label))
+                continue;
 
             if (score >= prob_threshold)
             {
@@ -326,6 +350,9 @@ static void generate_proposals_decoded(const ncnn::Mat& pred, float prob_thresho
 
         // 模型输出已经过 sigmoid，无需重复应用
         // score = sigmoid(score);
+
+        if (is_filtered_label(label))
+            continue;
 
         if (label < 0 || score < prob_threshold)
             continue;
@@ -572,9 +599,9 @@ static int postprocess_hiddenrisk_output(
 
     std::vector<Object> proposals;
     ncnn::Mat normalized_pred;
-    // YOLOv11 模型: 32个类别 (37 = 5 + 32)
-    const int raw_feature_size = 64 + 32;
-    const int decoded_feature_size = 4 + 32;
+    // YOLOv11 模型: 33个类别 (0-32), raw输出=64+33=97, decoded输出=4+33=37
+    const int raw_feature_size = 64 + 33;
+    const int decoded_feature_size = 4 + 33;
     if (normalize_prediction_layout(out, raw_feature_size, anchor_count, normalized_pred))
     {
         ncnn::Mat in_pad_shape;
@@ -683,12 +710,10 @@ static int postprocess_hiddenrisk_output(
 
     g_hiddenrisk_last_raw_detection_count = (int)objects.size();
 
-    const int result_limit = g_hiddenrisk_detect_result_limit;
-    if (result_limit > 0 && objects.size() > (size_t)result_limit) {
-        __android_log_print(ANDROID_LOG_INFO, "HiddenRiskNcnn",
-            "detect limiting results from %zu to %d", objects.size(), result_limit);
-        objects.resize((size_t)result_limit);
-    }
+    // 按 label id 升序排列，保证结果顺序与类别编号对应，便于上层逻辑稳定处理
+    std::sort(objects.begin(), objects.end(), [](const Object& a, const Object& b) {
+        return a.label < b.label;
+    });
 
     set_detect_error(error_stage, error_code, error_message, "", 0, "");
     return 0;

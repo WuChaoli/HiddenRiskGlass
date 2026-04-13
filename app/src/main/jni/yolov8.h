@@ -33,7 +33,6 @@ struct Object
 };
 
 void set_hiddenrisk_detect_result_limit(int limit);
-int get_hiddenrisk_detect_result_limit();
 int get_hiddenrisk_last_raw_detection_count();
 void set_hiddenrisk_debug_compare_enabled(bool enabled);
 

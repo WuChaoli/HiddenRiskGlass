@@ -64,6 +64,13 @@ class HazardCaptureService(private val context: Context) {
             return
         }
 
+        // 复制 bitmap 到子线程，避免多线程竞争导致的回收问题
+        val bitmapCopy = bitmap.copy(Bitmap.Config.ARGB_8888, false)
+        if (bitmapCopy == null) {
+            Log.w(TAG, "无法保存：bitmap 复制失败")
+            return
+        }
+
         executor.execute {
             try {
                 val captureDir = getCaptureDirectory()
@@ -77,7 +84,7 @@ class HazardCaptureService(private val context: Context) {
 
                 // 保存图片
                 val imageFile = File(captureDir, "${filePrefix}.jpg")
-                saveBitmapToFile(bitmap, imageFile)
+                saveBitmapToFile(bitmapCopy, imageFile)
 
                 // 保存JSON
                 val jsonFile = File(captureDir, "${filePrefix}.json")
@@ -90,6 +97,11 @@ class HazardCaptureService(private val context: Context) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "保存隐患识别结果失败", e)
+            } finally {
+                // 确保复制的 bitmap 被回收
+                if (!bitmapCopy.isRecycled) {
+                    bitmapCopy.recycle()
+                }
             }
         }
     }
@@ -181,6 +193,73 @@ class HazardCaptureService(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "清理旧文件失败", e)
         }
+    }
+
+    /**
+     * 导出最近的隐患图片到公共目录（DCIM/HazardCaptures/）
+     * @param count 要导出的图片数量（最近的几张）
+     * @return 导出的文件列表
+     */
+    fun exportRecentCapturesToPublicDir(count: Int = 10): List<File> {
+        val captureDir = getCaptureDirectory()
+        if (!captureDir.exists()) {
+            return emptyList()
+        }
+
+        // 获取最近的图片文件
+        val imageFiles = captureDir.listFiles { file ->
+            file.isFile && file.name.endsWith(".jpg")
+        }?.sortedByDescending { it.lastModified() }?.take(count) ?: return emptyList()
+
+        val exportedFiles = mutableListOf<File>()
+
+        // 创建公共目录
+        val publicDir = File(android.os.Environment.getExternalStoragePublicDirectory(
+            android.os.Environment.DIRECTORY_DCIM), "HazardCaptures")
+        if (!publicDir.exists()) {
+            publicDir.mkdirs()
+        }
+
+        for (imageFile in imageFiles) {
+            try {
+                val destFile = File(publicDir, imageFile.name)
+                imageFile.copyTo(destFile, overwrite = true)
+                exportedFiles.add(destFile)
+
+                // 同时复制对应的JSON文件
+                val jsonFileName = imageFile.name.replace(".jpg", ".json")
+                val jsonFile = File(captureDir, jsonFileName)
+                if (jsonFile.exists()) {
+                    val destJsonFile = File(publicDir, jsonFileName)
+                    jsonFile.copyTo(destJsonFile, overwrite = true)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "导出图片失败: ${imageFile.name}", e)
+            }
+        }
+
+        Log.i(TAG, "已导出 ${exportedFiles.size} 张图片到: ${publicDir.absolutePath}")
+        return exportedFiles
+    }
+
+    /**
+     * 获取所有已保存的图片文件列表（按时间倒序）
+     */
+    fun getAllCaptureFiles(): List<File> {
+        val captureDir = getCaptureDirectory()
+        if (!captureDir.exists()) {
+            return emptyList()
+        }
+        return captureDir.listFiles { file ->
+            file.isFile && file.name.endsWith(".jpg")
+        }?.sortedByDescending { it.lastModified() } ?: emptyList()
+    }
+
+    /**
+     * 获取保存目录路径（用于日志打印）
+     */
+    fun getCaptureDirPath(): String {
+        return getCaptureDirectory().absolutePath
     }
 
     /**

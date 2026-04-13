@@ -568,7 +568,7 @@ JNIEXPORT void JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_setDebugRe
     __android_log_print(
         ANDROID_LOG_INFO,
         LOG_TAG_NCNN,
-        "setDebugResultLimit maxResults=%d",
+        "setDebugResultLimit maxResults=%d ignored, post-nms returns all results",
         (int)maxResults);
 }
 

@@ -535,6 +535,8 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             if (!quickCameraInitializing) {
                 quickCameraInitializing = true
+                QuickCameraManager.setPreviewFramingMode(QuickCameraManager.PreviewFramingMode.CENTER)
+                QuickCameraManager.setPreviewZoomRatio(2.0f)
                 QuickCameraManager.initialize(
                     size = QUICK_CAPTURE_SIZE,
                     quickCapture = true,
@@ -1161,7 +1163,10 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val RESULT_HOLD_MS = 2000L
         private const val RECORDING_DOT_TOP_RATIO = 0.14f
         private const val RECORDING_DOT_END_RATIO = 0.06f
-        private val QUICK_CAPTURE_SIZE = Size(960, 960)
+        // 提高相机分辨率以减小视野（更大数字变焦）
+        // 1920x1080 裁剪 640x640 = 3x 变焦，视野更集中
+        // 传感器层面5x裁剪，直接输出640x640，无需软件裁剪
+        private val QUICK_CAPTURE_SIZE = Size(640, 640)
         private const val BACKEND_CPU = 0
         private const val BACKEND_GPU = 1
         private const val BACKEND_TURNIP = 2

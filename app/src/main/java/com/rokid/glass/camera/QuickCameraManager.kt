@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.ColorSpace
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
@@ -23,6 +24,7 @@ import android.net.Uri
 import android.os.Environment
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
@@ -48,16 +50,29 @@ import java.nio.ByteBuffer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.roundToInt
 import kotlin.coroutines.cancellation.CancellationException
 
 
 object QuickCameraManager {
+    enum class PreviewFramingMode {
+        CENTER,
+        BOTTOM,
+        TARGET_CENTER,
+    }
+
     private const val TAG = "QuickCameraManager"
     private const val VIDEO_FRAME_RATE = 24
     private const val VIDEO_BIT_RATE = 5_000_000
     private const val GPU_FRAME_FALLBACK_INITIAL_DELAY_MS = 120L
     private const val GPU_FRAME_FALLBACK_RETRY_INTERVAL_MS = 50L
     private const val GPU_FRAME_FALLBACK_TIMEOUT_MS = 1_500L
+    private const val PREFS_NAME = "quick_camera_manager"
+    private const val KEY_PREVIEW_ZOOM_RATIO = "preview_zoom_ratio"
+    private const val DEFAULT_PREVIEW_VERTICAL_OFFSET_RATIO = 0.0f
+    private const val MIN_PREVIEW_ZOOM_RATIO_FOR_VERTICAL_OFFSET = 1.40f
+    private const val DEFAULT_PREVIEW_TARGET_CENTER_X_RATIO = 0.50f
+    private const val DEFAULT_PREVIEW_TARGET_CENTER_Y_RATIO = 0.64f
 
     private var cameraManager: CameraManager? = null
     private var cameraDevice: CameraDevice? = null
@@ -80,9 +95,18 @@ object QuickCameraManager {
 
     private var previewSurface: Surface? = null
     private var surfaceTexture: SurfaceTexture? = null
+    private var previewBufferSize: Size? = null
+    private var previewStreamSize: Size? = null
+    private var ownsPreviewSurfaceTexture = false
     private var imgCallback: WeakReference<((File?) -> Unit)>? = null
     private var gpuFrameCallback: WeakReference<((GpuFrame?) -> Unit)>? = null
     private var isQuickCapture = false
+    private var currentPreviewZoomRatio = 2.0f
+    private var currentPreviewVerticalOffsetRatio = DEFAULT_PREVIEW_VERTICAL_OFFSET_RATIO
+    private var currentPreviewFramingMode = PreviewFramingMode.CENTER
+    private var currentPreviewTargetCenterXRatio = DEFAULT_PREVIEW_TARGET_CENTER_X_RATIO
+    private var currentPreviewTargetCenterYRatio = DEFAULT_PREVIEW_TARGET_CENTER_Y_RATIO
+    private var hasLoadedPersistedZoomRatio = false
 
     @Volatile
     private var isCameraClosed = true // 初始状态为关闭
@@ -101,7 +125,13 @@ object QuickCameraManager {
     }
 
     @SuppressLint("MissingPermission")
-    fun initialize(size: Size? = null, quickCapture: Boolean = false, onInitialized: (Boolean) -> Unit) {
+    fun initialize(
+        size: Size? = null,
+        quickCapture: Boolean = false,
+        stillCaptureOnly: Boolean = false,
+        onInitialized: (Boolean) -> Unit,
+    ) {
+        ensurePreviewZoomRatioLoaded()
 
         val weakCallback = WeakReference(onInitialized)
         this.isQuickCapture = quickCapture
@@ -119,7 +149,6 @@ object QuickCameraManager {
 
         if (!hasCameraPermission()) {
             L.e(TAG, "没有相机权限")
-//            onInitialized(false)
             weakCallback.get()?.invoke(false)
             return
         }
@@ -130,12 +159,19 @@ object QuickCameraManager {
 
             if (cameraId == null) {
                 L.e(TAG, "没有可用相机")
-//                onInitialized(false)
                 weakCallback.get()?.invoke(false)
                 return
             }
             L.d(TAG, "相机ID: $cameraId")
             startBackgroundThread()
+
+            // 用原子标志保证 callback 只被触发一次，防止 onError 在 onOpened 成功后再次触发
+            val callbackInvoked = java.util.concurrent.atomic.AtomicBoolean(false)
+            fun notifyOnce(success: Boolean) {
+                if (callbackInvoked.compareAndSet(false, true)) {
+                    weakCallback.get()?.invoke(success)
+                }
+            }
 
             cameraManager?.openCamera(
                 cameraId!!,
@@ -152,25 +188,31 @@ object QuickCameraManager {
                                 if (!success) {
                                     releaseCamera()
                                 }
-                                weakCallback.get()?.invoke(success)
+                                notifyOnce(success)
                             }
+                        } else if (stillCaptureOnly) {
+                            // 静态拍照模式不创建常驻预览 session，避免预览链路触发设备级错误。
+                            synchronized(sessionLock) {
+                                captureSession = null
+                                isSessionClosed = true
+                            }
+                            notifyOnce(true)
                         } else {
                             setupPreviewSurface()
                             createPreviewSession()
-                            weakCallback.get()?.invoke(true)
+                            notifyOnce(true)
                         }
-
                     }
 
                     override fun onDisconnected(camera: CameraDevice) {
                         releaseCamera()
-                        weakCallback.get()?.invoke(false)
+                        notifyOnce(false)
                     }
 
                     override fun onError(camera: CameraDevice, error: Int) {
                         L.e(TAG, "相机打开错误: $error")
                         releaseCamera()
-                        weakCallback.get()?.invoke(false)
+                        notifyOnce(false)
                     }
                 },
                 backgroundHandler
@@ -182,16 +224,110 @@ object QuickCameraManager {
         }
     }
 
+    fun attachPreviewTexture(surfaceTexture: SurfaceTexture, width: Int, height: Int) {
+        synchronized(sessionLock) {
+            runCatching { previewSurface?.release() }
+            if (ownsPreviewSurfaceTexture) {
+                runCatching { this.surfaceTexture?.release() }
+            }
+            this.surfaceTexture = surfaceTexture
+            previewBufferSize = Size(width, height)
+            ownsPreviewSurfaceTexture = false
+            surfaceTexture.setDefaultBufferSize(width, height)
+            previewSurface = Surface(surfaceTexture)
+        }
+    }
+
+    fun detachPreviewTexture() {
+        synchronized(sessionLock) {
+            runCatching { previewSurface?.release() }
+            previewSurface = null
+            if (ownsPreviewSurfaceTexture) {
+                runCatching { surfaceTexture?.release() }
+            }
+            surfaceTexture = null
+            previewBufferSize = null
+            ownsPreviewSurfaceTexture = false
+        }
+    }
+
+    fun setPreviewZoomRatio(zoomRatio: Float): Float {
+        ensurePreviewZoomRatioLoaded()
+        val clamped = zoomRatio.coerceIn(1.0f, 3.0f)
+        currentPreviewZoomRatio = clamped
+        persistPreviewZoomRatio(clamped)
+        if (!isQuickCapture) {
+            backgroundHandler?.post {
+                applyPreviewRepeatingRequest()
+            }
+        }
+        return getAppliedPreviewZoomRatio()
+    }
+
+    fun getPreviewZoomRatio(): Float {
+        ensurePreviewZoomRatioLoaded()
+        return currentPreviewZoomRatio
+    }
+
+    fun setPreviewVerticalOffsetRatio(offsetRatio: Float): Float {
+        val clamped = offsetRatio.coerceIn(-0.12f, 0.12f)
+        currentPreviewVerticalOffsetRatio = clamped
+        if (!isQuickCapture) {
+            backgroundHandler?.post {
+                applyPreviewRepeatingRequest()
+            }
+        }
+        return clamped
+    }
+
+    fun getPreviewVerticalOffsetRatio(): Float = currentPreviewVerticalOffsetRatio
+
+    fun setPreviewFramingMode(framingMode: PreviewFramingMode) {
+        currentPreviewFramingMode = framingMode
+        if (!isQuickCapture) {
+            backgroundHandler?.post {
+                applyPreviewRepeatingRequest()
+            }
+        }
+    }
+
+    fun getPreviewFramingMode(): PreviewFramingMode = currentPreviewFramingMode
+
+    fun setPreviewTargetCenter(xRatio: Float, yRatio: Float) {
+        currentPreviewTargetCenterXRatio = xRatio.coerceIn(0.1f, 0.9f)
+        currentPreviewTargetCenterYRatio = yRatio.coerceIn(0.1f, 0.9f)
+        if (!isQuickCapture) {
+            backgroundHandler?.post {
+                applyPreviewRepeatingRequest()
+            }
+        }
+    }
+
+    fun getPreviewTargetCenterXRatio(): Float = currentPreviewTargetCenterXRatio
+
+    fun getPreviewTargetCenterYRatio(): Float = currentPreviewTargetCenterYRatio
+
+    fun getAppliedPreviewZoomRatio(): Float {
+        val needsFramingCrop = currentPreviewFramingMode != PreviewFramingMode.CENTER ||
+            kotlin.math.abs(currentPreviewVerticalOffsetRatio) > 0.0001f
+        return if (needsFramingCrop) {
+            kotlin.math.max(currentPreviewZoomRatio, MIN_PREVIEW_ZOOM_RATIO_FOR_VERTICAL_OFFSET)
+        } else {
+            currentPreviewZoomRatio
+        }
+    }
+
+    fun getPreviewStreamSize(): Size? = previewStreamSize
+
     private fun createPreviewSession() {
         val previewSurface = this.previewSurface ?: return
-        val imageReaderSurface = imageReader?.surface ?: return
 
         try {
             if (isCameraClosed) {
                 return
             }
             cameraDevice?.createCaptureSession(
-                listOf(previewSurface, imageReaderSurface),
+                listOf(previewSurface),
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
                         synchronized(sessionLock) {
@@ -203,19 +339,7 @@ object QuickCameraManager {
                             captureSession = session
                             isSessionClosed = false
                             try {
-                                val builder = cameraDevice!!.createCaptureRequest(
-                                    CameraDevice.TEMPLATE_PREVIEW
-                                ).apply {
-
-                                    // 添加自动曝光模式
-                                    set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                                    // 设置曝光补偿（根据需要调整）
-                                    set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
-                                    // 启用自动曝光锁定（可选）
-                                    set(CaptureRequest.CONTROL_AE_LOCK, false)
-                                    addTarget(previewSurface)
-                                }
-                                session.setRepeatingRequest(builder.build(), null, backgroundHandler)
+                                applyPreviewRepeatingRequest(session)
                             } catch (e: Exception) {
                                 L.e(TAG, "设置预览失败", e)
                                 setProcessingCaptureState(false)
@@ -296,6 +420,7 @@ object QuickCameraManager {
                         releaseCamera()
                     } else {
                         setProcessingCaptureState(false)
+                        restorePreviewSessionIfNeeded()
                     }
                     weakCallback.get()?.invoke(outputFile)
                 }
@@ -306,6 +431,13 @@ object QuickCameraManager {
                 val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
                     addTarget(surface)
                     set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(270))
+                    applyAutoExposure(this)
+                    val stillAspectRatio = if (currentPreviewFramingMode != PreviewFramingMode.CENTER) {
+                        previewBufferSize?.let { size -> size.width.toFloat() / size.height.toFloat() }
+                    } else {
+                        null
+                    }
+                    applyCurrentCropRegion(this, "Still", stillAspectRatio)
                 }
 
                 DeviceUtil.setSystemProp("vendor.rkd.camera.sensormode", "5")
@@ -319,7 +451,7 @@ object QuickCameraManager {
                                 L.e(TAG, "拍照失败", e)
                                 imgCallback?.get()?.invoke(null)
                                 setProcessingCaptureState(false)
-//                            createPreviewSession()
+                                restorePreviewSessionIfNeeded()
                             }
                         }
 
@@ -327,7 +459,7 @@ object QuickCameraManager {
                             L.e(TAG, "拍照失败->")
                             imgCallback?.get()?.invoke(null)
                             setProcessingCaptureState(false)
-                            createPreviewSession()
+                            restorePreviewSessionIfNeeded()
                         }
                     },
                     backgroundHandler
@@ -336,6 +468,7 @@ object QuickCameraManager {
                 L.e(TAG, "拍照异常", e)
                 imgCallback?.get()?.invoke(null)
                 setProcessingCaptureState(false)
+                restorePreviewSessionIfNeeded()
             }
         }
 
@@ -359,15 +492,20 @@ object QuickCameraManager {
     }
 
     private fun createGpuFrameSession(onConfigured: ((Boolean) -> Unit)? = null) {
-        val reader = gpuImageReader ?: run {
+        // GPU 帧模式：初始化 GPU ImageReader 用于持续预览帧采集
+        if (gpuImageReader == null) {
+            setupGpuImageReader()
+        }
+        if (imageReader == null) {
+            setupQuickCaptureCpuReader(quickCaptureGpuFrameSize)
+        }
+
+        val gpuSurface = gpuImageReader?.surface ?: run {
+            Log.e(TAG, "GPU ImageReader surface is null")
             onConfigured?.invoke(false)
             return
         }
-        val surface = reader.surface ?: run {
-            onConfigured?.invoke(false)
-            return
-        }
-        val jpegSurface = imageReader?.surface
+        val cpuSurface = imageReader?.surface
 
         try {
             if (isCameraClosed) {
@@ -375,7 +513,10 @@ object QuickCameraManager {
                 return
             }
             cameraDevice?.createCaptureSession(
-                listOfNotNull(surface, jpegSurface),
+                buildList {
+                    add(gpuSurface)
+                    cpuSurface?.let { add(it) }
+                },
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
                         synchronized(sessionLock) {
@@ -387,17 +528,20 @@ object QuickCameraManager {
                             captureSession = session
                             isSessionClosed = false
                             try {
+                                // setRepeatingRequest 仅用于保持 session 活跃，不设 crop
+                                // crop 只在 takeGpuFrame 的 STILL_CAPTURE 请求中应用，
+                                // 避免 PRIVATE + crop 组合触发驱动层 ERROR_CAMERA_DEVICE
                                 val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
                                     set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
                                     set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
                                     set(CaptureRequest.CONTROL_AE_LOCK, false)
-                                    addTarget(surface)
+                                    addTarget(gpuSurface)
                                 }
                                 session.setRepeatingRequest(builder.build(), null, backgroundHandler)
-                                Log.i(TAG, "gpu frame session ready")
+                                Log.i(TAG, "GPU frame session ready")
                                 onConfigured?.invoke(true)
                             } catch (error: Exception) {
-                                Log.e(TAG, "启动常驻预览帧采集失败", error)
+                                Log.e(TAG, "启动 GPU 帧采集失败", error)
                                 setProcessingCaptureState(false)
                                 onConfigured?.invoke(false)
                             }
@@ -405,7 +549,7 @@ object QuickCameraManager {
                     }
 
                     override fun onConfigureFailed(session: CameraCaptureSession) {
-                        Log.e(TAG, "常驻预览帧会话配置失败")
+                        Log.e(TAG, "GPU 帧会话配置失败")
                         setProcessingCaptureState(false)
                         onConfigured?.invoke(false)
                     }
@@ -413,7 +557,7 @@ object QuickCameraManager {
                 backgroundHandler,
             )
         } catch (error: Exception) {
-            Log.e(TAG, "创建常驻预览帧会话失败", error)
+            Log.e(TAG, "创建 GPU 帧会话失败", error)
             setProcessingCaptureState(false)
             onConfigured?.invoke(false)
         }
@@ -505,6 +649,11 @@ object QuickCameraManager {
                 return
             }
             val previewBitmap = latestPreviewBitmap.get()
+                ?: if (force || jpegReader == null) {
+                    copyPreviewBitmapFromHardwareBuffer(gpuFrame)
+                } else {
+                    null
+                }
             if (!force && jpegReader != null && previewBitmap == null) {
                 return
             }
@@ -600,10 +749,14 @@ object QuickCameraManager {
                     finishRequest(null)
                     return
                 }
-                val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
-                    set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                    set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
-                    set(CaptureRequest.CONTROL_AE_LOCK, false)
+                val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                    applyAutoExposure(this)
+                    // 当前会话只承载 quick capture 预览面，使用 PREVIEW 模板更稳定，
+                    // 仍保留单次 capture 请求来拿到触发时刻的最新帧。
+                    val quickCaptureAspectRatio = quickCaptureGpuFrameSize?.let { size ->
+                        size.width.toFloat() / size.height.toFloat()
+                    }
+                    applyCurrentCropRegion(this, "GpuFrame", quickCaptureAspectRatio)
                     addTarget(surface)
                     jpegSurface?.let {
                         addTarget(it)
@@ -820,7 +973,8 @@ object QuickCameraManager {
 
     private fun setupImageReader(mSize: Size? = null, quickCapture: Boolean = false) {
         if (quickCapture) {
-            setupGpuImageReader(mSize)
+            // quick capture 模式补一条 CPU 可读的 YUV 输出，
+            // 让 AI/SSE 链路优先走稳定的 YUV->Bitmap，而不是 HardwareBuffer 拷贝。
             setupQuickCaptureCpuReader(mSize)
             return
         }
@@ -854,9 +1008,9 @@ object QuickCameraManager {
         val outputSizes = map?.getOutputSizes(ImageFormat.PRIVATE)
             ?: map?.getOutputSizes(SurfaceTexture::class.java)
             ?: emptyArray()
-        // 提高分辨率以支持640x640中心裁剪，相当于数字变焦效果
-        // 1280x720裁剪640x640 = 2x变焦
-        val requested = mSize ?: Size(1280, 720)
+        // 传感器已做5x裁剪，直接输出640x640目标分辨率
+        // 无需后续软件裁剪
+        val requested = mSize ?: Size(640, 640)
         val fallbackSize = outputSizes
             .filter { it.width > 0 && it.height > 0 }
             .maxByOrNull { it.width.toLong() * it.height.toLong() }
@@ -881,7 +1035,8 @@ object QuickCameraManager {
         val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val outputSizes: Array<Size>? = map?.getOutputSizes(ImageFormat.YUV_420_888)
         val supportedSizes = outputSizes.orEmpty()
-        val requested = quickCaptureGpuFrameSize ?: mSize ?: Size(1280, 720)
+        // 传感器已做5x裁剪，直接输出640x640目标分辨率
+        val requested = quickCaptureGpuFrameSize ?: mSize ?: Size(640, 640)
         val fallbackSize = supportedSizes
             .maxByOrNull { it.width.toLong() * it.height.toLong() }
             ?: requested
@@ -1033,6 +1188,37 @@ object QuickCameraManager {
         }
     }
 
+    private fun copyPreviewBitmapFromHardwareBuffer(frame: GpuFrame): Bitmap? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            Log.w(TAG, "copyPreviewBitmapFromHardwareBuffer requires API 30+")
+            return null
+        }
+
+        return try {
+            val hardwareBitmap = Bitmap.wrapHardwareBuffer(
+                frame.hardwareBuffer,
+                ColorSpace.get(ColorSpace.Named.SRGB),
+            ) ?: run {
+                Log.w(TAG, "wrapHardwareBuffer returned null")
+                return null
+            }
+            val softwareBitmap = hardwareBitmap.copy(Bitmap.Config.ARGB_8888, false) ?: run {
+                Log.w(TAG, "copyPreviewBitmapFromHardwareBuffer copy failed")
+                if (!hardwareBitmap.isRecycled) {
+                    hardwareBitmap.recycle()
+                }
+                return null
+            }
+            if (!hardwareBitmap.isRecycled) {
+                hardwareBitmap.recycle()
+            }
+            rotateBitmapIfNeeded(softwareBitmap, frame.rotationDegrees)
+        } catch (error: Exception) {
+            Log.w(TAG, "copyPreviewBitmapFromHardwareBuffer failed", error)
+            null
+        }
+    }
+
     private fun getQuickCaptureRotationDegrees(): Int {
         val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!) ?: return 0
         val sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
@@ -1122,11 +1308,32 @@ object QuickCameraManager {
     private fun setupPreviewSurface() {
         if (surfaceTexture == null) {
             surfaceTexture = SurfaceTexture(0)
-            surfaceTexture?.setDefaultBufferSize(1280, 720)
+            ownsPreviewSurfaceTexture = true
         }
+        val requestedSize = previewBufferSize ?: Size(1280, 720)
+        val streamSize = choosePreviewOutputSize(requestedSize)
+        previewStreamSize = streamSize
+        surfaceTexture?.setDefaultBufferSize(streamSize.width, streamSize.height)
         if (previewSurface == null) {
             previewSurface = Surface(surfaceTexture)
         }
+    }
+
+    private fun choosePreviewOutputSize(requested: Size): Size {
+        val characteristics = cameraManager?.getCameraCharacteristics(cameraId ?: return requested) ?: return requested
+        val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP) ?: return requested
+        val outputSizes = map.getOutputSizes(SurfaceTexture::class.java)
+            ?: map.getOutputSizes(ImageFormat.PRIVATE)
+            ?: emptyArray()
+        return choosePreviewSize(outputSizes, requested) ?: requested
+    }
+
+    private fun clearPreviewSurfaceState() {
+        previewSurface = null
+        surfaceTexture = null
+        previewBufferSize = null
+        previewStreamSize = null
+        ownsPreviewSurfaceTexture = false
     }
 
     private fun resetRecordingState() {
@@ -1134,10 +1341,134 @@ object QuickCameraManager {
         mediaRecorder?.release()
         mediaRecorder = null
         previewSurface?.release()
-        surfaceTexture?.release()
-        previewSurface = null
-        surfaceTexture = null
+        if (ownsPreviewSurfaceTexture) {
+            surfaceTexture?.release()
+        }
+        clearPreviewSurfaceState()
         videoFile = null
+    }
+
+    private fun applyAutoExposure(builder: CaptureRequest.Builder) {
+        builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+        builder.set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
+        builder.set(CaptureRequest.CONTROL_AE_LOCK, false)
+    }
+
+    private fun ensurePreviewZoomRatioLoaded() {
+        if (hasLoadedPersistedZoomRatio) {
+            return
+        }
+        hasLoadedPersistedZoomRatio = true
+        val prefs = MyApplication.getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        currentPreviewZoomRatio = prefs.getFloat(KEY_PREVIEW_ZOOM_RATIO, 2.0f).coerceIn(1.0f, 3.0f)
+    }
+
+    private fun persistPreviewZoomRatio(zoomRatio: Float) {
+        val prefs = MyApplication.getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putFloat(KEY_PREVIEW_ZOOM_RATIO, zoomRatio).apply()
+    }
+
+    private fun applyCurrentCropRegion(
+        builder: CaptureRequest.Builder,
+        label: String,
+        targetAspectRatio: Float? = null,
+    ) {
+        val cropRect = getCurrentCropRect(targetAspectRatio) ?: return
+        builder.set(CaptureRequest.SCALER_CROP_REGION, cropRect)
+        Log.i(
+            TAG,
+            "$label crop requestZoom=${"%.2f".format(Locale.US, currentPreviewZoomRatio)} appliedZoom=${"%.2f".format(Locale.US, getAppliedPreviewZoomRatio())} framing=$currentPreviewFramingMode target=(${ "%.2f".format(Locale.US, currentPreviewTargetCenterXRatio) },${ "%.2f".format(Locale.US, currentPreviewTargetCenterYRatio) }) verticalOffset=${"%.3f".format(Locale.US, currentPreviewVerticalOffsetRatio)} rect=${cropRect.width()}x${cropRect.height()} left=${cropRect.left} top=${cropRect.top}",
+        )
+    }
+
+    private fun getCurrentCropRect(targetAspectRatio: Float? = null): Rect? {
+        val characteristics = cameraManager?.getCameraCharacteristics(cameraId ?: return null) ?: return null
+        val sensorRect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE) ?: return null
+        val needsVerticalOffset = currentPreviewFramingMode != PreviewFramingMode.CENTER ||
+            kotlin.math.abs(currentPreviewVerticalOffsetRatio) > 0.0001f
+        val effectiveZoomRatio = getAppliedPreviewZoomRatio()
+        if (effectiveZoomRatio <= 1.01f) {
+            return null
+        }
+
+        val normalizedTargetRatio = (targetAspectRatio ?: sensorRect.width().toFloat() / sensorRect.height().toFloat())
+            .coerceAtLeast(0.01f)
+        val sensorAspect = sensorRect.width().toFloat() / sensorRect.height().toFloat()
+
+        var cropWidth = (sensorRect.width() / effectiveZoomRatio).roundToInt()
+            .coerceIn(1, sensorRect.width())
+        var cropHeight = (sensorRect.height() / effectiveZoomRatio).roundToInt()
+            .coerceIn(1, sensorRect.height())
+
+        if (normalizedTargetRatio > sensorAspect) {
+            cropHeight = (cropWidth / normalizedTargetRatio).roundToInt().coerceIn(1, sensorRect.height())
+        } else {
+            cropWidth = (cropHeight * normalizedTargetRatio).roundToInt().coerceIn(1, sensorRect.width())
+        }
+
+        val minLeft = sensorRect.left
+        val maxLeft = sensorRect.right - cropWidth
+        val minTop = sensorRect.top
+        val maxTop = sensorRect.bottom - cropHeight
+        val left = when (currentPreviewFramingMode) {
+            PreviewFramingMode.TARGET_CENTER -> {
+                val targetCenterX = sensorRect.left + (sensorRect.width() * currentPreviewTargetCenterXRatio).roundToInt()
+                (targetCenterX - cropWidth / 2).coerceIn(minLeft, maxLeft)
+            }
+            else -> sensorRect.left + ((sensorRect.width() - cropWidth) / 2)
+        }
+        val top = when (currentPreviewFramingMode) {
+            PreviewFramingMode.BOTTOM -> sensorRect.bottom - cropHeight
+            PreviewFramingMode.TARGET_CENTER -> {
+                val targetCenterY = sensorRect.top + (sensorRect.height() * currentPreviewTargetCenterYRatio).roundToInt()
+                (targetCenterY - cropHeight / 2).coerceIn(minTop, maxTop)
+            }
+            PreviewFramingMode.CENTER -> {
+                val maxVerticalOffset = (sensorRect.height() - cropHeight) / 2
+                // 正值表示把取景框往下移一点，减少顶部内容。
+                val requestedVerticalOffset = (sensorRect.height() * currentPreviewVerticalOffsetRatio).roundToInt()
+                val appliedVerticalOffset = requestedVerticalOffset.coerceIn(-maxVerticalOffset, maxVerticalOffset)
+                sensorRect.top + maxVerticalOffset + appliedVerticalOffset
+            }
+        }
+        return Rect(left, top, left + cropWidth, top + cropHeight)
+    }
+
+    private fun applyPreviewRepeatingRequest(targetSession: CameraCaptureSession? = captureSession) {
+        val session = targetSession ?: return
+        val previewSurface = this.previewSurface ?: return
+        if (cameraDevice == null || isCameraClosed || isSessionClosed) {
+            return
+        }
+
+        val camera = cameraDevice ?: return
+        val builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+            applyAutoExposure(this)
+            val previewAspectRatio = previewBufferSize?.let { size ->
+                size.width.toFloat() / size.height.toFloat()
+            }
+            applyCurrentCropRegion(this, "Preview", previewAspectRatio)
+            addTarget(previewSurface)
+        }
+        runCatching {
+            session.setRepeatingRequest(builder.build(), null, backgroundHandler)
+        }.onFailure { error ->
+            when (error) {
+                is IllegalStateException -> {
+                    L.d(TAG, "预览 session 已关闭，忽略重复请求: ${error.message}")
+                }
+                else -> throw error
+            }
+        }
+    }
+
+    private fun restorePreviewSessionIfNeeded() {
+        if (isQuickCapture || previewSurface == null || isCameraClosed || cameraDevice == null) {
+            return
+        }
+        backgroundHandler?.post {
+            createPreviewSession()
+        }
     }
 
     private fun getBestVideoSize(): Size? {
@@ -1240,36 +1571,48 @@ object QuickCameraManager {
     }
 
     fun releaseCamera() {
+        cancelPendingGpuFrameFallback()
+        if (isCameraClosed) return
+
+        // 先标记为关闭，防止并发重入
+        isCameraClosed = true
+
         try {
-            cancelPendingGpuFrameFallback()
-            if (isCameraClosed) return
             if (isRecording) {
-                try {
-                    mediaRecorder?.stop()
-                } catch (_: Exception) {
-                }
-                mediaRecorder?.release()
+                runCatching { mediaRecorder?.stop() }
+                runCatching { mediaRecorder?.release() }
             }
 
+            // 关闭 session：相机硬件出错时 close() 内部的 stopRepeating 会抛 CameraAccessException，
+            // 单独 try-catch 确保后续资源都能被释放
             synchronized(sessionLock) {
-                captureSession?.close()
+                runCatching { captureSession?.close() }
+                    .onFailure { L.d(TAG, "session close 异常（忽略）: ${it.message}") }
+                isSessionClosed = true
                 captureSession = null
             }
+
             cancelPendingGpuFrameFallback()
             setProcessingCaptureState(false)
-            cameraDevice?.close()
-            gpuImageReader?.close()
-            imageReader?.close()
+
+            // 逐项释放，任意一项异常都不影响后续
+            runCatching { cameraDevice?.close() }
+                .onFailure { L.d(TAG, "cameraDevice close 异常（忽略）: ${it.message}") }
+            runCatching { gpuImageReader?.close() }
+            runCatching { imageReader?.close() }
+
             imgCallback = null
             gpuFrameCallback = null
             cameraDevice = null
             gpuImageReader = null
             quickCaptureGpuFrameSize = null
             imageReader = null
-            previewSurface?.release()
-            surfaceTexture?.release()
-            previewSurface = null
-            surfaceTexture = null
+
+            runCatching { previewSurface?.release() }
+            if (ownsPreviewSurfaceTexture) {
+                runCatching { surfaceTexture?.release() }
+            }
+            clearPreviewSurfaceState()
 
             stopBackgroundThread()
 
@@ -1279,9 +1622,11 @@ object QuickCameraManager {
         } catch (e: Exception) {
             L.d(TAG, "releaseCamera 异常: ${e.message}")
         } finally {
-            isCameraClosed = true
             isRecording = false
             isInitialized = false
+            currentPreviewFramingMode = PreviewFramingMode.CENTER
+            currentPreviewTargetCenterXRatio = DEFAULT_PREVIEW_TARGET_CENTER_X_RATIO
+            currentPreviewTargetCenterYRatio = DEFAULT_PREVIEW_TARGET_CENTER_Y_RATIO
             setProcessingCaptureState(false)
         }
     }
@@ -1380,6 +1725,47 @@ object QuickCameraManager {
         } finally {
             bitmap?.recycle()
         }
+    }
+
+    /**
+     * 将 YUV_420_888 Image 转换为 Bitmap
+     * 使用 YuvImage 压缩为 JPEG 再解码为 Bitmap（简单可靠的方法）
+     */
+    private fun yuvImageToBitmap(image: android.media.Image): Bitmap? {
+        val yBuffer = image.planes[0].buffer
+        val uBuffer = image.planes[1].buffer
+        val vBuffer = image.planes[2].buffer
+
+        val ySize = yBuffer.remaining()
+        val uSize = uBuffer.remaining()
+        val vSize = vBuffer.remaining()
+
+        // NV21 格式: Y 平面后跟 VU 交错
+        val nv21 = ByteArray(ySize + uSize + vSize)
+        yBuffer.get(nv21, 0, ySize)
+
+        // U/V 平面需要交错存储为 VU
+        val uStride = image.planes[1].rowStride
+        val vStride = image.planes[2].rowStride
+        val uvHeight = image.height / 2
+
+        var pos = ySize
+        for (row in 0 until uvHeight) {
+            for (col in 0 until image.width / 2) {
+                val uIdx = row * uStride + col
+                val vIdx = row * vStride + col
+                nv21[pos++] = vBuffer[vIdx]
+                nv21[pos++] = uBuffer[uIdx]
+            }
+        }
+
+        // 使用 YuvImage 压缩为 JPEG
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 90, out)
+        val jpegBytes = out.toByteArray()
+
+        return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
     }
 
 
