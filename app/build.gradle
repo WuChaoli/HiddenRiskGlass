@@ -81,7 +81,7 @@ dependencies {
     implementation libs.androidx.ui.tooling.preview
     implementation libs.androidx.material3
     implementation libs.androidx.constraintlayout
-    implementation ('com.rokid.security:glass3.open.sdk:2.1.5-E'){
+    implementation ('com.rokid.security:glass3.open.sdk:2.1.7-E'){
         exclude group: "org.slf4j"
     }
 //    implementation ('com.rokid.security:glass3.open.sdk:2.1.04-E'){

@@ -1,7 +1,12 @@
 package com.rokid.glass.utils
 
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
 import android.util.Log
+import java.io.ByteArrayOutputStream
 
 /**
  * Bitmap 工具类
@@ -44,6 +49,29 @@ object BitmapUtils {
         } catch (e: Exception) {
             Log.e(TAG, "Center crop failed: ${e.message}")
             letterboxTo640(source)
+        }
+    }
+
+    /**
+     * 将 NV21 帧转换为 Bitmap。
+     * 先压缩为 JPEG，再解码为 Bitmap，兼容性更稳定。
+     */
+    fun nv21ToBitmap(nv21: ByteArray, width: Int, height: Int, jpegQuality: Int = 90): Bitmap? {
+        return try {
+            val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
+            val outputStream = ByteArrayOutputStream()
+            if (!yuvImage.compressToJpeg(Rect(0, 0, width, height), jpegQuality, outputStream)) {
+                Log.e(TAG, "NV21 转 JPEG 失败")
+                return null
+            }
+            BitmapFactory.decodeByteArray(
+                outputStream.toByteArray(),
+                0,
+                outputStream.size(),
+            )
+        } catch (error: Exception) {
+            Log.e(TAG, "NV21 转 Bitmap 失败: ${error.message}", error)
+            null
         }
     }
 
