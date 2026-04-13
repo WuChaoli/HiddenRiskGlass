@@ -1,1 +1,7 @@
 /build
+.cxx/
+.gradle/
+build/
+libs/
+src/androidTest/
+src/test/
