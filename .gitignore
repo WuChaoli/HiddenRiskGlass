@@ -16,4 +16,5 @@ build/
 shots/
 third_party/
 models/
+assets/
 .codex
