@@ -1,6 +1,9 @@
 package com.rokid.glass.hiddenrisk
 
+import android.graphics.Bitmap.CompressFormat
 import android.graphics.Bitmap
+import android.graphics.Matrix
+import android.graphics.SurfaceTexture
 import android.media.MediaActionSound
 import android.net.Uri
 import android.os.Bundle
@@ -8,11 +11,11 @@ import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.util.Size
+import android.view.TextureView
 import android.view.View
 import android.widget.TextView
-import com.rokid.glass.camera.RokidFrameSource
-import com.rokid.glass.component.RokidCameraPreviewView
-import com.rokid.glass.utils.BitmapUtils
+import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glesse.R
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
@@ -26,6 +29,7 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.max
 
 /**
  * 闪拍页面：展示 SDK 共享预览，单击触控板时保存当前视频流帧。
@@ -40,9 +44,10 @@ class LightshotActivity : BaseGlassActivity() {
         private const val JPEG_QUALITY = 90
         private const val RESULT_TIP_DURATION_MS = 2000L
         private val FOV_LEVELS = floatArrayOf(1.0f, 1.2f, 1.5f, 1.8f, 2.0f, 2.2f, 2.6f, 3.0f)
+        private val QUICK_CAPTURE_SIZE = Size(640, 640)
     }
 
-    private lateinit var previewView: RokidCameraPreviewView
+    private lateinit var previewView: TextureView
     private lateinit var tvHint: TextView
     private lateinit var tvFov: TextView
     private lateinit var tvSaveResult: TextView
@@ -51,6 +56,7 @@ class LightshotActivity : BaseGlassActivity() {
     private var isCapturing = false
 
     private var isCameraReady = false
+    private var cameraInitInProgress = false
     private var currentFovIndex = 0
     private val shutterSound by lazy { MediaActionSound() }
 
@@ -92,6 +98,27 @@ class LightshotActivity : BaseGlassActivity() {
         setContentView(R.layout.activity_lightshot)
 
         previewView = findViewById(R.id.previewView)
+        previewView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                Log.i(TAG, "preview surface available width=$width height=$height")
+                initCamera(surface, width, height)
+            }
+
+            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {
+                Log.i(TAG, "preview surface size changed width=$width height=$height")
+                applyPreviewTransform()
+            }
+
+            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                Log.i(TAG, "preview surface destroyed")
+                QuickCameraManager.detachPreviewTexture()
+                isCameraReady = false
+                cameraInitInProgress = false
+                return true
+            }
+
+            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
+        }
         tvHint = findViewById(R.id.tvHint)
         tvFov = findViewById(R.id.tvFov)
         tvSaveResult = findViewById(R.id.tvSaveResult)
@@ -103,7 +130,11 @@ class LightshotActivity : BaseGlassActivity() {
 
     override fun onResume() {
         super.onResume()
-        initCamera()
+        if (previewView.isAvailable) {
+            initCamera()
+        } else {
+            tvHint.text = "预览面初始化中..."
+        }
         voiceHandler.removeCallbacks(voiceRegisterRunnable)
         voiceHandler.post(voiceRegisterRunnable)
     }
@@ -112,9 +143,9 @@ class LightshotActivity : BaseGlassActivity() {
         voiceHandler.removeCallbacks(voiceRegisterRunnable)
         unregisterVoiceCommands()
         isCameraReady = false
-        previewView.stopPreview()
-        previewView.onPause()
-        RokidFrameSource.stopFrameStream()
+        cameraInitInProgress = false
+        QuickCameraManager.detachPreviewTexture()
+        QuickCameraManager.releaseCamera()
         super.onPause()
     }
 
@@ -122,7 +153,8 @@ class LightshotActivity : BaseGlassActivity() {
         voiceHandler.removeCallbacks(voiceRegisterRunnable)
         unregisterVoiceCommands()
         runCatching { shutterSound.release() }
-        RokidFrameSource.releaseAll()
+        QuickCameraManager.detachPreviewTexture()
+        QuickCameraManager.releaseCamera()
         Log.d(TAG, "onDestroy: 资源已释放")
         super.onDestroy()
     }
@@ -168,38 +200,44 @@ class LightshotActivity : BaseGlassActivity() {
         voiceRegistered = false
     }
 
-    private fun initCamera() {
+    private fun initCamera(surface: SurfaceTexture? = previewView.surfaceTexture, width: Int = previewView.width, height: Int = previewView.height) {
         if (!GlassSdk.isReady()) {
             tvHint.text = "SDK 未就绪，请稍后重试"
+            return
+        }
+        if (surface == null || width <= 0 || height <= 0) {
+            tvHint.text = "预览面未就绪，请稍后"
+            return
+        }
+        if (cameraInitInProgress) {
+            Log.d(TAG, "initCamera skipped: initialization already in progress")
             return
         }
 
         tvHint.text = "相机初始化中..."
         isCameraReady = false
-        currentFovIndex = FOV_LEVELS.indexOfFirst { it == DEFAULT_ZOOM_RATIO }.coerceAtLeast(0)
-
-        RokidFrameSource.setPreviewFramingMode(RokidFrameSource.PreviewFramingMode.CENTER)
-        val appliedZoom = RokidFrameSource.setPreviewZoomRatio(DEFAULT_ZOOM_RATIO)
-
-        previewView.onResume()
-        previewView.startPreview { previewReady ->
+        cameraInitInProgress = true
+        val preferredZoom = QuickCameraManager.getPreviewZoomRatio()
+        currentFovIndex = FOV_LEVELS.indices.minByOrNull { index ->
+            kotlin.math.abs(FOV_LEVELS[index] - preferredZoom)
+        } ?: FOV_LEVELS.indexOfFirst { it == DEFAULT_ZOOM_RATIO }.coerceAtLeast(0)
+        val appliedZoom = QuickCameraManager.setPreviewZoomRatio(FOV_LEVELS[currentFovIndex])
+        QuickCameraManager.attachPreviewTexture(surface, width, height)
+        QuickCameraManager.initialize(
+            size = QUICK_CAPTURE_SIZE,
+            quickCapture = true,
+        ) { streamReady ->
             runOnUiThread {
-                if (!previewReady) {
-                    tvHint.text = "预览初始化失败，请退出重试"
-                    return@runOnUiThread
+                cameraInitInProgress = false
+                isCameraReady = streamReady
+                if (streamReady) {
+                    applyPreviewTransform()
+                    updateFovTip(appliedZoom)
+                    tvHint.text = "单击拍摄，左右滑动调视野"
+                } else {
+                    tvHint.text = "视频流初始化失败，请退出重试"
                 }
-                RokidFrameSource.startFrameStream { streamReady ->
-                    runOnUiThread {
-                        isCameraReady = streamReady
-                        if (streamReady) {
-                            updateFovTip(appliedZoom)
-                            tvHint.text = "单击拍摄，左右滑动调视野"
-                        } else {
-                            tvHint.text = "视频流初始化失败，请退出重试"
-                        }
-                        Log.d(TAG, "lightshot init previewReady=$previewReady streamReady=$streamReady")
-                    }
-                }
+                Log.d(TAG, "lightshot gpu preview init width=$width height=$height streamReady=$streamReady warm=${QuickCameraManager.isGpuCaptureWarm()}")
             }
         }
     }
@@ -211,9 +249,41 @@ class LightshotActivity : BaseGlassActivity() {
             return
         }
         currentFovIndex = newIndex
-        val appliedZoom = RokidFrameSource.setPreviewZoomRatio(FOV_LEVELS[currentFovIndex])
+        val appliedZoom = QuickCameraManager.setPreviewZoomRatio(FOV_LEVELS[currentFovIndex])
         updateFovTip(appliedZoom)
         showResultTip("视野 ${"%.1f".format(Locale.US, appliedZoom)}x")
+    }
+
+    private fun applyPreviewTransform() {
+        val viewWidth = previewView.width
+        val viewHeight = previewView.height
+        if (viewWidth <= 0 || viewHeight <= 0) {
+            return
+        }
+
+        val streamSize = QuickCameraManager.getPreviewStreamSize()
+        if (streamSize == null || streamSize.width <= 0 || streamSize.height <= 0) {
+            previewView.setTransform(Matrix())
+            Log.i(TAG, "preview transform skipped: stream size unavailable view=${viewWidth}x${viewHeight}")
+            return
+        }
+
+        val bufferWidth = streamSize.width.toFloat()
+        val bufferHeight = streamSize.height.toFloat()
+        val scale = max(viewWidth / bufferWidth, viewHeight / bufferHeight)
+        val scaledWidth = bufferWidth * scale
+        val scaledHeight = bufferHeight * scale
+        val dx = (viewWidth - scaledWidth) / 2f
+        val dy = (viewHeight - scaledHeight) / 2f
+        val matrix = Matrix().apply {
+            setScale(scale, scale)
+            postTranslate(dx, dy)
+        }
+        previewView.setTransform(matrix)
+        Log.i(
+            TAG,
+            "preview transform applied view=${viewWidth}x${viewHeight} stream=${streamSize.width}x${streamSize.height} scale=${"%.3f".format(Locale.US, scale)} dx=${"%.1f".format(Locale.US, dx)} dy=${"%.1f".format(Locale.US, dy)}",
+        )
     }
 
     private fun updateFovTip(zoomRatio: Float = FOV_LEVELS[currentFovIndex]) {
@@ -221,7 +291,7 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     private fun syncFovWithManager() {
-        val zoomRatio = RokidFrameSource.getAppliedPreviewZoomRatio()
+        val zoomRatio = QuickCameraManager.getAppliedPreviewZoomRatio()
         currentFovIndex = FOV_LEVELS.indices.minByOrNull { index ->
             kotlin.math.abs(FOV_LEVELS[index] - zoomRatio)
         } ?: 0
@@ -237,73 +307,82 @@ class LightshotActivity : BaseGlassActivity() {
             return
         }
 
-        val frame = RokidFrameSource.copyLatestFrame()
-        if (frame == null) {
-            showResultTip("当前无可用视频帧")
-            return
-        }
-
         isCapturing = true
         tvHint.text = "采集中..."
         val startTime = System.nanoTime()
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                val result = processFrameAndSave(frame)
-                val latencyMs = (System.nanoTime() - startTime) / 1_000_000
-                withContext(Dispatchers.Main) {
-                    if (result != null) {
-                        shutterSound.play(MediaActionSound.SHUTTER_CLICK)
-                        showResultTip("已保存：${result.name} (延迟${latencyMs}ms)")
-                        Log.i(TAG, "视频帧保存成功: ${result.absolutePath}, 延迟=${latencyMs}ms")
-                    } else {
-                        showResultTip("保存失败，请重试")
-                    }
+        QuickCameraManager.takeGpuFrame { frame ->
+            val gpuFrame = frame ?: run {
+                runOnUiThread {
+                    showResultTip("当前无可用 GPU 帧")
                     tvHint.text = "单击拍摄，左右滑动调视野"
                     isCapturing = false
                 }
-            } catch (error: Exception) {
-                Log.e(TAG, "视频帧处理异常", error)
-                withContext(Dispatchers.Main) {
-                    showResultTip("保存失败：${error.message}")
-                    tvHint.text = "单击拍摄，左右滑动调视野"
-                    isCapturing = false
+                return@takeGpuFrame
+            }
+            runOnUiThread {
+            }
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val result = processFrameAndSave(gpuFrame)
+                    val latencyMs = (System.nanoTime() - startTime) / 1_000_000
+                    withContext(Dispatchers.Main) {
+                        if (result != null) {
+                            shutterSound.play(MediaActionSound.SHUTTER_CLICK)
+                            showResultTip("已保存：${result.name} (延迟${latencyMs}ms)")
+                            Log.i(TAG, "GPU 帧保存成功: ${result.absolutePath}, 延迟=${latencyMs}ms")
+                        } else {
+                            showResultTip("保存失败，请重试")
+                        }
+                        tvHint.text = "单击拍摄，左右滑动调视野"
+                        isCapturing = false
+                    }
+                } catch (error: Exception) {
+                    Log.e(TAG, "GPU 帧处理异常", error)
+                    withContext(Dispatchers.Main) {
+                        showResultTip("保存失败：${error.message}")
+                        tvHint.text = "单击拍摄，左右滑动调视野"
+                        isCapturing = false
+                    }
                 }
             }
         }
     }
 
-    private fun processFrameAndSave(frame: RokidFrameSource.Nv21Frame): File? {
-        val source = BitmapUtils.nv21ToBitmap(frame.data, frame.width, frame.height) ?: run {
-            Log.e(TAG, "processFrameAndSave: nv21ToBitmap failed width=${frame.width} height=${frame.height}")
+    private fun processFrameAndSave(frame: QuickCameraManager.GpuFrame): File? {
+        val source = frame.previewBitmap ?: run {
+            frame.hardwareBuffer.close()
+            Log.e(TAG, "processFrameAndSave: previewBitmap unavailable width=${frame.width} height=${frame.height}")
             return null
         }
+        try {
+            val squareBitmap = cropCenterSquare(source)
+            val outputBitmap = Bitmap.createScaledBitmap(squareBitmap, OUTPUT_SIZE, OUTPUT_SIZE, true)
 
-        val squareBitmap = cropCenterSquare(source)
-        val outputBitmap = Bitmap.createScaledBitmap(squareBitmap, OUTPUT_SIZE, OUTPUT_SIZE, true)
+            val saveDir = File(Environment.getExternalStorageDirectory(), SAVE_DIR_NAME)
+            if (!saveDir.exists() && !saveDir.mkdirs()) {
+                Log.e(TAG, "无法创建目录: ${saveDir.absolutePath}")
+                return null
+            }
 
-        val saveDir = File(Environment.getExternalStorageDirectory(), SAVE_DIR_NAME)
-        if (!saveDir.exists() && !saveDir.mkdirs()) {
-            Log.e(TAG, "无法创建目录: ${saveDir.absolutePath}")
-            return null
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.getDefault()).format(Date())
+            val outputFile = File(saveDir, "${timestamp}_GPU.jpg")
+            FileOutputStream(outputFile).use { out ->
+                outputBitmap.compress(CompressFormat.JPEG, JPEG_QUALITY, out)
+                out.flush()
+            }
+
+            if (!outputBitmap.isRecycled) outputBitmap.recycle()
+            if (squareBitmap !== source && !squareBitmap.isRecycled) squareBitmap.recycle()
+
+            val mediaScanIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
+            mediaScanIntent.data = Uri.fromFile(outputFile)
+            sendBroadcast(mediaScanIntent)
+
+            return outputFile
+        } finally {
+            frame.hardwareBuffer.close()
+            if (!source.isRecycled) source.recycle()
         }
-
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmssSSS", Locale.getDefault()).format(Date())
-        val outputFile = File(saveDir, "${timestamp}_SDK.jpg")
-        FileOutputStream(outputFile).use { out ->
-            outputBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
-            out.flush()
-        }
-
-        if (!outputBitmap.isRecycled) outputBitmap.recycle()
-        if (squareBitmap !== source && !squareBitmap.isRecycled) squareBitmap.recycle()
-        if (!source.isRecycled) source.recycle()
-
-        val mediaScanIntent = android.content.Intent(android.content.Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
-        mediaScanIntent.data = Uri.fromFile(outputFile)
-        sendBroadcast(mediaScanIntent)
-
-        return outputFile
     }
 
     private fun cropCenterSquare(source: Bitmap): Bitmap {
@@ -311,15 +390,15 @@ class LightshotActivity : BaseGlassActivity() {
             return source
         }
         val side = minOf(source.width, source.height)
-        val targetCenterX = (source.width * RokidFrameSource.getPreviewTargetCenterXRatio()).toInt()
-        val targetCenterY = (source.height * RokidFrameSource.getPreviewTargetCenterYRatio()).toInt()
+        val targetCenterX = (source.width * QuickCameraManager.getPreviewTargetCenterXRatio()).toInt()
+        val targetCenterY = (source.height * QuickCameraManager.getPreviewTargetCenterYRatio()).toInt()
         val left = (targetCenterX - side / 2).coerceIn(0, source.width - side)
-        val top = when (RokidFrameSource.getPreviewFramingMode()) {
-            RokidFrameSource.PreviewFramingMode.TARGET_CENTER -> {
+        val top = when (QuickCameraManager.getPreviewFramingMode()) {
+            QuickCameraManager.PreviewFramingMode.TARGET_CENTER -> {
                 (targetCenterY - side / 2).coerceIn(0, source.height - side)
             }
-            RokidFrameSource.PreviewFramingMode.BOTTOM -> source.height - side
-            RokidFrameSource.PreviewFramingMode.CENTER -> (source.height - side) / 2
+            QuickCameraManager.PreviewFramingMode.BOTTOM -> source.height - side
+            QuickCameraManager.PreviewFramingMode.CENTER -> (source.height - side) / 2
         }
         return Bitmap.createBitmap(source, left, top, side, side)
     }

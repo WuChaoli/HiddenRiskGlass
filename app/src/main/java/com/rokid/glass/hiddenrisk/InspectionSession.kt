@@ -1,12 +1,14 @@
 package com.rokid.glass.hiddenrisk
 
-import com.rokid.glass.camera.RokidFrameSource
+import android.util.Size
+import com.rokid.glass.camera.QuickCameraManager
 
 /**
  * 巡检会话管理单例。
  * 负责跨 Activity 共享初始化状态：NCNN 模型实例和相机状态。
  */
 object InspectionSession {
+    private val quickCaptureSize = Size(640, 640)
 
     // NCNN 模型实例
     var hiddenRiskNcnn: HiddenRiskNcnn? = null
@@ -64,14 +66,17 @@ object InspectionSession {
      * 初始化相机
      */
     fun initCamera(callback: (Boolean) -> Unit) {
+        if (isCameraReady && !QuickCameraManager.isGpuCaptureWarm()) {
+            isCameraReady = false
+        }
         if (isCameraReady) {
             callback(true)
             return
         }
-
-        RokidFrameSource.setPreviewFramingMode(RokidFrameSource.PreviewFramingMode.CENTER)
-        RokidFrameSource.setPreviewZoomRatio(2.0f)
-        RokidFrameSource.startFrameStream { success ->
+        QuickCameraManager.initialize(
+            size = quickCaptureSize,
+            quickCapture = true,
+        ) { success ->
             isCameraReady = success
             if (!success) {
                 errorMessage = "相机初始化失败"
@@ -100,7 +105,7 @@ object InspectionSession {
     fun reset() {
         hiddenRiskNcnn?.clearFrameState()
         hiddenRiskNcnn = null
-        RokidFrameSource.releaseAll()
+        QuickCameraManager.releaseCamera()
         isCameraReady = false
         isInitialized = false
         errorMessage = null
@@ -112,7 +117,7 @@ object InspectionSession {
     fun release() {
         hiddenRiskNcnn?.clearFrameState()
         hiddenRiskNcnn = null
-        RokidFrameSource.releaseAll()
+        QuickCameraManager.releaseCamera()
         isCameraReady = false
         isInitialized = false
         errorMessage = null

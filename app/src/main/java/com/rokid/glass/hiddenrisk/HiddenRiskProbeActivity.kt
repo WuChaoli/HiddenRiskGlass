@@ -535,8 +535,6 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             if (!quickCameraInitializing) {
                 quickCameraInitializing = true
-                QuickCameraManager.setPreviewFramingMode(QuickCameraManager.PreviewFramingMode.CENTER)
-                QuickCameraManager.setPreviewZoomRatio(2.0f)
                 QuickCameraManager.initialize(
                     size = QUICK_CAPTURE_SIZE,
                     quickCapture = true,

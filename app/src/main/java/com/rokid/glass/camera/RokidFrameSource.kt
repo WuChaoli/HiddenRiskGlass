@@ -4,6 +4,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.util.Size
+import com.rokid.glass.MyApplication
+import com.rokid.glass.utils.SPUtil
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
 
@@ -27,6 +29,8 @@ object RokidFrameSource {
     )
 
     private const val TAG = "RokidFrameSource"
+    private const val PREF_KEY_PREVIEW_ZOOM_RATIO = "rokid_frame_source.preview_zoom_ratio"
+    private const val DEFAULT_PREVIEW_ZOOM_RATIO = 2.0f
     private const val DEFAULT_TARGET_CENTER_X_RATIO = 0.50f
     private const val DEFAULT_TARGET_CENTER_Y_RATIO = 0.64f
 
@@ -55,7 +59,7 @@ object RokidFrameSource {
     private var latestFrame: Nv21Frame? = null
 
     @Volatile
-    private var currentZoomRatio = 2.0f
+    private var currentZoomRatio = loadStoredPreviewZoomRatio()
 
     @Volatile
     private var currentFramingMode = PreviewFramingMode.CENTER
@@ -215,11 +219,14 @@ object RokidFrameSource {
     fun setPreviewZoomRatio(zoomRatio: Float): Float {
         val clamped = zoomRatio.coerceIn(1.0f, 3.0f)
         currentZoomRatio = clamped
+        persistPreviewZoomRatio(clamped)
         applySdkZoom(clamped)
         return zoomLevelFor(clamped).toFloat()
     }
 
     fun getAppliedPreviewZoomRatio(): Float = zoomLevelFor(currentZoomRatio).toFloat()
+
+    fun getPreferredPreviewZoomRatio(): Float = currentZoomRatio
 
     fun setPreviewFramingMode(framingMode: PreviewFramingMode) {
         currentFramingMode = framingMode
@@ -247,6 +254,23 @@ object RokidFrameSource {
     }
 
     fun getPreviewTransformMatrix(): FloatArray = surfaceHelper?.getTransformMatrix() ?: IDENTITY_MATRIX
+
+    private fun loadStoredPreviewZoomRatio(): Float {
+        return runCatching {
+            SPUtil.getInstance(MyApplication.getContext())
+                .getFloat(PREF_KEY_PREVIEW_ZOOM_RATIO, DEFAULT_PREVIEW_ZOOM_RATIO)
+                .coerceIn(1.0f, 3.0f)
+        }.getOrDefault(DEFAULT_PREVIEW_ZOOM_RATIO)
+    }
+
+    private fun persistPreviewZoomRatio(zoomRatio: Float) {
+        runCatching {
+            SPUtil.getInstance(MyApplication.getContext())
+                .putFloat(PREF_KEY_PREVIEW_ZOOM_RATIO, zoomRatio)
+        }.onFailure { error ->
+            Log.w(TAG, "persist preview zoom failed: ${error.message}")
+        }
+    }
 
     private fun applySdkZoom(zoomRatio: Float) {
         if (!GlassSdk.isReady()) {

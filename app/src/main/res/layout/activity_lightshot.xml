@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="#000000">
 
-    <com.rokid.glass.component.RokidCameraPreviewView
+    <TextureView
         android:id="@+id/previewView"
         android:layout_width="0dp"
         android:layout_height="0dp"

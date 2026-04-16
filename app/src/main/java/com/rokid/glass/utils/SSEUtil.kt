@@ -13,6 +13,12 @@ import java.util.concurrent.TimeUnit
 
 class SSEUtil {
 
+    companion object {
+        private const val TAG = "SSE"
+        private const val SMART_GLASSES_URL = "http://183.147.142.133:7443/hxy/apis/third/smartGlasses"
+        private val gson = com.google.gson.Gson()
+    }
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(1, TimeUnit.MINUTES)
         .readTimeout(5, TimeUnit.MINUTES)
@@ -39,19 +45,27 @@ class SSEUtil {
     ) {
         val dto = buildImageDetectionDto(imageUrl, snCode, sessionId, timestamp)
         val jsonBody = gson.toJson(dto).toRequestBody("application/json".toMediaType())
+        val payloadBytes = jsonBody.contentLength()
 
         val request = Request.Builder()
-            .url("http://183.147.142.133:7443/hxy/apis/third/smartGlasses")
+            .url(SMART_GLASSES_URL)
             .post(jsonBody)
             .header("Accept", "text/event-stream")
             .header("Cache-Control", "no-cache")
             .header("Connection", "keep-alive")
             .build()
+        Log.i(
+            TAG,
+            "connect url=$SMART_GLASSES_URL snCode=$snCode sessionId=$sessionId timestamp=$timestamp payloadBytes=$payloadBytes"
+        )
         var str = ""
         val eventSource = eventSourceFactory.newEventSource(request, object : EventSourceListener() {
             override fun onOpen(eventSource: EventSource, response: Response) {
                 super.onOpen(eventSource, response)
-                Log.e("SSE", "SSE 连接已建立 - ${response.code}, Content-Type: ${response.header("Content-Type")}")
+                Log.i(
+                    TAG,
+                    "opened code=${response.code} contentType=${response.header("Content-Type")} requestUrl=${response.request.url}"
+                )
                 listener.onOpened()
             }
 
@@ -62,7 +76,7 @@ class SSEUtil {
                 data: String
             ) {
                 super.onEvent(eventSource, id, type, data)
-                Log.e("SSE", "收到事件 - id: $id, type: $type, data: $data")
+                Log.i(TAG, "event id=$id type=$type dataLength=${data.length}")
 
                 val yxData = gson.fromJson(data, YXData::class.java)
                 if (yxData.end == 1) {
@@ -77,7 +91,7 @@ class SSEUtil {
 
             override fun onClosed(eventSource: EventSource) {
                 super.onClosed(eventSource)
-                Log.e("SSE", "SSE 连接已关闭")
+                Log.i(TAG, "closed requestUrl=${eventSource.request().url}")
                 listener.onClosed()
             }
 
@@ -88,11 +102,22 @@ class SSEUtil {
             ) {
                 super.onFailure(eventSource, t, response)
                 val errorMsg = "SSE 连接失败 - ${t?.message ?: response?.message}"
-                Log.e("SSE", errorMsg, t)
+                Log.e(
+                    TAG,
+                    buildString {
+                        append(errorMsg)
+                        append(" requestUrl=${eventSource.request().url}")
+                        append(" throwable=${t?.javaClass?.name}")
+                        append(" responseCode=${response?.code}")
+                        append(" responseMessage=${response?.message}")
+                        append(" responseContentType=${response?.header("Content-Type")}")
+                    },
+                    t
+                )
 
                 // 检查是否是 Content-Type 问题
                 if (t?.message?.contains("Invalid content-type") == true) {
-                    Log.e("SSE", "服务器可能不支持 SSE 格式，返回了错误的 Content-Type")
+                    Log.e(TAG, "服务器可能不支持 SSE 格式，返回了错误的 Content-Type，尝试回退到普通 HTTP")
                     // 尝试使用普通 HTTP 请求替代
                     makeHttpRequestInstead(imageUrl, snCode, sessionId, timestamp, authorization, listener)
                 } else {
@@ -123,9 +148,10 @@ class SSEUtil {
 
         val dto = buildImageDetectionDto(imageUrl, snCode, sessionId, timestamp)
         val jsonBody = gson.toJson(dto).toRequestBody("application/json".toMediaType())
+        val payloadBytes = jsonBody.contentLength()
 
         val request = Request.Builder()
-            .url("http://183.147.142.133:7443/hxy/apis/hxy/apis/third/smartGlasses")
+            .url(SMART_GLASSES_URL)
             .post(jsonBody)
             .addHeader("Accept", "application/json")
             .apply {
@@ -134,10 +160,14 @@ class SSEUtil {
                 }
             }
             .build()
+        Log.i(
+            TAG,
+            "fallback_http url=$SMART_GLASSES_URL snCode=$snCode sessionId=$sessionId timestamp=$timestamp payloadBytes=$payloadBytes"
+        )
 
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.e("HTTP", "HTTP 请求失败", e)
+                Log.e(TAG, "fallback_http_failed url=${call.request().url} throwable=${e.javaClass.name} message=${e.message}", e)
                 listener.onFailure(e, null)
             }
 
@@ -145,13 +175,19 @@ class SSEUtil {
                 response.use {
                     if (response.isSuccessful) {
                         val responseBody = response.body?.string()
-                        Log.e("HTTP", "HTTP 请求成功: $responseBody")
+                        Log.i(
+                            TAG,
+                            "fallback_http_success code=${response.code} contentType=${response.header("Content-Type")} bodyLength=${responseBody?.length ?: 0}"
+                        )
 
                         // 模拟 SSE 事件，将响应作为单个事件发送
                         listener.onMessage(responseBody ?: "")
                         listener.onClosed()
                     } else {
-                        Log.e("HTTP", "HTTP 请求失败: ${response.code} - ${response.message}")
+                        Log.e(
+                            TAG,
+                            "fallback_http_response_failed code=${response.code} message=${response.message} contentType=${response.header("Content-Type")} requestUrl=${call.request().url}"
+                        )
                         listener.onFailure(null, response)
                     }
                 }
@@ -189,9 +225,5 @@ class SSEUtil {
         fun onClosed()
         fun onFailure(t: Throwable?, response: Response?)
         fun onEventSourceCreated(eventSource: EventSource)
-    }
-
-    companion object {
-        private val gson = com.google.gson.Gson()
     }
 }

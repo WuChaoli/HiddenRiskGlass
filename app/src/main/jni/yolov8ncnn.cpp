@@ -412,6 +412,59 @@ static bool convert_bitmap_to_rgb(
     return success;
 }
 
+static bool convert_nv21_to_rgb(
+    JNIEnv* env,
+    jbyteArray nv21,
+    jint width,
+    jint height,
+    cv::Mat& rgb,
+    std::string* error_message)
+{
+    if (!nv21)
+    {
+        if (error_message)
+        {
+            *error_message = "nv21 is null";
+        }
+        return false;
+    }
+
+    if (width <= 0 || height <= 0)
+    {
+        if (error_message)
+        {
+            *error_message = "invalid nv21 size width=" + std::to_string((int)width) + " height=" + std::to_string((int)height);
+        }
+        return false;
+    }
+
+    const jsize expected_size = (jsize)((width * height * 3) / 2);
+    const jsize actual_size = env->GetArrayLength(nv21);
+    if (actual_size < expected_size)
+    {
+        if (error_message)
+        {
+            *error_message = "nv21 length too small actual=" + std::to_string((int)actual_size) + " expected=" + std::to_string((int)expected_size);
+        }
+        return false;
+    }
+
+    jbyte* nv21_bytes = env->GetByteArrayElements(nv21, 0);
+    if (!nv21_bytes)
+    {
+        if (error_message)
+        {
+            *error_message = "GetByteArrayElements returned null";
+        }
+        return false;
+    }
+
+    cv::Mat yuv(height + height / 2, width, CV_8UC1, reinterpret_cast<unsigned char*>(nv21_bytes));
+    cv::cvtColor(yuv, rgb, cv::COLOR_YUV2RGB_NV21);
+    env->ReleaseByteArrayElements(nv21, nv21_bytes, JNI_ABORT);
+    return true;
+}
+
 static bool run_detection_on_rgb(const cv::Mat& rgb)
 {
     const double start_time_ms = ncnn::get_current_time();
@@ -868,6 +921,31 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_submit
             "convert_bitmap",
             -1,
             error_message.empty() ? "failed to convert bitmap" : error_message);
+        return JNI_FALSE;
+    }
+
+    return run_detection_on_rgb(rgb) ? JNI_TRUE : JNI_FALSE;
+}
+
+// public native boolean submitNv21(byte[] nv21, int width, int height);
+JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_submitNv21(
+    JNIEnv* env,
+    jobject thiz,
+    jbyteArray nv21,
+    jint width,
+    jint height)
+{
+    (void)thiz;
+    cv::Mat rgb;
+    std::string error_message;
+    const bool converted = convert_nv21_to_rgb(env, nv21, width, height, rgb, &error_message);
+    if (!converted)
+    {
+        ncnn::MutexLockGuard g(lock);
+        set_latest_error_locked(
+            "convert_nv21",
+            -1,
+            error_message.empty() ? "failed to convert nv21" : error_message);
         return JNI_FALSE;
     }
 

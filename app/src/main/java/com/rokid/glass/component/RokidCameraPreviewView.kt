@@ -5,6 +5,7 @@ import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.util.AttributeSet
+import android.util.Log
 import com.rokid.glass.camera.RokidFrameSource
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -42,6 +43,10 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
     private class OesRenderer : GLSurfaceView.Renderer {
 
+        private var surfaceWidth = 0
+        private var surfaceHeight = 0
+        private var lastCropSignature = ""
+
         private val vertexBuffer: FloatBuffer = allocateBuffer(
             floatArrayOf(
                 -1f, -1f,
@@ -59,6 +64,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                 1f, 1f,
             )
         )
+        private val adjustedTexCoords = FloatArray(8)
 
         private var program = 0
         private var positionHandle = 0
@@ -76,6 +82,9 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         }
 
         override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
+            surfaceWidth = width
+            surfaceHeight = height
+            lastCropSignature = ""
             GLES20.glViewport(0, 0, width, height)
         }
 
@@ -87,12 +96,15 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             }
 
             RokidFrameSource.updatePreviewTexture()
+            updateTexCoordsForAspect()
             GLES20.glUseProgram(program)
 
             vertexBuffer.position(0)
             GLES20.glVertexAttribPointer(positionHandle, 2, GLES20.GL_FLOAT, false, 0, vertexBuffer)
             GLES20.glEnableVertexAttribArray(positionHandle)
 
+            texCoordBuffer.position(0)
+            texCoordBuffer.put(adjustedTexCoords)
             texCoordBuffer.position(0)
             GLES20.glVertexAttribPointer(texCoordHandle, 2, GLES20.GL_FLOAT, false, 0, texCoordBuffer)
             GLES20.glEnableVertexAttribArray(texCoordHandle)
@@ -115,6 +127,62 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
         }
 
+        private fun updateTexCoordsForAspect() {
+            val viewWidth = surfaceWidth
+            val viewHeight = surfaceHeight
+            val previewSize = RokidFrameSource.getPreviewSize()
+            if (viewWidth <= 0 || viewHeight <= 0 || previewSize == null || previewSize.width <= 0 || previewSize.height <= 0) {
+                copyDefaultTexCoords()
+                return
+            }
+
+            val viewAspect = viewWidth.toFloat() / viewHeight.toFloat()
+            val sourceAspect = previewSize.width.toFloat() / previewSize.height.toFloat()
+
+            var left = 0f
+            var right = 1f
+            var top = 0f
+            var bottom = 1f
+
+            if (sourceAspect > viewAspect + 0.0001f) {
+                val visibleWidthRatio = (viewAspect / sourceAspect).coerceIn(0f, 1f)
+                val horizontalInset = (1f - visibleWidthRatio) / 2f
+                left = horizontalInset
+                right = 1f - horizontalInset
+            } else if (sourceAspect < viewAspect - 0.0001f) {
+                val visibleHeightRatio = (sourceAspect / viewAspect).coerceIn(0f, 1f)
+                val verticalInset = (1f - visibleHeightRatio) / 2f
+                top = verticalInset
+                bottom = 1f - verticalInset
+            }
+
+            adjustedTexCoords[0] = left
+            adjustedTexCoords[1] = top
+            adjustedTexCoords[2] = right
+            adjustedTexCoords[3] = top
+            adjustedTexCoords[4] = left
+            adjustedTexCoords[5] = bottom
+            adjustedTexCoords[6] = right
+            adjustedTexCoords[7] = bottom
+
+            val signature = "view=${viewWidth}x${viewHeight} source=${previewSize.width}x${previewSize.height} crop=($left,$top)-($right,$bottom)"
+            if (signature != lastCropSignature) {
+                lastCropSignature = signature
+                Log.i(TAG, "preview aspect corrected $signature")
+            }
+        }
+
+        private fun copyDefaultTexCoords() {
+            adjustedTexCoords[0] = 0f
+            adjustedTexCoords[1] = 0f
+            adjustedTexCoords[2] = 1f
+            adjustedTexCoords[3] = 0f
+            adjustedTexCoords[4] = 0f
+            adjustedTexCoords[5] = 1f
+            adjustedTexCoords[6] = 1f
+            adjustedTexCoords[7] = 1f
+        }
+
         private fun createProgram(vertexShaderCode: String, fragmentShaderCode: String): Int {
             val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, vertexShaderCode)
             val fragmentShader = compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderCode)
@@ -133,6 +201,8 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         }
 
         companion object {
+            private const val TAG = "RokidCameraPreview"
+
             private const val VERTEX_SHADER = """
                 attribute vec4 aPosition;
                 attribute vec2 aTexCoord;

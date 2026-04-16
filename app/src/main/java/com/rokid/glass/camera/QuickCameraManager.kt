@@ -256,10 +256,8 @@ object QuickCameraManager {
         val clamped = zoomRatio.coerceIn(1.0f, 3.0f)
         currentPreviewZoomRatio = clamped
         persistPreviewZoomRatio(clamped)
-        if (!isQuickCapture) {
-            backgroundHandler?.post {
-                applyPreviewRepeatingRequest()
-            }
+        backgroundHandler?.post {
+            applyActiveRepeatingRequest()
         }
         return getAppliedPreviewZoomRatio()
     }
@@ -272,10 +270,8 @@ object QuickCameraManager {
     fun setPreviewVerticalOffsetRatio(offsetRatio: Float): Float {
         val clamped = offsetRatio.coerceIn(-0.12f, 0.12f)
         currentPreviewVerticalOffsetRatio = clamped
-        if (!isQuickCapture) {
-            backgroundHandler?.post {
-                applyPreviewRepeatingRequest()
-            }
+        backgroundHandler?.post {
+            applyActiveRepeatingRequest()
         }
         return clamped
     }
@@ -284,10 +280,8 @@ object QuickCameraManager {
 
     fun setPreviewFramingMode(framingMode: PreviewFramingMode) {
         currentPreviewFramingMode = framingMode
-        if (!isQuickCapture) {
-            backgroundHandler?.post {
-                applyPreviewRepeatingRequest()
-            }
+        backgroundHandler?.post {
+            applyActiveRepeatingRequest()
         }
     }
 
@@ -296,10 +290,8 @@ object QuickCameraManager {
     fun setPreviewTargetCenter(xRatio: Float, yRatio: Float) {
         currentPreviewTargetCenterXRatio = xRatio.coerceIn(0.1f, 0.9f)
         currentPreviewTargetCenterYRatio = yRatio.coerceIn(0.1f, 0.9f)
-        if (!isQuickCapture) {
-            backgroundHandler?.post {
-                applyPreviewRepeatingRequest()
-            }
+        backgroundHandler?.post {
+            applyActiveRepeatingRequest()
         }
     }
 
@@ -506,6 +498,7 @@ object QuickCameraManager {
             return
         }
         val cpuSurface = imageReader?.surface
+        val previewSurface = this.previewSurface
 
         try {
             if (isCameraClosed) {
@@ -516,6 +509,7 @@ object QuickCameraManager {
                 buildList {
                     add(gpuSurface)
                     cpuSurface?.let { add(it) }
+                    previewSurface?.let { add(it) }
                 },
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
@@ -528,16 +522,7 @@ object QuickCameraManager {
                             captureSession = session
                             isSessionClosed = false
                             try {
-                                // setRepeatingRequest 仅用于保持 session 活跃，不设 crop
-                                // crop 只在 takeGpuFrame 的 STILL_CAPTURE 请求中应用，
-                                // 避免 PRIVATE + crop 组合触发驱动层 ERROR_CAMERA_DEVICE
-                                val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                                    set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-                                    set(CaptureRequest.CONTROL_AE_EXPOSURE_COMPENSATION, 0)
-                                    set(CaptureRequest.CONTROL_AE_LOCK, false)
-                                    addTarget(gpuSurface)
-                                }
-                                session.setRepeatingRequest(builder.build(), null, backgroundHandler)
+                                applyQuickCaptureRepeatingRequest(session)
                                 Log.i(TAG, "GPU frame session ready")
                                 onConfigured?.invoke(true)
                             } catch (error: Exception) {
@@ -1459,6 +1444,45 @@ object QuickCameraManager {
                 }
                 else -> throw error
             }
+        }
+    }
+
+    private fun applyQuickCaptureRepeatingRequest(targetSession: CameraCaptureSession? = captureSession) {
+        val session = targetSession ?: return
+        val gpuSurface = gpuImageReader?.surface ?: return
+        if (cameraDevice == null || isCameraClosed || isSessionClosed) {
+            return
+        }
+
+        val camera = cameraDevice ?: return
+        val builder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+            applyAutoExposure(this)
+            val previewAspectRatio = previewBufferSize?.let { size ->
+                size.width.toFloat() / size.height.toFloat()
+            }
+            if (previewSurface != null) {
+                applyCurrentCropRegion(this, "GpuPreview", previewAspectRatio)
+            }
+            addTarget(gpuSurface)
+            previewSurface?.let { addTarget(it) }
+        }
+        runCatching {
+            session.setRepeatingRequest(builder.build(), null, backgroundHandler)
+        }.onFailure { error ->
+            when (error) {
+                is IllegalStateException -> {
+                    L.d(TAG, "GPU 预览 session 已关闭，忽略重复请求: ${error.message}")
+                }
+                else -> throw error
+            }
+        }
+    }
+
+    private fun applyActiveRepeatingRequest() {
+        if (isQuickCapture) {
+            applyQuickCaptureRepeatingRequest()
+        } else {
+            applyPreviewRepeatingRequest()
         }
     }
 

@@ -2,6 +2,8 @@ package com.rokid.glass.utils
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.YuvImage
@@ -58,20 +60,65 @@ object BitmapUtils {
      */
     fun nv21ToBitmap(nv21: ByteArray, width: Int, height: Int, jpegQuality: Int = 90): Bitmap? {
         return try {
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
-            val outputStream = ByteArrayOutputStream()
-            if (!yuvImage.compressToJpeg(Rect(0, 0, width, height), jpegQuality, outputStream)) {
-                Log.e(TAG, "NV21 转 JPEG 失败")
-                return null
-            }
-            BitmapFactory.decodeByteArray(
-                outputStream.toByteArray(),
-                0,
-                outputStream.size(),
-            )
+            val jpegBytes = encodeNv21RectToJpeg(
+                nv21 = nv21,
+                width = width,
+                height = height,
+                cropRect = Rect(0, 0, width, height),
+                jpegQuality = jpegQuality,
+            ) ?: return null
+            BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
         } catch (error: Exception) {
             Log.e(TAG, "NV21 转 Bitmap 失败: ${error.message}", error)
             null
+        }
+    }
+
+    /**
+     * 将 NV21 帧中心裁剪为 640x640 JPEG。
+     * 对于尺寸不足的输入，回退到 Bitmap letterbox 逻辑，保证输出稳定。
+     */
+    fun encodeCenterCropNv21ToJpeg(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        jpegQuality: Int = 80,
+        targetSize: Int = OUTPUT_SIZE,
+    ): ByteArray? {
+        val cropRect = calculateCenterCropRect(width, height, targetSize)
+        if (cropRect != null) {
+            return encodeNv21RectToJpeg(
+                nv21 = nv21,
+                width = width,
+                height = height,
+                cropRect = cropRect,
+                jpegQuality = jpegQuality,
+            )
+        }
+
+        val source = nv21ToBitmap(nv21, width, height, jpegQuality = jpegQuality) ?: return null
+        val output = cropCenterTo640(source) ?: run {
+            if (!source.isRecycled) {
+                source.recycle()
+            }
+            return null
+        }
+
+        return try {
+            val outputStream = ByteArrayOutputStream()
+            if (!output.compress(Bitmap.CompressFormat.JPEG, jpegQuality, outputStream)) {
+                Log.e(TAG, "Fallback Bitmap 转 JPEG 失败")
+                null
+            } else {
+                outputStream.toByteArray()
+            }
+        } finally {
+            if (output !== source && !output.isRecycled) {
+                output.recycle()
+            }
+            if (!source.isRecycled) {
+                source.recycle()
+            }
         }
     }
 
@@ -95,8 +142,8 @@ object BitmapUtils {
 
         // 创建 640x640 画布并居中绘制
         val result = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
-        val canvas = android.graphics.Canvas(result)
-        canvas.drawColor(android.graphics.Color.BLACK)
+        val canvas = Canvas(result)
+        canvas.drawColor(Color.BLACK)
 
         val left = (targetSize - newWidth) / 2f
         val top = (targetSize - newHeight) / 2f
@@ -108,5 +155,36 @@ object BitmapUtils {
         }
 
         return result
+    }
+
+    private fun calculateCenterCropRect(width: Int, height: Int, targetSize: Int): Rect? {
+        if (width < targetSize || height < targetSize) {
+            return null
+        }
+        val left = (width - targetSize) / 2
+        val top = (height - targetSize) / 2
+        return Rect(left, top, left + targetSize, top + targetSize)
+    }
+
+    private fun encodeNv21RectToJpeg(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        cropRect: Rect,
+        jpegQuality: Int,
+    ): ByteArray? {
+        return try {
+            val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
+            val outputStream = ByteArrayOutputStream()
+            if (!yuvImage.compressToJpeg(cropRect, jpegQuality, outputStream)) {
+                Log.e(TAG, "NV21 裁剪转 JPEG 失败 crop=$cropRect")
+                null
+            } else {
+                outputStream.toByteArray()
+            }
+        } catch (error: Exception) {
+            Log.e(TAG, "NV21 裁剪转 JPEG 失败: ${error.message}", error)
+            null
+        }
     }
 }

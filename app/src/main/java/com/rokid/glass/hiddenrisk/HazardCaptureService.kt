@@ -51,23 +51,16 @@ class HazardCaptureService(private val context: Context) {
 
     /**
      * 保存隐患识别结果（图片 + JSON）
-     * @param bitmap 原始图片
+     * @param jpegBytes 已编码的 JPEG 图片
      * @param stats 推理统计信息
      */
-    fun saveHazardCapture(bitmap: Bitmap?, stats: NativeInferenceStats?) {
-        if (bitmap == null || bitmap.isRecycled) {
-            Log.w(TAG, "无法保存：bitmap 为空或已回收")
+    fun saveHazardCapture(jpegBytes: ByteArray?, stats: NativeInferenceStats?) {
+        if (jpegBytes == null || jpegBytes.isEmpty()) {
+            Log.w(TAG, "无法保存：jpegBytes 为空")
             return
         }
         if (stats == null) {
             Log.w(TAG, "无法保存：stats 为空")
-            return
-        }
-
-        // 复制 bitmap 到子线程，避免多线程竞争导致的回收问题
-        val bitmapCopy = bitmap.copy(Bitmap.Config.ARGB_8888, false)
-        if (bitmapCopy == null) {
-            Log.w(TAG, "无法保存：bitmap 复制失败")
             return
         }
 
@@ -84,7 +77,7 @@ class HazardCaptureService(private val context: Context) {
 
                 // 保存图片
                 val imageFile = File(captureDir, "${filePrefix}.jpg")
-                saveBitmapToFile(bitmapCopy, imageFile)
+                saveJpegBytesToFile(jpegBytes, imageFile)
 
                 // 保存JSON
                 val jsonFile = File(captureDir, "${filePrefix}.json")
@@ -97,13 +90,30 @@ class HazardCaptureService(private val context: Context) {
 
             } catch (e: Exception) {
                 Log.e(TAG, "保存隐患识别结果失败", e)
-            } finally {
-                // 确保复制的 bitmap 被回收
-                if (!bitmapCopy.isRecycled) {
-                    bitmapCopy.recycle()
-                }
             }
         }
+    }
+
+    /**
+     * 兼容仍以 Bitmap 作为输入的旧调用方。
+     */
+    fun saveHazardCapture(bitmap: Bitmap?, stats: NativeInferenceStats?) {
+        if (bitmap == null || bitmap.isRecycled) {
+            Log.w(TAG, "无法保存：bitmap 为空或已回收")
+            return
+        }
+
+        val jpegBytes = runCatching {
+            java.io.ByteArrayOutputStream().use { out ->
+                if (bitmap.compress(Bitmap.CompressFormat.JPEG, LEGACY_BITMAP_JPEG_QUALITY, out)) {
+                    out.toByteArray()
+                } else {
+                    null
+                }
+            }
+        }.getOrNull()
+
+        saveHazardCapture(jpegBytes, stats)
     }
 
     /**
@@ -114,11 +124,12 @@ class HazardCaptureService(private val context: Context) {
     }
 
     /**
-     * 保存 Bitmap 到文件
+     * 保存 JPEG 到文件
      */
-    private fun saveBitmapToFile(bitmap: Bitmap, file: File) {
+    private fun saveJpegBytesToFile(jpegBytes: ByteArray, file: File) {
         FileOutputStream(file).use { out ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, out)
+            out.write(jpegBytes)
+            out.flush()
         }
     }
 
@@ -272,7 +283,7 @@ class HazardCaptureService(private val context: Context) {
     companion object {
         private const val TAG = "HazardCaptureService"
         private const val CAPTURE_DIR_NAME = "HazardCaptures"
-        private const val JPEG_QUALITY = 95
+        private const val LEGACY_BITMAP_JPEG_QUALITY = 95
         private const val MAX_CAPTURE_COUNT = 1000
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
     }
