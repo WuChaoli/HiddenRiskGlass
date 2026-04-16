@@ -254,6 +254,15 @@
                 android:layout_gravity="center"
                 android:background="#80FFFFFF" />
 
+            <ImageView
+                android:id="@+id/ivMayHazardLoading"
+                android:layout_width="40px"
+                android:layout_height="40px"
+                android:layout_gravity="center"
+                android:contentDescription="@string/ai_inspection_loading_title"
+                android:src="@mipmap/ic_loading"
+                android:visibility="gone" />
+
         </FrameLayout>
 
         <!-- 底部信息区：提示在左上，指令在下方，时间/电池在左下 -->
@@ -395,93 +404,11 @@
         </LinearLayout>
     </FrameLayout>
 
-    <!-- ========== 隐患警告状态 ========== -->
-    <LinearLayout
-        android:id="@+id/layoutHazardAlert"
+    <com.rokid.glass.component.StatusAlertOverlayView
+        android:id="@+id/statusAlertOverlay"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="bottom|center_horizontal"
-        android:orientation="vertical"
-        android:paddingBottom="46px"
-        android:visibility="gone">
-
-        <LinearLayout
-            android:layout_width="480px"
-            android:layout_height="wrap_content"
-            android:background="@drawable/ai_inspection_hazard_card_bg"
-            android:orientation="vertical"
-            android:paddingStart="20px"
-            android:paddingTop="18px"
-            android:paddingEnd="20px"
-            android:paddingBottom="18px">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="top"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/ivHazardIcon"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginTop="6dp"
-                    android:layout_marginEnd="14px"
-                    android:contentDescription="@string/ai_inspection_hazard_found"
-                    android:src="@drawable/hidden_risk_alert" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:id="@+id/tvHazardTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="检测到疑似安全隐患"
-                        android:textColor="@color/green"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvLabel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:lineSpacingExtra="2dp"
-                        android:lineSpacingMultiplier="1.2"
-                        android:text=""
-                    android:textColor="@color/green"
-                    android:textSize="12sp" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <TextView
-                android:id="@+id/tvActionHint"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="18dp"
-                android:background="@drawable/ai_inspection_hazard_button_bg"
-                android:gravity="center"
-                android:paddingTop="14dp"
-                android:paddingBottom="14dp"
-                android:text="点击开始深度分析"
-                android:textColor="@color/green"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- 保留占位，兼容现有逻辑 -->
-    <LinearLayout
-        android:id="@+id/layoutHazardAlertBottom"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone">
-    </LinearLayout>
+        android:visibility="gone" />
 
     <!-- ========== 流式回答状态 ========== -->
     <FrameLayout
