@@ -16,6 +16,7 @@ import android.view.TextureView
 import android.view.View
 import android.widget.TextView
 import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glesse.R
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
@@ -62,6 +63,22 @@ class LightshotActivity : BaseGlassActivity() {
 
     private val voiceHandler = Handler(Looper.getMainLooper())
     private var voiceRegistered = false
+    private var headGestureSupported = false
+
+    private val headGestureListener = object : HeadGestureManager.Listener {
+        override fun onHeadGesture(event: HeadGestureManager.HeadGestureEvent) {
+            val gestureLabel = when (event.type) {
+                HeadGestureManager.HeadGestureType.NOD -> "点头"
+                HeadGestureManager.HeadGestureType.SHAKE -> "摇头"
+            }
+            showResultTip("检测到$gestureLabel")
+            SpriteToastUtil.showSpriteToast(this@LightshotActivity, "检测到$gestureLabel", 0, 1500, false)
+            Log.i(
+                TAG,
+                "head gesture event type=${event.type} pitch=${"%.1f".format(Locale.US, event.pitchDeg)} yaw=${"%.1f".format(Locale.US, event.yawDeg)}",
+            )
+        }
+    }
 
     private val voiceCaptureAction = VoiceAction("拍照", "pai zhao", object : IVoiceCallback.Stub() {
         override fun onVoiceTriggered() {
@@ -126,6 +143,16 @@ class LightshotActivity : BaseGlassActivity() {
         shutterSound.load(MediaActionSound.SHUTTER_CLICK)
         syncFovWithManager()
         updateFovTip()
+        HeadGestureManager.initialize(this)
+        headGestureSupported = HeadGestureManager.isSupported()
+        if (!headGestureSupported) {
+            Log.w(TAG, "头部动作识别不可用，设备缺少所需传感器")
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        HeadGestureManager.addListener(headGestureListener)
     }
 
     override fun onResume() {
@@ -137,11 +164,17 @@ class LightshotActivity : BaseGlassActivity() {
         }
         voiceHandler.removeCallbacks(voiceRegisterRunnable)
         voiceHandler.post(voiceRegisterRunnable)
+        if (headGestureSupported) {
+            HeadGestureManager.start()
+        } else {
+            tvHint.text = "设备不支持头部动作识别，仍可正常拍照"
+        }
     }
 
     override fun onPause() {
         voiceHandler.removeCallbacks(voiceRegisterRunnable)
         unregisterVoiceCommands()
+        HeadGestureManager.stop()
         isCameraReady = false
         cameraInitInProgress = false
         QuickCameraManager.detachPreviewTexture()
@@ -157,6 +190,11 @@ class LightshotActivity : BaseGlassActivity() {
         QuickCameraManager.releaseCamera()
         Log.d(TAG, "onDestroy: 资源已释放")
         super.onDestroy()
+    }
+
+    override fun onStop() {
+        HeadGestureManager.removeListener(headGestureListener)
+        super.onStop()
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
