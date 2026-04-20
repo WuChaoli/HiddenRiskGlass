@@ -1,0 +1,205 @@
+# HeadGesture 调参与验证
+
+本文档统一收敛 `glassdemo` 项目中头部动作识别的当前基线参数、验证方法、以及后续调参经验。
+
+## 适用范围
+
+- `app/src/main/java/com/rokid/glass/hiddenrisk/HeadGestureManager.kt`
+- `LightshotActivity` 中对头势事件的接收与验证
+- 当前支持的手势类型：
+  - `NOD`
+  - `SHAKE`
+
+## 当前方案概述
+
+当前头势识别方案不再依赖“中性基线 + 相对位移触发”，而是改为：
+
+- 使用 `GYROSCOPE` 计算平滑角速度
+- 通过角速度有限差分得到角加速度
+- 在静止窗口后开启短暂 `armed` 触发窗
+- 由角加速度突增启动候选
+- 由波形双向性、回摆、主轴位移、交叉轴约束共同决定是否接受
+
+其中：
+
+- `rotation vector` 仅用于姿态观察与角度位移校验
+- 真正的启动依赖动态量，而不是绝对头部朝向
+
+## 当前参数基线
+
+以下参数为当前已确认“整体可用”的版本，后续若调整，应先更新此处，再做设备回归。
+
+### 聚合与时间窗
+
+- `pulsesRequiredToEmit = 1`
+- `quietWindowNs = 180_000_000`
+- `quietTriggerGraceNs = 260_000_000`
+- `minCandidateWindowNs = 240_000_000`
+- `maxCandidateWindowNs = 1_000_000_000`
+- `settleDurationNs = 120_000_000`
+- `emitCooldownNs = 450_000_000`
+- `pulseWindowNs = 1_200_000_000`
+
+### 静止判定
+
+- `quietGyroMaxRad = 0.18`
+- `quietAngularAccelMaxRad = 2.4`
+
+### 启动触发
+
+- `triggerPitchAngularAccelEnterRad = 7.5`
+- `triggerYawAngularAccelEnterRad = 6.0`
+- `triggerAngularAccelExitRad = 2.4`
+- `axisDominanceRatio = 1.35`
+
+### 通用验收约束
+
+- `maxCrossAxisDynamicRatio = 0.72`
+- `settleRateDecayRatio = 0.45`
+- `settleAccelDecayRatio = 0.55`
+- `maxCrossAxisAngleTravelDeg = 12`
+- `maxRateAsymmetry = 0.65`
+
+### 点头 `NOD`
+
+- `minPitchGyroPeakRad = 0.90`
+- `minPitchAngularAccelPeakRad = 7.5`
+- `minPitchReversePeakRad = 0.55`
+- `minPitchAngleTravelDeg = 4.0`
+
+### 摇头 `SHAKE`
+
+- `minYawGyroPeakRad = 0.60`
+- `minYawAngularAccelPeakRad = 5.2`
+- `minYawReversePeakRad = 0.42`
+- `minYawAngleTravelDeg = 4.8`
+
+### 平滑与日志
+
+- `poseSmoothingAlpha = 0.22`
+- `gyroSmoothingAlpha = 0.28`
+- `angularAccelSmoothingAlpha = 0.18`
+- `enableDecisionLogs = false`
+- `enableSensorLogs = false`
+
+## 当前已知结论
+
+- `NOD` 已能稳定贯通：
+  - 候选接受
+  - 聚合触发
+  - `gesture detected`
+  - `LightshotActivity` 收到事件
+- `SHAKE` 已较初版明显放松，中等幅度摇头更容易命中，不再需要非常大的摆头幅度
+- “向下看并停住”与“真实点头”已能区分一部分
+- 默认日志已收敛到成功路径，只保留成功识别相关日志，避免传感器流日志刷屏
+
+## 当前验证日志
+
+默认重点关注以下成功日志：
+
+- `HeadGestureManager: gesture detected type=NOD ...`
+- `HeadGestureManager: gesture detected type=SHAKE ...`
+- `LightshotActivity: head gesture event type=NOD ...`
+- `LightshotActivity: head gesture event type=SHAKE ...`
+
+如果后续要重新做调参排障，可临时打开：
+
+- `enableDecisionLogs`
+- `enableSensorLogs`
+
+但默认版本不建议开启，避免真机日志被传感器明细淹没。
+
+## 推荐验证方法
+
+### 点头验证
+
+建议至少验证以下样本：
+
+- 自然点头一次，观察是否稳定命中
+- 连续点头两到三次，观察是否存在漏检
+- 单纯低头看下方并停住，观察是否不会误判为 `NOD`
+- 低头后快速回正，观察误触率是否可接受
+
+### 摇头验证
+
+建议至少验证以下样本：
+
+- 中等幅度自然摇头一次，观察是否命中
+- 小幅度左右摆头，观察是否开始误触
+- 走路时自然头部摆动，观察是否出现误判
+- 连续两次摇头，观察冷却时间是否合适
+
+### 调试页面
+
+当前主要依赖 `LightshotActivity` 做联调，因为它已经接入：
+
+- `HeadGestureManager.initialize(this)`
+- `HeadGestureManager.start()`
+- `HeadGestureManager.Listener`
+
+如果后续要做更系统的手势回归，建议单独补一个头势探针页，而不是长期依赖 `LightshotActivity`。
+
+## 调参抓手
+
+### 想让手势更容易启动
+
+优先看启动参数：
+
+- `triggerPitchAngularAccelEnterRad`
+- `triggerYawAngularAccelEnterRad`
+- `axisDominanceRatio`
+
+调整规律：
+
+- 降低 `trigger*EnterRad`：更容易起候选，但误触风险会上升
+- 降低 `axisDominanceRatio`：更容易在耦合运动里起候选，但交叉轴误触会增加
+
+### 想让手势更容易通过验收
+
+优先看验收参数：
+
+- `minPitchGyroPeakRad`
+- `minYawGyroPeakRad`
+- `minPitchAngularAccelPeakRad`
+- `minYawAngularAccelPeakRad`
+- `minPitchReversePeakRad`
+- `minYawReversePeakRad`
+- `minPitchAngleTravelDeg`
+- `minYawAngleTravelDeg`
+
+调整规律：
+
+- 降低 `*AngleTravelDeg`：小幅动作更容易通过
+- 降低 `*GyroPeakRad` / `*AngularAccelPeakRad`：动作速度较慢时更容易通过
+- 降低 `*ReversePeakRad`：回摆较弱的动作更容易通过，但单向动作误判风险会升高
+
+### 想压低误触
+
+优先看以下约束：
+
+- `maxCrossAxisDynamicRatio`
+- `maxCrossAxisAngleTravelDeg`
+- `maxRateAsymmetry`
+- `minPitchReversePeakRad`
+- `minYawReversePeakRad`
+
+调整规律：
+
+- 收紧交叉轴比例：可减少斜向晃动误判
+- 收紧 `maxRateAsymmetry`：可减少单向扰动通过
+- 提高 `*ReversePeakRad`：可减少“只有去程、没有明显回程”的误触
+
+## 当前维护建议
+
+- `NOD` 与 `SHAKE` 参数应继续分开维护，不要重新回到完全共用阈值
+- 日志默认保持“只打印成功”
+- 每次改参数时，至少记录：
+  - 改动目的
+  - 改动前后参数
+  - 真机主观结论
+  - 是否影响 `NOD` / `SHAKE` 中另一类手势
+
+## 当前限制
+
+- 当前环境下未完成本地 Gradle 编译验证，原因是 WSL 会话中缺少可用 JDK
+- 当前主要依据真机行为和日志做调参结论，不应声称已完成本地编译回归
