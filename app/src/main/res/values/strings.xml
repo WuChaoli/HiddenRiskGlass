@@ -44,7 +44,25 @@
     <string name="inspection_mode_title">请选择巡检模式</string>
     <string name="inspection_mode_ai">AI识患</string>
     <string name="inspection_mode_task">任务检查</string>
-    <string name="inspection_mode_hint">说出 "AI识患" 或 "自由检查" 或 前后滑动点击选择</string>
+    <string name="inspection_mode_scan">扫一扫</string>
+    <string name="inspection_mode_hint">说出 "AI识患" 或 "扫一扫" 或 前后滑动点击选择</string>
+    <string name="wifi_scan_title">扫码连接 Wi‑Fi</string>
+    <string name="wifi_scan_hint">对准 Wi‑Fi 二维码自动连接，单击重试，双击返回</string>
+    <string name="wifi_scan_waiting">请对准标准 Wi‑Fi 二维码</string>
+    <string name="wifi_scan_connecting">正在连接 Wi‑Fi：%1$s</string>
+    <string name="wifi_scan_success">Wi‑Fi 连接成功：%1$s</string>
+    <string name="wifi_scan_success_generic">Wi‑Fi 连接成功</string>
+    <string name="wifi_scan_invalid">二维码无效，请扫描标准 Wi‑Fi 二维码</string>
+    <string name="wifi_scan_unsupported_security">暂不支持该 Wi‑Fi 加密类型</string>
+    <string name="wifi_scan_wifi_disabled">Wi‑Fi 未开启，请先开启后重试</string>
+    <string name="wifi_scan_permission_denied">缺少必要权限，无法扫码连接 Wi‑Fi</string>
+    <string name="wifi_scan_connect_failed">Wi‑Fi 连接失败，请重试</string>
+    <string name="wifi_scan_camera_error">相机初始化失败，请重试</string>
+    <string name="wifi_scan_wait_system">系统正在处理连接请求，请稍候</string>
+    <string name="wifi_scan_verify_connection">正在确认 Wi‑Fi 连接：%1$s</string>
+    <string name="wifi_scan_cancelled">已取消 Wi‑Fi 连接</string>
+    <string name="wifi_scan_strategy_system">正在调用系统配网页：%1$s</string>
+    <string name="wifi_scan_strategy_add_networks">正在提交系统 Wi‑Fi 连接：%1$s</string>
 
     <string name="ai_inspection_loading_title">系统初始化</string>
     <string name="ai_inspection_loading_subtitle">正在准备检测设备…</string>

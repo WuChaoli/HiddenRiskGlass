@@ -21,7 +21,7 @@ import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallbac
 
 /**
  * 巡检模式选择页面。
- * 提供 AI识患、任务检查、闪拍 三个选项，默认选中 AI识患。
+ * 提供 AI识患、任务检查、闪拍、扫一扫 四个选项，默认选中 AI识患。
  * 前后滑动切换选项，单击确认进入；也支持语音命令直接跳转。
  */
 class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
@@ -34,14 +34,20 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var itemAiInspection: FrameLayout
     private lateinit var itemTaskInspection: FrameLayout
     private lateinit var itemLightshot: FrameLayout
+    private lateinit var itemQrScan: FrameLayout
     private lateinit var tvBottomHint: TextView
 
     private var selectedIndex = 0
-    private val itemCount = 3   // AI识患 / 任务检查 / 闪拍
+    private val itemCount = 4   // AI识患 / 任务检查 / 闪拍 / 扫一扫
     private var isPageVisible = false
     private var isVoiceCommandsRegistered = false
     private var voiceRegisterRetryCount = 0
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val hintResetRunnable = Runnable {
+        if (!isFinishing) {
+            tvBottomHint.setText(R.string.inspection_mode_hint)
+        }
+    }
     private val voiceRegisterRetryRunnable = object : Runnable {
         override fun run() {
             if (!isPageVisible || isVoiceCommandsRegistered) {
@@ -81,6 +87,11 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             runOnUiThread { startActivity(Intent(this@InspectionModeActivity, LightshotActivity::class.java)) }
         }
     })
+    private val voiceQrScan = VoiceAction("扫一扫", "sao yi sao", object : IVoiceCallback.Stub() {
+        override fun onVoiceTriggered() {
+            runOnUiThread { launchWifiQrScan() }
+        }
+    })
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -89,6 +100,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         itemAiInspection = findViewById(R.id.itemAiInspection)
         itemTaskInspection = findViewById(R.id.itemTaskInspection)
         itemLightshot = findViewById(R.id.itemLightshot)
+        itemQrScan = findViewById(R.id.itemQrScan)
         tvBottomHint = findViewById(R.id.tvBottomHint)
 
         RokidSdkManager.initialize(application as Application)
@@ -108,12 +120,14 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onPause() {
         isPageVisible = false
         stopVoiceRegisterRetry()
+        mainHandler.removeCallbacks(hintResetRunnable)
         unregisterVoiceCommands()
         super.onPause()
     }
 
     override fun onDestroy() {
         stopVoiceRegisterRetry()
+        mainHandler.removeCallbacks(hintResetRunnable)
         unregisterVoiceCommands()
         RokidSdkManager.removeListener(this)
         super.onDestroy()
@@ -143,7 +157,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    /** 根据 selectedIndex 更新三个选项的高亮背景 */
+    /** 根据 selectedIndex 更新四个选项的高亮背景 */
     private fun updateSelection() {
         itemAiInspection.setBackgroundResource(
             if (selectedIndex == 0) R.drawable.inspection_mode_item_bg_selected
@@ -157,6 +171,10 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             if (selectedIndex == 2) R.drawable.inspection_mode_item_bg_selected
             else R.drawable.inspection_mode_item_bg
         )
+        itemQrScan.setBackgroundResource(
+            if (selectedIndex == 3) R.drawable.inspection_mode_item_bg_selected
+            else R.drawable.inspection_mode_item_bg
+        )
     }
 
     /** 确认当前选中项，跳转对应页面 */
@@ -168,13 +186,27 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             1 -> {
                 // 任务检查：暂未实现
-                tvBottomHint.text = "任务检查模式开发中..."
+                showBottomHint("任务检查模式开发中...")
             }
             2 -> {
                 // 闪拍：批量采集模型测试样本
                 startActivity(Intent(this, LightshotActivity::class.java))
             }
+            3 -> {
+                launchWifiQrScan()
+            }
         }
+    }
+
+    private fun launchWifiQrScan() {
+        mainHandler.removeCallbacks(hintResetRunnable)
+        startActivity(Intent(this, WifiQrScanActivity::class.java))
+    }
+
+    private fun showBottomHint(message: String, durationMs: Long = 2200L) {
+        tvBottomHint.text = message
+        mainHandler.removeCallbacks(hintResetRunnable)
+        mainHandler.postDelayed(hintResetRunnable, durationMs)
     }
 
     override fun onSdkStateChanged(state: RokidSdkManager.SdkState) {
@@ -231,6 +263,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         offlineCmdService.add(voiceAiInspection2)
         offlineCmdService.add(voiceTaskInspection)
         offlineCmdService.add(voiceLightshot)
+        offlineCmdService.add(voiceQrScan)
         isVoiceCommandsRegistered = true
         voiceRegisterRetryCount = 0
         Log.i(TAG, "已注册巡检模式语音命令")
@@ -247,6 +280,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             remove(voiceAiInspection2)
             remove(voiceTaskInspection)
             remove(voiceLightshot)
+            remove(voiceQrScan)
         }
         isVoiceCommandsRegistered = false
         Log.i(TAG, "已移除巡检模式语音命令")

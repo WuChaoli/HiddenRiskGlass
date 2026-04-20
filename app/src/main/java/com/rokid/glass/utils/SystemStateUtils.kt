@@ -2,6 +2,9 @@ package com.rokid.glass.utils
 
 import android.bluetooth.BluetoothAdapter
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 
 /**
@@ -22,6 +25,27 @@ object SystemStateUtils {
     }
 
     /**
+     * 获取当前已连接 Wi-Fi 的 SSID。
+     *
+     * @return 成功返回去引号后的 SSID，未连接时返回 null
+     */
+    @JvmStatic
+    fun getCurrentWifiSsid(context: Context): String? {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val wifiInfoFromCapabilities = connectivityManager
+            ?.getNetworkCapabilities(connectivityManager.activeNetwork)
+            ?.takeIf { it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) }
+            ?.transportInfo as? WifiInfo
+        val capabilitySsid = sanitizeSsid(wifiInfoFromCapabilities?.ssid)
+        if (capabilitySsid != null) {
+            return capabilitySsid
+        }
+
+        val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java)
+        return sanitizeSsid(wifiManager?.connectionInfo?.ssid)
+    }
+
+    /**
      * 检查蓝牙是否已启用
      *
      * @return 蓝牙已启用返回 true，否则返回 false
@@ -30,5 +54,17 @@ object SystemStateUtils {
     fun isBluetoothEnabled(): Boolean {
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         return bluetoothAdapter?.isEnabled == true
+    }
+
+    private fun sanitizeSsid(rawSsid: String?): String? {
+        val ssid = rawSsid
+            ?.removePrefix("\"")
+            ?.removeSuffix("\"")
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+        return when (ssid) {
+            null, WifiManager.UNKNOWN_SSID, "<unknown ssid>" -> null
+            else -> ssid
+        }
     }
 }

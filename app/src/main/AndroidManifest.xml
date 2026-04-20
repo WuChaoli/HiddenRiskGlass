@@ -81,12 +81,22 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Glessedemo"
         tools:targetApi="31">
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
+        <meta-data
+            android:name="firebase_data_collection_default_enabled"
+            android:value="false" />
         <!--        <activity-->
         <!--            android:name="com.rokid.glass.BarcodeDetectorActivity"-->
         <!--            android:exported="false" />-->
         <activity
             android:name="com.rokid.glass.CameraActivity"
             android:exported="false" />
+        <activity
+            android:name="com.rokid.glass.WifiQrScanActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.SendMessageActivity"
             android:exported="false" /> <!-- <activity -->

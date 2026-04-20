@@ -8,6 +8,7 @@ import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.hardware.camera2.CaptureRequest
+import android.media.Image
 import android.media.ImageReader
 import android.os.Handler
 import android.os.HandlerThread
@@ -18,6 +19,7 @@ import android.view.WindowManager
 import androidx.core.content.ContextCompat
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.ByteBuffer
 
 class CameraTestManager(private val context: Context) {
 
@@ -29,12 +31,20 @@ class CameraTestManager(private val context: Context) {
     private var captureSession: CameraCaptureSession? = null
     private var previewSurface: Surface? = null
     private var imageReader: ImageReader? = null
+    private var previewImageReader: ImageReader? = null
 
     private var backgroundThread: HandlerThread? = null
     private var backgroundHandler: Handler? = null
     private var isInitialized = false
+    @Volatile
+    private var isReleasing = false
     private var currentCameraId: String? = null
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    private var previewFrameCallback: ((ByteArray, Int, Int) -> Unit)? = null
+
+    fun setPreviewFrameCallback(callback: ((ByteArray, Int, Int) -> Unit)?) {
+        previewFrameCallback = callback
+    }
 
     /**
      * 初始化相机，并把预览画面输出到外部传入的 SurfaceTexture
@@ -49,6 +59,7 @@ class CameraTestManager(private val context: Context) {
             callback(true)
             return
         }
+        isReleasing = false
         backgroundThread = HandlerThread("CameraBackground").apply { start() }
         backgroundHandler = Handler(backgroundThread!!.looper)
 
@@ -75,17 +86,45 @@ class CameraTestManager(private val context: Context) {
                     try {
                         // ✅ 选择最佳预览尺寸
                         val previewSize = getBestPreviewSize(manager, cameraId, width, height)
-                        Log.e(TAG, "-----preSize----width=${previewSize.width},height=${previewSize.height}")
+                        Log.i(TAG, "preview size width=${previewSize.width}, height=${previewSize.height}")
                         surfaceTexture.setDefaultBufferSize(previewSize.width, previewSize.height)
                         previewSurface = Surface(surfaceTexture)
                         imageReader = ImageReader.newInstance(previewSize.width, previewSize.height, ImageFormat.JPEG, 2)
-                        val surfaces = listOf(previewSurface!!, imageReader!!.surface)
+                        previewImageReader = ImageReader.newInstance(
+                            previewSize.width,
+                            previewSize.height,
+                            ImageFormat.YUV_420_888,
+                            2
+                        ).apply {
+                            setOnImageAvailableListener({ reader ->
+                                val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
+                                try {
+                                    if (isReleasing || previewFrameCallback == null) {
+                                        return@setOnImageAvailableListener
+                                    }
+                                    val callbackBytes = yuv420888ToNv21(image)
+                                    previewFrameCallback?.invoke(callbackBytes, image.width, image.height)
+                                } catch (error: IllegalStateException) {
+                                    if (!isReleasing) {
+                                        Log.w(TAG, "dispatch preview frame skipped: ${error.message}")
+                                    }
+                                } catch (error: Exception) {
+                                    if (!isReleasing) {
+                                        Log.w(TAG, "dispatch preview frame failed: ${error.message}")
+                                    }
+                                } finally {
+                                    image.close()
+                                }
+                            }, backgroundHandler)
+                        }
+                        val surfaces = listOf(previewSurface!!, imageReader!!.surface, previewImageReader!!.surface)
                         device.createCaptureSession(surfaces, object : CameraCaptureSession.StateCallback() {
                             override fun onConfigured(session: CameraCaptureSession) {
                                 captureSession = session
                                 try {
                                     val previewRequest = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
                                         addTarget(previewSurface!!)
+                                        addTarget(previewImageReader!!.surface)
                                     }
                                     session.setRepeatingRequest(previewRequest.build(), null, backgroundHandler)
                                     isInitialized = true
@@ -247,12 +286,19 @@ class CameraTestManager(private val context: Context) {
      */
     fun release() {
         try {
+            isReleasing = true
+            previewFrameCallback = null
+            previewImageReader?.setOnImageAvailableListener(null, null)
+            imageReader?.setOnImageAvailableListener(null, null)
             captureSession?.close()
             captureSession = null
             cameraDevice?.close()
             cameraDevice = null
             imageReader?.close()
             imageReader = null
+            previewImageReader?.close()
+            previewImageReader = null
+            previewSurface?.release()
             previewSurface = null
             backgroundThread?.quitSafely()
             backgroundThread = null
@@ -261,5 +307,62 @@ class CameraTestManager(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "释放资源失败", e)
         }
+    }
+
+    private fun yuv420888ToNv21(image: Image): ByteArray {
+        val ySize = image.width * image.height
+        val uvSize = ySize / 2
+        val nv21 = ByteArray(ySize + uvSize)
+
+        copyPlane(
+            plane = image.planes[0],
+            width = image.width,
+            height = image.height,
+            output = nv21,
+            offset = 0,
+            pixelStrideOverride = 1,
+            outputStride = 1
+        )
+
+        val uPlane = image.planes[1]
+        val vPlane = image.planes[2]
+        val chromaWidth = image.width / 2
+        val chromaHeight = image.height / 2
+        var outputOffset = ySize
+        for (row in 0 until chromaHeight) {
+            for (col in 0 until chromaWidth) {
+                nv21[outputOffset++] = readPlaneValue(vPlane.buffer, vPlane.rowStride, vPlane.pixelStride, row, col)
+                nv21[outputOffset++] = readPlaneValue(uPlane.buffer, uPlane.rowStride, uPlane.pixelStride, row, col)
+            }
+        }
+        return nv21
+    }
+
+    private fun copyPlane(
+        plane: Image.Plane,
+        width: Int,
+        height: Int,
+        output: ByteArray,
+        offset: Int,
+        pixelStrideOverride: Int,
+        outputStride: Int
+    ) {
+        var outputOffset = offset
+        for (row in 0 until height) {
+            for (col in 0 until width) {
+                output[outputOffset] = readPlaneValue(plane.buffer, plane.rowStride, pixelStrideOverride, row, col)
+                outputOffset += outputStride
+            }
+        }
+    }
+
+    private fun readPlaneValue(
+        buffer: ByteBuffer,
+        rowStride: Int,
+        pixelStride: Int,
+        row: Int,
+        col: Int
+    ): Byte {
+        return buffer.get(row * rowStride + col * pixelStride)
     }
 }
