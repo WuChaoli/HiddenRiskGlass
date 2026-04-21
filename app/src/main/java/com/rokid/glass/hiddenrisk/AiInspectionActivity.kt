@@ -1312,13 +1312,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun showSyncSuccess() {
         showPage(PageState.SYNC_SUCCESS)
-
-        // 8 秒后无操作自动返回检测（兜底）
-        uiHandler.postDelayed({
-            if (!destroyed && pageState == PageState.SYNC_SUCCESS) {
-                returnToDetecting()
-            }
-        }, 8000L)
     }
 
     // ==================== 自动拍摄调度 ====================
