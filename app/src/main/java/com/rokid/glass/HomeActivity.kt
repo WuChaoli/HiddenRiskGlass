@@ -15,13 +15,14 @@ import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.LightshotActivity
 import com.rokid.glass.hiddenrisk.RokidSdkManager
+import com.rokid.glass.hiddenrisk.UnifiedInputDebugActivity
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
 import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallback
 
 /**
  * 巡检模式选择页面。
- * 提供 AI识患、任务检查、闪拍、扫一扫 四个选项，默认选中 AI识患。
+ * 提供 AI识患、任务检查、闪拍、扫一扫、统一输入调试 五个选项，默认选中 AI识患。
  * 前后滑动切换选项，单击确认进入；也支持语音命令直接跳转。
  */
 class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
@@ -35,10 +36,11 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var itemTaskInspection: FrameLayout
     private lateinit var itemLightshot: FrameLayout
     private lateinit var itemQrScan: FrameLayout
+    private lateinit var itemUnifiedInputDebug: FrameLayout
     private lateinit var tvBottomHint: TextView
 
     private var selectedIndex = 0
-    private val itemCount = 4   // AI识患 / 任务检查 / 闪拍 / 扫一扫
+    private val itemCount = 5
     private var isPageVisible = false
     private var isVoiceCommandsRegistered = false
     private var voiceRegisterRetryCount = 0
@@ -92,6 +94,11 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             runOnUiThread { launchWifiQrScan() }
         }
     })
+    private val voiceUnifiedInputDebug = VoiceAction("统一输入调试", "tong yi shu ru tiao shi", object : IVoiceCallback.Stub() {
+        override fun onVoiceTriggered() {
+            runOnUiThread { startActivity(Intent(this@InspectionModeActivity, UnifiedInputDebugActivity::class.java)) }
+        }
+    })
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,6 +108,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         itemTaskInspection = findViewById(R.id.itemTaskInspection)
         itemLightshot = findViewById(R.id.itemLightshot)
         itemQrScan = findViewById(R.id.itemQrScan)
+        itemUnifiedInputDebug = findViewById(R.id.itemUnifiedInputDebug)
         tvBottomHint = findViewById(R.id.tvBottomHint)
 
         RokidSdkManager.initialize(application as Application)
@@ -157,7 +165,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    /** 根据 selectedIndex 更新四个选项的高亮背景 */
+    /** 根据 selectedIndex 更新各个选项的高亮背景 */
     private fun updateSelection() {
         itemAiInspection.setBackgroundResource(
             if (selectedIndex == 0) R.drawable.inspection_mode_item_bg_selected
@@ -173,6 +181,10 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         itemQrScan.setBackgroundResource(
             if (selectedIndex == 3) R.drawable.inspection_mode_item_bg_selected
+            else R.drawable.inspection_mode_item_bg
+        )
+        itemUnifiedInputDebug.setBackgroundResource(
+            if (selectedIndex == 4) R.drawable.inspection_mode_item_bg_selected
             else R.drawable.inspection_mode_item_bg
         )
     }
@@ -194,6 +206,9 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             3 -> {
                 launchWifiQrScan()
+            }
+            4 -> {
+                startActivity(Intent(this, UnifiedInputDebugActivity::class.java))
             }
         }
     }
@@ -264,6 +279,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         offlineCmdService.add(voiceTaskInspection)
         offlineCmdService.add(voiceLightshot)
         offlineCmdService.add(voiceQrScan)
+        offlineCmdService.add(voiceUnifiedInputDebug)
         isVoiceCommandsRegistered = true
         voiceRegisterRetryCount = 0
         Log.i(TAG, "已注册巡检模式语音命令")
@@ -281,6 +297,7 @@ class InspectionModeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             remove(voiceTaskInspection)
             remove(voiceLightshot)
             remove(voiceQrScan)
+            remove(voiceUnifiedInputDebug)
         }
         isVoiceCommandsRegistered = false
         Log.i(TAG, "已移除巡检模式语音命令")

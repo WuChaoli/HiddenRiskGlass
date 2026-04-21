@@ -125,6 +125,12 @@ com.rokid.glass/
 
 - `docs/HeadGesture_调参与验证.md`
 
+## UnifiedInput 经验
+
+统一输入注册层、调试页接入方式与后续业务页迁移顺序，统一收敛到：
+
+- `docs/UnifiedInput_设计与接入.md`
+
 ### 当前已验证可运行的 GPU 组合
 
 - HiddenRisk 当前在眼镜端已验证可运行的组合为：
