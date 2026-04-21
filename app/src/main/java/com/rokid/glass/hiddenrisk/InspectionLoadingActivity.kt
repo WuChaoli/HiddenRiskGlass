@@ -19,10 +19,8 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glesse.R
-import com.rokid.security.glass3.open.sdk.GlassSdk
-import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
-import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallback
 
 /**
  * 巡检加载页面。
@@ -69,6 +67,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var modelLoadStarted = false
     private var cameraInitStarted = false
     private var initializationCompleted = false
+    private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private var headGestureSupported = false
 
     // 转圈动画
     private val loadingRotateAnimation: RotateAnimation by lazy {
@@ -99,24 +99,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         startModelLoading()
     }
 
-    // 语音命令：开始巡检
-    private val startVoiceAction = VoiceAction("开始", "kai shi", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (loadingStage == LoadingStage.COMPLETE) {
-                    navigateToInspection()
-                }
-            }
-        }
-    })
-
-    // 语音命令：退出
-    private val exitVoiceAction = VoiceAction("退出", "tui chu", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread { finish() }
-        }
-    })
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_inspection_loading)
@@ -133,6 +115,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         RokidSdkManager.initialize(application)
         RokidSdkManager.addListener(this)
         RokidSdkManager.ensureInitialized()
+        HeadGestureManager.initialize(this)
+        headGestureSupported = HeadGestureManager.isSupported()
+        if (!headGestureSupported) {
+            Log.w(TAG, "头部动作识别不可用，完成态仅支持触控与语音确认")
+        }
+        refreshInputActions()
 
         // 检查权限并开始初始化流程
         if (hasRequiredPermissions()) {
@@ -144,18 +132,18 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     override fun onResume() {
         super.onResume()
-        // 注册语音命令
-        registerVoiceCommands()
+        inputSession.attach()
+        refreshInputActions()
     }
 
     override fun onPause() {
+        inputSession.detach()
         super.onPause()
-        // 注销语音命令
-        unregisterVoiceCommands()
     }
 
     override fun onDestroy() {
         activityDestroyed = true
+        inputSession.release()
         super.onDestroy()
         ivLoadingSpinner.clearAnimation()
         uiHandler.removeCallbacks(progressRunnable)
@@ -169,28 +157,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        return when (keyEvent) {
-            GlassKeyEvent.KEYCODE_CLICK -> {
-                when (loadingStage) {
-                    LoadingStage.COMPLETE -> {
-                        navigateToInspection()
-                        true
-                    }
-                    LoadingStage.ERROR -> {
-                        // 错误状态下点击重试
-                        retryInitialization()
-                        true
-                    }
-                    else -> false
-                }
-            }
-            GlassKeyEvent.KEYCODE_BACK,
-            GlassKeyEvent.KEYCODE_DOUBLE_CLICK -> {
-                finish()
-                true
-            }
-            else -> super.onGlassKeyEvent(keyEvent)
-        }
+        return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
     override fun onRequestPermissionsResult(
@@ -225,7 +192,52 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 }
                 else -> {}
             }
+            refreshInputActions()
         }
+    }
+
+    private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        return listOf(
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("loading_start_inspection"),
+                label = "开始巡检",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("开始", "kai shi"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
+                    }
+                },
+                enabled = { loadingStage == LoadingStage.COMPLETE },
+            ) {
+                navigateToInspection()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("loading_retry"),
+                label = "重试初始化",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                ),
+                enabled = { loadingStage == LoadingStage.ERROR },
+            ) {
+                retryInitialization()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Exit,
+                label = "退出",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
+                ),
+            ) {
+                finish()
+            },
+        )
+    }
+
+    private fun refreshInputActions() {
+        inputSession.updateActions(buildInputActions())
     }
 
     private fun initViews() {
@@ -275,6 +287,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private fun startInitializationFlow() {
         loadingStage = LoadingStage.SDK_INIT
         tvLoadingSubtitle.text = "正在初始化 SDK…"
+        refreshInputActions()
 
         // SDK 初始化由 RokidSdkManager 处理，等待回调
         // 如果 SDK 已经就绪，直接开始模型加载
@@ -298,6 +311,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         loadingStage = LoadingStage.MODEL_LOAD
         tvLoadingSubtitle.text = "正在加载检测模型…"
         animateProgressTo(50)
+        refreshInputActions()
 
         // 创建 NCNN 实例
         if (!InspectionSession.createNcnnInstance()) {
@@ -333,6 +347,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         cameraInitStarted = true
         loadingStage = LoadingStage.CAMERA_INIT
         tvLoadingSubtitle.text = "正在初始化相机…"
+        refreshInputActions()
 
         InspectionSession.initCamera { success ->
             uiHandler.post {
@@ -363,14 +378,14 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         tvLoadingSubtitle.visibility = View.INVISIBLE
         layoutGuideContent.visibility = View.GONE
         tvConfirmPrompt.visibility = View.VISIBLE
-        tvLoadingHint.text = "单击或说\"开始\"进入巡检"
+        tvLoadingHint.text = getString(
+            if (headGestureSupported) R.string.ai_inspection_loading_ready_hint_with_gyro
+            else R.string.ai_inspection_loading_ready_hint,
+        )
 
         // 标记初始化完成
         InspectionSession.markInitialized()
-
-        // 重新注册语音命令（启用"开始"指令）
-        unregisterVoiceCommands()
-        registerVoiceCommands()
+        refreshInputActions()
     }
 
     private fun showError(message: String) {
@@ -385,6 +400,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         // 停止动画
         ivLoadingSpinner.clearAnimation()
+        refreshInputActions()
     }
 
     private fun retryInitialization() {
@@ -417,6 +433,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         ivLoadingSpinner.startAnimation(loadingRotateAnimation)
         animateProgressTo(10)
         startInitializationFlow()
+        refreshInputActions()
     }
 
     private fun navigateToInspection() {
@@ -427,27 +444,5 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private fun animateProgressTo(target: Int) {
         targetProgress = target
         uiHandler.post(progressRunnable)
-    }
-
-    private fun registerVoiceCommands() {
-        val offlineCmdService = runCatching { GlassSdk.getGlassOfflineCmdService() }.getOrNull()
-            ?: return
-
-        // 根据当前状态注册不同的语音命令
-        when (loadingStage) {
-            LoadingStage.COMPLETE -> {
-                offlineCmdService.add(startVoiceAction)
-            }
-            else -> {}
-        }
-        offlineCmdService.add(exitVoiceAction)
-    }
-
-    private fun unregisterVoiceCommands() {
-        val offlineCmdService = runCatching { GlassSdk.getGlassOfflineCmdService() }.getOrNull()
-            ?: return
-
-        offlineCmdService.remove(startVoiceAction)
-        offlineCmdService.remove(exitVoiceAction)
     }
 }

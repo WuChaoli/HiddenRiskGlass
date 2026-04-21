@@ -8,19 +8,16 @@ import android.media.MediaActionSound
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.util.Size
 import android.view.TextureView
 import android.view.View
 import android.widget.TextView
 import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glesse.R
 import com.rokid.security.glass3.open.sdk.GlassSdk
-import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
-import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,55 +57,8 @@ class LightshotActivity : BaseGlassActivity() {
     private var cameraInitInProgress = false
     private var currentFovIndex = 0
     private val shutterSound by lazy { MediaActionSound() }
-
-    private val voiceHandler = Handler(Looper.getMainLooper())
-    private var voiceRegistered = false
+    private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private var headGestureSupported = false
-
-    private val headGestureListener = object : HeadGestureManager.Listener {
-        override fun onHeadGesture(event: HeadGestureManager.HeadGestureEvent) {
-            val gestureLabel = when (event.type) {
-                HeadGestureManager.HeadGestureType.NOD -> "点头"
-                HeadGestureManager.HeadGestureType.SHAKE -> "摇头"
-            }
-            showResultTip("检测到$gestureLabel")
-            SpriteToastUtil.showSpriteToast(this@LightshotActivity, "检测到$gestureLabel", 0, 1500, false)
-            Log.i(
-                TAG,
-                "head gesture event type=${event.type} pitch=${"%.1f".format(Locale.US, event.pitchDeg)} yaw=${"%.1f".format(Locale.US, event.yawDeg)}",
-            )
-        }
-    }
-
-    private val voiceCaptureAction = VoiceAction("拍照", "pai zhao", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread { captureAndSave() }
-        }
-    })
-    private val voiceZoomInAction = VoiceAction("放大", "fang da", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread { adjustFov(1) }
-        }
-    })
-    private val voiceZoomOutAction = VoiceAction("缩小", "suo xiao", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread { adjustFov(-1) }
-        }
-    })
-    private val voiceExitAction = VoiceAction("退出", "tui chu", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread { finish() }
-        }
-    })
-
-    private val allVoiceActions = listOf(voiceCaptureAction, voiceZoomInAction, voiceZoomOutAction, voiceExitAction)
-
-    private val voiceRegisterRunnable = object : Runnable {
-        override fun run() {
-            if (registerVoiceCommandsIfReady()) return
-            voiceHandler.postDelayed(this, 500L)
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -148,11 +98,7 @@ class LightshotActivity : BaseGlassActivity() {
         if (!headGestureSupported) {
             Log.w(TAG, "头部动作识别不可用，设备缺少所需传感器")
         }
-    }
-
-    override fun onStart() {
-        super.onStart()
-        HeadGestureManager.addListener(headGestureListener)
+        inputSession.updateActions(buildInputActions())
     }
 
     override fun onResume() {
@@ -162,19 +108,15 @@ class LightshotActivity : BaseGlassActivity() {
         } else {
             tvHint.text = "预览面初始化中..."
         }
-        voiceHandler.removeCallbacks(voiceRegisterRunnable)
-        voiceHandler.post(voiceRegisterRunnable)
-        if (headGestureSupported) {
-            HeadGestureManager.start()
-        } else {
+        inputSession.attach()
+        inputSession.updateActions(buildInputActions())
+        if (!headGestureSupported) {
             tvHint.text = "设备不支持头部动作识别，仍可正常拍照"
         }
     }
 
     override fun onPause() {
-        voiceHandler.removeCallbacks(voiceRegisterRunnable)
-        unregisterVoiceCommands()
-        HeadGestureManager.stop()
+        inputSession.detach()
         isCameraReady = false
         cameraInitInProgress = false
         QuickCameraManager.detachPreviewTexture()
@@ -183,8 +125,7 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
-        voiceHandler.removeCallbacks(voiceRegisterRunnable)
-        unregisterVoiceCommands()
+        inputSession.release()
         runCatching { shutterSound.release() }
         QuickCameraManager.detachPreviewTexture()
         QuickCameraManager.releaseCamera()
@@ -192,50 +133,85 @@ class LightshotActivity : BaseGlassActivity() {
         super.onDestroy()
     }
 
-    override fun onStop() {
-        HeadGestureManager.removeListener(headGestureListener)
-        super.onStop()
-    }
-
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        return when (keyEvent) {
-            GlassKeyEvent.KEYCODE_CLICK -> {
+        return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
+    }
+
+    private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        val gestureEnabled = { headGestureSupported }
+        return listOf(
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("lightshot_capture"),
+                label = "拍照",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("拍照", "pai zhao"),
+                ),
+            ) {
                 captureAndSave()
-                true
-            }
-            GlassKeyEvent.KEYCODE_FRONT -> {
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("lightshot_zoom_out"),
+                label = "放大视野",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
+                    UnifiedInputSession.InputTrigger.Voice("缩小", "suo xiao"),
+                ),
+            ) {
                 adjustFov(-1)
-                true
-            }
-            GlassKeyEvent.KEYCODE_BEHIND -> {
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("lightshot_zoom_in"),
+                label = "缩小视野",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
+                    UnifiedInputSession.InputTrigger.Voice("放大", "fang da"),
+                ),
+            ) {
                 adjustFov(1)
-                true
-            }
-            GlassKeyEvent.KEYCODE_BACK -> {
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Exit,
+                label = "退出",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                    UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
+                ),
+            ) {
                 finish()
-                true
-            }
-            else -> super.onGlassKeyEvent(keyEvent)
-        }
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.DebugNod,
+                label = "点头提示",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD),
+                ),
+                enabled = gestureEnabled,
+            ) { event ->
+                handleGestureEvent(event)
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.DebugShake,
+                label = "摇头提示",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE),
+                ),
+                enabled = gestureEnabled,
+            ) { event ->
+                handleGestureEvent(event)
+            },
+        )
     }
 
-    private fun registerVoiceCommandsIfReady(): Boolean {
-        val service = runCatching { GlassSdk.getGlassOfflineCmdService() }.getOrNull() ?: return false
-        allVoiceActions.forEach { service.add(it) }
-        voiceRegistered = true
-        Log.i(TAG, "语音指令已注册: 拍照 | 放大 | 缩小 | 退出")
-        return true
-    }
-
-    private fun unregisterVoiceCommands() {
-        if (!voiceRegistered) return
-        runCatching {
-            val service = GlassSdk.getGlassOfflineCmdService()
-            allVoiceActions.forEach { service?.remove(it) }
-        }.onFailure { error ->
-            Log.w(TAG, "注销语音指令失败: ${error.message}")
+    private fun handleGestureEvent(event: UnifiedInputSession.InputEvent) {
+        val gestureTrigger = event.trigger as? UnifiedInputSession.InputTrigger.HeadGesture ?: return
+        val gestureLabel = when (gestureTrigger.type) {
+            HeadGestureManager.HeadGestureType.NOD -> "点头"
+            HeadGestureManager.HeadGestureType.SHAKE -> "摇头"
         }
-        voiceRegistered = false
+        showResultTip("检测到$gestureLabel")
+        SpriteToastUtil.showSpriteToast(this, "检测到$gestureLabel", 0, 1500, false)
+        Log.i(TAG, "head gesture event type=${gestureTrigger.type}")
     }
 
     private fun initCamera(surface: SurfaceTexture? = previewView.surfaceTexture, width: Int = previewView.width, height: Int = previewView.height) {

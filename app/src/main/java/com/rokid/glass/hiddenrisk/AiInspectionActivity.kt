@@ -35,12 +35,10 @@ import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
 import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
+import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SSEUtil
 import com.rokid.glesse.R
-import com.rokid.security.glass3.open.sdk.GlassSdk
-import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
-import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallback
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import java.io.ByteArrayOutputStream
@@ -100,7 +98,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     companion object {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
-        private const val VOICE_REGISTER_RETRY_MS = 500L
         private const val CAPTURE_TIMEOUT_MS = 1000L  // 从15000改为1000，快速超时并自动重试
         private const val MAX_CONSECUTIVE_TIMEOUTS = 3
         private const val MAX_CAMERA_RESTART_ATTEMPTS = 3
@@ -251,6 +248,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var tvStreamContent: TextView
     private lateinit var scrollContent: ScrollView
     private lateinit var tvSyncPrompt: TextView
+    private lateinit var tvSyncHint: TextView
     private lateinit var layoutSyncSuccess: LinearLayout
     private lateinit var tvSyncSuccessHint: TextView
     // 检测状态UI
@@ -261,67 +259,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val imageEncodeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inferenceRunning = AtomicBoolean(false)
-    private val detectingDeepAnalysisVoiceAction = VoiceAction("分析", "fen xi", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (pageState == PageState.DETECTING) {
-                    requestStreamingAnalysis()
-                }
-            }
-        }
-    })
-    private val detectingExitVoiceAction = VoiceAction("退出", "tui chu", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (pageState == PageState.DETECTING) {
-                    finishInspection()
-                }
-            }
-        }
-    })
-    private val streamConfirmVoiceAction = VoiceAction("确认", "que ren", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (pageState == PageState.STREAM_RESPONSE && !streamingInProgress) {
-                    syncToPhone()
-                }
-            }
-        }
-    })
-    private val streamRejectVoiceAction = VoiceAction("取消", "qu xiao", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (pageState == PageState.STREAM_RESPONSE) {
-                    returnToDetecting()
-                }
-            }
-        }
-    })
-    private val syncContinueVoiceAction = VoiceAction("继续", "ji xu", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (pageState == PageState.SYNC_SUCCESS) {
-                    returnToDetecting()
-                }
-            }
-        }
-    })
-    private val syncExitVoiceAction = VoiceAction("退出", "tui chu", object : IVoiceCallback.Stub() {
-        override fun onVoiceTriggered() {
-            runOnUiThread {
-                if (pageState == PageState.SYNC_SUCCESS) {
-                    finishInspection()
-                }
-            }
-        }
-    })
+    private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
     private var destroyed = false
     private var isActivityResumed = false
     private var isWorkflowActive = false
-    private var registeredPageVoiceActions: List<VoiceAction> = emptyList()
-    private var pageVoiceRegisterRetryCount = 0
     private var mediaPermissionRequested = false
     private var modelLoading = false
     private var modelLoaded = false
@@ -352,6 +295,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // SSE 相关
     private var currentEventSource: EventSource? = null
     private var sseUtil: SSEUtil = SSEUtil()
+    private var headGestureSupported = false
 
     // 时间和电量更新
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -435,19 +379,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         startSampleCaptureIfNeeded()
     }
 
-    private val pageVoiceRegisterRetryRunnable = object : Runnable {
-        override fun run() {
-            if (!shouldEnablePageVoiceCommands()) {
-                return
-            }
-            if (registerPageVoiceCommandsIfReady()) {
-                return
-            }
-            RokidSdkManager.ensureInitialized()
-            uiHandler.postDelayed(this, VOICE_REGISTER_RETRY_MS)
-        }
-    }
-
     // ==================== 生命周期 ====================
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -465,11 +396,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvStreamContent = findViewById(R.id.tvStreamContent)
         scrollContent = findViewById(R.id.scrollContent)
         tvSyncPrompt = findViewById(R.id.tvSyncPrompt)
+        tvSyncHint = findViewById(R.id.tvSyncHint)
         layoutSyncSuccess = findViewById(R.id.layoutSyncSuccess)
         tvSyncSuccessHint = findViewById(R.id.tvSyncSuccessHint)
         // 检测状态 UI 初始化
         tvCurrentTime = findViewById(R.id.tvCurrentTime)
         tvBatteryLevel = findViewById(R.id.tvBatteryLevel)
+        HeadGestureManager.initialize(this)
+        headGestureSupported = HeadGestureManager.isSupported()
+        if (!headGestureSupported) {
+            Log.w(TAG, "头部动作识别不可用，确认节点仅支持触控与语音")
+        }
+        updateConfirmationHints()
 
         showPage(PageState.DETECTING)
         startTimeAndBatteryUpdate()
@@ -508,7 +446,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onResume() {
         super.onResume()
         isActivityResumed = true
-        syncPageVoiceCommandState()
+        inputSession.attach()
+        refreshInputActions()
         if (pageState == PageState.DETECTING) {
             scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
         }
@@ -517,13 +456,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onStart() {
         super.onStart()
         isWorkflowActive = true
-        syncPageVoiceCommandState()
+        refreshInputActions()
     }
 
     override fun onPause() {
         isActivityResumed = false
-        stopPageVoiceRegisterRetry()
-        unregisterPageVoiceCommands()
+        inputSession.detach()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
@@ -538,8 +476,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onStop() {
         isWorkflowActive = false
-        stopPageVoiceRegisterRetry()
-        unregisterPageVoiceCommands()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
@@ -555,8 +491,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onDestroy() {
         destroyed = true
         streamCallbackActive = false
-        stopPageVoiceRegisterRetry()
-        unregisterPageVoiceCommands()
+        inputSession.release()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
@@ -592,77 +527,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // ==================== 输入事件 ====================
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        // 拦截 back/双击：在流式回答和同步成功页面应返回检测，而不是退出 Activity
-        if (keyEvent == GlassKeyEvent.KEYCODE_BACK || keyEvent == GlassKeyEvent.KEYCODE_DOUBLE_CLICK) {
-            Log.d(TAG, "back/双击事件，当前页面状态: $pageState")
-            when (pageState) {
-                PageState.STREAM_RESPONSE -> {
-                    returnToDetecting()
-                    return true
-                }
-
-                PageState.SYNC_SUCCESS -> {
-                    finishInspection()
-                    return true
-                }
-
-                PageState.DETECTING -> {
-                    // 检测页面双击返回菜单
-                    finishInspection()
-                    return true
-                }
-
-                else -> {}
-            }
-        }
-        when (keyEvent) {
-            GlassKeyEvent.KEYCODE_CLICK -> {
-                when (pageState) {
-                    PageState.DETECTING -> {
-                        // DETECTING 状态下，单击进入流式分析，避免与自动检测抢占相机。
-                        requestStreamingAnalysis()
-                        return true
-                    }
-
-                    PageState.STREAM_RESPONSE -> {
-                        if (!streamingInProgress) {
-                            syncToPhone()
-                            return true
-                        }
-                    }
-
-                    PageState.SYNC_SUCCESS -> {
-                        returnToDetecting()
-                        return true
-                    }
-
-                    else -> {}
-                }
-            }
-
-            GlassKeyEvent.KEYCODE_DOUBLE_CLICK -> {
-                Log.d(TAG, "双击事件，当前页面状态: $pageState")
-                when (pageState) {
-                    PageState.STREAM_RESPONSE,
-                    PageState.SYNC_SUCCESS -> {
-                        Log.d(TAG, "双击: 返回检测页面")
-                        returnToDetecting()
-                        return true
-                    }
-
-                    PageState.DETECTING -> {
-                        // 检测页面双击返回菜单
-                        finishInspection()
-                        return true
-                    }
-
-                    else -> {
-                        Log.d(TAG, "双击: 未匹配状态，调用父类")
-                    }
-                }
-            }
-        }
-        return super.onGlassKeyEvent(keyEvent)
+        return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
     // ==================== SDK 回调 ====================
@@ -675,7 +540,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             0L
         }
         uiHandler.post {
-            syncPageVoiceCommandState()
+            refreshInputActions()
             maybeAdvanceWorkflow()
         }
     }
@@ -831,7 +696,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     failWorkflow("相机初始化失败")
                     return@post
                 }
-                syncPageVoiceCommandState()
+                refreshInputActions()
             }
         }
     }
@@ -928,6 +793,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeStreamRequestId++
         cancelMayHazardVerification()
         hideStatusAlertOverlay()
+        refreshInputActions()
         finish()
     }
 
@@ -1371,101 +1237,108 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             layoutSyncSuccess.alpha = 1f
             tvSyncSuccessHint.alpha = 1f
         }
-        syncPageVoiceCommandState()
+        refreshInputActions()
     }
 
-    private fun currentPageVoiceActions(): List<VoiceAction> {
-        return when (pageState) {
-            PageState.DETECTING -> listOf(detectingDeepAnalysisVoiceAction, detectingExitVoiceAction)
-            PageState.STREAM_RESPONSE -> listOf(streamConfirmVoiceAction, streamRejectVoiceAction)
-            PageState.SYNC_SUCCESS -> listOf(syncContinueVoiceAction, syncExitVoiceAction)
-        }
+    private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        return listOf(
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_detecting_stream_analysis"),
+                label = "检测页分析",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("分析", "fen xi"),
+                ),
+                enabled = { pageState == PageState.DETECTING },
+            ) {
+                requestStreamingAnalysis()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_detecting_exit"),
+                label = "检测页退出",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
+                ),
+                enabled = { pageState == PageState.DETECTING },
+            ) {
+                finishInspection()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_stream_confirm_sync"),
+                label = "确认同步",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("确认", "que ren"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
+                    }
+                },
+                enabled = { pageState == PageState.STREAM_RESPONSE && !streamingInProgress },
+            ) {
+                syncToPhone()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_stream_cancel_sync"),
+                label = "取消同步",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("取消", "qu xiao"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
+                    }
+                },
+                enabled = { pageState == PageState.STREAM_RESPONSE },
+            ) {
+                returnToDetecting()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_sync_continue"),
+                label = "继续巡检",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
+                    }
+                },
+                enabled = { pageState == PageState.SYNC_SUCCESS },
+            ) {
+                returnToDetecting()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_sync_finish"),
+                label = "结束巡检",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
+                    }
+                },
+                enabled = { pageState == PageState.SYNC_SUCCESS },
+            ) {
+                finishInspection()
+            },
+        )
     }
 
-    private fun shouldEnablePageVoiceCommands(): Boolean {
-        return !destroyed &&
-            isActivityResumed &&
-            isWorkflowActive &&
-            currentPageVoiceActions().isNotEmpty()
+    private fun refreshInputActions() {
+        inputSession.updateActions(buildInputActions())
     }
 
-    private fun syncPageVoiceCommandState() {
-        val targetActions = currentPageVoiceActions()
-        if (!shouldEnablePageVoiceCommands()) {
-            stopPageVoiceRegisterRetry()
-            unregisterPageVoiceCommands()
-            return
-        }
-        if (registeredPageVoiceActions == targetActions) {
-            return
-        }
-        unregisterPageVoiceCommands()
-        schedulePageVoiceRegisterRetry(immediate = true)
-    }
-
-    private fun schedulePageVoiceRegisterRetry(immediate: Boolean) {
-        if (!shouldEnablePageVoiceCommands()) {
-            return
-        }
-        uiHandler.removeCallbacks(pageVoiceRegisterRetryRunnable)
-        if (immediate) {
-            uiHandler.post(pageVoiceRegisterRetryRunnable)
-        } else {
-            uiHandler.postDelayed(pageVoiceRegisterRetryRunnable, VOICE_REGISTER_RETRY_MS)
-        }
-    }
-
-    private fun stopPageVoiceRegisterRetry() {
-        uiHandler.removeCallbacks(pageVoiceRegisterRetryRunnable)
-        pageVoiceRegisterRetryCount = 0
-    }
-
-    private fun registerPageVoiceCommandsIfReady(): Boolean {
-        val targetActions = currentPageVoiceActions()
-        if (!shouldEnablePageVoiceCommands() || targetActions.isEmpty()) {
-            return false
-        }
-        if (registeredPageVoiceActions == targetActions) {
-            return true
-        }
-
-        val offlineCmdService = runCatching { GlassSdk.getGlassOfflineCmdService() }
-            .onFailure { error ->
-                Log.w(TAG, "获取页面离线语音服务失败: ${error.message}")
-            }
-            .getOrNull()
-        if (offlineCmdService == null) {
-            pageVoiceRegisterRetryCount++
-            if (pageVoiceRegisterRetryCount == 1 || pageVoiceRegisterRetryCount % 10 == 0) {
-                Log.w(
-                    TAG,
-                    "页面离线语音服务未就绪，继续重试: attempt=$pageVoiceRegisterRetryCount pageState=$pageState sdkState=${RokidSdkManager.state}"
-                )
-            }
-            return false
-        }
-
-        targetActions.forEach { offlineCmdService.add(it) }
-        registeredPageVoiceActions = targetActions
-        pageVoiceRegisterRetryCount = 0
-        Log.i(TAG, "已注册页面语音命令 pageState=$pageState commands=${targetActions.joinToString { it.toString() }}")
-        return true
-    }
-
-    private fun unregisterPageVoiceCommands() {
-        if (registeredPageVoiceActions.isEmpty()) {
-            return
-        }
-
-        runCatching {
-            GlassSdk.getGlassOfflineCmdService()?.let { service ->
-                registeredPageVoiceActions.forEach(service::remove)
-            }
-        }.onFailure { error ->
-            Log.w(TAG, "移除页面语音命令失败: ${error.message}")
-        }
-        registeredPageVoiceActions = emptyList()
-        Log.i(TAG, "已移除页面语音命令")
+    private fun updateConfirmationHints() {
+        tvSyncHint.text = getString(
+            if (headGestureSupported) R.string.ai_inspection_sync_hint_with_gyro
+            else R.string.ai_inspection_sync_hint,
+        )
+        tvSyncSuccessHint.text = getString(
+            if (headGestureSupported) R.string.ai_inspection_continue_hint_with_gyro
+            else R.string.ai_inspection_continue_hint,
+        )
     }
 
     private fun failWorkflow(message: String) {
@@ -1726,6 +1599,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamingInProgress = true
         streamCallbackActive = true
         tvSyncPrompt.visibility = View.INVISIBLE
+        refreshInputActions()
     }
 
     private fun shouldDeliverStreamRequest(requestId: Long): Boolean {
@@ -1775,6 +1649,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         streamingInProgress = false
                         lastAnalysisText = tvStreamContent.text.toString()
                         tvSyncPrompt.visibility = View.VISIBLE
+                        refreshInputActions()
                     }
                 }
 
@@ -1804,6 +1679,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             activeStreamRequestId += 1
             tvStreamContent.text = "分析失败：$errorMsg"
             tvSyncPrompt.visibility = View.VISIBLE
+            refreshInputActions()
         }
     }
 }
