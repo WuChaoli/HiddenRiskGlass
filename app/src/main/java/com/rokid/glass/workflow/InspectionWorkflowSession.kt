@@ -18,6 +18,12 @@ object InspectionWorkflowSession {
         val siteName: String,
         val inspectorName: String,
         val qrContent: String,
+        // 扩展字段，用于企业信息展示
+        val region: String = "",
+        val category: String = "",
+        val riskTags: String = "",
+        val riskLevel: String = "",
+        val hazardHistory: List<String> = emptyList(),
     )
 
     data class InspectionSummary(
@@ -41,10 +47,23 @@ object InspectionWorkflowSession {
 
     fun updateEnterpriseFromQr(qrContent: String) {
         enterpriseInfo = EnterpriseInfo(
-            companyName = "杭州基层应消科技示范单位",
+            companyName = "天天小吃店",
             siteName = "滨江智造园区 3 号车间",
             inspectorName = "眼镜端巡检员",
             qrContent = qrContent,
+            region = "杭州市萧山区",
+            category = "消防安全",
+            riskTags = "九小场所（小餐饮）、消防重点场所",
+            riskLevel = "一般风险",
+            hazardHistory = listOf(
+                "三合一住人",
+                "防盗窗未设紧急逃生口",
+                "电子烟靠近笔记本电脑存在火灾风险",
+                "防盗窗影响逃生和灭火救援",
+                "多孔插线板随意放置",
+                "电气安全",
+                "多设备集中连接",
+            ),
         )
     }
 

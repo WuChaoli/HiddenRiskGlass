@@ -1,9 +1,18 @@
 package com.rokid.glass
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.ImageView
 import android.widget.TextView
+import com.rokid.glass.component.BottomPromptView
+import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
@@ -12,36 +21,58 @@ import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.HttpUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
+import java.util.Date
 
 class InspectionEndReportActivity : BaseGlassActivity() {
 
     private lateinit var ivPreview: ImageView
-    private lateinit var tvSummary: TextView
+    private lateinit var tvHazardCount: TextView
+    private lateinit var operationGuideEnd: OperationGuideView
+    private lateinit var bottomPromptEnd: BottomPromptView
+    private lateinit var statusBarEnd: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private var headGestureSupported = false
+
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private var batteryReceiver: BroadcastReceiver? = null
+    private val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    private val timeUpdateRunnable = object : Runnable {
+        override fun run() {
+            statusBarEnd.updateTime()
+            uiHandler.postDelayed(this, 1000L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_inspection_end_report)
 
         ivPreview = findViewById(R.id.ivPreview)
-        tvSummary = findViewById(R.id.tvSummary)
+        tvHazardCount = findViewById(R.id.tvHazardCount)
+        operationGuideEnd = findViewById(R.id.operationGuideEnd)
+        bottomPromptEnd = findViewById(R.id.bottomPromptEnd)
+        statusBarEnd = findViewById(R.id.statusBarEnd)
         HeadGestureManager.initialize(this)
         headGestureSupported = HeadGestureManager.isSupported()
 
         val summary = InspectionWorkflowSession.summary
-        val analyzedCount = if (summary.analyzedCount == 0) 3 else summary.analyzedCount
         val hasHazardCount = if (summary.hasHazardCount == 0) 3 else summary.hasHazardCount
-        val noHazardCount = summary.noHazardCount
-        val mayHazardCount = summary.mayHazardCount
-        tvSummary.text = getString(
-            R.string.ai_detection_end_summary,
-            analyzedCount,
-            hasHazardCount,
-            noHazardCount,
-            mayHazardCount,
-        )
+        tvHazardCount.text = "分析出${hasHazardCount}条隐患"
         InspectionWorkflowSession.latestCapturedBitmap?.let(ivPreview::setImageBitmap)
+
+        operationGuideEnd.setGuide(
+            title = "操作指引",
+            content = if (headGestureSupported) {
+                "说出\"结束\"\n说出\"退出\"\n单击 结束\n双击 退出\n点头 结束\n摇头 退出"
+            } else {
+                "说出\"结束\"\n说出\"退出\"\n单击 结束\n双击 退出"
+            }
+        )
+        bottomPromptEnd.setPrompt(
+            title = "请确认是否结束本次巡检？"
+        )
+
+        startTimeAndBatteryUpdate()
     }
 
     override fun onResume() {
@@ -56,8 +87,35 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
+        stopTimeAndBatteryUpdate()
         inputSession.release()
         super.onDestroy()
+    }
+
+    private fun startTimeAndBatteryUpdate() {
+        statusBarEnd.updateTime()
+        uiHandler.post(timeUpdateRunnable)
+        batteryReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent?.let {
+                    val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+                    val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+                    if (level != -1 && scale != -1) {
+                        val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                        statusBarEnd.setBatteryPercent(batteryPct)
+                    }
+                }
+            }
+        }
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }
+
+    private fun stopTimeAndBatteryUpdate() {
+        uiHandler.removeCallbacks(timeUpdateRunnable)
+        batteryReceiver?.let {
+            unregisterReceiver(it)
+            batteryReceiver = null
+        }
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {

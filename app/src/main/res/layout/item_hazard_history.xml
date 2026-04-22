@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingVertical="3dp">
+
+    <TextView
+        android:id="@+id/tvNumber"
+        android:layout_width="18dp"
+        android:layout_height="18dp"
+        android:background="@drawable/bg_circle_number"
+        android:gravity="center"
+        android:textColor="@color/green"
+        android:textSize="10sp" />
+
+    <TextView
+        android:id="@+id/tvHazard"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:textColor="@color/green"
+        android:textSize="11sp" />
+</LinearLayout>

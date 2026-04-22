@@ -16,13 +16,23 @@
         android:layout_height="match_parent"
         android:background="@drawable/glass_bottom_scrim" />
 
+    <!-- 右上角操作指引 -->
+    <com.rokid.glass.component.OperationGuideView
+        android:id="@+id/operationGuideEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="22dp"
+        android:layout_marginEnd="14dp" />
+
+    <!-- 底部区域：卡片 + 提示 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="bottom"
         android:orientation="vertical"
         android:paddingHorizontal="20dp"
-        android:paddingBottom="20dp">
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -30,58 +40,65 @@
             android:background="@drawable/glass_card_outline"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:padding="12dp">
+            android:padding="10dp">
 
-            <ImageView
-                android:layout_width="96dp"
-                android:layout_height="72dp"
-                android:scaleType="centerCrop"
-                android:src="@mipmap/icon_photo" />
-
+            <!-- 左侧：3 张缩略图 -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
                 android:layout_weight="1"
-                android:orientation="vertical">
+                android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="分析出 3 条隐患"
-                    android:textColor="@color/green"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
+                <ImageView
+                    android:id="@+id/ivThumb1"
+                    android:layout_width="36dp"
+                    android:layout_height="27dp"
+                    android:scaleType="centerCrop"
+                    android:src="@mipmap/icon_photo" />
 
-                <TextView
-                    android:id="@+id/tvSummary"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:lineSpacingExtra="4dp"
-                    android:textColor="@color/green"
-                    android:textSize="16sp" />
+                <ImageView
+                    android:id="@+id/ivThumb2"
+                    android:layout_width="36dp"
+                    android:layout_height="27dp"
+                    android:layout_marginStart="3dp"
+                    android:scaleType="centerCrop"
+                    android:src="@mipmap/icon_photo" />
+
+                <ImageView
+                    android:id="@+id/ivThumb3"
+                    android:layout_width="36dp"
+                    android:layout_height="27dp"
+                    android:layout_marginStart="3dp"
+                    android:scaleType="centerCrop"
+                    android:src="@mipmap/icon_photo" />
             </LinearLayout>
+
+            <!-- 右侧：隐患数量 -->
+            <TextView
+                android:id="@+id/tvHazardCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:text="分析出3条隐患"
+                android:textColor="@color/green"
+                android:textSize="14sp"
+                android:textStyle="bold" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- 底部提示 -->
+        <com.rokid.glass.component.BottomPromptView
+            android:id="@+id/bottomPromptEnd"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="18dp"
-            android:text="请确认是否结束本次巡检？"
-            android:textColor="@color/green"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:layout_marginTop="8dp"
+            android:paddingBottom="8dp" />
 
-        <TextView
-            android:id="@+id/tvHint"
-            android:layout_width="wrap_content"
+        <!-- 状态栏 -->
+        <com.rokid.glass.component.GlassStatusBar
+            android:id="@+id/statusBarEnd"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="12dp"
-            android:text="@string/ai_detection_end_hint"
-            android:textColor="@color/green"
-            android:textSize="14sp" />
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="10dp" />
     </LinearLayout>
 </FrameLayout>

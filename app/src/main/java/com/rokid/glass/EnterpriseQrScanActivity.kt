@@ -10,8 +10,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.TextureView
+import android.view.View
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.TextView
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -20,6 +24,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.rokid.glass.camera.CameraTestManager
+import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -32,6 +37,15 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private lateinit var resultOverlay: FrameLayout
     private lateinit var tvResultMessage: TextView
     private lateinit var cameraManager: CameraTestManager
+
+    // 新增 UI 视图
+    private lateinit var scanFrame: View
+    private lateinit var viewfinder: View
+    private lateinit var tvScanHint: TextView
+    private lateinit var resultContent: LinearLayout
+    private lateinit var infoCard: LinearLayout
+    private lateinit var bottomHints: LinearLayout
+    private lateinit var statusBar: GlassStatusBar
 
     private val scanner: BarcodeScanner by lazy {
         val options = BarcodeScannerOptions.Builder()
@@ -98,6 +112,17 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         resultOverlay = findViewById(R.id.resultOverlay)
         tvResultMessage = findViewById(R.id.tvResultMessage)
+
+        // 绑定新增视图
+        scanFrame = findViewById(R.id.scanFrame)
+        viewfinder = findViewById(R.id.viewfinder)
+        tvScanHint = findViewById(R.id.tvScanHint)
+        resultContent = findViewById(R.id.resultContent)
+        infoCard = findViewById(R.id.infoCard)
+        bottomHints = findViewById(R.id.bottomHints)
+        statusBar = findViewById(R.id.statusBar)
+        updateBatteryLevel()
+
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
             return
@@ -196,9 +221,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         cameraManager.initialize(surface, width, height) { success ->
             runOnUiThread {
                 isCameraReady = success
-                tvStatus.setText(
-                    if (success) R.string.enterprise_qr_waiting else R.string.enterprise_qr_camera_error,
-                )
+                if (!success) {
+                    tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
+                }
                 if (success) {
                     startScanLoop()
                 }
@@ -217,10 +242,19 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         }
         val rawValue = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue ?: return
         completed = true
-        tvStatus.setText(R.string.enterprise_qr_success)
+        tvStatus.visibility = View.GONE
         InspectionWorkflowSession.updateEnterpriseFromQr(rawValue)
-        resultOverlay.visibility = android.view.View.VISIBLE
-        tvResultMessage.setText(R.string.enterprise_qr_success)
+
+        // 切换到成功结果展示
+        textureView.visibility = View.INVISIBLE
+        viewfinder.visibility = View.INVISIBLE
+        tvScanHint.visibility = View.GONE
+        infoCard.visibility = View.GONE
+
+        scanFrame.background = null
+        resultContent.visibility = View.VISIBLE
+        bottomHints.visibility = View.VISIBLE
+
         mainHandler.postDelayed({
             startActivity(Intent(this, EnterpriseInfoActivity::class.java))
             finish()
@@ -246,16 +280,38 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         ActivityCompat.requestPermissions(this, requiredPermissions(), REQUEST_CODE_PERMISSIONS)
     }
 
-    private fun applyDebugSnapshotState() {
-        textureView.visibility = android.view.View.INVISIBLE
-        val success = intent.getStringExtra("debug_state") == "success"
-        tvStatus.text = if (success) {
-            getString(R.string.enterprise_qr_success)
-        } else {
-            getString(R.string.enterprise_qr_waiting)
+    /**
+     * 获取当前电池电量并更新电池图标填充
+     */
+    private fun updateBatteryLevel() {
+        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { intent ->
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (level != -1 && scale != -1) {
+                val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                statusBar.setBatteryPercent(batteryPct)
+            }
         }
-        resultOverlay.visibility = if (success) android.view.View.VISIBLE else android.view.View.GONE
-        tvResultMessage.text = getString(R.string.enterprise_qr_success)
+    }
+
+    private fun applyDebugSnapshotState() {
+        textureView.visibility = View.INVISIBLE
+        viewfinder.visibility = View.INVISIBLE
+        val scanFrame = findViewById<View>(R.id.scanFrame)
+        val success = intent.getStringExtra("debug_state") == "success"
+        if (success) {
+            scanFrame.background = null
+            tvScanHint.visibility = View.GONE
+            infoCard.visibility = View.GONE
+            resultContent.visibility = View.VISIBLE
+            bottomHints.visibility = View.VISIBLE
+        } else {
+            tvScanHint.visibility = View.VISIBLE
+            infoCard.visibility = View.VISIBLE
+            resultContent.visibility = View.GONE
+            bottomHints.visibility = View.GONE
+        }
     }
 
     companion object {

@@ -1,11 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <gradient
-        android:angle="0"
-        android:centerColor="#A640FF5E"
-        android:endColor="#0040FF5E"
-        android:startColor="#0040FF5E"
-        android:type="sweep"
-        android:useLevel="false" />
-</shape>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="280dp"
+    android:height="280dp"
+    android:viewportWidth="280"
+    android:viewportHeight="280">
+
+    <!-- 扇形扫描区域：从中心向外约60度的扇形 -->
+    <path
+        android:fillColor="#5040FF5E"
+        android:pathData="M140,140 L140,0 A140,140 0 0,1 261.2,70 L140,140 Z" />
+
+    <!-- 扇形边缘高光 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M140,140 L140,0"
+        android:strokeColor="#8040FF5E"
+        android:strokeWidth="1.5" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M140,140 L261.2,70"
+        android:strokeColor="#8040FF5E"
+        android:strokeWidth="1.5" />
+</vector>

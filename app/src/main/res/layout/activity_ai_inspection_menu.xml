@@ -4,214 +4,156 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
-    <GridLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="top|center_horizontal"
-        android:layout_marginTop="54dp"
-        android:alignmentMode="alignMargins"
-        android:columnCount="2"
-        android:paddingHorizontal="26dp"
-        android:rowCount="2"
-        android:useDefaultMargins="true">
-
-        <FrameLayout
-            android:id="@+id/itemHazardAnalysis"
-            android:layout_width="0dp"
-            android:layout_height="148dp"
-            android:layout_columnWeight="1"
-            android:background="@drawable/glass_menu_card_selected">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="66dp"
-                    android:layout_height="66dp"
-                    android:contentDescription="@string/ai_entry_menu_analysis"
-                    android:src="@mipmap/icon_ai_chat" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/ai_entry_menu_analysis"
-                    android:textColor="@color/green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </FrameLayout>
-
-        <FrameLayout
-            android:id="@+id/itemDeviceGuide"
-            android:layout_width="0dp"
-            android:layout_height="148dp"
-            android:layout_columnWeight="1"
-            android:background="@drawable/glass_menu_card">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="66dp"
-                    android:layout_height="66dp"
-                    android:contentDescription="@string/ai_entry_menu_guide"
-                    android:src="@mipmap/icon_ai_thinking" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/ai_entry_menu_guide"
-                    android:textColor="@color/green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </FrameLayout>
-
-        <FrameLayout
-            android:id="@+id/itemHazardRecord"
-            android:layout_width="0dp"
-            android:layout_height="148dp"
-            android:layout_columnWeight="1"
-            android:background="@drawable/glass_menu_card">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="66dp"
-                    android:layout_height="66dp"
-                    android:contentDescription="@string/ai_entry_menu_record"
-                    android:src="@mipmap/icon_photo" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/ai_entry_menu_record"
-                    android:textColor="@color/green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </FrameLayout>
-
-        <FrameLayout
-            android:id="@+id/itemLightshot"
-            android:layout_width="0dp"
-            android:layout_height="148dp"
-            android:layout_columnWeight="1"
-            android:background="@drawable/glass_menu_card">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
-                android:orientation="vertical">
-
-                <ImageView
-                    android:layout_width="66dp"
-                    android:layout_height="66dp"
-                    android:contentDescription="@string/ai_entry_menu_lightshot"
-                    android:src="@mipmap/icon_take_photo" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="@string/ai_entry_menu_lightshot"
-                    android:textColor="@color/green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-        </FrameLayout>
-    </GridLayout>
-
-    <TextView
-        android:id="@+id/tvBottomHint"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="124dp"
-        android:text="滑动右侧镜腿进行菜单选择"
-        android:textColor="@color/green"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
     <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="22dp"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="80dp">
 
+        <!-- 三个菜单卡片横排 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp">
+
+            <!-- 隐患分析 -->
+            <FrameLayout
+                android:id="@+id/itemHazardAnalysis"
+                android:layout_width="0dp"
+                android:layout_height="140dp"
+                android:layout_marginHorizontal="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/glass_menu_card_selected">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:src="@drawable/ic_menu_ai_analysis" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/ai_entry_menu_analysis"
+                        android:textColor="@color/green"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- 设备指引 -->
+            <FrameLayout
+                android:id="@+id/itemDeviceGuide"
+                android:layout_width="0dp"
+                android:layout_height="140dp"
+                android:layout_marginHorizontal="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/glass_menu_card">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:src="@drawable/ic_menu_device_guide" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/ai_entry_menu_guide"
+                        android:textColor="@color/green"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <!-- 隐患录入 -->
+            <FrameLayout
+                android:id="@+id/itemHazardRecord"
+                android:layout_width="0dp"
+                android:layout_height="140dp"
+                android:layout_marginHorizontal="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/glass_menu_card">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="52dp"
+                        android:layout_height="52dp"
+                        android:src="@drawable/ic_menu_hazard_record" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/ai_entry_menu_record"
+                        android:textColor="@color/green"
+                        android:textSize="16sp" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+
+        <!-- 中间提示 -->
         <TextView
+            android:id="@+id/tvBottomHint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="语音指令：确认 | 返回"
+            android:layout_marginTop="48dp"
+            android:text="滑动右侧镜腿进行菜单选择"
             android:textColor="@color/green"
             android:textSize="14sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="触控操作：单击 | 双击"
-            android:textColor="@color/green"
-            android:textSize="14sp" />
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
+        <!-- 底部操作提示 -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:src="@mipmap/status_wifi_4" />
+            android:layout_marginBottom="8dp"
+            android:gravity="center"
+            android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="10dp"
-                android:text="@string/glass_status_time_mock"
+                android:text="语音指令：确认 | 返回"
                 android:textColor="@color/green"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:textSize="13sp" />
 
-            <FrameLayout
-                android:layout_width="36dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="12dp">
-
-                <View
-                    android:layout_width="32dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/ic_battery_outline" />
-
-                <TextView
-                    android:layout_width="28dp"
-                    android:layout_height="16dp"
-                    android:layout_gravity="center"
-                    android:gravity="center"
-                    android:text="@string/glass_status_battery_mock"
-                    android:textColor="@color/green"
-                    android:textSize="9sp"
-                    android:textStyle="bold" />
-            </FrameLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="触控操作：单击 | 双击"
+                android:textColor="@color/green"
+                android:textSize="13sp" />
         </LinearLayout>
+
+        <com.rokid.glass.component.GlassStatusBar
+            android:id="@+id/statusBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="10dp" />
     </LinearLayout>
 </FrameLayout>

@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.ThumbnailUtils
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -18,7 +19,6 @@ import android.util.Base64
 import android.util.Log
 import android.util.Size
 import android.view.View
-import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.view.animation.RotateAnimation
@@ -37,6 +37,9 @@ import com.rokid.glass.component.AlertBehavior
 import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
 import com.rokid.glass.component.StatusAlertModel
+import com.rokid.glass.component.BottomPromptView
+import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
@@ -47,7 +50,6 @@ import com.rokid.glesse.R
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import java.io.ByteArrayOutputStream
-import java.text.SimpleDateFormat
 import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
@@ -251,20 +253,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var layoutDetection: FrameLayout
     private lateinit var statusAlertOverlay: StatusAlertOverlayView
     private lateinit var layoutStreamResponse: FrameLayout
-    private lateinit var viewStatusDot: View
-    private lateinit var viewCrosshairHorizontal: View
-    private lateinit var viewCrosshairVertical: View
-    private lateinit var ivMayHazardLoading: ImageView
     private lateinit var tvStreamContent: TextView
     private lateinit var scrollContent: ScrollView
-    private lateinit var tvSyncPrompt: TextView
-    private lateinit var tvSyncHint: TextView
-    private lateinit var layoutSyncSuccess: LinearLayout
-    private lateinit var tvSyncSuccessHint: TextView
+    private lateinit var ivStreamThumbnail: ImageView
+    private lateinit var bottomPromptSync: BottomPromptView
+    private lateinit var operationGuideStream: OperationGuideView
+    private var currentStreamThumbnail: Bitmap? = null
+    private lateinit var layoutSyncSuccess: FrameLayout
+    private lateinit var bottomPromptSuccess: BottomPromptView
     // 检测状态UI
-    private lateinit var tvCurrentTime: TextView      // 顶部实时时间
-    private lateinit var tvBatteryLevel: TextView     // 右下角电量
+    private lateinit var statusBarDetecting: GlassStatusBar
+    private lateinit var statusBarStream: GlassStatusBar
+    private lateinit var statusBarSyncSuccess: GlassStatusBar
+    private lateinit var operationGuideSync: OperationGuideView
     private lateinit var tvDetectionStatus: TextView
+    private lateinit var layoutHazardBanner: LinearLayout
+    private lateinit var tvHazardBannerCount: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -320,7 +324,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var debugSnapshotState: String? = null
 
     // 时间和电量更新
-    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     private val timeUpdateRunnable = object : Runnable {
         override fun run() {
             updateCurrentTime()
@@ -361,16 +364,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var consecutiveTimeoutCount = 0
     private var cameraRestartAttempts = 0
     private var isCameraRestarting = false
-
-    /** 录制指示灯闪烁动画：1.0 → 0.2 → 1.0 循环，模拟拍摄状态灯 */
-    private val dotBlinkAnimation: AlphaAnimation by lazy {
-        AlphaAnimation(1.0f, 0.2f).apply {
-            duration = 600L
-            repeatMode = Animation.REVERSE
-            repeatCount = Animation.INFINITE
-            interpolator = LinearInterpolator()
-        }
-    }
 
     private val mayHazardLoadingRotateAnimation: RotateAnimation by lazy {
         RotateAnimation(
@@ -476,20 +469,30 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutDetection = findViewById(R.id.layoutDetection)
         statusAlertOverlay = findViewById(R.id.statusAlertOverlay)
         layoutStreamResponse = findViewById(R.id.layoutStreamResponse)
-        viewStatusDot = findViewById(R.id.viewStatusDot)
-        viewCrosshairHorizontal = findViewById(R.id.viewCrosshairHorizontal)
-        viewCrosshairVertical = findViewById(R.id.viewCrosshairVertical)
-        ivMayHazardLoading = findViewById(R.id.ivMayHazardLoading)
         tvStreamContent = findViewById(R.id.tvStreamContent)
         scrollContent = findViewById(R.id.scrollContent)
-        tvSyncPrompt = findViewById(R.id.tvSyncPrompt)
-        tvSyncHint = findViewById(R.id.tvSyncHint)
+        ivStreamThumbnail = findViewById(R.id.ivStreamThumbnail)
+        bottomPromptSync = findViewById(R.id.bottomPromptSync)
+        operationGuideStream = findViewById(R.id.operationGuideStream)
+        // 流式结果卡片高度限制在 onMessage / applyDebugSnapshotState 中动态处理
         layoutSyncSuccess = findViewById(R.id.layoutSyncSuccess)
-        tvSyncSuccessHint = findViewById(R.id.tvSyncSuccessHint)
+        bottomPromptSuccess = findViewById(R.id.bottomPromptSuccess)
         // 检测状态 UI 初始化
-        tvCurrentTime = findViewById(R.id.tvCurrentTime)
-        tvBatteryLevel = findViewById(R.id.tvBatteryLevel)
+        statusBarDetecting = findViewById(R.id.statusBarDetecting)
+        statusBarStream = findViewById(R.id.statusBarStream)
+        statusBarSyncSuccess = findViewById(R.id.statusBarSyncSuccess)
+        operationGuideSync = findViewById(R.id.operationGuideSync)
         tvDetectionStatus = findViewById(R.id.tvDetectionStatus)
+        layoutHazardBanner = findViewById(R.id.layoutHazardBanner)
+        tvHazardBannerCount = findViewById(R.id.tvHazardBannerCount)
+
+        // 设置检测页操作指引内容
+        val operationGuideDetecting = findViewById<OperationGuideView>(R.id.operationGuideDetecting)
+        operationGuideDetecting.setGuide(
+            title = "操作指引",
+            content = "说出\"分析\"\n说出\"返回\"\n说出\"结束\"\n单击 分析\n双击 返回"
+        )
+
         HeadGestureManager.initialize(this)
         headGestureSupported = HeadGestureManager.isSupported()
         if (!headGestureSupported) {
@@ -1162,15 +1165,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                 val resultModel = when (judgeResult) {
                                     is HazardJudgeResult.MayHazard -> StatusAlertModel(
                                         status = AlertStatus.WARNING,
-                                        titleText = "检测到隐患",
-                                        messageText = "检测到疑似风险目标，请进一步确认现场状态",
+                                        titleText = "",
+                                        messageText = "检测到隐患：检测到疑似风险目标，请进一步确认现场状态",
                                         action = AlertActionConfig(visible = false),
-                                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = true),
+                                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = false),
                                         style = AlertStyle(iconResId = R.drawable.ic_warning_triangle),
                                     )
                                     else -> buildStatusAlertModel(judgeResult).copy(
                                         action = AlertActionConfig(visible = false),
-                                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = true),
+                                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = false),
                                     )
                                 }
                                 InspectionWorkflowSession.recordDetection(resultModel.titleText, resultModel.messageText)
@@ -1190,6 +1193,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                         )
                                     }
                                 }
+                                updateHazardBanner()
                                 statusAlertOverlay.render(resultModel)
                                 scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
                             }
@@ -1216,7 +1220,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         val behavior = AlertBehavior(
             autoDismissMs = 2000L,
-            showCountdownBar = true,
+            showCountdownBar = false,
         )
 
         return when (judgeResult) {
@@ -1225,10 +1229,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     .map { getGroupDisplayName(it) }
                     .distinct()
                     .joinToString("、")
+                val message = if (groupNames.isNotEmpty()) "区域安全：检测到符合${groupNames}" else "区域安全：未发现安全隐患"
                 StatusAlertModel(
                     status = AlertStatus.SUCCESS,
-                    titleText = "区域安全",
-                    messageText = if (groupNames.isNotEmpty()) "检测到符合${groupNames}" else "未发现安全隐患",
+                    titleText = "",
+                    messageText = message,
                     action = action,
                     behavior = behavior,
                     style = AlertStyle(iconResId = R.drawable.ic_check_circle),
@@ -1237,28 +1242,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
             is HazardJudgeResult.HasHazard -> StatusAlertModel(
                 status = AlertStatus.WARNING,
-                titleText = "检测到疑似隐患",
-                messageText = buildHazardDescription(judgeResult.presentLabels, judgeResult.missingLabels),
+                titleText = "",
+                messageText = "检测到疑似隐患：${buildHazardDescription(judgeResult.presentLabels, judgeResult.missingLabels)}",
                 action = action,
                 behavior = behavior,
                 style = AlertStyle(iconResId = R.drawable.ic_question_circle),
             )
             is HazardJudgeResult.MayHazard -> error("MayHazard 不应走本地结果弹层")
         }
-    }
-
-    private fun showMayHazardLoading() {
-        viewCrosshairHorizontal.visibility = View.GONE
-        viewCrosshairVertical.visibility = View.GONE
-        ivMayHazardLoading.visibility = View.VISIBLE
-        ivMayHazardLoading.startAnimation(mayHazardLoadingRotateAnimation)
-    }
-
-    private fun hideMayHazardLoading() {
-        ivMayHazardLoading.clearAnimation()
-        ivMayHazardLoading.visibility = View.GONE
-        viewCrosshairHorizontal.visibility = View.VISIBLE
-        viewCrosshairVertical.visibility = View.VISIBLE
     }
 
     /**
@@ -1275,7 +1266,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         mayHazardVerificationInProgress = true
         activeMayHazardRequestId += 1
         val requestId = activeMayHazardRequestId
-        showMayHazardLoading()
         val verifyStartElapsedMs = SystemClock.elapsedRealtime()
         Log.i(TAG, "mayHazard verify start requestId=$requestId jpegBytes=${capturedFrame.jpegBytes.size}")
 
@@ -1307,7 +1297,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             )
                             mayHazardVerificationInProgress = false
                             mayHazardRequestHandle = null
-                            hideMayHazardLoading()
                             statusAlertOverlay.render(buildMayHazardResultModel(hasHazard))
                             pendingCaptureRequest = true
                             startSampleCaptureIfNeeded()
@@ -1361,18 +1350,27 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         mayHazardRequestHandle = null
         mayHazardVerificationInProgress = false
         activeMayHazardRequestId += 1
-        hideMayHazardLoading()
     }
 
     private fun hideStatusAlertOverlay() {
         statusAlertOverlay.reset()
     }
 
+    private fun updateHazardBanner() {
+        val summary = InspectionWorkflowSession.summary
+        val countText = "已处理隐患${summary.hasHazardCount + summary.mayHazardCount}/10"
+        tvHazardBannerCount.text = countText
+        layoutHazardBanner.visibility = View.VISIBLE
+    }
+
+    private fun hideHazardBanner() {
+        layoutHazardBanner.visibility = View.GONE
+    }
+
     private fun resumeDetectingAfterMayHazardFailure(message: String) {
         Log.w(TAG, "MayHazard 深度识别失败: $message")
         mayHazardRequestHandle = null
         mayHazardVerificationInProgress = false
-        hideMayHazardLoading()
         pendingCaptureRequest = true
         startSampleCaptureIfNeeded()
         scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
@@ -1382,19 +1380,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return if (hasHazard) {
             StatusAlertModel(
                 status = AlertStatus.WARNING,
-                titleText = "检测到隐患",
+                titleText = "",
                 messageText = "已确认存在安全隐患",
                 action = AlertActionConfig(visible = false),
-                behavior = AlertBehavior(autoDismissMs = 2000L, showCountdownBar = true),
+                behavior = AlertBehavior(autoDismissMs = 2000L, showCountdownBar = false),
                 style = AlertStyle(iconResId = R.drawable.ic_warning_triangle),
             )
         } else {
             StatusAlertModel(
                 status = AlertStatus.SUCCESS,
-                titleText = "区域安全",
+                titleText = "",
                 messageText = "未发现安全隐患",
                 action = AlertActionConfig(visible = false),
-                behavior = AlertBehavior(autoDismissMs = 2000L, showCountdownBar = true),
+                behavior = AlertBehavior(autoDismissMs = 2000L, showCountdownBar = false),
                 style = AlertStyle(iconResId = R.drawable.ic_check_circle),
             )
         }
@@ -1579,9 +1577,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         }
                     }
                     val resultModel = buildMayHazardResultModel(hasHazard).copy(
-                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = true),
+                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = false),
                     )
                     InspectionWorkflowSession.recordDetection(resultModel.titleText, resultModel.messageText)
+                    if (hasHazard) {
+                        updateHazardBanner()
+                    }
                     statusAlertOverlay.render(resultModel)
                     if (awaitingFirstOnlineDetect) {
                         tryStartImmediateOnlineDetection("first_packet_complete")
@@ -1663,26 +1664,29 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
         layoutSyncSuccess.visibility =
             if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
-        tvSyncSuccessHint.visibility =
+        bottomPromptSuccess.visibility =
             if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
         if (state != PageState.DETECTING) {
             hideStatusAlertOverlay()
+            hideHazardBanner()
         }
-        if (state != PageState.DETECTING || !mayHazardVerificationInProgress) {
-            hideMayHazardLoading()
+        if (state != PageState.STREAM_RESPONSE) {
+            ivStreamThumbnail.setImageBitmap(null)
+            ivStreamThumbnail.visibility = View.GONE
+            currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
+            currentStreamThumbnail = null
         }
-
-        // DETECTING 状态时启动指示灯闪烁，其他状态停止
+        // DETECTING 状态时显示隐患 banner
         if (state == PageState.DETECTING) {
-            viewStatusDot.startAnimation(dotBlinkAnimation)
-        } else {
-            viewStatusDot.clearAnimation()
-            viewStatusDot.alpha = 1f
+            val summary = InspectionWorkflowSession.summary
+            if (summary.hasHazardCount + summary.mayHazardCount > 0) {
+                updateHazardBanner()
+            }
         }
         if (state == PageState.SYNC_SUCCESS) {
             // 重置透明度（上次渐隐后可能为0）
             layoutSyncSuccess.alpha = 1f
-            tvSyncSuccessHint.alpha = 1f
+            bottomPromptSuccess.alpha = 1f
         }
         refreshInputActions()
     }
@@ -1691,23 +1695,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         when (state) {
             "analyzing" -> {
                 showPage(PageState.DETECTING)
-                ivMayHazardLoading.visibility = View.VISIBLE
                 tvDetectionStatus.setText(R.string.ai_detection_deep_analysis_running)
             }
             "result" -> {
                 showPage(PageState.STREAM_RESPONSE)
                 tvStreamContent.text = intent.getStringExtra("debug_text")
                     ?: "隐患描述：\n三合一住人，防盗窗未设置紧急逃生口，电子烟靠近笔记本电脑存在火灾风险。\n\n整改建议：\n立即拆除住宿隔断，增设逃生口，远离易燃物。"
-                tvSyncPrompt.visibility = View.VISIBLE
-                tvSyncHint.text = getString(R.string.ai_detection_result_hint)
+                bottomPromptSync.visibility = View.VISIBLE
+                // 限制结果卡片高度不超过半屏
+                adjustStreamScrollHeight()
+                // 调试模式：显示一个测试缩略图
+                showDebugThumbnail()
             }
             "sync" -> {
                 showPage(PageState.SYNC_SUCCESS)
-                tvSyncSuccessHint.text = getString(R.string.ai_inspection_continue_hint)
+                bottomPromptSuccess.setPrompt(
+                    title = getString(R.string.ai_inspection_continue_prompt)
+                )
             }
             else -> {
                 showPage(PageState.DETECTING)
-                ivMayHazardLoading.visibility = View.VISIBLE
                 tvDetectionStatus.text = intent.getStringExtra("debug_text")
                     ?: getString(R.string.ai_detection_online_running)
             }
@@ -1806,13 +1813,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun updateConfirmationHints() {
-        tvSyncHint.text = getString(
-            if (headGestureSupported) R.string.ai_inspection_sync_hint_with_gyro
-            else R.string.ai_inspection_sync_hint,
-        )
-        tvSyncSuccessHint.text = getString(
-            if (headGestureSupported) R.string.ai_inspection_continue_hint_with_gyro
-            else R.string.ai_inspection_continue_hint,
+        val streamGuide = if (headGestureSupported) {
+            "说出\"确认\"\n说出\"取消\"\n单击 确认\n双击 取消\n点头 确认\n摇头 取消"
+        } else {
+            "说出\"确认\"\n说出\"取消\"\n单击 确认\n双击 取消"
+        }
+        operationGuideStream.setContent(streamGuide)
+        operationGuideSync.setGuide(title = "操作指引", content = streamGuide)
+        bottomPromptSuccess.setPrompt(
+            title = getString(R.string.ai_inspection_continue_prompt)
         )
     }
 
@@ -1856,8 +1865,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 更新当前时间显示
      */
     private fun updateCurrentTime() {
-        val currentTime = timeFormat.format(Date())
-        tvCurrentTime.text = currentTime
+        statusBarDetecting.updateTime()
+        statusBarStream.updateTime()
+        statusBarSyncSuccess.updateTime()
     }
 
     /**
@@ -1867,8 +1877,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         intent?.let {
             val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
             val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            val batteryPct = (level * 100 / scale.toFloat()).toInt()
-            tvBatteryLevel.text = "$batteryPct"
+            if (level != -1 && scale != -1) {
+                val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                statusBarDetecting.setBatteryPercent(batteryPct)
+                statusBarStream.setBatteryPercent(batteryPct)
+                statusBarSyncSuccess.setBatteryPercent(batteryPct)
+            }
         }
     }
 
@@ -1923,6 +1937,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 frame.hardwareBuffer.close()
                 try {
                     imageEncodeExecutor.execute {
+                        // 先创建缩略图（复用原始 bitmap，避免二次解码）
+                        previewBitmap?.takeIf { !it.isRecycled }?.let { setStreamThumbnail(it) }
+
                         val payload = buildCapturedFramePayload(previewBitmap, System.currentTimeMillis())
                         previewBitmap?.takeIf { !it.isRecycled }?.recycle()
                         if (payload == null) {
@@ -1945,6 +1962,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val requestId = activeStreamRequestId
         try {
             imageEncodeExecutor.execute {
+                // 从已有 JPEG 创建缩略图
+                setStreamThumbnail(frame.jpegBytes)
                 encodePayloadToBase64AndSend(requestId, frame)
             }
         } catch (error: RejectedExecutionException) {
@@ -2076,6 +2095,61 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
+    // ==================== 流式结果缩略图 ====================
+
+    private fun setStreamThumbnail(source: Bitmap) {
+        val thumbnail = ThumbnailUtils.extractThumbnail(source, 120, 120)
+        uiHandler.post {
+            ivStreamThumbnail.setImageBitmap(thumbnail)
+            ivStreamThumbnail.visibility = View.VISIBLE
+            currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
+            currentStreamThumbnail = thumbnail
+        }
+    }
+
+    private fun setStreamThumbnail(jpegBytes: ByteArray) {
+        val bitmap = BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size) ?: return
+        setStreamThumbnail(bitmap)
+        bitmap.takeIf { !it.isRecycled }?.recycle()
+    }
+
+    /**
+     * 动态调整流式结果卡片高度：
+     * 内容少时自适应，内容超过半屏时限制为半屏。
+     */
+    private fun adjustStreamScrollHeight() {
+        scrollContent.post {
+            val contentView = scrollContent.getChildAt(0) ?: return@post
+            val maxH = resources.displayMetrics.heightPixels / 2
+            val desiredHeight = minOf(contentView.height, maxH)
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                desiredHeight,
+            )
+            scrollContent.layoutParams = params
+        }
+    }
+
+    /**
+     * 调试模式：生成一个彩色测试缩略图，验证 UI 布局。
+     */
+    private fun showDebugThumbnail() {
+        val bitmap = Bitmap.createBitmap(120, 120, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(android.graphics.Color.parseColor("#00AA00"))
+        }
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint().apply {
+            color = android.graphics.Color.WHITE
+            textSize = 20f
+            textAlign = android.graphics.Paint.Align.CENTER
+        }
+        canvas.drawText("测试图", 60f, 65f, paint)
+        ivStreamThumbnail.setImageBitmap(bitmap)
+        ivStreamThumbnail.visibility = View.VISIBLE
+        currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
+        currentStreamThumbnail = bitmap
+    }
+
     private fun beginStreamingRequest() {
         currentEventSource?.cancel()
         currentEventSource = null
@@ -2084,7 +2158,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvStreamContent.text = "正在准备图像..."
         streamingInProgress = true
         streamCallbackActive = true
-        tvSyncPrompt.visibility = View.INVISIBLE
+        bottomPromptSync.visibility = View.INVISIBLE
         refreshInputActions()
     }
 
@@ -2122,6 +2196,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     Log.d(TAG, "收到 SSE 消息: $data")
                     uiHandler.post {
                         tvStreamContent.text = data
+                        adjustStreamScrollHeight()
                         scrollContent.post {
                             scrollContent.fullScroll(View.FOCUS_DOWN)
                         }
@@ -2134,7 +2209,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         streamCallbackActive = false
                         streamingInProgress = false
                         lastAnalysisText = tvStreamContent.text.toString()
-                        tvSyncPrompt.visibility = View.VISIBLE
+                        bottomPromptSync.visibility = View.VISIBLE
                         refreshInputActions()
                     }
                 }
@@ -2164,7 +2239,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             pendingStreamStart = false
             activeStreamRequestId += 1
             tvStreamContent.text = "分析失败：$errorMsg"
-            tvSyncPrompt.visibility = View.VISIBLE
+            bottomPromptSync.visibility = View.VISIBLE
             refreshInputActions()
         }
     }

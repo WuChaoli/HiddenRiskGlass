@@ -112,146 +112,83 @@
             android:orientation="vertical"
             android:paddingTop="18dp">
 
-            <LinearLayout
+            <!-- 右上角操作指引 -->
+            <com.rokid.glass.component.OperationGuideView
+                android:id="@+id/operationGuideDetecting"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="end|center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="18dp">
+                android:paddingHorizontal="14dp"
+                android:paddingTop="4dp" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="操作指引"
-                    android:textColor="@color/green"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+            <!-- 弹性占位，把底部内容推到底部 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
-            <FrameLayout
-                android:layout_width="310dp"
-                android:layout_height="310dp"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginTop="36dp">
-
-                <View
-                    android:layout_width="310dp"
-                    android:layout_height="310dp"
-                    android:background="@drawable/glass_radar_ring" />
-
-                <View
-                    android:layout_width="250dp"
-                    android:layout_height="250dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/glass_radar_ring" />
-
-                <View
-                    android:layout_width="180dp"
-                    android:layout_height="180dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/glass_radar_ring" />
-
-                <ImageView
-                    android:id="@+id/ivMayHazardLoading"
-                    android:layout_width="310dp"
-                    android:layout_height="310dp"
-                    android:src="@drawable/glass_radar_sweep"
-                    android:scaleType="fitXY"
-                    android:visibility="gone" />
-
-                <View
-                    android:id="@+id/viewCrosshairHorizontal"
-                    android:layout_width="200dp"
-                    android:layout_height="2dp"
-                    android:layout_gravity="center"
-                    android:background="@color/green_normal_40" />
-
-                <View
-                    android:id="@+id/viewCrosshairVertical"
-                    android:layout_width="2dp"
-                    android:layout_height="200dp"
-                    android:layout_gravity="center"
-                    android:background="@color/green_normal_40" />
-
-                <View
-                    android:id="@+id/viewStatusDot"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:layout_gravity="center"
-                    android:background="@drawable/glass_radar_core" />
-            </FrameLayout>
-
+            <!-- 检测状态文字 -->
             <TextView
                 android:id="@+id/tvDetectionStatus"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="36dp"
+                android:layout_marginBottom="16dp"
                 android:gravity="center"
                 android:paddingHorizontal="24dp"
                 android:text="@string/ai_detection_offline_running"
                 android:textColor="@color/green"
-                android:textSize="19sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
-            <View
-                android:layout_width="0dp"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
-
+            <!-- 检测到隐患提示弹窗（5.2页面） -->
             <LinearLayout
+                android:id="@+id/layoutHazardBanner"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
-                android:orientation="vertical"
-                android:paddingBottom="18dp">
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/glass_card_outline"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:visibility="gone">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="说出“分析”\n说出“返回”\n说出“结束”\n单击分析\n双击返回"
-                    android:textColor="@color/green"
-                    android:textSize="15sp" />
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/ic_warning_triangle" />
 
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/tvCurrentTime"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/glass_status_time_mock"
+                        android:text="@string/ai_inspection_hazard_found"
                         android:textColor="@color/green"
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <FrameLayout
-                        android:layout_width="36dp"
-                        android:layout_height="18dp"
-                        android:layout_marginStart="12dp">
-
-                        <View
-                            android:layout_width="32dp"
-                            android:layout_height="16dp"
-                            android:layout_gravity="center"
-                            android:background="@drawable/ic_battery_outline" />
-
-                        <TextView
-                            android:id="@+id/tvBatteryLevel"
-                            android:layout_width="28dp"
-                            android:layout_height="16dp"
-                            android:layout_gravity="center"
-                            android:gravity="center"
-                            android:text="@string/glass_status_battery_mock"
-                            android:textColor="@color/green"
-                            android:textSize="9sp"
-                            android:textStyle="bold" />
-                    </FrameLayout>
+                    <TextView
+                        android:id="@+id/tvHazardBannerCount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/ai_inspection_hazard_count"
+                        android:textColor="@color/green"
+                        android:textSize="13sp" />
                 </LinearLayout>
             </LinearLayout>
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarDetecting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="10dp" />
         </LinearLayout>
     </FrameLayout>
 
@@ -267,120 +204,133 @@
         android:layout_height="match_parent"
         android:visibility="gone">
 
+        <!-- 右上角操作指引 -->
+        <com.rokid.glass.component.OperationGuideView
+            android:id="@+id/operationGuideStream"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="22dp"
+            android:layout_marginEnd="14dp" />
+
+        <!-- 底部区域：结果卡片 + 操作提示 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:paddingTop="22dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginEnd="18dp"
-                android:text="操作指引"
-                android:textColor="@color/green"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:orientation="vertical">
 
             <ScrollView
                 android:id="@+id/scrollContent"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_marginTop="140dp"
+                android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
-                android:layout_weight="1"
                 android:scrollbars="none">
 
-                <TextView
-                    android:id="@+id/tvStreamContent"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@drawable/glass_card_outline"
-                    android:lineSpacingExtra="5dp"
-                    android:padding="18dp"
-                    android:textColor="@color/green"
-                    android:textSize="17sp" />
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:id="@+id/ivStreamThumbnail"
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:layout_marginStart="12dp"
+                        android:layout_marginTop="12dp"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/tvStreamContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="12dp"
+                        android:textColor="@color/green"
+                        android:textSize="12sp" />
+                </LinearLayout>
             </ScrollView>
 
-            <LinearLayout
+            <com.rokid.glass.component.BottomPromptView
+                android:id="@+id/bottomPromptSync"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:paddingBottom="18dp">
+                android:layout_marginTop="8dp"
+                android:paddingBottom="8dp" />
 
-                <TextView
-                    android:id="@+id/tvSyncPrompt"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/ai_inspection_sync_prompt"
-                    android:textColor="@color/green"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:id="@+id/tvSyncHint"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/ai_detection_result_hint"
-                    android:textColor="@color/green"
-                    android:textSize="14sp" />
-            </LinearLayout>
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarStream"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="10dp" />
         </LinearLayout>
     </FrameLayout>
 
-    <LinearLayout
+    <FrameLayout
         android:id="@+id/layoutSyncSuccess"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
-        android:orientation="vertical"
         android:visibility="gone">
 
-        <ImageView
-            android:layout_width="90dp"
-            android:layout_height="90dp"
-            android:src="@drawable/ic_check_circle" />
+        <!-- 中央内容：图标 + 文字 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:orientation="vertical">
 
-        <TextView
+            <ImageView
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:src="@drawable/ic_check_circle" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/ai_inspection_synced"
+                android:textColor="@color/green"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/ai_inspection_synced_detail"
+                android:textColor="@color/green"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 右上角操作指引 -->
+        <com.rokid.glass.component.OperationGuideView
+            android:id="@+id/operationGuideSync"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
-            android:text="@string/ai_inspection_synced"
-            android:textColor="@color/green"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:layout_gravity="top|end"
+            android:layout_marginTop="22dp"
+            android:layout_marginEnd="14dp" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <!-- 底部状态栏 -->
+        <com.rokid.glass.component.GlassStatusBar
+            android:id="@+id/statusBarSyncSuccess"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/ai_inspection_synced_detail"
-            android:textColor="@color/green"
-            android:textSize="28sp"
-            android:textStyle="bold" />
+            android:layout_gravity="bottom"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="10dp" />
+    </FrameLayout>
 
-        <TextView
-            android:id="@+id/tvContinuePrompt"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="36dp"
-            android:text="@string/ai_inspection_continue_prompt"
-            android:textColor="@color/green"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/tvSyncSuccessHint"
+    <com.rokid.glass.component.BottomPromptView
+        android:id="@+id/bottomPromptSuccess"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="24dp"
-        android:text="@string/ai_inspection_continue_hint"
-        android:textColor="@color/green"
-        android:textSize="14sp"
         android:visibility="gone" />
 
 </FrameLayout>

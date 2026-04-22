@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import com.rokid.glass.component.GlassStatusBar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.EnterpriseQrScanActivity
@@ -29,9 +30,6 @@ import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.max
 
 /**
@@ -74,12 +72,9 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private lateinit var tvConfirmPrompt: TextView
     private lateinit var tvErrorMessage: TextView
     private lateinit var layoutError: LinearLayout
-    private lateinit var ivWifiStatus: ImageView
-    private lateinit var tvCurrentTime: TextView
-    private lateinit var ivBatteryFill: ImageView
+    private lateinit var statusBar: GlassStatusBar
 
     private val uiHandler = Handler(Looper.getMainLooper())
-    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     private var currentProgress = 0
     private var targetProgress = 0
     private var progressRunnablePosted = false
@@ -156,7 +151,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         override fun run() {
             if (activityDestroyed) return
             updateCurrentTime()
-            updateWifiStatus()
             uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
         }
     }
@@ -320,19 +314,13 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         tvErrorMessage = findViewById(R.id.tvErrorMessage)
         layoutError = findViewById(R.id.layoutError)
 
-        ivWifiStatus = findViewById(R.id.ivWifiStatus)
-        tvCurrentTime = findViewById(R.id.tvCurrentTime)
-
-        // 电池填充视图
-        ivBatteryFill = findViewById(R.id.ivBatteryFill)
+        statusBar = findViewById(R.id.statusBar)
         updateCurrentTime()
-        updateWifiStatus()
         updateBatteryLevel()
     }
 
     private fun startStatusBarUpdates() {
         updateCurrentTime()
-        updateWifiStatus()
         uiHandler.removeCallbacks(statusUpdateRunnable)
         uiHandler.post(statusUpdateRunnable)
 
@@ -355,11 +343,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     private fun updateCurrentTime() {
-        tvCurrentTime.text = timeFormat.format(Date())
-    }
-
-    private fun updateWifiStatus() {
-        ivWifiStatus.setImageResource(SystemStateUtils.getWifiStatusIconRes(this))
+        statusBar.updateTime()
     }
 
     /**
@@ -372,8 +356,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level != -1 && scale != -1) {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                // ClipDrawable level: 0 = 完全裁剪, 10000 = 完全显示
-                ivBatteryFill.setImageLevel(batteryPct * 100)
+                statusBar.setBatteryPercent(batteryPct)
             }
         }
     }

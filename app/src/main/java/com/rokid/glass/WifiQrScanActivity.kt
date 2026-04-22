@@ -37,6 +37,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.rokid.glass.camera.CameraTestManager
+import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.utils.SystemStateUtils
@@ -91,7 +92,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private lateinit var bottomHints: LinearLayout
     private lateinit var tvVoiceHint: TextView
     private lateinit var tvTouchHint: TextView
-    private lateinit var ivBatteryFill: ImageView
+    private lateinit var statusBar: GlassStatusBar
 
     private val scanner: BarcodeScanner by lazy {
         val options = BarcodeScannerOptions.Builder()
@@ -228,7 +229,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         bottomHints = findViewById(R.id.bottomHints)
         tvVoiceHint = findViewById(R.id.tvVoiceHint)
         tvTouchHint = findViewById(R.id.tvTouchHint)
-        ivBatteryFill = findViewById(R.id.ivBatteryFill)
+        statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
 
         if (debugSnapshotMode) {
@@ -755,8 +756,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level != -1 && scale != -1) {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                // ClipDrawable level: 0 = 完全裁剪, 10000 = 完全显示
-                ivBatteryFill.setImageLevel(batteryPct * 100)
+                statusBar.setBatteryPercent(batteryPct)
             }
         }
     }

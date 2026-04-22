@@ -1,9 +1,12 @@
 package com.rokid.glass
 
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Bundle
 import android.widget.FrameLayout
 import android.widget.TextView
+import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
@@ -16,8 +19,8 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private lateinit var itemHazardAnalysis: FrameLayout
     private lateinit var itemHazardRecord: FrameLayout
     private lateinit var itemDeviceGuide: FrameLayout
-    private lateinit var itemLightshot: FrameLayout
     private lateinit var tvBottomHint: TextView
+    private lateinit var statusBar: GlassStatusBar
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private lateinit var items: List<FrameLayout>
@@ -30,10 +33,11 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         itemHazardAnalysis = findViewById(R.id.itemHazardAnalysis)
         itemHazardRecord = findViewById(R.id.itemHazardRecord)
         itemDeviceGuide = findViewById(R.id.itemDeviceGuide)
-        itemLightshot = findViewById(R.id.itemLightshot)
         tvBottomHint = findViewById(R.id.tvBottomHint)
+        statusBar = findViewById(R.id.statusBar)
+        updateBatteryLevel()
 
-        items = listOf(itemHazardAnalysis, itemDeviceGuide, itemHazardRecord, itemLightshot)
+        items = listOf(itemHazardAnalysis, itemDeviceGuide, itemHazardRecord)
         updateSelection()
     }
 
@@ -90,13 +94,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 onItemConfirmed(0)
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_record"),
-                label = "隐患录入",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
-            ) {
-                onItemConfirmed(2)
-            },
-            UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_menu_guide"),
                 label = "设备指引",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("设备指引", "she bei zhi yin")),
@@ -104,11 +101,11 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 onItemConfirmed(1)
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_lightshot"),
-                label = "闪拍",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("闪拍", "shan pai")),
+                id = UnifiedInputSession.InputActionId("ai_menu_record"),
+                label = "隐患录入",
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
             ) {
-                onItemConfirmed(3)
+                onItemConfirmed(2)
             },
         )
     }
@@ -128,10 +125,22 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             2 -> startActivity(Intent(this, LightshotActivity::class.java).apply {
                 putExtra(LightshotActivity.EXTRA_MODE, LightshotActivity.MODE_HAZARD_RECORD)
             })
-            3 -> startActivity(Intent(this, LightshotActivity::class.java).apply {
-                putExtra(LightshotActivity.EXTRA_MODE, LightshotActivity.MODE_LIGHTSHOT)
-            })
             else -> tvBottomHint.text = getString(R.string.common_feature_in_development)
+        }
+    }
+
+    /**
+     * 获取当前电池电量并更新电池图标填充
+     */
+    private fun updateBatteryLevel() {
+        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { intent ->
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (level != -1 && scale != -1) {
+                val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                statusBar.setBatteryPercent(batteryPct)
+            }
         }
     }
 

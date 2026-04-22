@@ -1,8 +1,13 @@
 package com.rokid.glass
 
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Bundle
+import android.view.LayoutInflater
+import android.widget.LinearLayout
 import android.widget.TextView
+import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HeadGestureManager
@@ -12,9 +17,13 @@ import com.rokid.glesse.R
 
 class EnterpriseInfoActivity : BaseGlassActivity() {
 
-    private lateinit var tvCompany: TextView
-    private lateinit var tvSite: TextView
-    private lateinit var tvInspector: TextView
+    private lateinit var tvCompanyName: TextView
+    private lateinit var tvRegion: TextView
+    private lateinit var tvCategory: TextView
+    private lateinit var tvRiskTags: TextView
+    private lateinit var tvRiskLevel: TextView
+    private lateinit var hazardListContainer: LinearLayout
+    private lateinit var statusBar: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private var headGestureSupported = false
 
@@ -22,16 +31,83 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_enterprise_info)
 
-        tvCompany = findViewById(R.id.tvCompany)
-        tvSite = findViewById(R.id.tvSite)
-        tvInspector = findViewById(R.id.tvInspector)
+        tvCompanyName = findViewById(R.id.tvCompanyName)
+        tvRegion = findViewById(R.id.tvRegion)
+        tvCategory = findViewById(R.id.tvCategory)
+        tvRiskTags = findViewById(R.id.tvRiskTags)
+        tvRiskLevel = findViewById(R.id.tvRiskLevel)
+        hazardListContainer = findViewById(R.id.hazardListContainer)
+        statusBar = findViewById(R.id.statusBar)
+        updateBatteryLevel()
+
         HeadGestureManager.initialize(this)
         headGestureSupported = HeadGestureManager.isSupported()
 
+        // debug模式：从Intent读取测试数据
+        if (intent.hasExtra("debug_company")) {
+            bindDebugEnterpriseInfo()
+        } else {
+            bindEnterpriseInfo()
+        }
+    }
+
+    private fun bindDebugEnterpriseInfo() {
+        tvCompanyName.text = intent.getStringExtra("debug_company") ?: "-"
+        tvRegion.text = getString(R.string.enterprise_info_region_prefix) + (intent.getStringExtra("debug_region") ?: "")
+        tvCategory.text = getString(R.string.enterprise_info_category_prefix) + (intent.getStringExtra("debug_category") ?: "")
+        tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + (intent.getStringExtra("debug_risk_tags") ?: "")
+        tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + (intent.getStringExtra("debug_risk_level") ?: "")
+
+        // 动态添加历史隐患列表
+        hazardListContainer.removeAllViews()
+        val hazards = listOf(
+            "三合一住人",
+            "防盗窗未设紧急逃生口",
+            "电子烟靠近笔记本电脑存在火灾风险",
+            "防盗窗影响逃生和灭火救援",
+            "多孔插线板随意放置",
+            "电气安全",
+            "多设备集中连接",
+        )
+        hazards.forEachIndexed { index, hazard ->
+            val itemView = LayoutInflater.from(this)
+                .inflate(R.layout.item_hazard_history, hazardListContainer, false)
+            val tvNumber = itemView.findViewById<TextView>(R.id.tvNumber)
+            val tvHazard = itemView.findViewById<TextView>(R.id.tvHazard)
+            tvNumber.text = (index + 1).toString()
+            tvHazard.text = hazard
+            hazardListContainer.addView(itemView)
+        }
+    }
+
+    private fun bindEnterpriseInfo() {
         val info = InspectionWorkflowSession.enterpriseInfo
-        tvCompany.text = getString(R.string.enterprise_info_company) + "：${info?.companyName ?: "-"}"
-        tvSite.text = getString(R.string.enterprise_info_site) + "：${info?.siteName ?: "-"}"
-        tvInspector.text = getString(R.string.enterprise_info_inspector) + "：${info?.inspectorName ?: "-"}"
+        if (info == null) {
+            tvCompanyName.text = "-"
+            tvRegion.text = getString(R.string.enterprise_info_region_prefix)
+            tvCategory.text = getString(R.string.enterprise_info_category_prefix)
+            tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix)
+            tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix)
+            return
+        }
+
+        tvCompanyName.text = info.companyName
+        tvRegion.text = getString(R.string.enterprise_info_region_prefix) + info.region
+        tvCategory.text = getString(R.string.enterprise_info_category_prefix) + info.category
+        tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + info.riskTags
+        tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + info.riskLevel
+
+        // 动态添加历史隐患列表
+        hazardListContainer.removeAllViews()
+        info.hazardHistory.forEachIndexed { index, hazard ->
+            val itemView = LayoutInflater.from(this)
+                .inflate(R.layout.item_hazard_history, hazardListContainer, false)
+            val tvNumber = itemView.findViewById<TextView>(R.id.tvNumber)
+            val tvHazard = itemView.findViewById<TextView>(R.id.tvHazard)
+            tvNumber.text = (index + 1).toString()
+            tvHazard.text = hazard
+            hazardListContainer.addView(itemView)
+        }
     }
 
     override fun onResume() {
@@ -84,6 +160,21 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
                 finish()
             },
         )
+    }
+
+    /**
+     * 获取当前电池电量并更新电池图标填充
+     */
+    private fun updateBatteryLevel() {
+        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { intent ->
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (level != -1 && scale != -1) {
+                val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                statusBar.setBatteryPercent(batteryPct)
+            }
+        }
     }
 
     companion object {
