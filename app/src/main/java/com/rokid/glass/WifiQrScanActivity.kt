@@ -23,8 +23,12 @@ import android.util.Log
 import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.IntentFilter
+import android.os.BatteryManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -38,6 +42,7 @@ import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.WifiQrParser
 import com.rokid.glass.utils.WifiQrPayload
+import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 
 class WifiQrScanActivity : BaseGlassActivity() {
@@ -51,6 +56,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         private const val VERIFY_INTERVAL_MS = 500L
         private const val VERIFY_TIMEOUT_MS = 15_000L
         private const val RESULT_STAY_MS = 1000L
+        const val EXTRA_NEXT_AFTER_SUCCESS = "extra_next_after_success"
     }
 
     private enum class ConnectionStage {
@@ -74,6 +80,19 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private lateinit var tvResultMessage: TextView
     private lateinit var cameraManager: CameraTestManager
 
+    // 新增 UI 视图
+    private lateinit var viewfinder: View
+    private lateinit var tvScanHint: TextView
+    private lateinit var resultContent: LinearLayout
+    private lateinit var ivResultIcon: ImageView
+    private lateinit var tvResultStatusInFrame: TextView
+    private lateinit var tvErrorDetail: TextView
+    private lateinit var infoCard: LinearLayout
+    private lateinit var bottomHints: LinearLayout
+    private lateinit var tvVoiceHint: TextView
+    private lateinit var tvTouchHint: TextView
+    private lateinit var ivBatteryFill: ImageView
+
     private val scanner: BarcodeScanner by lazy {
         val options = BarcodeScannerOptions.Builder()
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
@@ -91,6 +110,8 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private var activeStrategyName: String? = null
     private var awaitingPrivateFlowReturn = false
     private var verifyDeadlineMs = 0L
+    private var nextAfterSuccess: String? = null
+    private var debugSnapshotMode = false
     @Volatile
     private var latestPreviewFrame: ByteArray? = null
     @Volatile
@@ -184,6 +205,8 @@ class WifiQrScanActivity : BaseGlassActivity() {
         setContentView(R.layout.activity_wifi_qr_scan)
 
         cameraManager = CameraTestManager(this)
+        nextAfterSuccess = intent.getStringExtra(EXTRA_NEXT_AFTER_SUCCESS)
+        debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
         cameraManager.setPreviewFrameCallback { data, width, height ->
             latestPreviewFrame = data
             latestPreviewWidth = width
@@ -193,6 +216,25 @@ class WifiQrScanActivity : BaseGlassActivity() {
         tvStatus = findViewById(R.id.tvStatus)
         resultOverlay = findViewById(R.id.resultOverlay)
         tvResultMessage = findViewById(R.id.tvResultMessage)
+
+        // 绑定新增视图
+        viewfinder = findViewById(R.id.viewfinder)
+        tvScanHint = findViewById(R.id.tvScanHint)
+        resultContent = findViewById(R.id.resultContent)
+        ivResultIcon = findViewById(R.id.ivResultIcon)
+        tvResultStatusInFrame = findViewById(R.id.tvResultStatusInFrame)
+        tvErrorDetail = findViewById(R.id.tvErrorDetail)
+        infoCard = findViewById(R.id.infoCard)
+        bottomHints = findViewById(R.id.bottomHints)
+        tvVoiceHint = findViewById(R.id.tvVoiceHint)
+        tvTouchHint = findViewById(R.id.tvTouchHint)
+        ivBatteryFill = findViewById(R.id.ivBatteryFill)
+        updateBatteryLevel()
+
+        if (debugSnapshotMode) {
+            applyDebugSnapshotState()
+            return
+        }
         textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
             override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
                 initCamera(surface, width, height)
@@ -212,6 +254,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (debugSnapshotMode) return
         if (awaitingPrivateFlowReturn && pendingPayload != null) {
             awaitingPrivateFlowReturn = false
             Log.i(TAG, "private/system wifi flow returned target=${pendingPayload?.ssid}")
@@ -239,6 +282,10 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onPause() {
+        if (debugSnapshotMode) {
+            super.onPause()
+            return
+        }
         mainHandler.removeCallbacks(scanRunnable)
         if (connectionStage != ConnectionStage.VERIFYING_CONNECTION &&
             connectionStage != ConnectionStage.SHOWING_RESULT
@@ -260,6 +307,10 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
+        if (debugSnapshotMode) {
+            super.onDestroy()
+            return
+        }
         mainHandler.removeCallbacksAndMessages(null)
         cancelNetworkRequest()
         scanner.close()
@@ -453,6 +504,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         mainHandler.removeCallbacks(scanRunnable)
         scanBlockedUntilMs = Long.MAX_VALUE
         tvStatus.text = getString(R.string.wifi_scan_success, payload.ssid)
+        InspectionWorkflowSession.updateMode(connected = true)
         Log.i(TAG, "wifi connection verified source=$source target=${payload.ssid}")
         showResultAndFinish(getString(R.string.wifi_scan_success_generic))
     }
@@ -539,6 +591,44 @@ class WifiQrScanActivity : BaseGlassActivity() {
         ActivityCompat.requestPermissions(this, requiredPermissions(), REQUEST_CODE_PERMISSIONS)
     }
 
+    private fun applyDebugSnapshotState() {
+        textureView.visibility = View.INVISIBLE
+        viewfinder.visibility = View.INVISIBLE
+        val scanFrame = findViewById<View>(R.id.scanFrame)
+        val state = intent.getStringExtra("debug_state") ?: "idle"
+        when (state) {
+            "success" -> {
+                scanFrame.background = null
+                tvStatus.visibility = View.GONE
+                tvScanHint.visibility = View.GONE
+                infoCard.visibility = View.GONE
+                resultContent.visibility = View.VISIBLE
+                ivResultIcon.setImageResource(R.drawable.ic_check_circle)
+                tvResultStatusInFrame.text = getString(R.string.wifi_scan_result_success)
+                bottomHints.visibility = View.VISIBLE
+                tvVoiceHint.setText(R.string.wifi_scan_voice_hint)
+                tvTouchHint.setText(R.string.wifi_scan_touch_hint)
+            }
+            "failed" -> {
+                scanFrame.background = null
+                tvStatus.visibility = View.GONE
+                tvScanHint.visibility = View.GONE
+                infoCard.visibility = View.GONE
+                resultContent.visibility = View.VISIBLE
+                ivResultIcon.setImageResource(R.drawable.ic_close_circle)
+                tvResultStatusInFrame.text = getString(R.string.wifi_scan_result_failed)
+                tvErrorDetail.visibility = View.VISIBLE
+                bottomHints.visibility = View.VISIBLE
+                tvVoiceHint.setText(R.string.wifi_scan_voice_hint_retry)
+                tvTouchHint.setText(R.string.wifi_scan_touch_hint_retry)
+            }
+            else -> {
+                tvStatus.visibility = View.GONE
+                tvScanHint.visibility = View.VISIBLE
+            }
+        }
+    }
+
     private fun requiredPermissions(): Array<String> = buildList {
         add(Manifest.permission.CAMERA)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -592,11 +682,47 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
     private fun showResultAndFinish(message: String) {
         connectionStage = ConnectionStage.SHOWING_RESULT
-        resultOverlay.visibility = View.VISIBLE
-        tvResultMessage.text = message
+        val isSuccess = message == getString(R.string.wifi_scan_success_generic)
+
+        // 隐藏扫描内容，显示结果内容
+        textureView.visibility = View.INVISIBLE
+        viewfinder.visibility = View.INVISIBLE
+        tvScanHint.visibility = View.GONE
+        infoCard.visibility = View.GONE
+        // 移除扫描框边框背景
+        val scanFrame = findViewById<View>(R.id.scanFrame)
+        scanFrame.background = null
+
+        resultContent.visibility = View.VISIBLE
+        ivResultIcon.setImageResource(if (isSuccess) R.drawable.ic_check_circle else R.drawable.ic_close_circle)
+        tvResultStatusInFrame.text = if (isSuccess) getString(R.string.wifi_scan_result_success) else getString(R.string.wifi_scan_result_failed)
+
+        if (!isSuccess) {
+            tvErrorDetail.visibility = View.VISIBLE
+        }
+
+        bottomHints.visibility = View.VISIBLE
+        if (isSuccess) {
+            tvVoiceHint.setText(R.string.wifi_scan_voice_hint)
+            tvTouchHint.setText(R.string.wifi_scan_touch_hint)
+        } else {
+            tvVoiceHint.setText(R.string.wifi_scan_voice_hint_retry)
+            tvTouchHint.setText(R.string.wifi_scan_touch_hint_retry)
+        }
+
         releaseScanResources()
         mainHandler.postDelayed({
             if (!isFinishing) {
+                val targetClassName = nextAfterSuccess
+                if (isSuccess && !targetClassName.isNullOrBlank()) {
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        val targetClass = Class.forName(targetClassName) as Class<out Activity>
+                        startActivity(Intent(this, targetClass))
+                    }.onFailure {
+                        finish()
+                    }
+                }
                 finish()
             }
         }, RESULT_STAY_MS)
@@ -617,5 +743,21 @@ class WifiQrScanActivity : BaseGlassActivity() {
         cameraManager.release()
         isCameraReady = false
         isProcessingFrame = false
+    }
+
+    /**
+     * 获取当前电池电量并更新电池图标填充
+     */
+    private fun updateBatteryLevel() {
+        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { intent ->
+            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (level != -1 && scale != -1) {
+                val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                // ClipDrawable level: 0 = 完全裁剪, 10000 = 完全显示
+                ivBatteryFill.setImageLevel(batteryPct * 100)
+            }
+        }
     }
 }

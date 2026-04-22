@@ -3,38 +3,28 @@
     android:id="@+id/rootContainer"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="@color/black">
 
-    <!-- ========== 加载状态（含巡检指引） ========== -->
     <LinearLayout
         android:id="@+id/layoutLoading"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center_horizontal"
+        android:gravity="center"
         android:orientation="vertical"
-        android:paddingTop="48dp"
-        android:visibility="visible">
+        android:visibility="gone">
 
-        <!-- 图标区域（转圈和打钩在同一位置切换） -->
-        <FrameLayout
-            android:layout_width="56dp"
-            android:layout_height="56dp">
+        <ImageView
+            android:id="@+id/ivLoadingSpinner"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@mipmap/ic_loading" />
 
-            <ImageView
-                android:id="@+id/ivLoadingSpinner"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:contentDescription="@string/ai_inspection_loading_title"
-                android:src="@mipmap/ic_loading" />
-
-            <ImageView
-                android:id="@+id/ivLoadingComplete"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:contentDescription="@string/ai_inspection_loading_title"
-                android:src="@drawable/ic_check_circle"
-                android:visibility="gone" />
-        </FrameLayout>
+        <ImageView
+            android:id="@+id/ivLoadingComplete"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_check_circle"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvLoadingTitle"
@@ -42,8 +32,8 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
             android:text="@string/ai_inspection_loading_title"
-            android:textColor="#FFFFFFFF"
-            android:textSize="20sp"
+            android:textColor="@color/green"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
@@ -52,354 +42,215 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="@string/ai_inspection_loading_subtitle"
-            android:textColor="#99FFFFFF"
-            android:textSize="14sp" />
+            android:textColor="@color/green"
+            android:textSize="16sp" />
 
-        <!-- 进度条区域 -->
-        <LinearLayout
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="240dp"
+            android:layout_height="10dp"
+            android:layout_marginTop="24dp"
+            android:max="100"
+            android:progressDrawable="@drawable/progress_bar_fill" />
+
+        <TextView
+            android:id="@+id/tvProgressPercent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_marginTop="10dp"
+            android:text="0%"
+            android:textColor="@color/green"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
-            <ProgressBar
-                android:id="@+id/progressBar"
-                style="@android:style/Widget.ProgressBar.Horizontal"
-                android:layout_width="240dp"
-                android:layout_height="8dp"
-                android:max="100"
-                android:progress="0"
-                android:progressDrawable="@drawable/progress_bar_fill" />
-
-            <TextView
-                android:id="@+id/tvProgressPercent"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:text="0%"
-                android:textColor="@color/green"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-
-        <!-- 巡检操作说明卡片 -->
         <LinearLayout
             android:id="@+id/layoutGuideCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="32dp"
-            android:layout_marginTop="16dp"
-            android:background="@drawable/inspection_guide_card_bg"
-            android:gravity="center_horizontal"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginTop="28dp"
+            android:background="@drawable/glass_card_outline"
+            android:gravity="center"
             android:orientation="vertical"
-            android:padding="20dp">
+            android:padding="22dp">
 
-            <!-- 加载中显示的内容 -->
             <LinearLayout
                 android:id="@+id/layoutGuideContent"
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
-                android:orientation="vertical">
+                android:orientation="vertical" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/ai_inspection_guide_title"
-                    android:textColor="@color/green"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:lineSpacingMultiplier="1.4"
-                    android:text="@string/ai_inspection_guide_step1"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:lineSpacingMultiplier="1.4"
-                    android:text="@string/ai_inspection_guide_step2"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:lineSpacingMultiplier="1.4"
-                    android:text="@string/ai_inspection_guide_step3"
-                    android:textColor="#CCFFFFFF"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <!-- 加载完成后显示的内容 -->
             <TextView
                 android:id="@+id/tvConfirmPrompt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/ai_inspection_confirm_prompt"
                 android:textColor="@color/green"
-                android:textSize="16sp"
-                android:textStyle="bold"
+                android:textSize="18sp"
                 android:visibility="gone" />
         </LinearLayout>
 
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <!-- 底部提示 -->
         <TextView
             android:id="@+id/tvLoadingHint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:text="@string/ai_inspection_loading_hint"
-            android:textColor="#99FFFFFF"
-            android:textSize="12sp" />
+            android:layout_marginTop="20dp"
+            android:textColor="@color/green"
+            android:textSize="14sp" />
     </LinearLayout>
 
-    <!-- ========== 检测状态（取景框设计） ========== -->
     <FrameLayout
         android:id="@+id/layoutDetection"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="gone">
+        android:visibility="visible">
 
-        <!-- 取景框容器（480x360px，顶部40px，满宽4:3） -->
-        <FrameLayout
-            android:layout_width="480px"
-            android:layout_height="360px"
-            android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="40px">
-
-            <!-- 四个角标 - 左上（更长更粗 50px x 3px） -->
-            <View
-                android:layout_width="50px"
-                android:layout_height="3px"
-                android:layout_gravity="top|start"
-                android:background="@color/green" />
-            <View
-                android:layout_width="3px"
-                android:layout_height="50px"
-                android:layout_gravity="top|start"
-                android:background="@color/green" />
-
-            <!-- 四个角标 - 右上 -->
-            <View
-                android:layout_width="50px"
-                android:layout_height="3px"
-                android:layout_gravity="top|end"
-                android:background="@color/green" />
-            <View
-                android:layout_width="3px"
-                android:layout_height="50px"
-                android:layout_gravity="top|end"
-                android:background="@color/green" />
-
-            <!-- 四个角标 - 左下 -->
-            <View
-                android:layout_width="50px"
-                android:layout_height="3px"
-                android:layout_gravity="bottom|start"
-                android:background="@color/green" />
-            <View
-                android:layout_width="3px"
-                android:layout_height="50px"
-                android:layout_gravity="bottom|start"
-                android:background="@color/green" />
-
-            <!-- 四个角标 - 右下 -->
-            <View
-                android:layout_width="50px"
-                android:layout_height="3px"
-                android:layout_gravity="bottom|end"
-                android:background="@color/green" />
-            <View
-                android:layout_width="3px"
-                android:layout_height="50px"
-                android:layout_gravity="bottom|end"
-                android:background="@color/green" />
-
-            <!-- 左上角闪烁绿点 -->
-            <View
-                android:id="@+id/viewStatusDot"
-                android:layout_width="12px"
-                android:layout_height="12px"
-                android:layout_gravity="top|start"
-                android:layout_marginStart="16px"
-                android:layout_marginTop="16px"
-                android:background="@drawable/green_dot" />
-
-            <!-- 中央十字对焦线 -->
-            <View
-                android:id="@+id/viewCrosshairHorizontal"
-                android:layout_width="40px"
-                android:layout_height="2px"
-                android:layout_gravity="center"
-                android:background="#80FFFFFF" />
-
-            <View
-                android:id="@+id/viewCrosshairVertical"
-                android:layout_width="2px"
-                android:layout_height="40px"
-                android:layout_gravity="center"
-                android:background="#80FFFFFF" />
-
-            <ImageView
-                android:id="@+id/ivMayHazardLoading"
-                android:layout_width="40px"
-                android:layout_height="40px"
-                android:layout_gravity="center"
-                android:contentDescription="@string/ai_inspection_loading_title"
-                android:src="@mipmap/ic_loading"
-                android:visibility="gone" />
-
-        </FrameLayout>
-
-        <!-- 底部信息区：提示在左上，指令在下方，时间/电池在左下 -->
         <LinearLayout
-            android:layout_width="480px"
-            android:layout_height="240px"
-            android:layout_gravity="bottom|center_horizontal"
-            android:background="@drawable/ai_inspection_bottom_panel_bg"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:orientation="vertical"
-            android:paddingStart="20px"
-            android:paddingTop="18px"
-            android:paddingEnd="20px"
-            android:paddingBottom="18px">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:ellipsize="end"
-                android:gravity="start|center_vertical"
-                android:includeFontPadding="false"
-                android:maxLines="1"
-                android:text="请保持眼镜稳定，使用十字准星对准画面。"
-                android:textColor="@color/green"
-                android:textSize="15sp"
-                android:textStyle="bold" />
+            android:paddingTop="18dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="14px"
-                android:baselineAligned="false"
-                android:orientation="horizontal">
+                android:gravity="end|center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="18dp">
 
-                <LinearLayout
-                    android:layout_width="0px"
-                    android:layout_height="70px"
-                    android:layout_marginEnd="10px"
-                    android:layout_weight="1"
-                    android:background="@drawable/inspection_mode_item_bg"
-                    android:orientation="vertical"
-                    android:paddingStart="14px"
-                    android:paddingTop="11px"
-                    android:paddingEnd="14px"
-                    android:paddingBottom="11px">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="语音指令"
-                        android:textColor="@color/green"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="分析 | 退出"
-                        android:textColor="@color/green"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0px"
-                    android:layout_height="70px"
-                    android:layout_weight="1"
-                    android:background="@drawable/inspection_mode_item_bg"
-                    android:orientation="vertical"
-                    android:paddingStart="14px"
-                    android:paddingTop="11px"
-                    android:paddingEnd="14px"
-                    android:paddingBottom="11px">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="触控操作"
-                        android:textColor="@color/green"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="单击 | 双击"
-                        android:textColor="@color/green"
-                        android:textSize="12sp" />
-                </LinearLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="操作指引"
+                    android:textColor="@color/green"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
             </LinearLayout>
 
-            <View
+            <FrameLayout
+                android:layout_width="310dp"
+                android:layout_height="310dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="36dp">
+
+                <View
+                    android:layout_width="310dp"
+                    android:layout_height="310dp"
+                    android:background="@drawable/glass_radar_ring" />
+
+                <View
+                    android:layout_width="250dp"
+                    android:layout_height="250dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/glass_radar_ring" />
+
+                <View
+                    android:layout_width="180dp"
+                    android:layout_height="180dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/glass_radar_ring" />
+
+                <ImageView
+                    android:id="@+id/ivMayHazardLoading"
+                    android:layout_width="310dp"
+                    android:layout_height="310dp"
+                    android:src="@drawable/glass_radar_sweep"
+                    android:scaleType="fitXY"
+                    android:visibility="gone" />
+
+                <View
+                    android:id="@+id/viewCrosshairHorizontal"
+                    android:layout_width="200dp"
+                    android:layout_height="2dp"
+                    android:layout_gravity="center"
+                    android:background="@color/green_normal_40" />
+
+                <View
+                    android:id="@+id/viewCrosshairVertical"
+                    android:layout_width="2dp"
+                    android:layout_height="200dp"
+                    android:layout_gravity="center"
+                    android:background="@color/green_normal_40" />
+
+                <View
+                    android:id="@+id/viewStatusDot"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/glass_radar_core" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/tvDetectionStatus"
                 android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="36dp"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:text="@string/ai_detection_offline_running"
+                android:textColor="@color/green"
+                android:textSize="19sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="0dp"
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="20dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingBottom="18dp">
 
                 <TextView
-                    android:id="@+id/tvCurrentTime"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:includeFontPadding="false"
-                    android:layout_gravity="center_vertical"
-                    android:text="14:30"
+                    android:text="说出“分析”\n说出“返回”\n说出“结束”\n单击分析\n双击返回"
                     android:textColor="@color/green"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    android:textSize="15sp" />
 
-                <FrameLayout
-                    android:layout_width="36dp"
-                    android:layout_height="18dp"
-                    android:layout_marginStart="8dp"
-                    android:layout_gravity="center_vertical">
-
-                    <View
-                        android:layout_width="32dp"
-                        android:layout_height="16dp"
-                        android:layout_gravity="center"
-                        android:background="@drawable/ic_battery_outline" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
                     <TextView
-                        android:id="@+id/tvBatteryLevel"
-                        android:layout_width="28dp"
-                        android:layout_height="16dp"
-                        android:layout_gravity="center"
-                        android:gravity="center"
-                        android:includeFontPadding="false"
-                        android:text="85"
+                        android:id="@+id/tvCurrentTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/glass_status_time_mock"
                         android:textColor="@color/green"
-                        android:textSize="9sp"
+                        android:textSize="16sp"
                         android:textStyle="bold" />
-                </FrameLayout>
+
+                    <FrameLayout
+                        android:layout_width="36dp"
+                        android:layout_height="18dp"
+                        android:layout_marginStart="12dp">
+
+                        <View
+                            android:layout_width="32dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:background="@drawable/ic_battery_outline" />
+
+                        <TextView
+                            android:id="@+id/tvBatteryLevel"
+                            android:layout_width="28dp"
+                            android:layout_height="16dp"
+                            android:layout_gravity="center"
+                            android:gravity="center"
+                            android:text="@string/glass_status_battery_mock"
+                            android:textColor="@color/green"
+                            android:textSize="9sp"
+                            android:textStyle="bold" />
+                    </FrameLayout>
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
     </FrameLayout>
@@ -410,64 +261,76 @@
         android:layout_height="match_parent"
         android:visibility="gone" />
 
-    <!-- ========== 流式回答状态 ========== -->
     <FrameLayout
         android:id="@+id/layoutStreamResponse"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:visibility="gone">
 
-        <!-- 流式内容区域 -->
-        <ScrollView
-            android:id="@+id/scrollContent"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginStart="32dp"
-            android:layout_marginTop="24dp"
-            android:layout_marginEnd="32dp"
-            android:layout_marginBottom="100dp"
-            android:scrollbars="none">
-
-            <TextView
-                android:id="@+id/tvStreamContent"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/inspection_mode_item_bg"
-                android:padding="16dp"
-                android:textColor="@color/green"
-                android:textSize="14sp" />
-        </ScrollView>
-
-        <!-- 底部操作区 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="16dp"
-            android:gravity="center_horizontal"
-            android:orientation="vertical">
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:paddingTop="22dp">
 
             <TextView
-                android:id="@+id/tvSyncPrompt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/ai_inspection_sync_prompt"
+                android:layout_gravity="end"
+                android:layout_marginEnd="18dp"
+                android:text="操作指引"
                 android:textColor="@color/green"
                 android:textSize="16sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/tvSyncHint"
-                android:layout_width="wrap_content"
+            <ScrollView
+                android:id="@+id/scrollContent"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="140dp"
+                android:layout_marginHorizontal="20dp"
+                android:layout_weight="1"
+                android:scrollbars="none">
+
+                <TextView
+                    android:id="@+id/tvStreamContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/glass_card_outline"
+                    android:lineSpacingExtra="5dp"
+                    android:padding="18dp"
+                    android:textColor="@color/green"
+                    android:textSize="17sp" />
+            </ScrollView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="@string/ai_inspection_sync_hint"
-                android:textColor="#99FFFFFF"
-                android:textSize="12sp" />
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingBottom="18dp">
+
+                <TextView
+                    android:id="@+id/tvSyncPrompt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ai_inspection_sync_prompt"
+                    android:textColor="@color/green"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvSyncHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="@string/ai_detection_result_hint"
+                    android:textColor="@color/green"
+                    android:textSize="14sp" />
+            </LinearLayout>
         </LinearLayout>
     </FrameLayout>
 
-    <!-- ========== 同步成功状态 ========== -->
     <LinearLayout
         android:id="@+id/layoutSyncSuccess"
         android:layout_width="match_parent"
@@ -477,58 +340,47 @@
         android:visibility="gone">
 
         <ImageView
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:contentDescription="@string/ai_inspection_synced"
+            android:layout_width="90dp"
+            android:layout_height="90dp"
             android:src="@drawable/ic_check_circle" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="18dp"
             android:text="@string/ai_inspection_synced"
             android:textColor="@color/green"
-            android:textSize="20sp"
+            android:textSize="28sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
             android:text="@string/ai_inspection_synced_detail"
             android:textColor="@color/green"
-            android:textSize="20sp"
+            android:textSize="28sp"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/tvContinuePrompt"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="36dp"
             android:text="@string/ai_inspection_continue_prompt"
             android:textColor="@color/green"
-            android:textSize="16sp" />
+            android:textSize="20sp"
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- 同步成功底部提示 -->
     <TextView
         android:id="@+id/tvSyncSuccessHint"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="20dp"
+        android:layout_marginBottom="24dp"
         android:text="@string/ai_inspection_continue_hint"
-        android:textColor="#99FFFFFF"
-        android:textSize="12sp"
+        android:textColor="@color/green"
+        android:textSize="14sp"
         android:visibility="gone" />
-
-    <!-- ========== 扩展状态页面 ========== -->
-    <include layout="@layout/include_page_load_error" />
-    <include layout="@layout/include_page_lens_blocked" />
-    <include layout="@layout/include_page_confirm_guide" />
-    <include layout="@layout/include_page_device_error" />
-    <include layout="@layout/include_page_inspection_guide" />
-    <include layout="@layout/include_page_safe_area" />
-    <include layout="@layout/include_page_end_report" />
 
 </FrameLayout>

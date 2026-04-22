@@ -98,6 +98,22 @@
             android:exported="false"
             android:theme="@style/Theme.Glessedemo" />
         <activity
+            android:name="com.rokid.glass.EnterpriseQrScanActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.EnterpriseInfoActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.AiInspectionMenuActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.InspectionEndReportActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
             android:name="com.rokid.glass.SendMessageActivity"
             android:exported="false" /> <!-- <activity -->
         <!-- android:name="com.rokid.glass.MainActivity" -->
@@ -151,16 +167,16 @@
             android:name="com.rokid.glass.InspectionModeActivity"
             android:exported="true"
             android:label="杭小应"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.InspectionLoadingActivity"
+            android:exported="true"
             android:theme="@style/Theme.Glessedemo">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="com.rokid.glass.hiddenrisk.InspectionLoadingActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.hiddenrisk.AiInspectionActivity"
             android:exported="true"

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -28,6 +29,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.rokid.glass.InspectionEndReportActivity
+import com.rokid.glass.InspectionModeActivity
 import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glass.component.AlertActionConfig
 import com.rokid.glass.component.AlertBehavior
@@ -38,11 +41,14 @@ import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SSEUtil
+import com.rokid.glass.workflow.InspectionWorkflowSession
+import com.rokid.glass.workflow.InspectionWorkflowSession.WorkflowMode
 import com.rokid.glesse.R
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
+import java.util.ArrayDeque
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ExecutorService
@@ -103,6 +109,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val MAX_CAMERA_RESTART_ATTEMPTS = 3
         private const val CAPTURE_WARMUP_MS = 1200L
         private const val AUTO_CAPTURE_INTERVAL_MS = 1000L
+        private const val ONLINE_FRAME_CAPTURE_INTERVAL_MS = 500L
+        private const val ONLINE_DETECT_INTERVAL_MS = 1000L
+        private const val ONLINE_DETECTION_FIRST_PACKET_TIMEOUT_MS = 2000L
+        private const val ONLINE_FRAME_BUFFER_CAPACITY = 4
 
         private const val BACKEND_GPU = 1
         private const val GPU_PROFILE_BALANCED_FP16 = 1
@@ -254,12 +264,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // 检测状态UI
     private lateinit var tvCurrentTime: TextView      // 顶部实时时间
     private lateinit var tvBatteryLevel: TextView     // 右下角电量
+    private lateinit var tvDetectionStatus: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val imageEncodeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inferenceRunning = AtomicBoolean(false)
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
+    private val onlineHazardDetectionService by lazy { OnlineHazardDetectionService() }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
     private var destroyed = false
@@ -291,11 +304,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // 连续推理模式：不设固定间隔，推理空闲立即取下一帧
     private var continuousInferenceMode = true
+    private var isMotionStable = false
+    private var stableQualifiedAtMillis: Long? = null
+    private var nextOnlineDetectRequestId = 0L
+    private val onlineFrameBuffer = ArrayDeque<CapturedFramePayload>()
+    private var onlineDetectHandle: OnlineHazardDetectionService.DetectionHandle? = null
+    private var onlineFrameCaptureScheduled = false
+    private var onlineDetectScheduled = false
+    private var awaitingFirstOnlineDetect = false
 
     // SSE 相关
     private var currentEventSource: EventSource? = null
     private var sseUtil: SSEUtil = SSEUtil()
     private var headGestureSupported = false
+    private var debugSnapshotState: String? = null
 
     // 时间和电量更新
     private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
@@ -306,6 +328,31 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
     private var batteryReceiver: BroadcastReceiver? = null
+    private val motionStabilityListener = object : MotionStabilityTracker.Listener {
+        override fun onStabilityChanged(isStable: Boolean, stableSinceMillis: Long?) {
+            isMotionStable = isStable
+            stableQualifiedAtMillis = stableSinceMillis
+            if (!isOnlineMode()) {
+                return
+            }
+            if (isStable) {
+                Log.i(
+                    TAG,
+                    "motion stable qualified stableSinceMillis=$stableSinceMillis"
+                )
+                awaitingFirstOnlineDetect = true
+                clearOnlineFrameBuffer("stable_qualified")
+                if (pendingStreamStart && pageState == PageState.DETECTING && !captureInProgress && !inferenceRunning.get()) {
+                    requestStreamingAnalysis()
+                    return
+                }
+                scheduleOnlineFrameCaptureIfNeeded(0L)
+            } else {
+                Log.i(TAG, "motion unstable reset online pipeline")
+                stopOnlinePipeline("motion_unstable", clearBufferedFrames = true)
+            }
+        }
+    }
 
     // 本次拍照上传的会话 ID，用于与 save 接口保持一致的指纹
     private var sessionId = ""
@@ -371,12 +418,52 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val autoCaptureRunnable = Runnable {
         autoCaptureScheduled = false
+        logOnlineWorkflowCheckpoint("autoCaptureRunnable fired")
         if (!shouldAutoCaptureNow()) {
+            logOnlineWorkflowCheckpoint("autoCaptureRunnable deferred")
             scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
             return@Runnable
         }
         pendingCaptureRequest = true
+        logOnlineWorkflowCheckpoint("autoCaptureRunnable requestCapture")
         startSampleCaptureIfNeeded()
+    }
+
+    private val onlineFrameCaptureRunnable = Runnable {
+        onlineFrameCaptureScheduled = false
+        if (!shouldRunOnlineFrameCaptureLoop()) {
+            logOnlineWorkflowCheckpoint("onlineFrameCaptureRunnable skip")
+            return@Runnable
+        }
+        logOnlineWorkflowCheckpoint("onlineFrameCaptureRunnable tick")
+        if (canStartOnlineFrameCaptureNow()) {
+            pendingCaptureRequest = true
+            startSampleCaptureIfNeeded()
+        } else {
+            logOnlineWorkflowCheckpoint("onlineFrameCaptureRunnable deferred")
+        }
+        scheduleOnlineFrameCaptureIfNeeded(ONLINE_FRAME_CAPTURE_INTERVAL_MS)
+    }
+
+    private val onlineDetectRunnable = Runnable {
+        onlineDetectScheduled = false
+        if (!shouldRunOnlineDetectLoop()) {
+            logOnlineWorkflowCheckpoint("onlineDetectRunnable skip")
+            return@Runnable
+        }
+        if (onlineDetectHandle != null) {
+            Log.i(TAG, "online detect tick skipped reason=request_in_flight requestId=${onlineDetectHandle?.requestId}")
+            scheduleOnlineDetectIfNeeded(ONLINE_DETECT_INTERVAL_MS)
+            return@Runnable
+        }
+        val frame = consumeLatestOnlineFrameOrNull("detect_tick")
+        if (frame == null) {
+            Log.i(TAG, "online detect tick skipped reason=buffer_empty")
+            scheduleOnlineDetectIfNeeded(ONLINE_DETECT_INTERVAL_MS)
+            return@Runnable
+        }
+        awaitingFirstOnlineDetect = false
+        startOnlineDetection(frame, "detect_tick")
     }
 
     // ==================== 生命周期 ====================
@@ -402,15 +489,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 检测状态 UI 初始化
         tvCurrentTime = findViewById(R.id.tvCurrentTime)
         tvBatteryLevel = findViewById(R.id.tvBatteryLevel)
+        tvDetectionStatus = findViewById(R.id.tvDetectionStatus)
         HeadGestureManager.initialize(this)
         headGestureSupported = HeadGestureManager.isSupported()
         if (!headGestureSupported) {
             Log.w(TAG, "头部动作识别不可用，确认节点仅支持触控与语音")
         }
         updateConfirmationHints()
+        motionStabilityTracker.addListener(motionStabilityListener)
 
         showPage(PageState.DETECTING)
+        applyDefaultDetectionStatus()
         startTimeAndBatteryUpdate()
+        debugSnapshotState = intent.getStringExtra("debug_state")
+        if (debugSnapshotState != null) {
+            applyDebugSnapshotState(debugSnapshotState!!)
+            return
+        }
 
         // 从 InspectionSession 获取已初始化的对象
         hiddenRiskNcnn = InspectionSession.hiddenRiskNcnn
@@ -438,18 +533,40 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 立即开始检测（对象已预初始化）
      */
     private fun startDetectionImmediately() {
-        pendingCaptureRequest = true
-        startSampleCaptureIfNeeded()
-        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+        if (!isOnlineMode()) {
+            pendingCaptureRequest = true
+            startSampleCaptureIfNeeded()
+        } else {
+            pendingCaptureRequest = false
+        }
+        if (isOnlineMode()) {
+            if (isMotionStable) {
+                awaitingFirstOnlineDetect = true
+                scheduleOnlineFrameCaptureIfNeeded(0L)
+            }
+        } else {
+            scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+        }
     }
 
     override fun onResume() {
         super.onResume()
         isActivityResumed = true
         inputSession.attach()
+        if (debugSnapshotState != null) {
+            refreshInputActions()
+            return
+        }
+        motionStabilityTracker.start()
         refreshInputActions()
         if (pageState == PageState.DETECTING) {
-            scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+            if (isOnlineMode()) {
+                if (isMotionStable) {
+                    scheduleOnlineFrameCaptureIfNeeded(0L)
+                }
+            } else {
+                scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+            }
         }
     }
 
@@ -462,12 +579,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onPause() {
         isActivityResumed = false
         inputSession.detach()
+        if (debugSnapshotState != null) {
+            super.onPause()
+            return
+        }
+        motionStabilityTracker.stop()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
         autoCaptureScheduled = false
+        stopOnlinePipeline("onPause", clearBufferedFrames = true)
         hideStatusAlertOverlay()
         cancelMayHazardVerification()
+        cancelAllOnlineDetection()
         // 关闭当前 SSE 连接
         currentEventSource?.cancel()
         currentEventSource = null
@@ -476,12 +600,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onStop() {
         isWorkflowActive = false
+        if (debugSnapshotState != null) {
+            super.onStop()
+            return
+        }
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
         autoCaptureScheduled = false
+        stopOnlinePipeline("onStop", clearBufferedFrames = true)
         hideStatusAlertOverlay()
         cancelMayHazardVerification()
+        cancelAllOnlineDetection()
         // 关闭当前 SSE 连接
         currentEventSource?.cancel()
         currentEventSource = null
@@ -492,11 +622,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         destroyed = true
         streamCallbackActive = false
         inputSession.release()
+        if (debugSnapshotState != null) {
+            stopTimeAndBatteryUpdate()
+            super.onDestroy()
+            return
+        }
+        motionStabilityTracker.removeListener(motionStabilityListener)
+        motionStabilityTracker.stop()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         hideStatusAlertOverlay()
         cancelMayHazardVerification()
+        cancelAllOnlineDetection()
         quickCameraInitializing = false
         quickCameraReady = false
         quickCameraReadyAtElapsedMs = 0L
@@ -625,7 +763,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
 
         if (!captureInProgress && !inferenceRunning.get() && pageState == PageState.DETECTING) {
-            scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+            if (isOnlineMode()) {
+                if (isMotionStable) {
+                    scheduleOnlineFrameCaptureIfNeeded(0L)
+                }
+            } else {
+                scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+            }
         }
     }
 
@@ -695,6 +839,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 if (!success) {
                     failWorkflow("相机初始化失败")
                     return@post
+                }
+                Log.i(
+                    TAG,
+                    "camera init ready pending=$pendingCaptureRequest onlineMode=${isOnlineMode()} pageState=$pageState"
+                )
+                if (pendingCaptureRequest) {
+                    startSampleCaptureIfNeeded()
+                } else if (pageState == PageState.DETECTING) {
+                    scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
                 }
                 refreshInputActions()
             }
@@ -779,12 +932,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRestartAttempts = 0
         isCameraRestarting = false
         showPage(PageState.DETECTING)
-        pendingCaptureRequest = true
-        startSampleCaptureIfNeeded()
-        scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+        applyDefaultDetectionStatus()
+        if (isOnlineMode()) {
+            pendingCaptureRequest = false
+            awaitingFirstOnlineDetect = isMotionStable
+            if (isMotionStable) {
+                scheduleOnlineFrameCaptureIfNeeded(0L)
+            }
+        } else {
+            pendingCaptureRequest = true
+            startSampleCaptureIfNeeded()
+            scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+        }
     }
 
-    private fun finishInspection() {
+    private fun returnDirectlyToHome() {
         currentEventSource?.cancel()
         currentEventSource = null
         streamCallbackActive = false
@@ -792,8 +954,29 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         pendingStreamStart = false
         activeStreamRequestId++
         cancelMayHazardVerification()
+        cancelAllOnlineDetection()
         hideStatusAlertOverlay()
         refreshInputActions()
+        InspectionWorkflowSession.clearForNewInspection()
+        startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        })
+        finish()
+    }
+
+    private fun finishInspectionWithReport() {
+        currentEventSource?.cancel()
+        currentEventSource = null
+        streamCallbackActive = false
+        streamingInProgress = false
+        pendingStreamStart = false
+        activeStreamRequestId++
+        cancelMayHazardVerification()
+        cancelAllOnlineDetection()
+        hideStatusAlertOverlay()
+        refreshInputActions()
+        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        startActivity(Intent(this, InspectionEndReportActivity::class.java))
         finish()
     }
 
@@ -875,6 +1058,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun triggerInference(frame: QuickCameraManager.GpuFrame) {
+        if (isOnlineMode()) {
+            val payload = buildCapturedFramePayload(frame.previewBitmap, System.currentTimeMillis())
+            frame.previewBitmap?.takeIf { !it.isRecycled }?.recycle()
+            frame.hardwareBuffer.close()
+            if (payload == null) {
+                Log.w(TAG, "online frame dropped reason=payload_null")
+                return
+            }
+            InspectionWorkflowSession.recordCapture(
+                BitmapFactory.decodeByteArray(payload.jpegBytes, 0, payload.jpegBytes.size),
+            )
+            bufferOnlineFrame(payload)
+            tryStartImmediateOnlineDetection("frame_buffered")
+            return
+        }
+
         val local = hiddenRiskNcnn ?: run {
             frame.previewBitmap?.takeIf { !it.isRecycled }?.recycle()
             frame.hardwareBuffer.close()
@@ -926,6 +1125,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     } else {
                         if (detectionCount == 0) {
                             latestHazardPayload = null
+                            InspectionWorkflowSession.updateSummary { summary ->
+                                summary.copy(analyzedCount = summary.analyzedCount + 1)
+                            }
                             if (startPendingStreamAnalysis()) {
                                 return@post
                             }
@@ -933,6 +1135,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
                         } else {
                             latestHazardPayload = payload
+                            payload?.let {
+                                InspectionWorkflowSession.recordCapture(
+                                    BitmapFactory.decodeByteArray(it.jpegBytes, 0, it.jpegBytes.size),
+                                )
+                            }
                             if (ENABLE_HIT_CAPTURE_SAVE) {
                                 payload?.let { captured ->
                                     ensureHazardCaptureService().saveHazardCapture(
@@ -948,8 +1155,44 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                 return@post
                             }
 
-                            // 只要检测到任意目标，就直接进入远程识别，不再展示本地判定结果。
-                            startMayHazardVerification(capturedFrame = latestHazardPayload)
+                            if (isOnlineMode()) {
+                                startMayHazardVerification(capturedFrame = latestHazardPayload)
+                            } else {
+                                val judgeResult = evaluateHazardWithJudgment(snapshot)
+                                val resultModel = when (judgeResult) {
+                                    is HazardJudgeResult.MayHazard -> StatusAlertModel(
+                                        status = AlertStatus.WARNING,
+                                        titleText = "检测到隐患",
+                                        messageText = "检测到疑似风险目标，请进一步确认现场状态",
+                                        action = AlertActionConfig(visible = false),
+                                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = true),
+                                        style = AlertStyle(iconResId = R.drawable.ic_warning_triangle),
+                                    )
+                                    else -> buildStatusAlertModel(judgeResult).copy(
+                                        action = AlertActionConfig(visible = false),
+                                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = true),
+                                    )
+                                }
+                                InspectionWorkflowSession.recordDetection(resultModel.titleText, resultModel.messageText)
+                                InspectionWorkflowSession.updateSummary { summary ->
+                                    when (judgeResult) {
+                                        is HazardJudgeResult.NoHazard -> summary.copy(
+                                            analyzedCount = summary.analyzedCount + 1,
+                                            noHazardCount = summary.noHazardCount + 1,
+                                        )
+                                        is HazardJudgeResult.MayHazard -> summary.copy(
+                                            analyzedCount = summary.analyzedCount + 1,
+                                            mayHazardCount = summary.mayHazardCount + 1,
+                                        )
+                                        is HazardJudgeResult.HasHazard -> summary.copy(
+                                            analyzedCount = summary.analyzedCount + 1,
+                                            hasHazardCount = summary.hasHazardCount + 1,
+                                        )
+                                    }
+                                }
+                                statusAlertOverlay.render(resultModel)
+                                scheduleAutoCaptureIfNeeded(AUTO_CAPTURE_INTERVAL_MS)
+                            }
                         }
                     }
                 }
@@ -1180,6 +1423,199 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         showPage(PageState.SYNC_SUCCESS)
     }
 
+    private fun isOnlineMode(): Boolean {
+        return InspectionWorkflowSession.workflowMode == WorkflowMode.ONLINE
+    }
+
+    private fun cancelAllOnlineDetection() {
+        onlineDetectHandle?.timeoutRunnable?.let(uiHandler::removeCallbacks)
+        onlineDetectHandle?.cancel()
+        onlineDetectHandle = null
+        stopOnlinePipeline("cancelAllOnlineDetection", clearBufferedFrames = true)
+    }
+
+    private fun applyDefaultDetectionStatus() {
+        if (isOnlineMode()) {
+            tvDetectionStatus.text = ""
+        } else {
+            tvDetectionStatus.setText(R.string.ai_detection_offline_running)
+        }
+    }
+
+    private fun shouldRunOnlineFrameCaptureLoop(): Boolean {
+        if (!isOnlineMode() || !isMotionStable || stableQualifiedAtMillis == null) return false
+        if (destroyed || !isActivityResumed || !isWorkflowActive) return false
+        if (!hasRequiredPermissions()) return false
+        if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return false
+        if (!modelLoaded || modelLoading) return false
+        if (pendingStreamStart || streamingInProgress || streamCallbackActive) return false
+        if (mayHazardVerificationInProgress) return false
+        if (pageState != PageState.DETECTING) return false
+        return true
+    }
+
+    private fun canStartOnlineFrameCaptureNow(): Boolean {
+        if (!shouldRunOnlineFrameCaptureLoop()) return false
+        if (captureInProgress || captureDelayScheduled || quickCameraInitializing || pendingCaptureRequest) return false
+        if (inferenceRunning.get()) return false
+        return true
+    }
+
+    private fun shouldRunOnlineDetectLoop(): Boolean {
+        if (!shouldRunOnlineFrameCaptureLoop()) return false
+        return !awaitingFirstOnlineDetect
+    }
+
+    private fun scheduleOnlineFrameCaptureIfNeeded(delayMs: Long) {
+        if (!shouldRunOnlineFrameCaptureLoop() || onlineFrameCaptureScheduled) return
+        onlineFrameCaptureScheduled = true
+        val actualDelay = delayMs.coerceAtLeast(0L)
+        Log.i(TAG, "schedule online frame capture delayMs=$actualDelay")
+        uiHandler.postDelayed(onlineFrameCaptureRunnable, actualDelay)
+    }
+
+    private fun scheduleOnlineDetectIfNeeded(delayMs: Long) {
+        if (!shouldRunOnlineFrameCaptureLoop() || onlineDetectScheduled) return
+        onlineDetectScheduled = true
+        val actualDelay = delayMs.coerceAtLeast(0L)
+        Log.i(TAG, "schedule online detect delayMs=$actualDelay")
+        uiHandler.postDelayed(onlineDetectRunnable, actualDelay)
+    }
+
+    private fun stopOnlinePipeline(reason: String, clearBufferedFrames: Boolean) {
+        onlineFrameCaptureScheduled = false
+        onlineDetectScheduled = false
+        awaitingFirstOnlineDetect = false
+        pendingCaptureRequest = false
+        uiHandler.removeCallbacks(onlineFrameCaptureRunnable)
+        uiHandler.removeCallbacks(onlineDetectRunnable)
+        if (clearBufferedFrames) {
+            clearOnlineFrameBuffer(reason)
+        }
+        if (isOnlineMode()) {
+            Log.i(TAG, "stop online pipeline reason=$reason")
+        }
+    }
+
+    private fun clearOnlineFrameBuffer(reason: String) {
+        val clearedCount = onlineFrameBuffer.size
+        if (clearedCount > 0) {
+            Log.i(TAG, "online frame buffer cleared reason=$reason count=$clearedCount")
+        }
+        onlineFrameBuffer.clear()
+    }
+
+    private fun bufferOnlineFrame(frame: CapturedFramePayload) {
+        while (onlineFrameBuffer.size >= ONLINE_FRAME_BUFFER_CAPACITY) {
+            onlineFrameBuffer.removeFirst()
+        }
+        onlineFrameBuffer.addLast(frame)
+        Log.i(TAG, "online frame buffered size=${onlineFrameBuffer.size} timestamp=${frame.timestamp}")
+    }
+
+    private fun consumeLatestOnlineFrameOrNull(reason: String): CapturedFramePayload? {
+        if (onlineFrameBuffer.isEmpty()) {
+            return null
+        }
+        val latestFrame = onlineFrameBuffer.last()
+        val clearedCount = onlineFrameBuffer.size
+        onlineFrameBuffer.clear()
+        Log.i(TAG, "online buffer consumed reason=$reason latestFrameTs=${latestFrame.timestamp} clearedCount=$clearedCount")
+        return latestFrame
+    }
+
+    private fun tryStartImmediateOnlineDetection(reason: String) {
+        if (!awaitingFirstOnlineDetect || onlineDetectHandle != null) {
+            return
+        }
+        if (!shouldRunOnlineFrameCaptureLoop()) {
+            return
+        }
+        val frame = consumeLatestOnlineFrameOrNull(reason) ?: return
+        Log.i(TAG, "online first frame triggers send reason=$reason")
+        awaitingFirstOnlineDetect = false
+        startOnlineDetection(frame, reason)
+    }
+
+    private fun startOnlineDetection(frame: CapturedFramePayload, reason: String) {
+        if (!isOnlineMode()) return
+        if (onlineDetectHandle != null) {
+            Log.i(TAG, "skip startOnlineDetection reason=in_flight requestId=${onlineDetectHandle?.requestId}")
+            return
+        }
+        val requestId = ++nextOnlineDetectRequestId
+        Log.i(
+            TAG,
+            "startOnlineDetection requestId=$requestId jpegBytes=${frame.jpegBytes.size} reason=$reason"
+        )
+        val handle = onlineHazardDetectionService.detect(
+            requestId = requestId,
+            jpegBytes = frame.jpegBytes,
+            snCode = RokidSdkManager.getSerialNumber(),
+            timeoutMs = ONLINE_DETECTION_FIRST_PACKET_TIMEOUT_MS,
+            callback = object : OnlineHazardDetectionService.Callback {
+                override fun onFirstPacket(
+                    handle: OnlineHazardDetectionService.DetectionHandle,
+                    hasHazard: Boolean,
+                    message: String,
+                ) {
+                    if (onlineDetectHandle?.requestId == handle.requestId) {
+                        onlineDetectHandle = null
+                    }
+                    if (destroyed || pageState != PageState.DETECTING) {
+                        return
+                    }
+                    InspectionWorkflowSession.updateSummary { summary ->
+                        if (hasHazard) {
+                            summary.copy(
+                                analyzedCount = summary.analyzedCount + 1,
+                                hasHazardCount = summary.hasHazardCount + 1,
+                            )
+                        } else {
+                            summary.copy(
+                                analyzedCount = summary.analyzedCount + 1,
+                                noHazardCount = summary.noHazardCount + 1,
+                            )
+                        }
+                    }
+                    val resultModel = buildMayHazardResultModel(hasHazard).copy(
+                        behavior = AlertBehavior(autoDismissMs = 3000L, showCountdownBar = true),
+                    )
+                    InspectionWorkflowSession.recordDetection(resultModel.titleText, resultModel.messageText)
+                    statusAlertOverlay.render(resultModel)
+                    if (awaitingFirstOnlineDetect) {
+                        tryStartImmediateOnlineDetection("first_packet_complete")
+                    }
+                }
+
+                override fun onTimeout(handle: OnlineHazardDetectionService.DetectionHandle) {
+                    if (onlineDetectHandle?.requestId == handle.requestId) {
+                        onlineDetectHandle = null
+                    }
+                    if (!destroyed && awaitingFirstOnlineDetect) {
+                        tryStartImmediateOnlineDetection("timeout_complete")
+                    }
+                }
+
+                override fun onFailure(
+                    handle: OnlineHazardDetectionService.DetectionHandle,
+                    message: String,
+                ) {
+                    if (onlineDetectHandle?.requestId == handle.requestId) {
+                        onlineDetectHandle = null
+                    }
+                    if (!destroyed && awaitingFirstOnlineDetect) {
+                        tryStartImmediateOnlineDetection("failure_complete")
+                    }
+                }
+
+                override fun onClosed(handle: OnlineHazardDetectionService.DetectionHandle) = Unit
+            },
+        )
+        onlineDetectHandle = handle
+        scheduleOnlineDetectIfNeeded(ONLINE_DETECT_INTERVAL_MS)
+    }
+
     // ==================== 自动拍摄调度 ====================
 
     private fun shouldAutoCaptureNow(): Boolean {
@@ -1192,6 +1628,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (captureInProgress || captureDelayScheduled || quickCameraInitializing || pendingCaptureRequest) return false
         if (inferenceRunning.get()) return false
         if (pageState != PageState.DETECTING) return false
+        if (isOnlineMode()) return false
         return true
     }
 
@@ -1200,10 +1637,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pendingStreamStart || streamingInProgress || streamCallbackActive) return
         if (mayHazardVerificationInProgress) return
         if (pageState != PageState.DETECTING) return
+        if (isOnlineMode()) return
         autoCaptureScheduled = true
         // 连续推理模式下，延迟设为0，推理空闲立即取下一帧
         val actualDelay = if (continuousInferenceMode) 0L else delayMs
         uiHandler.postDelayed(autoCaptureRunnable, actualDelay)
+    }
+
+    private fun logOnlineWorkflowCheckpoint(reason: String) {
+        if (!isOnlineMode()) return
+        val permissionReady = runCatching { hasRequiredPermissions() }.getOrDefault(false)
+        Log.i(
+            TAG,
+            "online checkpoint=$reason resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState permissions=$permissionReady sdk=${RokidSdkManager.state} stable=$isMotionStable stableSince=$stableQualifiedAtMillis pending=$pendingCaptureRequest capture=$captureInProgress captureDelay=$captureDelayScheduled quickInit=$quickCameraInitializing quickReady=$quickCameraReady infer=${inferenceRunning.get()} autoScheduled=$autoCaptureScheduled frameCaptureScheduled=$onlineFrameCaptureScheduled detectScheduled=$onlineDetectScheduled awaitingFirst=$awaitingFirstOnlineDetect streamPending=$pendingStreamStart streaming=$streamingInProgress callbackActive=$streamCallbackActive mayHazard=$mayHazardVerificationInProgress inFlight=${onlineDetectHandle?.requestId ?: -1} bufferSize=${onlineFrameBuffer.size}",
+        )
     }
 
     // ==================== UI 页面切换 ====================
@@ -1240,6 +1687,34 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshInputActions()
     }
 
+    private fun applyDebugSnapshotState(state: String) {
+        when (state) {
+            "analyzing" -> {
+                showPage(PageState.DETECTING)
+                ivMayHazardLoading.visibility = View.VISIBLE
+                tvDetectionStatus.setText(R.string.ai_detection_deep_analysis_running)
+            }
+            "result" -> {
+                showPage(PageState.STREAM_RESPONSE)
+                tvStreamContent.text = intent.getStringExtra("debug_text")
+                    ?: "隐患描述：\n三合一住人，防盗窗未设置紧急逃生口，电子烟靠近笔记本电脑存在火灾风险。\n\n整改建议：\n立即拆除住宿隔断，增设逃生口，远离易燃物。"
+                tvSyncPrompt.visibility = View.VISIBLE
+                tvSyncHint.text = getString(R.string.ai_detection_result_hint)
+            }
+            "sync" -> {
+                showPage(PageState.SYNC_SUCCESS)
+                tvSyncSuccessHint.text = getString(R.string.ai_inspection_continue_hint)
+            }
+            else -> {
+                showPage(PageState.DETECTING)
+                ivMayHazardLoading.visibility = View.VISIBLE
+                tvDetectionStatus.text = intent.getStringExtra("debug_text")
+                    ?: getString(R.string.ai_detection_online_running)
+            }
+        }
+        refreshInputActions()
+    }
+
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         return listOf(
             UnifiedInputSession.InputActionSpec(
@@ -1263,7 +1738,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ),
                 enabled = { pageState == PageState.DETECTING },
             ) {
-                finishInspection()
+                returnDirectlyToHome()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_stream_confirm_sync"),
@@ -1321,7 +1796,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 },
                 enabled = { pageState == PageState.SYNC_SUCCESS },
             ) {
-                finishInspection()
+                finishInspectionWithReport()
             },
         )
     }
@@ -1490,7 +1965,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             Log.i(TAG, "stream request interrupts mayHazard verification")
             cancelMayHazardVerification()
         }
+        if (!isMotionStable) {
+            pendingStreamStart = true
+            tvDetectionStatus.setText(R.string.ai_detection_deep_analysis_wait)
+            return
+        }
         pendingStreamStart = true
+        tvDetectionStatus.setText(R.string.ai_detection_deep_analysis_running)
         pauseAutoCaptureForStreaming()
         if (captureInProgress || inferenceRunning.get()) {
             Log.i(
@@ -1519,7 +2000,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return false
         }
 
-        val frame = preferredFrame ?: latestHazardPayload
+        val frame = preferredFrame ?: if (isOnlineMode()) {
+            consumeLatestOnlineFrameOrNull("start_pending_stream")
+        } else {
+            latestHazardPayload
+        }
         pendingStreamStart = false
         if (frame != null) {
             latestHazardPayload = null
@@ -1540,6 +2025,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
+        stopOnlinePipeline("pause_for_streaming", clearBufferedFrames = true)
     }
 
     private fun buildCapturedFramePayload(bitmap: Bitmap?, timestamp: Long): CapturedFramePayload? {

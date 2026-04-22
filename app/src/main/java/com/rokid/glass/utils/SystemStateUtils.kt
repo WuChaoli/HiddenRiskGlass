@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
+import com.rokid.glesse.R
 
 /**
  * Created by wjm on 2025/6/23
@@ -46,6 +47,31 @@ object SystemStateUtils {
     }
 
     /**
+     * 获取当前 Wi-Fi 状态对应的图标资源。
+     */
+    @JvmStatic
+    fun getWifiStatusIconRes(context: Context): Int {
+        if (!isWifiEnabled(context)) {
+            return R.mipmap.status_wifi_close
+        }
+
+        val wifiInfo = getCurrentWifiInfo(context)
+        val ssid = sanitizeSsid(wifiInfo?.ssid)
+        if (ssid == null) {
+            return R.mipmap.status_wifi_un_connect
+        }
+
+        val level = WifiManager.calculateSignalLevel(wifiInfo?.rssi ?: Int.MIN_VALUE, 5)
+        return when (level.coerceIn(0, 4)) {
+            0 -> R.mipmap.status_wifi_0
+            1 -> R.mipmap.status_wifi_1
+            2 -> R.mipmap.status_wifi_2
+            3 -> R.mipmap.status_wifi_3
+            else -> R.mipmap.status_wifi_4
+        }
+    }
+
+    /**
      * 检查蓝牙是否已启用
      *
      * @return 蓝牙已启用返回 true，否则返回 false
@@ -54,6 +80,20 @@ object SystemStateUtils {
     fun isBluetoothEnabled(): Boolean {
         val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
         return bluetoothAdapter?.isEnabled == true
+    }
+
+    private fun getCurrentWifiInfo(context: Context): WifiInfo? {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val wifiInfoFromCapabilities = connectivityManager
+            ?.getNetworkCapabilities(connectivityManager.activeNetwork)
+            ?.takeIf { it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) }
+            ?.transportInfo as? WifiInfo
+        if (wifiInfoFromCapabilities != null) {
+            return wifiInfoFromCapabilities
+        }
+
+        val wifiManager = context.applicationContext.getSystemService(WifiManager::class.java)
+        return wifiManager?.connectionInfo
     }
 
     private fun sanitizeSsid(rawSsid: String?): String? {

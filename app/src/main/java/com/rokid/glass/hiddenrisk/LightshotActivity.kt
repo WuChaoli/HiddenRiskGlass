@@ -8,6 +8,8 @@ import android.media.MediaActionSound
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.util.Size
 import android.view.TextureView
@@ -36,6 +38,10 @@ class LightshotActivity : BaseGlassActivity() {
 
     companion object {
         private const val TAG = "LightshotActivity"
+        const val EXTRA_MODE = "extra_mode"
+        const val MODE_LIGHTSHOT = "lightshot"
+        const val MODE_HAZARD_RECORD = "hazard_record"
+        const val EXTRA_DEBUG_STATE = "extra_debug_state"
         private const val DEFAULT_ZOOM_RATIO = 2.0f
         private const val SAVE_DIR_NAME = "lightshot"
         private const val OUTPUT_SIZE = 640
@@ -47,8 +53,12 @@ class LightshotActivity : BaseGlassActivity() {
 
     private lateinit var previewView: TextureView
     private lateinit var tvHint: TextView
+    private lateinit var tvTitle: TextView
     private lateinit var tvFov: TextView
     private lateinit var tvSaveResult: TextView
+    private lateinit var tvCountdownLabel: TextView
+    private lateinit var tvCountdownValue: TextView
+    private lateinit var tvSyncPrompt: TextView
 
     @Volatile
     private var isCapturing = false
@@ -58,11 +68,17 @@ class LightshotActivity : BaseGlassActivity() {
     private var currentFovIndex = 0
     private val shutterSound by lazy { MediaActionSound() }
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val mainHandler = Handler(Looper.getMainLooper())
     private var headGestureSupported = false
+    private var mode: String = MODE_LIGHTSHOT
+    private var countdownActive = false
+    private var syncPromptVisible = false
+    private var countdownRemaining = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_lightshot)
+        mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_LIGHTSHOT
 
         previewView = findViewById(R.id.previewView)
         previewView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
@@ -86,15 +102,20 @@ class LightshotActivity : BaseGlassActivity() {
 
             override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
         }
+        tvTitle = findViewById(R.id.tvTitle)
         tvHint = findViewById(R.id.tvHint)
         tvFov = findViewById(R.id.tvFov)
         tvSaveResult = findViewById(R.id.tvSaveResult)
+        tvCountdownLabel = findViewById(R.id.tvCountdownLabel)
+        tvCountdownValue = findViewById(R.id.tvCountdownValue)
+        tvSyncPrompt = findViewById(R.id.tvSyncPrompt)
 
         shutterSound.load(MediaActionSound.SHUTTER_CLICK)
         syncFovWithManager()
         updateFovTip()
         HeadGestureManager.initialize(this)
         headGestureSupported = HeadGestureManager.isSupported()
+        applyModeUi()
         if (!headGestureSupported) {
             Log.w(TAG, "头部动作识别不可用，设备缺少所需传感器")
         }
@@ -117,6 +138,8 @@ class LightshotActivity : BaseGlassActivity() {
 
     override fun onPause() {
         inputSession.detach()
+        mainHandler.removeCallbacksAndMessages(null)
+        countdownActive = false
         isCameraReady = false
         cameraInitInProgress = false
         QuickCameraManager.detachPreviewTexture()
@@ -139,16 +162,24 @@ class LightshotActivity : BaseGlassActivity() {
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         val gestureEnabled = { headGestureSupported }
-        return listOf(
+        val actions = mutableListOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("lightshot_capture"),
-                label = "拍照",
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                    UnifiedInputSession.InputTrigger.Voice("拍照", "pai zhao"),
-                ),
+                label = if (isHazardRecordMode()) "开始录入" else "拍照",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("拍照", "pai zhao"))
+                    if (isHazardRecordMode()) {
+                        add(UnifiedInputSession.InputTrigger.Voice("录入", "lu ru"))
+                    }
+                },
+                enabled = { !countdownActive && !syncPromptVisible },
             ) {
-                captureAndSave()
+                if (isHazardRecordMode()) {
+                    startHazardCountdown()
+                } else {
+                    captureAndSave()
+                }
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("lightshot_zoom_out"),
@@ -157,6 +188,7 @@ class LightshotActivity : BaseGlassActivity() {
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
                     UnifiedInputSession.InputTrigger.Voice("缩小", "suo xiao"),
                 ),
+                enabled = { !isHazardRecordMode() && !syncPromptVisible && !countdownActive },
             ) {
                 adjustFov(-1)
             },
@@ -167,6 +199,7 @@ class LightshotActivity : BaseGlassActivity() {
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
                     UnifiedInputSession.InputTrigger.Voice("放大", "fang da"),
                 ),
+                enabled = { !isHazardRecordMode() && !syncPromptVisible && !countdownActive },
             ) {
                 adjustFov(1)
             },
@@ -178,7 +211,11 @@ class LightshotActivity : BaseGlassActivity() {
                     UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
                 ),
             ) {
-                finish()
+                if (syncPromptVisible && isHazardRecordMode()) {
+                    finish()
+                } else {
+                    finish()
+                }
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.DebugNod,
@@ -201,6 +238,36 @@ class LightshotActivity : BaseGlassActivity() {
                 handleGestureEvent(event)
             },
         )
+        if (isHazardRecordMode()) {
+            actions += UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = "继续录入",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
+                    }
+                },
+                enabled = { syncPromptVisible },
+            ) {
+                resetHazardRecordUi()
+            }
+            actions += UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("hazard_record_finish"),
+                label = "结束录入",
+                triggers = buildList {
+                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
+                    add(UnifiedInputSession.InputTrigger.Voice("结束", "jie shu"))
+                    if (headGestureSupported) {
+                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
+                    }
+                },
+                enabled = { syncPromptVisible },
+            ) {
+                finish()
+            }
+        }
+        return actions
     }
 
     private fun handleGestureEvent(event: UnifiedInputSession.InputEvent) {
@@ -340,14 +407,7 @@ class LightshotActivity : BaseGlassActivity() {
                     val result = processFrameAndSave(gpuFrame)
                     val latencyMs = (System.nanoTime() - startTime) / 1_000_000
                     withContext(Dispatchers.Main) {
-                        if (result != null) {
-                            shutterSound.play(MediaActionSound.SHUTTER_CLICK)
-                            showResultTip("已保存：${result.name} (延迟${latencyMs}ms)")
-                            Log.i(TAG, "GPU 帧保存成功: ${result.absolutePath}, 延迟=${latencyMs}ms")
-                        } else {
-                            showResultTip("保存失败，请重试")
-                        }
-                        tvHint.text = "单击拍摄，左右滑动调视野"
+                        handleCaptureFinished(result, latencyMs)
                         isCapturing = false
                     }
                 } catch (error: Exception) {
@@ -418,6 +478,11 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     private fun showResultTip(message: String) {
+        if (isHazardRecordMode()) {
+            tvSaveResult.text = message
+            tvSaveResult.visibility = View.VISIBLE
+            return
+        }
         tvSaveResult.text = message
         tvSaveResult.visibility = View.VISIBLE
         tvSaveResult.removeCallbacks(hideSaveResultRunnable)
@@ -427,4 +492,97 @@ class LightshotActivity : BaseGlassActivity() {
     private val hideSaveResultRunnable = Runnable {
         tvSaveResult.visibility = View.GONE
     }
+
+    private fun handleCaptureFinished(result: File?, latencyMs: Long) {
+        if (result != null) {
+            shutterSound.play(MediaActionSound.SHUTTER_CLICK)
+            Log.i(TAG, "GPU 帧保存成功: ${result.absolutePath}, 延迟=${latencyMs}ms")
+            if (isHazardRecordMode()) {
+                syncPromptVisible = true
+                tvSaveResult.text = getString(R.string.hazard_record_sync_success)
+                tvSaveResult.visibility = View.VISIBLE
+                tvSyncPrompt.visibility = View.VISIBLE
+                tvHint.text = if (headGestureSupported) {
+                    getString(R.string.hazard_record_continue_hint_with_gyro)
+                } else {
+                    getString(R.string.hazard_record_continue_hint)
+                }
+            } else {
+                showResultTip("已保存：${result.name} (延迟${latencyMs}ms)")
+                tvHint.setText(R.string.lightshot_hint)
+            }
+        } else {
+            showResultTip("保存失败，请重试")
+            tvHint.text = if (isHazardRecordMode()) {
+                getString(R.string.hazard_record_idle_hint)
+            } else {
+                getString(R.string.lightshot_hint)
+            }
+        }
+        refreshActions()
+    }
+
+    private fun startHazardCountdown() {
+        if (countdownActive || syncPromptVisible) return
+        countdownActive = true
+        countdownRemaining = 3
+        tvCountdownLabel.visibility = View.VISIBLE
+        tvCountdownValue.visibility = View.VISIBLE
+        tvSaveResult.visibility = View.GONE
+        tvSyncPrompt.visibility = View.GONE
+        tvHint.setText(R.string.hazard_record_countdown_subtitle)
+        tickHazardCountdown()
+        refreshActions()
+    }
+
+    private fun tickHazardCountdown() {
+        if (!countdownActive) return
+        tvCountdownValue.text = countdownRemaining.toString()
+        if (countdownRemaining <= 0) {
+            countdownActive = false
+            tvCountdownLabel.visibility = View.GONE
+            tvCountdownValue.visibility = View.GONE
+            captureAndSave()
+            return
+        }
+        countdownRemaining -= 1
+        mainHandler.postDelayed({ tickHazardCountdown() }, 1000L)
+    }
+
+    private fun resetHazardRecordUi() {
+        syncPromptVisible = false
+        tvSaveResult.visibility = View.GONE
+        tvSyncPrompt.visibility = View.GONE
+        tvHint.setText(R.string.hazard_record_idle_hint)
+        refreshActions()
+    }
+
+    private fun applyModeUi() {
+        if (isHazardRecordMode()) {
+            tvTitle.setText(R.string.hazard_record_title)
+            tvHint.setText(R.string.hazard_record_idle_hint)
+            tvFov.visibility = View.GONE
+            intent.getStringExtra(EXTRA_DEBUG_STATE)?.takeIf { it == "success" }?.let {
+                syncPromptVisible = true
+                tvSaveResult.setText(R.string.hazard_record_sync_success)
+                tvSaveResult.visibility = View.VISIBLE
+                tvSyncPrompt.visibility = View.VISIBLE
+                tvHint.text = if (headGestureSupported) {
+                    getString(R.string.hazard_record_continue_hint_with_gyro)
+                } else {
+                    getString(R.string.hazard_record_continue_hint)
+                }
+            }
+        } else {
+            tvTitle.setText(R.string.lightshot_title)
+            tvHint.setText(R.string.lightshot_hint)
+            tvFov.visibility = View.VISIBLE
+        }
+    }
+
+    private fun refreshActions() {
+        inputSession.updateActions(buildInputActions())
+    }
+
+    private fun isHazardRecordMode(): Boolean = mode == MODE_HAZARD_RECORD
 }

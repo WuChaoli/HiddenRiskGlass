@@ -19,3 +19,6 @@ third_party/
 models/
 assets/
 .codex
+.tmp/
+.tmp_*.png
+.tmp_*.jpg

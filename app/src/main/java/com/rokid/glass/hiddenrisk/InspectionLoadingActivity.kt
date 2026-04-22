@@ -1,8 +1,12 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.IntentFilter
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -19,18 +23,30 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.rokid.glass.EnterpriseQrScanActivity
+import com.rokid.glass.WifiQrScanActivity
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.SystemStateUtils
+import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.max
 
 /**
  * 巡检加载页面。
- * 执行实际的 SDK 初始化、模型加载、相机预热，完成后等待用户确认再跳转。
+ * 执行实际的 SDK 初始化、模型加载、相机预热，完成后直接执行 Wi-Fi 判定分流。
  */
 class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     companion object {
         private const val TAG = "InspectionLoading"
         private const val REQUEST_MEDIA_PERMISSION = 201
+        private const val PROGRESS_STEP_DELAY_MS = 24L
+        private const val SUBTITLE_FRAME_DELAY_MS = 320L
+        private const val COMPLETE_HOLD_DELAY_MS = 400L
+        private const val STATUS_UPDATE_DELAY_MS = 1000L
     }
 
     // 加载阶段枚举
@@ -39,12 +55,13 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         SDK_INIT,       // SDK 初始化
         MODEL_LOAD,     // 模型加载
         CAMERA_INIT,    // 相机初始化
-        COMPLETE,       // 加载完成，等待确认
+        COMPLETE,       // 加载完成，立即分流
         ERROR           // 错误状态
     }
 
     // UI 组件
     private lateinit var layoutLoading: LinearLayout
+    private lateinit var ivLoadingTrack: ImageView
     private lateinit var ivLoadingSpinner: ImageView
     private lateinit var ivLoadingComplete: ImageView
     private lateinit var tvLoadingTitle: TextView
@@ -57,18 +74,29 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private lateinit var tvConfirmPrompt: TextView
     private lateinit var tvErrorMessage: TextView
     private lateinit var layoutError: LinearLayout
+    private lateinit var ivWifiStatus: ImageView
+    private lateinit var tvCurrentTime: TextView
+    private lateinit var ivBatteryFill: ImageView
 
     private val uiHandler = Handler(Looper.getMainLooper())
+    private val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     private var currentProgress = 0
     private var targetProgress = 0
+    private var progressRunnablePosted = false
     private var loadingStage = LoadingStage.IDLE
     private var mediaPermissionRequested = false
     private var activityDestroyed = false
     private var modelLoadStarted = false
     private var cameraInitStarted = false
     private var initializationCompleted = false
+    private var completionUiCommitted = false
+    private var debugSnapshotMode = false
+    private var debugAnimateMode = false
+    private var subtitleBaseText = ""
+    private var subtitleFrame = 0
+    private var subtitleAnimating = false
+    private var batteryReceiver: BroadcastReceiver? = null
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
-    private var headGestureSupported = false
 
     // 转圈动画
     private val loadingRotateAnimation: RotateAnimation by lazy {
@@ -86,12 +114,29 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     // 进度更新 Runnable
     private val progressRunnable = object : Runnable {
         override fun run() {
+            progressRunnablePosted = false
             if (currentProgress < targetProgress) {
                 currentProgress++
                 progressBar.progress = currentProgress
                 tvProgressPercent.text = "${currentProgress}%"
-                uiHandler.postDelayed(this, 30L)
+                postProgressTick(PROGRESS_STEP_DELAY_MS)
+            } else if (loadingStage == LoadingStage.COMPLETE && currentProgress >= 100) {
+                commitCompletionUi()
             }
+        }
+    }
+
+    private val subtitleRunnable = object : Runnable {
+        override fun run() {
+            if (activityDestroyed || !subtitleAnimating) return
+            subtitleFrame = (subtitleFrame + 1) % 4
+            tvLoadingSubtitle.text = when (subtitleFrame) {
+                0 -> subtitleBaseText
+                1 -> "$subtitleBaseText."
+                2 -> "$subtitleBaseText.."
+                else -> "$subtitleBaseText..."
+            }
+            uiHandler.postDelayed(this, SUBTITLE_FRAME_DELAY_MS)
         }
     }
 
@@ -99,14 +144,49 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         startModelLoading()
     }
 
+    private val finishNavigationRunnable = Runnable {
+        if (activityDestroyed || !initializationCompleted || loadingStage != LoadingStage.COMPLETE) {
+            return@Runnable
+        }
+        InspectionSession.markInitialized()
+        navigateToInspection()
+    }
+
+    private val statusUpdateRunnable = object : Runnable {
+        override fun run() {
+            if (activityDestroyed) return
+            updateCurrentTime()
+            updateWifiStatus()
+            uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_inspection_loading)
 
         initViews()
+        debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
+        debugAnimateMode = intent.getBooleanExtra("debug_animate", false)
+        if (debugSnapshotMode) {
+            tvLoadingTitle.setText(R.string.ai_inspection_loading_title)
+            val debugProgress = intent.getIntExtra("debug_progress", 30)
+            progressBar.progress = debugProgress
+            tvProgressPercent.text = "$debugProgress%"
+            if (debugAnimateMode) {
+                currentProgress = debugProgress
+                targetProgress = debugProgress
+                startSpinner()
+                setSubtitle(intent.getStringExtra("debug_subtitle") ?: "正在准备检测设备", animated = true)
+            } else {
+                stopSpinner()
+                tvLoadingSubtitle.text = intent.getStringExtra("debug_subtitle")
+                    ?: getString(R.string.ai_inspection_loading_subtitle)
+            }
+            return
+        }
 
-        // 启动转圈动画
-        ivLoadingSpinner.startAnimation(loadingRotateAnimation)
+        startSpinner()
 
         // 开始进度动画
         animateProgressTo(10)
@@ -115,11 +195,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         RokidSdkManager.initialize(application)
         RokidSdkManager.addListener(this)
         RokidSdkManager.ensureInitialized()
-        HeadGestureManager.initialize(this)
-        headGestureSupported = HeadGestureManager.isSupported()
-        if (!headGestureSupported) {
-            Log.w(TAG, "头部动作识别不可用，完成态仅支持触控与语音确认")
-        }
         refreshInputActions()
 
         // 检查权限并开始初始化流程
@@ -134,9 +209,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         super.onResume()
         inputSession.attach()
         refreshInputActions()
+        startStatusBarUpdates()
+        if (debugSnapshotMode) return
     }
 
     override fun onPause() {
+        stopStatusBarUpdates()
         inputSession.detach()
         super.onPause()
     }
@@ -145,9 +223,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         activityDestroyed = true
         inputSession.release()
         super.onDestroy()
-        ivLoadingSpinner.clearAnimation()
-        uiHandler.removeCallbacks(progressRunnable)
-        uiHandler.removeCallbacks(startModelLoadRunnable)
+        stopLoadingUi()
         RokidSdkManager.removeListener(this)
 
         // 如果初始化未完成且出现错误，清理资源
@@ -181,7 +257,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         uiHandler.post {
             when (state) {
                 RokidSdkManager.SdkState.READY -> {
-                    tvLoadingSubtitle.text = "SDK 就绪，正在加载模型…"
+                    setSubtitle("SDK 就绪，正在加载模型", animated = true)
                     animateProgressTo(30)
                     // 延迟一下确保 SDK 完全就绪
                     uiHandler.removeCallbacks(startModelLoadRunnable)
@@ -198,20 +274,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         return listOf(
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("loading_start_inspection"),
-                label = "开始巡检",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("开始", "kai shi"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
-                enabled = { loadingStage == LoadingStage.COMPLETE },
-            ) {
-                navigateToInspection()
-            },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("loading_retry"),
                 label = "重试初始化",
@@ -241,6 +303,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     private fun initViews() {
+        ivLoadingTrack = findViewById(R.id.ivLoadingTrack)
         ivLoadingSpinner = findViewById(R.id.ivLoadingSpinner)
         ivLoadingComplete = findViewById(R.id.ivLoadingComplete)
         tvLoadingTitle = findViewById(R.id.tvLoadingTitle)
@@ -256,6 +319,63 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         // 错误视图
         tvErrorMessage = findViewById(R.id.tvErrorMessage)
         layoutError = findViewById(R.id.layoutError)
+
+        ivWifiStatus = findViewById(R.id.ivWifiStatus)
+        tvCurrentTime = findViewById(R.id.tvCurrentTime)
+
+        // 电池填充视图
+        ivBatteryFill = findViewById(R.id.ivBatteryFill)
+        updateCurrentTime()
+        updateWifiStatus()
+        updateBatteryLevel()
+    }
+
+    private fun startStatusBarUpdates() {
+        updateCurrentTime()
+        updateWifiStatus()
+        uiHandler.removeCallbacks(statusUpdateRunnable)
+        uiHandler.post(statusUpdateRunnable)
+
+        if (batteryReceiver == null) {
+            batteryReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    updateBatteryLevel(intent)
+                }
+            }
+            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }
+    }
+
+    private fun stopStatusBarUpdates() {
+        uiHandler.removeCallbacks(statusUpdateRunnable)
+        batteryReceiver?.let {
+            unregisterReceiver(it)
+            batteryReceiver = null
+        }
+    }
+
+    private fun updateCurrentTime() {
+        tvCurrentTime.text = timeFormat.format(Date())
+    }
+
+    private fun updateWifiStatus() {
+        ivWifiStatus.setImageResource(SystemStateUtils.getWifiStatusIconRes(this))
+    }
+
+    /**
+     * 获取当前电池电量并更新电池图标填充
+     */
+    private fun updateBatteryLevel(intent: Intent? = null) {
+        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { batteryIntent ->
+            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+            if (level != -1 && scale != -1) {
+                val batteryPct = (level * 100 / scale.toFloat()).toInt()
+                // ClipDrawable level: 0 = 完全裁剪, 10000 = 完全显示
+                ivBatteryFill.setImageLevel(batteryPct * 100)
+            }
+        }
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -286,13 +406,13 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     private fun startInitializationFlow() {
         loadingStage = LoadingStage.SDK_INIT
-        tvLoadingSubtitle.text = "正在初始化 SDK…"
+        setSubtitle("正在初始化 SDK", animated = true)
         refreshInputActions()
 
         // SDK 初始化由 RokidSdkManager 处理，等待回调
         // 如果 SDK 已经就绪，直接开始模型加载
         if (RokidSdkManager.state == RokidSdkManager.SdkState.READY) {
-            tvLoadingSubtitle.text = "SDK 就绪，正在加载模型…"
+            setSubtitle("SDK 就绪，正在加载模型", animated = true)
             animateProgressTo(30)
             startModelLoading()
         }
@@ -309,7 +429,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         modelLoadStarted = true
         loadingStage = LoadingStage.MODEL_LOAD
-        tvLoadingSubtitle.text = "正在加载检测模型…"
+        setSubtitle("正在加载检测模型", animated = true)
         animateProgressTo(50)
         refreshInputActions()
 
@@ -325,7 +445,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             uiHandler.post {
                 if (activityDestroyed) return@post
                 if (success) {
-                    tvLoadingSubtitle.text = "模型加载完成，准备相机…"
+                    setSubtitle("模型加载完成，准备相机", animated = true)
                     animateProgressTo(70)
                     startCameraInit()
                 } else {
@@ -346,7 +466,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         cameraInitStarted = true
         loadingStage = LoadingStage.CAMERA_INIT
-        tvLoadingSubtitle.text = "正在初始化相机…"
+        setSubtitle("正在初始化相机", animated = true)
+        animateProgressTo(90)
         refreshInputActions()
 
         InspectionSession.initCamera { success ->
@@ -368,28 +489,17 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         initializationCompleted = true
         loadingStage = LoadingStage.COMPLETE
+        completionUiCommitted = false
         animateProgressTo(100)
-
-        // UI 切换到完成状态
-        ivLoadingSpinner.clearAnimation()
-        ivLoadingSpinner.visibility = View.GONE
-        ivLoadingComplete.visibility = View.VISIBLE
-        tvLoadingTitle.text = "系统初始化完成"
-        tvLoadingSubtitle.visibility = View.INVISIBLE
-        layoutGuideContent.visibility = View.GONE
-        tvConfirmPrompt.visibility = View.VISIBLE
-        tvLoadingHint.text = getString(
-            if (headGestureSupported) R.string.ai_inspection_loading_ready_hint_with_gyro
-            else R.string.ai_inspection_loading_ready_hint,
-        )
-
-        // 标记初始化完成
-        InspectionSession.markInitialized()
-        refreshInputActions()
+        if (currentProgress >= 100) {
+            commitCompletionUi()
+        }
     }
 
     private fun showError(message: String) {
         loadingStage = LoadingStage.ERROR
+        uiHandler.removeCallbacks(finishNavigationRunnable)
+        stopSubtitleAnimation()
 
         // 隐藏加载视图
         layoutLoading.visibility = View.GONE
@@ -399,21 +509,23 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         tvErrorMessage.text = message
 
         // 停止动画
-        ivLoadingSpinner.clearAnimation()
+        stopSpinner()
         refreshInputActions()
     }
 
     private fun retryInitialization() {
-        uiHandler.removeCallbacks(startModelLoadRunnable)
+        stopLoadingUi()
 
         // 重置状态
         InspectionSession.reset()
         loadingStage = LoadingStage.IDLE
         currentProgress = 0
         targetProgress = 0
+        progressRunnablePosted = false
         modelLoadStarted = false
         cameraInitStarted = false
         initializationCompleted = false
+        completionUiCommitted = false
         progressBar.progress = 0
         tvProgressPercent.text = "0%"
 
@@ -423,6 +535,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         // 恢复 UI
         ivLoadingSpinner.visibility = View.VISIBLE
+        ivLoadingTrack.visibility = View.VISIBLE
         ivLoadingComplete.visibility = View.GONE
         tvLoadingTitle.text = getString(R.string.ai_inspection_loading_title)
         tvLoadingSubtitle.visibility = View.VISIBLE
@@ -430,19 +543,92 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         tvConfirmPrompt.visibility = View.GONE
 
         // 重新开始
-        ivLoadingSpinner.startAnimation(loadingRotateAnimation)
+        startSpinner()
         animateProgressTo(10)
         startInitializationFlow()
         refreshInputActions()
     }
 
     private fun navigateToInspection() {
-        startActivity(Intent(this, AiInspectionActivity::class.java))
+        InspectionWorkflowSession.clearForNewInspection()
+        val wifiConnected = SystemStateUtils.getCurrentWifiSsid(this) != null
+        InspectionWorkflowSession.updateMode(wifiConnected)
+        val targetIntent = if (wifiConnected) {
+            Intent(this, EnterpriseQrScanActivity::class.java)
+        } else {
+            Intent(this, WifiQrScanActivity::class.java).apply {
+                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, EnterpriseQrScanActivity::class.java.name)
+            }
+        }
+        startActivity(targetIntent)
         finish()
     }
 
     private fun animateProgressTo(target: Int) {
-        targetProgress = target
-        uiHandler.post(progressRunnable)
+        val normalizedTarget = target.coerceIn(0, 100)
+        targetProgress = max(targetProgress, normalizedTarget)
+        if (currentProgress >= targetProgress) {
+            if (loadingStage == LoadingStage.COMPLETE && currentProgress >= 100) {
+                commitCompletionUi()
+            }
+            return
+        }
+        postProgressTick()
+    }
+
+    private fun postProgressTick(delayMs: Long = 0L) {
+        if (activityDestroyed || progressRunnablePosted) return
+        progressRunnablePosted = true
+        if (delayMs <= 0L) {
+            uiHandler.post(progressRunnable)
+        } else {
+            uiHandler.postDelayed(progressRunnable, delayMs)
+        }
+    }
+
+    private fun setSubtitle(baseText: String, animated: Boolean) {
+        subtitleBaseText = baseText
+        subtitleFrame = 3
+        subtitleAnimating = animated
+        uiHandler.removeCallbacks(subtitleRunnable)
+        tvLoadingSubtitle.text = if (animated) "$baseText..." else baseText
+        if (animated) {
+            uiHandler.postDelayed(subtitleRunnable, SUBTITLE_FRAME_DELAY_MS)
+        }
+    }
+
+    private fun stopSubtitleAnimation() {
+        subtitleAnimating = false
+        uiHandler.removeCallbacks(subtitleRunnable)
+    }
+
+    private fun startSpinner() {
+        ivLoadingSpinner.startAnimation(loadingRotateAnimation)
+        ivLoadingSpinner.visibility = View.VISIBLE
+        ivLoadingTrack.visibility = View.VISIBLE
+        ivLoadingComplete.visibility = View.GONE
+    }
+
+    private fun stopSpinner() {
+        ivLoadingSpinner.clearAnimation()
+    }
+
+    private fun commitCompletionUi() {
+        if (completionUiCommitted || activityDestroyed) return
+        completionUiCommitted = true
+        stopSpinner()
+        stopSubtitleAnimation()
+        setSubtitle("初始化完成", animated = false)
+        uiHandler.removeCallbacks(finishNavigationRunnable)
+        uiHandler.postDelayed(finishNavigationRunnable, COMPLETE_HOLD_DELAY_MS)
+    }
+
+    private fun stopLoadingUi() {
+        stopSpinner()
+        stopSubtitleAnimation()
+        uiHandler.removeCallbacks(progressRunnable)
+        uiHandler.removeCallbacks(startModelLoadRunnable)
+        uiHandler.removeCallbacks(finishNavigationRunnable)
+        progressRunnablePosted = false
     }
 }
