@@ -35,7 +35,6 @@ class StatusAlertOverlayView @JvmOverloads constructor(
     private val iconView: ImageView
     private val titleView: TextView
     private val messageView: TextView
-    private val actionView: TextView
     private val countdownBar: ProgressBar
 
     private val defaultCardWidthPx: Int
@@ -49,6 +48,7 @@ class StatusAlertOverlayView @JvmOverloads constructor(
     private val defaultIconHeightPx: Int
     private val defaultCountdownBarHeightPx: Int
     private val defaultCountdownDrawable: Drawable?
+    private val defaultMessageTopMarginPx: Int
 
     private var countdownStartElapsedMs = 0L
     private var countdownDurationMs = 0L
@@ -84,7 +84,6 @@ class StatusAlertOverlayView @JvmOverloads constructor(
         iconView = findViewById(R.id.ivStatusAlertIcon)
         titleView = findViewById(R.id.tvStatusAlertTitle)
         messageView = findViewById(R.id.tvStatusAlertMessage)
-        actionView = findViewById(R.id.tvStatusAlertAction)
         countdownBar = findViewById(R.id.progressStatusAlertCountdown)
         countdownBar.max = COUNTDOWN_PROGRESS_MAX
 
@@ -99,6 +98,7 @@ class StatusAlertOverlayView @JvmOverloads constructor(
         defaultIconHeightPx = iconView.layoutParams.height
         defaultCountdownBarHeightPx = countdownBar.layoutParams.height
         defaultCountdownDrawable = cloneDrawable(countdownBar.progressDrawable)
+        defaultMessageTopMarginPx = (messageView.layoutParams as? LinearLayout.LayoutParams)?.topMargin ?: 0
     }
 
     fun render(model: StatusAlertModel?) {
@@ -141,11 +141,20 @@ class StatusAlertOverlayView @JvmOverloads constructor(
     private fun bind(model: StatusAlertModel) {
         iconView.setImageResource(model.style.iconResId)
         applyIconAnimation(model.style.iconResId)
-        titleView.text = model.titleText
-        messageView.text = model.messageText
 
-        actionView.text = model.action.text
-        actionView.visibility = if (model.action.visible) View.VISIBLE else View.GONE
+        val hasTitle = model.titleText.isNotBlank()
+        titleView.text = model.titleText
+        titleView.visibility = if (hasTitle) View.VISIBLE else View.GONE
+
+        val hasMessage = model.messageText.isNotBlank()
+        messageView.text = model.messageText
+        messageView.visibility = if (hasMessage) View.VISIBLE else View.GONE
+        // 当标题隐藏时，去掉正文上方的间距，使单行内容在图标旁垂直居中
+        val messageParams = messageView.layoutParams as? LinearLayout.LayoutParams
+        if (messageParams != null) {
+            messageParams.topMargin = if (hasTitle) defaultMessageTopMarginPx else 0
+            messageView.layoutParams = messageParams
+        }
 
         updateSize(
             cardContainer,

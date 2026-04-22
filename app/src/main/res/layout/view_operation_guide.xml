@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 标题 -->
+    <TextView
+        android:id="@+id/tvGuideTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/green"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        tools:text="操作指引" />
+
+    <!-- 提示内容（多行） -->
+    <TextView
+        android:id="@+id/tvGuideContent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:lineSpacingExtra="2dp"
+        android:textColor="@color/green"
+        android:textSize="10sp"
+        tools:text="说出&quot;确认&quot;&#10;说出&quot;取消&quot;&#10;单击 确认&#10;双击 取消" />
+</merge>
