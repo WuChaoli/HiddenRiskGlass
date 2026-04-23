@@ -12,7 +12,6 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.util.Log
-import android.util.Size
 import android.view.View
 import android.view.animation.AlphaAnimation
 import android.view.animation.Animation
@@ -23,7 +22,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
@@ -71,6 +70,13 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         NORMAL,
     }
 
+    private data class CapturedFramePayload(
+        val jpegBytes: ByteArray,
+        val width: Int,
+        val height: Int,
+        val timestamp: Long,
+    )
+
     private lateinit var imageLoadingIndicator: ImageView
     private lateinit var imageResultIcon: ImageView
     private lateinit var textStatusMessage: TextView
@@ -94,10 +100,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var captureInProgress = false
     private var pendingCaptureRequest = false
     private var captureDelayScheduled = false
-    private var quickCameraInitializing = false
-    private var quickCameraReady = false
-    private var quickCameraReadyAtElapsedMs = 0L
+    private var frameStreamInitializing = false
+    private var frameStreamReady = false
+    private var frameStreamReadyAtElapsedMs = 0L
     private var sdkReadyAtElapsedMs = 0L
+    private var lastConsumedFrameTimestamp = 0L
 
     private var latestNativeSnapshot: NativeInferenceStats? = null
     private var hazardCaptureService: HazardCaptureService? = null
@@ -221,6 +228,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
         autoCaptureScheduled = false
+        frameStreamInitializing = false
+        frameStreamReady = false
+        frameStreamReadyAtElapsedMs = 0L
+        lastConsumedFrameTimestamp = 0L
+        RokidFrameSource.releaseAll()
         super.onPause()
         logWorkflowCheckpoint("onPause end")
     }
@@ -242,10 +254,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         uiHandler.removeCallbacks(resultDismissRunnable)
-        quickCameraInitializing = false
-        quickCameraReady = false
-        quickCameraReadyAtElapsedMs = 0L
-        QuickCameraManager.releaseCamera()
+        frameStreamInitializing = false
+        frameStreamReady = false
+        frameStreamReadyAtElapsedMs = 0L
+        lastConsumedFrameTimestamp = 0L
+        RokidFrameSource.releaseAll()
         RokidSdkManager.removeListener(this)
         sampleSourceBitmap?.recycle()
         sampleSourceBitmap = null
@@ -350,9 +363,9 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             showLoadingUi(getString(R.string.hidden_risk_loading))
             return
         }
-        if (captureInProgress || captureDelayScheduled || quickCameraInitializing) {
+        if (captureInProgress || captureDelayScheduled || frameStreamInitializing) {
             workflowState = if (captureInProgress) WorkflowState.CAPTURING_SAMPLE else WorkflowState.PREPARING_CAMERA
-            statusMessage = "正在准备拍照，请稍候"
+            statusMessage = "正在准备相机帧，请稍候"
             if (!isResultUiActive()) {
                 showLoadingUi(getString(R.string.hidden_risk_loading))
             }
@@ -522,50 +535,47 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        if (quickCameraReady && !QuickCameraManager.isGpuCaptureWarm()) {
-            quickCameraReady = false
-            quickCameraReadyAtElapsedMs = 0L
+        if (frameStreamReady && !RokidFrameSource.isCroppedFrameStreamWarm()) {
+            frameStreamReady = false
+            frameStreamReadyAtElapsedMs = 0L
         }
 
-        if (!quickCameraReady) {
+        if (!frameStreamReady) {
             workflowState = WorkflowState.PREPARING_CAMERA
-            statusMessage = if (quickCameraInitializing) "初始化本地相机" else "准备本地相机"
+            statusMessage = if (frameStreamInitializing) "初始化相机帧流" else "准备相机帧流"
             if (!isResultUiActive()) {
                 showLoadingUi(getString(R.string.hidden_risk_loading))
             }
-            if (!quickCameraInitializing) {
-                quickCameraInitializing = true
-                QuickCameraManager.initialize(
-                    size = QUICK_CAPTURE_SIZE,
-                    quickCapture = true,
-                ) { success ->
+            if (!frameStreamInitializing) {
+                frameStreamInitializing = true
+                RokidFrameSource.startFrameStream { success ->
                     uiHandler.post {
-                        quickCameraInitializing = false
-                        quickCameraReady = success
-                        quickCameraReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
+                        frameStreamInitializing = false
+                        frameStreamReady = success
+                        frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
                         if (destroyed) {
-                            QuickCameraManager.releaseCamera()
+                            RokidFrameSource.stopFrameStream()
                             return@post
                         }
                         if (!isActivityResumed || !isWorkflowActive) {
-                            quickCameraReady = false
-                            quickCameraReadyAtElapsedMs = 0L
-                            QuickCameraManager.releaseCamera()
-                            logWorkflowCheckpoint("quickCamera init completed in background")
+                            frameStreamReady = false
+                            frameStreamReadyAtElapsedMs = 0L
+                            RokidFrameSource.stopFrameStream()
+                            logWorkflowCheckpoint("frameStream init completed in background")
                             return@post
                         }
                         if (!success) {
-                            failWorkflow("本地相机初始化失败")
+                            failWorkflow("相机帧流初始化失败")
                             return@post
                         }
-                        val readyElapsedMs = quickCameraReadyAtElapsedMs.takeIf { it > 0L } ?: sdkReadyAtElapsedMs
+                        val readyElapsedMs = frameStreamReadyAtElapsedMs.takeIf { it > 0L } ?: sdkReadyAtElapsedMs
                         val warmupRemainingMs = when {
                             readyElapsedMs <= 0L -> CAPTURE_WARMUP_MS
                             else -> (CAPTURE_WARMUP_MS - (SystemClock.elapsedRealtime() - readyElapsedMs))
                                 .coerceAtLeast(0L)
                         }
                         if (warmupRemainingMs > 0L) {
-                            statusMessage = "等待相机链路稳定"
+                            statusMessage = "等待相机帧流稳定"
                             if (!isResultUiActive()) {
                                 showLoadingUi(getString(R.string.hidden_risk_loading))
                             }
@@ -581,14 +591,14 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        val readyElapsedMs = quickCameraReadyAtElapsedMs.takeIf { it > 0L } ?: sdkReadyAtElapsedMs
+        val readyElapsedMs = frameStreamReadyAtElapsedMs.takeIf { it > 0L } ?: sdkReadyAtElapsedMs
         val warmupRemainingMs = when {
             readyElapsedMs <= 0L -> CAPTURE_WARMUP_MS
             else -> (CAPTURE_WARMUP_MS - (SystemClock.elapsedRealtime() - readyElapsedMs)).coerceAtLeast(0L)
         }
         if (warmupRemainingMs > 0L) {
             workflowState = WorkflowState.PREPARING_CAMERA
-            statusMessage = "等待相机链路稳定"
+            statusMessage = "等待相机帧流稳定"
             if (!isResultUiActive()) {
                 showLoadingUi(getString(R.string.hidden_risk_loading))
             }
@@ -617,32 +627,29 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         Log.i(
             TAG,
-            "takeGpuFrame request source=QuickCameraManager backend=${targetBackendLabel()} profile=${targetProfileLabel()} targetSize=$targetInputSize",
+            "copyNextFrameOrNull request source=RokidFrameSource backend=${targetBackendLabel()} profile=${targetProfileLabel()} targetSize=$targetInputSize",
         )
-        QuickCameraManager.takeGpuFrame { frame ->
-            uiHandler.post {
-                if (destroyed || !captureInProgress) {
-                    return@post
-                }
-                if (frame == null) {
-                    captureInProgress = false
-                    uiHandler.removeCallbacks(captureTimeoutRunnable)
-                    Log.w(
-                        TAG,
-                        "takeGpuFrame failed elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${QuickCameraManager.isGpuCaptureWarm()}",
-                    )
-                    failWorkflow("预览帧采集失败")
-                    return@post
-                }
-                captureInProgress = false
-                uiHandler.removeCallbacks(captureTimeoutRunnable)
-                Log.i(
-                    TAG,
-                    "takeGpuFrame request submitted width=${frame.width} height=${frame.height} rotation=${frame.rotationDegrees} elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${QuickCameraManager.isGpuCaptureWarm()}",
-                )
-                triggerInference(frame)
-            }
+        val frame = copyNextFrameOrNull()
+        if (destroyed || !captureInProgress) {
+            return
         }
+        if (frame == null) {
+            captureInProgress = false
+            uiHandler.removeCallbacks(captureTimeoutRunnable)
+                Log.w(
+                    TAG,
+                    "copyNextFrameOrNull failed elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isCroppedFrameStreamWarm()}",
+                )
+            failWorkflow("预览帧采集失败")
+            return
+        }
+        captureInProgress = false
+        uiHandler.removeCallbacks(captureTimeoutRunnable)
+        Log.i(
+            TAG,
+            "copyNextFrameOrNull submitted width=${frame.width} height=${frame.height} timestamp=${frame.timestamp} elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isCroppedFrameStreamWarm()}",
+        )
+        triggerInference(frame)
     }
 
     private fun startSampleBitmapInferenceIfNeeded() {
@@ -681,19 +688,17 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun triggerInference(frame: QuickCameraManager.GpuFrame) {
+    private fun triggerInference(frame: RokidFrameSource.CroppedNv21Frame) {
         val local = hiddenRiskNcnn ?: run {
-            frame.hardwareBuffer.close()
             failWorkflow("原生引擎不可用")
             return
         }
         if (!inferenceRunning.compareAndSet(false, true)) {
-            frame.hardwareBuffer.close()
             return
         }
 
         workflowState = WorkflowState.INFERRING
-        statusMessage = "正在执行 GPU 推理"
+        statusMessage = "正在执行 NV21 推理"
         if (!isResultUiActive()) {
             showCapturingUi()
         }
@@ -701,22 +706,18 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!submitNativeTask {
                 Log.i(
                     TAG,
-                    "inference start width=${frame.width} height=${frame.height} rotation=${frame.rotationDegrees}",
+                    "inference start width=${frame.width} height=${frame.height} timestamp=${frame.timestamp}",
                 )
-                val frameBitmap = frame.previewBitmap
-
                 val success = runCatching {
-                    local.submitHardwareBuffer(
-                        frame.hardwareBuffer,
+                    local.submitNv21(
+                        frame.data,
                         frame.width,
                         frame.height,
-                        frame.rotationDegrees,
                     )
                 }.onFailure { error ->
-                    Log.e(TAG, "submitHardwareBuffer failed", error)
+                    Log.e(TAG, "submitNv21 failed", error)
                 }.getOrDefault(false)
-                frame.hardwareBuffer.close()
-                Log.i(TAG, "submitHardwareBuffer finished success=$success")
+                Log.i(TAG, "submitNv21 finished success=$success")
 
                 val snapshot = runCatching { local.getLatestInferenceStats() }
                     .onFailure { error -> Log.w(TAG, "getLatestInferenceStats failed", error) }
@@ -727,21 +728,22 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 )
                 val hazardDecision = evaluateHazardDecision(snapshot)
 
-                // 如果检测到隐患，中心裁剪后保存图片和结果
+                val capturedPayload = if (hazardDecision == HazardDecision.ABNORMAL) {
+                    buildCapturedFramePayload(frame)
+                } else {
+                    null
+                }
+
                 if (hazardDecision == HazardDecision.ABNORMAL) {
-                    val croppedBitmap = BitmapUtils.cropCenterTo640(frameBitmap)
-                    ensureHazardCaptureService().saveHazardCapture(croppedBitmap, snapshot)
-                    croppedBitmap?.recycle()
+                    ensureHazardCaptureService().saveHazardCapture(capturedPayload?.jpegBytes, snapshot)
                 }
 
                 uiHandler.post {
                     inferenceRunning.set(false)
                     latestNativeSnapshot = snapshot
                     if (destroyed) {
-                        frameBitmap?.recycle()
                         return@post
                     }
-                    frameBitmap?.recycle()
                     if (success) {
                         workflowErrorMessage = null
                         workflowState = WorkflowState.READY
@@ -753,10 +755,42 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                 }
             }) {
-            frame.hardwareBuffer.close()
             inferenceRunning.set(false)
             failWorkflow("推理任务提交失败")
         }
+    }
+
+    private fun copyNextFrameOrNull(): RokidFrameSource.CroppedNv21Frame? {
+        if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
+            return null
+        }
+        val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return null
+        if (frame.timestamp <= lastConsumedFrameTimestamp) {
+            Log.w(TAG, "drop frame reason=duplicate timestamp=${frame.timestamp} last=$lastConsumedFrameTimestamp")
+            return null
+        }
+        val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
+        if (ageMs > STALE_FRAME_THRESHOLD_MS) {
+            Log.w(TAG, "drop frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
+            return null
+        }
+        lastConsumedFrameTimestamp = frame.timestamp
+        return frame
+    }
+
+    private fun buildCapturedFramePayload(frame: RokidFrameSource.CroppedNv21Frame): CapturedFramePayload? {
+        val jpegBytes = BitmapUtils.encodeNv21ToJpeg(
+            nv21 = frame.data,
+            width = frame.width,
+            height = frame.height,
+            jpegQuality = 80,
+        ) ?: return null
+        return CapturedFramePayload(
+            jpegBytes = jpegBytes,
+            width = frame.width,
+            height = frame.height,
+            timestamp = frame.timestamp,
+        )
     }
 
     private fun triggerBitmapInference(bitmap: Bitmap) {
@@ -825,9 +859,10 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         pendingCaptureRequest = false
         captureDelayScheduled = false
         autoCaptureScheduled = false
-        quickCameraInitializing = false
-        quickCameraReady = false
-        quickCameraReadyAtElapsedMs = 0L
+        frameStreamInitializing = false
+        frameStreamReady = false
+        frameStreamReadyAtElapsedMs = 0L
+        lastConsumedFrameTimestamp = 0L
         modelLoading = false
         workflowState = WorkflowState.FAILED
         workflowErrorMessage = message
@@ -836,7 +871,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         uiHandler.removeCallbacks(resultDismissRunnable)
-        QuickCameraManager.releaseCamera()
+        RokidFrameSource.stopFrameStream()
         clearLatestInferenceState()
         showLoadingUi(message, spinning = false)
     }
@@ -1100,7 +1135,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!modelLoaded || modelLoading) {
             return false
         }
-        if (captureInProgress || captureDelayScheduled || quickCameraInitializing || pendingCaptureRequest) {
+        if (captureInProgress || captureDelayScheduled || frameStreamInitializing || pendingCaptureRequest) {
             return false
         }
         if (inferenceRunning.get()) {
@@ -1123,7 +1158,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val permissionReady = runCatching { hasRequiredPermissions() }.getOrDefault(false)
         Log.i(
             TAG,
-            "workflow checkpoint=$reason state=$workflowState status=$statusMessage resumed=$isActivityResumed active=$isWorkflowActive destroyed=$destroyed permissions=$permissionReady sdk=${RokidSdkManager.state} modelLoaded=$modelLoaded modelLoading=$modelLoading pending=$pendingCaptureRequest capture=$captureInProgress captureDelay=$captureDelayScheduled quickInit=$quickCameraInitializing quickReady=$quickCameraReady infer=${inferenceRunning.get()} autoScheduled=$autoCaptureScheduled",
+            "workflow checkpoint=$reason state=$workflowState status=$statusMessage resumed=$isActivityResumed active=$isWorkflowActive destroyed=$destroyed permissions=$permissionReady sdk=${RokidSdkManager.state} modelLoaded=$modelLoaded modelLoading=$modelLoading pending=$pendingCaptureRequest capture=$captureInProgress captureDelay=$captureDelayScheduled frameInit=$frameStreamInitializing frameReady=$frameStreamReady infer=${inferenceRunning.get()} autoScheduled=$autoCaptureScheduled",
         )
     }
 
@@ -1161,10 +1196,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val RESULT_HOLD_MS = 2000L
         private const val RECORDING_DOT_TOP_RATIO = 0.14f
         private const val RECORDING_DOT_END_RATIO = 0.06f
-        // 提高相机分辨率以减小视野（更大数字变焦）
-        // 1920x1080 裁剪 640x640 = 3x 变焦，视野更集中
-        // 传感器层面5x裁剪，直接输出640x640，无需软件裁剪
-        private val QUICK_CAPTURE_SIZE = Size(640, 640)
+        private const val STALE_FRAME_THRESHOLD_MS = 1200L
         private const val BACKEND_CPU = 0
         private const val BACKEND_GPU = 1
         private const val BACKEND_TURNIP = 2

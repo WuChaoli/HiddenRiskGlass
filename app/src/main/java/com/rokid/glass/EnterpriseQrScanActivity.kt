@@ -2,20 +2,18 @@ package com.rokid.glass
 
 import android.Manifest
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
-import android.graphics.SurfaceTexture
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.content.IntentFilter
-import android.os.BatteryManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -23,8 +21,9 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import com.rokid.glass.camera.CameraTestManager
+import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -32,13 +31,11 @@ import com.rokid.glesse.R
 
 class EnterpriseQrScanActivity : BaseGlassActivity() {
 
-    private lateinit var textureView: TextureView
+    private lateinit var cameraPreviewView: RokidCameraPreviewView
     private lateinit var tvStatus: TextView
     private lateinit var resultOverlay: FrameLayout
     private lateinit var tvResultMessage: TextView
-    private lateinit var cameraManager: CameraTestManager
 
-    // 新增 UI 视图
     private lateinit var scanFrame: View
     private lateinit var viewfinder: View
     private lateinit var tvScanHint: TextView
@@ -55,7 +52,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var isCameraReady = false
+    private var isFrameStreamReady = false
     private var isProcessingFrame = false
     private var completed = false
     private var debugSnapshotMode = false
@@ -71,7 +68,11 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     private val scanRunnable = object : Runnable {
         override fun run() {
-            if (completed || !isCameraReady || isProcessingFrame || !textureView.isAvailable) {
+            if (completed || !isFrameStreamReady || isProcessingFrame) {
+                mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
+                return
+            }
+            if (!refreshLatestFrameFromSdk()) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
@@ -101,19 +102,12 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_enterprise_qr_scan)
 
-        cameraManager = CameraTestManager(this)
         debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
-        cameraManager.setPreviewFrameCallback { data, width, height ->
-            latestPreviewFrame = data
-            latestPreviewWidth = width
-            latestPreviewHeight = height
-        }
-        textureView = findViewById(R.id.textureView)
+        cameraPreviewView = findViewById(R.id.cameraPreviewView)
         tvStatus = findViewById(R.id.tvStatus)
         resultOverlay = findViewById(R.id.resultOverlay)
         tvResultMessage = findViewById(R.id.tvResultMessage)
 
-        // 绑定新增视图
         scanFrame = findViewById(R.id.scanFrame)
         viewfinder = findViewById(R.id.viewfinder)
         tvScanHint = findViewById(R.id.tvScanHint)
@@ -125,22 +119,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
-            return
-        }
-        textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-                initCamera(surface, width, height)
-            }
-
-            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
-
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                isCameraReady = false
-                cameraManager.release()
-                return true
-            }
-
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
         }
     }
 
@@ -148,9 +126,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         super.onResume()
         if (debugSnapshotMode) return
         if (hasRequiredPermissions()) {
-            if (textureView.isAvailable) {
-                initCamera(textureView.surfaceTexture, textureView.width, textureView.height)
-            }
+            startCameraPipeline()
             startScanLoop()
         } else {
             requestPermissions()
@@ -162,24 +138,16 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             super.onPause()
             return
         }
-        mainHandler.removeCallbacks(scanRunnable)
-        cameraManager.release()
-        isCameraReady = false
-        isProcessingFrame = false
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
+        stopCameraPipeline()
         super.onPause()
     }
 
     override fun onDestroy() {
-        if (debugSnapshotMode) {
-            super.onDestroy()
-            return
+        if (!debugSnapshotMode) {
+            mainHandler.removeCallbacksAndMessages(null)
+            scanner.close()
+            stopCameraPipeline()
         }
-        mainHandler.removeCallbacksAndMessages(null)
-        scanner.close()
-        cameraManager.release()
         super.onDestroy()
     }
 
@@ -208,27 +176,51 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             tvStatus.setText(R.string.enterprise_qr_permission_denied)
             return
         }
-        if (textureView.isAvailable) {
-            initCamera(textureView.surfaceTexture, textureView.width, textureView.height)
-        }
+        startCameraPipeline()
         startScanLoop()
     }
 
-    private fun initCamera(surface: SurfaceTexture?, width: Int, height: Int) {
-        if (surface == null || !hasRequiredPermissions() || isCameraReady) {
+    private fun startCameraPipeline() {
+        if (!hasRequiredPermissions()) {
             return
         }
-        cameraManager.initialize(surface, width, height) { success ->
+        cameraPreviewView.startPreview { success ->
             runOnUiThread {
-                isCameraReady = success
                 if (!success) {
                     tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
                 }
-                if (success) {
-                    startScanLoop()
-                }
             }
         }
+        RokidFrameSource.startFrameStream { success ->
+            runOnUiThread {
+                isFrameStreamReady = success
+                if (!success) {
+                    tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
+                    return@runOnUiThread
+                }
+                tvStatus.setText(R.string.enterprise_qr_waiting)
+                startScanLoop()
+            }
+        }
+    }
+
+    private fun stopCameraPipeline() {
+        mainHandler.removeCallbacks(scanRunnable)
+        cameraPreviewView.stopPreview()
+        RokidFrameSource.stopFrameStream()
+        isFrameStreamReady = false
+        isProcessingFrame = false
+        latestPreviewFrame = null
+        latestPreviewWidth = 0
+        latestPreviewHeight = 0
+    }
+
+    private fun refreshLatestFrameFromSdk(): Boolean {
+        val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return false
+        latestPreviewFrame = frame.data
+        latestPreviewWidth = frame.width
+        latestPreviewHeight = frame.height
+        return true
     }
 
     private fun startScanLoop() {
@@ -245,8 +237,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         tvStatus.visibility = View.GONE
         InspectionWorkflowSession.updateEnterpriseFromQr(rawValue)
 
-        // 切换到成功结果展示
-        textureView.visibility = View.INVISIBLE
+        cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
         tvScanHint.visibility = View.GONE
         infoCard.visibility = View.GONE
@@ -255,6 +246,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         resultContent.visibility = View.VISIBLE
         bottomHints.visibility = View.VISIBLE
 
+        stopCameraPipeline()
         mainHandler.postDelayed({
             startActivity(Intent(this, EnterpriseInfoActivity::class.java))
             finish()
@@ -296,9 +288,8 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun applyDebugSnapshotState() {
-        textureView.visibility = View.INVISIBLE
+        cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
-        val scanFrame = findViewById<View>(R.id.scanFrame)
         val success = intent.getStringExtra("debug_state") == "success"
         if (success) {
             scanFrame.background = null

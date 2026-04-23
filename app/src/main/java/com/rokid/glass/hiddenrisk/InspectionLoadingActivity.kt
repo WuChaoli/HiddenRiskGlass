@@ -453,13 +453,13 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         animateProgressTo(90)
         refreshInputActions()
 
-        InspectionSession.initCamera { success ->
+        InspectionSession.initFrameStream { success ->
             uiHandler.post {
                 if (activityDestroyed) return@post
                 if (success) {
                     onInitializationComplete()
                 } else {
-                    showError(InspectionSession.errorMessage ?: "相机初始化失败")
+                    showError(InspectionSession.errorMessage ?: "相机帧流初始化失败")
                 }
             }
         }
@@ -546,6 +546,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, EnterpriseQrScanActivity::class.java.name)
             }
         }
+        // 企业/Wi-Fi 扫码页已经切到同一套 SDK 帧源，进入时由页面自身接管预览和扫描流。
         startActivity(targetIntent)
         finish()
     }

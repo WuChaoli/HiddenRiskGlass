@@ -60,17 +60,77 @@ object BitmapUtils {
      */
     fun nv21ToBitmap(nv21: ByteArray, width: Int, height: Int, jpegQuality: Int = 90): Bitmap? {
         return try {
-            val jpegBytes = encodeNv21RectToJpeg(
+            val jpegBytes = encodeNv21ToJpeg(
                 nv21 = nv21,
                 width = width,
                 height = height,
-                cropRect = Rect(0, 0, width, height),
                 jpegQuality = jpegQuality,
             ) ?: return null
             BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
         } catch (error: Exception) {
             Log.e(TAG, "NV21 转 Bitmap 失败: ${error.message}", error)
             null
+        }
+    }
+
+    /**
+     * 将整张 NV21 帧编码为 JPEG。
+     */
+    fun encodeNv21ToJpeg(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        jpegQuality: Int = 80,
+    ): ByteArray? {
+        return encodeNv21RectToJpeg(
+            nv21 = nv21,
+            width = width,
+            height = height,
+            cropRect = Rect(0, 0, width, height),
+            jpegQuality = jpegQuality,
+        )
+    }
+
+    /**
+     * 将 NV21 中心裁剪/回退处理为指定尺寸的 NV21。
+     * 常规路径直接复制 NV21 的中心区域；异常尺寸时回退到 Bitmap letterbox。
+     */
+    fun cropCenterNv21(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        targetSize: Int = OUTPUT_SIZE,
+    ): ByteArray? {
+        val cropRect = calculateCenterCropRect(width, height, targetSize)
+        if (cropRect != null) {
+            return cropNv21Rect(
+                nv21 = nv21,
+                width = width,
+                height = height,
+                cropRect = cropRect,
+            )
+        }
+
+        val source = nv21ToBitmap(nv21, width, height, jpegQuality = 95) ?: return null
+        val output = cropCenterTo640(source) ?: run {
+            if (!source.isRecycled) {
+                source.recycle()
+            }
+            return null
+        }
+
+        return try {
+            bitmapToNv21(output)
+        } catch (error: Exception) {
+            Log.e(TAG, "Bitmap 转 NV21 失败: ${error.message}", error)
+            null
+        } finally {
+            if (output !== source && !output.isRecycled) {
+                output.recycle()
+            }
+            if (!source.isRecycled) {
+                source.recycle()
+            }
         }
     }
 
@@ -161,9 +221,52 @@ object BitmapUtils {
         if (width < targetSize || height < targetSize) {
             return null
         }
-        val left = (width - targetSize) / 2
-        val top = (height - targetSize) / 2
+        val left = ((width - targetSize) / 2) and -2
+        val top = ((height - targetSize) / 2) and -2
         return Rect(left, top, left + targetSize, top + targetSize)
+    }
+
+    private fun cropNv21Rect(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        cropRect: Rect,
+    ): ByteArray? {
+        val cropWidth = cropRect.width()
+        val cropHeight = cropRect.height()
+        if (cropWidth <= 0 || cropHeight <= 0) {
+            return null
+        }
+        if (cropRect.left < 0 || cropRect.top < 0 || cropRect.right > width || cropRect.bottom > height) {
+            return null
+        }
+        if ((cropRect.left and 1) != 0 || (cropRect.top and 1) != 0 || (cropWidth and 1) != 0 || (cropHeight and 1) != 0) {
+            Log.w(TAG, "NV21 裁剪区域未按偶数对齐 crop=$cropRect")
+            return null
+        }
+        val expectedSize = width * height * 3 / 2
+        if (nv21.size < expectedSize) {
+            Log.e(TAG, "NV21 数据长度不足 actual=${nv21.size} expected=$expectedSize")
+            return null
+        }
+
+        val output = ByteArray(cropWidth * cropHeight * 3 / 2)
+        val srcYStride = width
+        val dstYStride = cropWidth
+        for (row in 0 until cropHeight) {
+            val srcOffset = (cropRect.top + row) * srcYStride + cropRect.left
+            val dstOffset = row * dstYStride
+            System.arraycopy(nv21, srcOffset, output, dstOffset, cropWidth)
+        }
+
+        val srcUvBase = width * height
+        val dstUvBase = cropWidth * cropHeight
+        for (row in 0 until cropHeight / 2) {
+            val srcOffset = srcUvBase + ((cropRect.top / 2) + row) * width + cropRect.left
+            val dstOffset = dstUvBase + row * cropWidth
+            System.arraycopy(nv21, srcOffset, output, dstOffset, cropWidth)
+        }
+        return output
     }
 
     private fun encodeNv21RectToJpeg(
@@ -186,5 +289,35 @@ object BitmapUtils {
             Log.e(TAG, "NV21 裁剪转 JPEG 失败: ${error.message}", error)
             null
         }
+    }
+
+    private fun bitmapToNv21(bitmap: Bitmap): ByteArray {
+        val width = bitmap.width
+        val height = bitmap.height
+        val argb = IntArray(width * height)
+        bitmap.getPixels(argb, 0, width, 0, 0, width, height)
+        val output = ByteArray(width * height * 3 / 2)
+
+        var yIndex = 0
+        var uvIndex = width * height
+        for (j in 0 until height) {
+            for (i in 0 until width) {
+                val color = argb[j * width + i]
+                val r = color shr 16 and 0xFF
+                val g = color shr 8 and 0xFF
+                val b = color and 0xFF
+
+                val y = ((66 * r + 129 * g + 25 * b + 128) shr 8) + 16
+                val u = ((-38 * r - 74 * g + 112 * b + 128) shr 8) + 128
+                val v = ((112 * r - 94 * g - 18 * b + 128) shr 8) + 128
+
+                output[yIndex++] = y.coerceIn(0, 255).toByte()
+                if ((j and 1) == 0 && (i and 1) == 0) {
+                    output[uvIndex++] = v.coerceIn(0, 255).toByte()
+                    output[uvIndex++] = u.coerceIn(0, 255).toByte()
+                }
+            }
+        }
+        return output
     }
 }

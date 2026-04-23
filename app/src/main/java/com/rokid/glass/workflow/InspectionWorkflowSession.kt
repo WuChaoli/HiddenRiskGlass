@@ -1,7 +1,5 @@
 package com.rokid.glass.workflow
 
-import android.graphics.Bitmap
-
 /**
  * 巡检主链路会话。
  * 首批先以内存单例承接页面跳转之间的上下文。
@@ -42,7 +40,7 @@ object InspectionWorkflowSession {
     var latestDetectionTitle: String? = null
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
-    var latestCapturedBitmap: Bitmap? = null
+    var latestCapturedJpeg: ByteArray? = null
     var summary: InspectionSummary = InspectionSummary()
 
     fun updateMode(connected: Boolean) {
@@ -105,9 +103,8 @@ object InspectionWorkflowSession {
         }
     }
 
-    fun recordCapture(bitmap: Bitmap?) {
-        latestCapturedBitmap?.takeIf { it !== bitmap && !it.isRecycled }?.recycle()
-        latestCapturedBitmap = bitmap
+    fun recordCapture(jpegBytes: ByteArray?) {
+        latestCapturedJpeg = jpegBytes?.copyOf()
     }
 
     fun updateSummary(transform: (InspectionSummary) -> InspectionSummary) {
@@ -121,8 +118,7 @@ object InspectionWorkflowSession {
         latestAnalysisSessionId = ""
         latestHazardRecordSessionId = ""
         latestSyncedSessionId = ""
-        latestCapturedBitmap?.takeIf { !it.isRecycled }?.recycle()
-        latestCapturedBitmap = null
+        latestCapturedJpeg = null
         summary = InspectionSummary()
     }
 

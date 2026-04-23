@@ -2,16 +2,18 @@ package com.rokid.glass.camera
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import com.rokid.glass.MyApplication
+import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SPUtil
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
 
 /**
- * 基于 Rokid CameraShareHelper 的统一帧源。
- * 统一管理预览纹理和 NV21 视频帧，避免业务页面直接操作 SDK 细节。
+ * 基于 Rokid CameraShareHelper 的统一 NV21 帧源。
+ * 只保留最近一帧原始 NV21，业务侧按需裁切，避免每帧预处理和排队。
  */
 object RokidFrameSource {
 
@@ -26,6 +28,17 @@ object RokidFrameSource {
         val width: Int,
         val height: Int,
         val timestamp: Long,
+        val receivedAtElapsedMs: Long,
+    )
+
+    data class CroppedNv21Frame(
+        val data: ByteArray,
+        val width: Int,
+        val height: Int,
+        val sourceWidth: Int,
+        val sourceHeight: Int,
+        val timestamp: Long,
+        val receivedAtElapsedMs: Long,
     )
 
     private const val TAG = "RokidFrameSource"
@@ -33,30 +46,23 @@ object RokidFrameSource {
     private const val DEFAULT_PREVIEW_ZOOM_RATIO = 2.0f
     private const val DEFAULT_TARGET_CENTER_X_RATIO = 0.50f
     private const val DEFAULT_TARGET_CENTER_Y_RATIO = 0.64f
+    private const val CROPPED_TARGET_SIZE = 640
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lock = Any()
-    private val previewReadyCallbacks = mutableListOf<(Boolean) -> Unit>()
     private val frameReadyCallbacks = mutableListOf<(Boolean) -> Unit>()
 
-    private var surfaceHelper: CameraShareHelper? = null
     private var nv21Helper: CameraShareHelper? = null
-    private var previewFrameListener: (() -> Unit)? = null
-
-    @Volatile
-    private var previewOpened = false
 
     @Volatile
     private var frameStreamOpened = false
-
-    @Volatile
-    private var previewSize: Size? = null
 
     @Volatile
     private var frameSize: Size? = null
 
     @Volatile
     private var latestFrame: Nv21Frame? = null
+    private var latestFrameBuffer: ByteArray? = null
 
     @Volatile
     private var currentZoomRatio = loadStoredPreviewZoomRatio()
@@ -69,71 +75,6 @@ object RokidFrameSource {
 
     @Volatile
     private var currentTargetCenterYRatio = DEFAULT_TARGET_CENTER_Y_RATIO
-
-    fun startPreview(
-        onReady: (Boolean) -> Unit = {},
-        onFrameAvailable: () -> Unit = {},
-    ) {
-        synchronized(lock) {
-            previewFrameListener = onFrameAvailable
-            if (!GlassSdk.isReady()) {
-                mainHandler.post { onReady(false) }
-                return
-            }
-            if (surfaceHelper != null) {
-                if (previewOpened) {
-                    mainHandler.post { onReady(true) }
-                } else {
-                    previewReadyCallbacks += onReady
-                }
-                return
-            }
-            previewReadyCallbacks += onReady
-            surfaceHelper = CameraShareHelper().apply {
-                initSurface(object : CameraShareHelper.SurfaceCallback {
-                    override fun onCameraOpened(width: Int, height: Int) {
-                        previewOpened = true
-                        previewSize = Size(width, height)
-                        applySdkZoom(currentZoomRatio)
-                        notifyPreviewReady(true)
-                    }
-
-                    override fun onFrameAvailable() {
-                        previewFrameListener?.invoke()
-                    }
-
-                    override fun onCameraClosed() {
-                        synchronized(lock) {
-                            previewOpened = false
-                            previewSize = null
-                            surfaceHelper = null
-                        }
-                    }
-
-                    override fun onError(code: Int, msg: String) {
-                        Log.e(TAG, "preview error code=$code msg=$msg")
-                        synchronized(lock) {
-                            previewOpened = false
-                            previewSize = null
-                            surfaceHelper = null
-                        }
-                        notifyPreviewReady(false)
-                    }
-                })
-            }
-        }
-    }
-
-    fun stopPreview() {
-        val helper = synchronized(lock) {
-            previewReadyCallbacks.clear()
-            previewFrameListener = null
-            previewOpened = false
-            previewSize = null
-            surfaceHelper.also { surfaceHelper = null }
-        }
-        helper?.releaseSurface()
-    }
 
     fun startFrameStream(onReady: (Boolean) -> Unit = {}) {
         synchronized(lock) {
@@ -161,12 +102,19 @@ object RokidFrameSource {
                     }
 
                     override fun onNv21Frame(nv21: ByteArray, width: Int, height: Int, timestamp: Long) {
-                        latestFrame = Nv21Frame(
-                            data = nv21.copyOf(),
-                            width = width,
-                            height = height,
-                            timestamp = timestamp,
-                        )
+                        synchronized(lock) {
+                            val buffer = latestFrameBuffer
+                                ?.takeIf { it.size == nv21.size }
+                                ?: ByteArray(nv21.size).also { latestFrameBuffer = it }
+                            System.arraycopy(nv21, 0, buffer, 0, nv21.size)
+                            latestFrame = Nv21Frame(
+                                data = buffer,
+                                width = width,
+                                height = height,
+                                timestamp = timestamp,
+                                receivedAtElapsedMs = SystemClock.elapsedRealtime(),
+                            )
+                        }
                     }
 
                     override fun onCameraClosed() {
@@ -174,6 +122,7 @@ object RokidFrameSource {
                             frameStreamOpened = false
                             frameSize = null
                             latestFrame = null
+                            latestFrameBuffer = null
                             nv21Helper = null
                         }
                     }
@@ -184,6 +133,7 @@ object RokidFrameSource {
                             frameStreamOpened = false
                             frameSize = null
                             latestFrame = null
+                            latestFrameBuffer = null
                             nv21Helper = null
                         }
                         notifyFrameReady(false)
@@ -199,21 +149,48 @@ object RokidFrameSource {
             frameStreamOpened = false
             frameSize = null
             latestFrame = null
+            latestFrameBuffer = null
             nv21Helper.also { nv21Helper = null }
         }
         helper?.releaseNv21Export()
     }
 
     fun releaseAll() {
-        stopPreview()
         stopFrameStream()
     }
 
     fun isFrameStreamWarm(): Boolean = frameStreamOpened && latestFrame != null
 
-    fun copyLatestFrame(): Nv21Frame? {
-        val frame = latestFrame ?: return null
-        return frame.copy(data = frame.data.copyOf())
+    fun isCroppedFrameStreamWarm(): Boolean = isFrameStreamWarm()
+
+    fun copyLatestRawFrame(): Nv21Frame? {
+        return synchronized(lock) {
+            val frame = latestFrame ?: return@synchronized null
+            frame.copy(data = frame.data.copyOf())
+        }
+    }
+
+    fun copyLatestFrame(): Nv21Frame? = copyLatestRawFrame()
+
+    fun copyLatestCroppedFrame(targetSize: Int = CROPPED_TARGET_SIZE): CroppedNv21Frame? {
+        return synchronized(lock) {
+            val frame = latestFrame ?: return@synchronized null
+            val croppedData = BitmapUtils.cropCenterNv21(
+                nv21 = frame.data,
+                width = frame.width,
+                height = frame.height,
+                targetSize = targetSize,
+            ) ?: return@synchronized null
+            CroppedNv21Frame(
+                data = croppedData,
+                width = targetSize,
+                height = targetSize,
+                sourceWidth = frame.width,
+                sourceHeight = frame.height,
+                timestamp = frame.timestamp,
+                receivedAtElapsedMs = frame.receivedAtElapsedMs,
+            )
+        }
     }
 
     fun setPreviewZoomRatio(zoomRatio: Float): Float {
@@ -243,17 +220,7 @@ object RokidFrameSource {
 
     fun getPreviewTargetCenterYRatio(): Float = currentTargetCenterYRatio
 
-    fun getPreviewSize(): Size? = previewSize
-
     fun getFrameSize(): Size? = frameSize
-
-    fun getTextureId(): Int = surfaceHelper?.getTextureId() ?: -1
-
-    fun updatePreviewTexture() {
-        surfaceHelper?.updateTexture()
-    }
-
-    fun getPreviewTransformMatrix(): FloatArray = surfaceHelper?.getTransformMatrix() ?: IDENTITY_MATRIX
 
     private fun loadStoredPreviewZoomRatio(): Float {
         return runCatching {
@@ -292,15 +259,6 @@ object RokidFrameSource {
         }
     }
 
-    private fun notifyPreviewReady(success: Boolean) {
-        val callbacks = synchronized(lock) {
-            previewReadyCallbacks.toList().also { previewReadyCallbacks.clear() }
-        }
-        callbacks.forEach { callback ->
-            mainHandler.post { callback(success) }
-        }
-    }
-
     private fun notifyFrameReady(success: Boolean) {
         val callbacks = synchronized(lock) {
             frameReadyCallbacks.toList().also { frameReadyCallbacks.clear() }
@@ -309,11 +267,4 @@ object RokidFrameSource {
             mainHandler.post { callback(success) }
         }
     }
-
-    private val IDENTITY_MATRIX = floatArrayOf(
-        1f, 0f, 0f, 0f,
-        0f, 1f, 0f, 0f,
-        0f, 0f, 1f, 0f,
-        0f, 0f, 0f, 1f,
-    )
 }

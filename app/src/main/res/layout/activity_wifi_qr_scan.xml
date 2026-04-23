@@ -19,8 +19,8 @@
             android:background="@drawable/glass_scan_frame">
 
             <!-- 相机预览 -->
-            <TextureView
-                android:id="@+id/textureView"
+            <com.rokid.glass.component.RokidCameraPreviewView
+                android:id="@+id/cameraPreviewView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_margin="4dp" />

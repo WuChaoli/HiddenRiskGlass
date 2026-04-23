@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Handler
@@ -56,7 +58,9 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         val summary = InspectionWorkflowSession.summary
         val hasHazardCount = if (summary.hasHazardCount == 0) 3 else summary.hasHazardCount
         tvHazardCount.text = "分析出${hasHazardCount}条隐患"
-        InspectionWorkflowSession.latestCapturedBitmap?.let(ivPreview::setImageBitmap)
+        InspectionWorkflowSession.latestCapturedJpeg
+            ?.let { decodePreviewBitmap(it) }
+            ?.let(ivPreview::setImageBitmap)
 
         operationGuideEnd.setGuide(
             title = "操作指引",
@@ -172,6 +176,44 @@ class InspectionEndReportActivity : BaseGlassActivity() {
                 }
             },
         )
+    }
+
+    private fun decodePreviewBitmap(jpegBytes: ByteArray): Bitmap? {
+        val metrics = resources.displayMetrics
+        val targetWidth = maxOf(metrics.widthPixels / 2, 640)
+        val targetHeight = maxOf(metrics.heightPixels / 2, 360)
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, bounds)
+        val options = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.RGB_565
+            inSampleSize = calculateInSampleSize(
+                sourceWidth = bounds.outWidth,
+                sourceHeight = bounds.outHeight,
+                targetWidth = targetWidth,
+                targetHeight = targetHeight,
+            )
+        }
+        return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, options)
+    }
+
+    private fun calculateInSampleSize(
+        sourceWidth: Int,
+        sourceHeight: Int,
+        targetWidth: Int,
+        targetHeight: Int,
+    ): Int {
+        var sampleSize = 1
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            return sampleSize
+        }
+        while (sourceWidth / (sampleSize * 2) >= targetWidth &&
+            sourceHeight / (sampleSize * 2) >= targetHeight
+        ) {
+            sampleSize *= 2
+        }
+        return sampleSize
     }
 
     companion object {

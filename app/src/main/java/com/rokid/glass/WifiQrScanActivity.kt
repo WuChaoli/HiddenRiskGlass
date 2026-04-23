@@ -5,8 +5,8 @@ import android.app.Activity
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.graphics.SurfaceTexture
 import android.graphics.ImageFormat
 import android.net.ConnectivityManager
 import android.net.Network
@@ -14,21 +14,19 @@ import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.wifi.WifiNetworkSpecifier
 import android.net.wifi.WifiNetworkSuggestion
+import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
-import android.view.TextureView
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
-import android.content.IntentFilter
-import android.os.BatteryManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -36,8 +34,9 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
-import com.rokid.glass.camera.CameraTestManager
+import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.utils.SystemStateUtils
@@ -52,6 +51,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         private const val TAG = "WifiQrScanActivity"
         private const val REQUEST_CODE_PERMISSIONS = 5001
         private const val SCAN_INTERVAL_MS = 800L
+        private const val SCAN_FRAME_TARGET_SIZE = 480
         private const val INVALID_QR_COOLDOWN_MS = 1600L
         private const val CONNECT_RESULT_COOLDOWN_MS = 2200L
         private const val VERIFY_INTERVAL_MS = 500L
@@ -75,13 +75,11 @@ class WifiQrScanActivity : BaseGlassActivity() {
         val label: String,
     )
 
-    private lateinit var textureView: TextureView
+    private lateinit var cameraPreviewView: RokidCameraPreviewView
     private lateinit var tvStatus: TextView
     private lateinit var resultOverlay: FrameLayout
     private lateinit var tvResultMessage: TextView
-    private lateinit var cameraManager: CameraTestManager
 
-    // 新增 UI 视图
     private lateinit var viewfinder: View
     private lateinit var tvScanHint: TextView
     private lateinit var resultContent: LinearLayout
@@ -113,10 +111,13 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private var verifyDeadlineMs = 0L
     private var nextAfterSuccess: String? = null
     private var debugSnapshotMode = false
+
     @Volatile
     private var latestPreviewFrame: ByteArray? = null
+
     @Volatile
     private var latestPreviewWidth = 0
+
     @Volatile
     private var latestPreviewHeight = 0
 
@@ -153,9 +154,12 @@ class WifiQrScanActivity : BaseGlassActivity() {
             }
             if (connectionStage != ConnectionStage.SCANNING ||
                 !isCameraReady ||
-                isProcessingFrame ||
-                !textureView.isAvailable
+                isProcessingFrame
             ) {
+                mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
+                return
+            }
+            if (!refreshLatestFrameFromSdk()) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
@@ -205,20 +209,13 @@ class WifiQrScanActivity : BaseGlassActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_wifi_qr_scan)
 
-        cameraManager = CameraTestManager(this)
         nextAfterSuccess = intent.getStringExtra(EXTRA_NEXT_AFTER_SUCCESS)
         debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
-        cameraManager.setPreviewFrameCallback { data, width, height ->
-            latestPreviewFrame = data
-            latestPreviewWidth = width
-            latestPreviewHeight = height
-        }
-        textureView = findViewById(R.id.textureView)
+        cameraPreviewView = findViewById(R.id.cameraPreviewView)
         tvStatus = findViewById(R.id.tvStatus)
         resultOverlay = findViewById(R.id.resultOverlay)
         tvResultMessage = findViewById(R.id.tvResultMessage)
 
-        // 绑定新增视图
         viewfinder = findViewById(R.id.viewfinder)
         tvScanHint = findViewById(R.id.tvScanHint)
         resultContent = findViewById(R.id.resultContent)
@@ -234,22 +231,6 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
-            return
-        }
-        textureView.surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
-                initCamera(surface, width, height)
-            }
-
-            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
-
-            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                isCameraReady = false
-                cameraManager.release()
-                return true
-            }
-
-            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
         }
     }
 
@@ -273,9 +254,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             else -> Unit
         }
         if (hasRequiredPermissions()) {
-            if (textureView.isAvailable) {
-                initCamera(textureView.surfaceTexture, textureView.width, textureView.height)
-            }
+            startCameraPipeline()
             startScanLoop()
         } else {
             requestPermissions()
@@ -293,12 +272,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         ) {
             mainHandler.removeCallbacks(verifyRunnable)
         }
-        cameraManager.release()
-        isCameraReady = false
-        isProcessingFrame = false
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
+        stopCameraPipeline()
         if (connectionStage == ConnectionStage.CONNECTING_WITH_SPECIFIER ||
             connectionStage == ConnectionStage.WAITING_SYSTEM_RESULT
         ) {
@@ -308,14 +282,12 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
-        if (debugSnapshotMode) {
-            super.onDestroy()
-            return
+        if (!debugSnapshotMode) {
+            mainHandler.removeCallbacksAndMessages(null)
+            cancelNetworkRequest()
+            scanner.close()
+            stopCameraPipeline()
         }
-        mainHandler.removeCallbacksAndMessages(null)
-        cancelNetworkRequest()
-        scanner.close()
-        cameraManager.release()
         super.onDestroy()
     }
 
@@ -351,29 +323,52 @@ class WifiQrScanActivity : BaseGlassActivity() {
             tvStatus.setText(R.string.wifi_scan_permission_denied)
             return
         }
-        if (textureView.isAvailable) {
-            initCamera(textureView.surfaceTexture, textureView.width, textureView.height)
-        }
+        startCameraPipeline()
         startScanLoop()
     }
 
-    private fun initCamera(surface: SurfaceTexture?, width: Int, height: Int) {
-        if (surface == null || !hasRequiredPermissions() || isCameraReady) {
+    private fun startCameraPipeline() {
+        if (!hasRequiredPermissions()) {
             return
         }
-        cameraManager.initialize(surface, width, height) { success ->
+        cameraPreviewView.startPreview { success ->
             runOnUiThread {
-                isCameraReady = success
-                if (success) {
-                    if (connectionStage == ConnectionStage.SCANNING) {
-                        tvStatus.setText(R.string.wifi_scan_waiting)
-                        startScanLoop()
-                    }
-                } else {
+                if (!success) {
                     tvStatus.setText(R.string.wifi_scan_camera_error)
                 }
             }
         }
+        RokidFrameSource.startFrameStream { success ->
+            runOnUiThread {
+                isCameraReady = success
+                if (!success) {
+                    tvStatus.setText(R.string.wifi_scan_camera_error)
+                    return@runOnUiThread
+                }
+                if (connectionStage == ConnectionStage.SCANNING) {
+                    tvStatus.setText(R.string.wifi_scan_waiting)
+                    startScanLoop()
+                }
+            }
+        }
+    }
+
+    private fun stopCameraPipeline() {
+        cameraPreviewView.stopPreview()
+        RokidFrameSource.stopFrameStream()
+        isCameraReady = false
+        isProcessingFrame = false
+        latestPreviewFrame = null
+        latestPreviewWidth = 0
+        latestPreviewHeight = 0
+    }
+
+    private fun refreshLatestFrameFromSdk(): Boolean {
+        val frame = RokidFrameSource.copyLatestCroppedFrame(SCAN_FRAME_TARGET_SIZE) ?: return false
+        latestPreviewFrame = frame.data
+        latestPreviewWidth = frame.width
+        latestPreviewHeight = frame.height
+        return true
     }
 
     private fun startScanLoop() {
@@ -400,8 +395,8 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 showTemporaryStatus(getString(R.string.wifi_scan_unsupported_security), INVALID_QR_COOLDOWN_MS)
             }
             !SystemStateUtils.isWifiEnabled(this) -> {
-                Log.i(TAG, "wifi disabled while scanning")
-                tvStatus.setText(R.string.wifi_scan_wifi_disabled)
+                Log.i(TAG, "wifi disabled while scanning, continue with system connect flow ssid=${payload.ssid}")
+                connectToWifi(payload)
             }
             else -> connectToWifi(payload)
         }
@@ -593,7 +588,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun applyDebugSnapshotState() {
-        textureView.visibility = View.INVISIBLE
+        cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
         val scanFrame = findViewById<View>(R.id.scanFrame)
         val state = intent.getStringExtra("debug_state") ?: "idle"
@@ -685,18 +680,17 @@ class WifiQrScanActivity : BaseGlassActivity() {
         connectionStage = ConnectionStage.SHOWING_RESULT
         val isSuccess = message == getString(R.string.wifi_scan_success_generic)
 
-        // 隐藏扫描内容，显示结果内容
-        textureView.visibility = View.INVISIBLE
+        cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
         tvScanHint.visibility = View.GONE
         infoCard.visibility = View.GONE
-        // 移除扫描框边框背景
         val scanFrame = findViewById<View>(R.id.scanFrame)
         scanFrame.background = null
 
         resultContent.visibility = View.VISIBLE
         ivResultIcon.setImageResource(if (isSuccess) R.drawable.ic_check_circle else R.drawable.ic_close_circle)
-        tvResultStatusInFrame.text = if (isSuccess) getString(R.string.wifi_scan_result_success) else getString(R.string.wifi_scan_result_failed)
+        tvResultStatusInFrame.text =
+            if (isSuccess) getString(R.string.wifi_scan_result_success) else getString(R.string.wifi_scan_result_failed)
 
         if (!isSuccess) {
             tvErrorDetail.visibility = View.VISIBLE
@@ -738,12 +732,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.removeCallbacks(verifyRunnable)
         cancelNetworkRequest()
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
-        cameraManager.release()
-        isCameraReady = false
-        isProcessingFrame = false
+        stopCameraPipeline()
     }
 
     /**

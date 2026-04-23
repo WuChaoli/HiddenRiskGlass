@@ -1,21 +1,18 @@
 package com.rokid.glass.hiddenrisk
 
-import android.util.Size
-import com.rokid.glass.camera.QuickCameraManager
+import com.rokid.glass.camera.RokidFrameSource
 
 /**
  * 巡检会话管理单例。
- * 负责跨 Activity 共享初始化状态：NCNN 模型实例和相机状态。
+ * 负责跨 Activity 共享初始化状态：NCNN 模型实例和 SDK 帧流状态。
  */
 object InspectionSession {
-    private val quickCaptureSize = Size(640, 640)
-
     // NCNN 模型实例
     var hiddenRiskNcnn: HiddenRiskNcnn? = null
         private set
 
-    // 相机是否已就绪
-    var isCameraReady: Boolean = false
+    // SDK 帧流是否已就绪
+    var isFrameStreamReady: Boolean = false
         private set
 
     // 初始化是否完成
@@ -63,26 +60,28 @@ object InspectionSession {
     }
 
     /**
-     * 初始化相机
+     * 初始化 SDK NV21 帧流
      */
-    fun initCamera(callback: (Boolean) -> Unit) {
-        if (isCameraReady && !QuickCameraManager.isGpuCaptureWarm()) {
-            isCameraReady = false
-        }
-        if (isCameraReady) {
+    fun initFrameStream(callback: (Boolean) -> Unit) {
+        if (isFrameStreamReady && RokidFrameSource.isFrameStreamWarm()) {
             callback(true)
             return
         }
-        QuickCameraManager.initialize(
-            size = quickCaptureSize,
-            quickCapture = true,
-        ) { success ->
-            isCameraReady = success
+        RokidFrameSource.startFrameStream { success ->
+            isFrameStreamReady = success
             if (!success) {
-                errorMessage = "相机初始化失败"
+                errorMessage = "相机帧流初始化失败"
             }
             callback(success)
         }
+    }
+
+    /**
+     * 停止 inspection 相关的 SDK 帧源，占用相机的外部页面进入前调用。
+     */
+    fun stopFrameStream() {
+        RokidFrameSource.releaseAll()
+        isFrameStreamReady = false
     }
 
     /**
@@ -105,8 +104,7 @@ object InspectionSession {
     fun reset() {
         hiddenRiskNcnn?.clearFrameState()
         hiddenRiskNcnn = null
-        QuickCameraManager.releaseCamera()
-        isCameraReady = false
+        stopFrameStream()
         isInitialized = false
         errorMessage = null
     }
@@ -117,8 +115,7 @@ object InspectionSession {
     fun release() {
         hiddenRiskNcnn?.clearFrameState()
         hiddenRiskNcnn = null
-        QuickCameraManager.releaseCamera()
-        isCameraReady = false
+        stopFrameStream()
         isInitialized = false
         errorMessage = null
     }
