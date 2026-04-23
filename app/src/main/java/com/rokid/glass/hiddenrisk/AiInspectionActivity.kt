@@ -29,8 +29,8 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.InspectionEndReportActivity
-import com.rokid.glass.InspectionModeActivity
 import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glass.component.AlertActionConfig
 import com.rokid.glass.component.AlertBehavior
@@ -43,11 +43,9 @@ import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
-import com.rokid.glass.utils.SSEUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glass.workflow.InspectionWorkflowSession.WorkflowMode
 import com.rokid.glesse.R
-import okhttp3.Response
 import okhttp3.sse.EventSource
 import java.io.ByteArrayOutputStream
 import java.util.ArrayDeque
@@ -115,6 +113,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val ONLINE_DETECT_INTERVAL_MS = 1000L
         private const val ONLINE_DETECTION_FIRST_PACKET_TIMEOUT_MS = 2000L
         private const val ONLINE_FRAME_BUFFER_CAPACITY = 4
+        private const val ONLINE_DETECTION_MAX_IN_FLIGHT = 2
 
         private const val BACKEND_GPU = 1
         private const val GPU_PROFILE_BALANCED_FP16 = 1
@@ -277,6 +276,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
     private val onlineHazardDetectionService by lazy { OnlineHazardDetectionService() }
+    private val deepAnalysisService by lazy { HazardDeepAnalysisService() }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
     private var destroyed = false
@@ -312,14 +312,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var stableQualifiedAtMillis: Long? = null
     private var nextOnlineDetectRequestId = 0L
     private val onlineFrameBuffer = ArrayDeque<CapturedFramePayload>()
-    private var onlineDetectHandle: OnlineHazardDetectionService.DetectionHandle? = null
+    private val onlineDetectHandles = linkedMapOf<Long, OnlineHazardDetectionService.DetectionHandle>()
     private var onlineFrameCaptureScheduled = false
     private var onlineDetectScheduled = false
     private var awaitingFirstOnlineDetect = false
 
     // SSE 相关
     private var currentEventSource: EventSource? = null
-    private var sseUtil: SSEUtil = SSEUtil()
     private var headGestureSupported = false
     private var debugSnapshotState: String? = null
 
@@ -444,8 +443,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             logOnlineWorkflowCheckpoint("onlineDetectRunnable skip")
             return@Runnable
         }
-        if (onlineDetectHandle != null) {
-            Log.i(TAG, "online detect tick skipped reason=request_in_flight requestId=${onlineDetectHandle?.requestId}")
+        if (onlineDetectHandles.size >= ONLINE_DETECTION_MAX_IN_FLIGHT) {
+            Log.i(TAG, "online detect tick skipped reason=max_in_flight inFlight=${onlineDetectHandles.size}")
             scheduleOnlineDetectIfNeeded(ONLINE_DETECT_INTERVAL_MS)
             return@Runnable
         }
@@ -490,7 +489,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val operationGuideDetecting = findViewById<OperationGuideView>(R.id.operationGuideDetecting)
         operationGuideDetecting.setGuide(
             title = "操作指引",
-            content = "说出\"分析\"\n说出\"返回\"\n说出\"结束\"\n单击 分析\n双击 返回"
+            content = "单击 分析\n双击 返回\n说出\"返回\"\n说出\"结束\""
         )
 
         HeadGestureManager.initialize(this)
@@ -961,7 +960,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionWorkflowSession.clearForNewInspection()
-        startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
+        startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })
         finish()
@@ -978,7 +977,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cancelAllOnlineDetection()
         hideStatusAlertOverlay()
         refreshInputActions()
-        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
         startActivity(Intent(this, InspectionEndReportActivity::class.java))
         finish()
     }
@@ -1399,22 +1398,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun syncToPhone() {
-        HazardStreamService.syncToPhone(
-            lastAnalysisText,
-            sessionId,
-            object : HazardStreamService.SyncCallback {
+        InspectionSyncService.syncAnalysisToPhone(
+            sessionId = sessionId,
+            callback = object : InspectionSyncService.Callback {
                 override fun onSuccess() {
                     if (destroyed) return
+                    InspectionWorkflowSession.recordPhoneSync(sessionId)
                     showSyncSuccess()
                 }
 
                 override fun onError(message: String) {
                     if (destroyed) return
                     Log.e(TAG, "sync failed: $message")
-                    // 同步失败也显示成功页面（后续可改为错误提示）
-                    showSyncSuccess()
                 }
-            })
+            },
+        )
     }
 
     private fun showSyncSuccess() {
@@ -1426,9 +1424,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun cancelAllOnlineDetection() {
-        onlineDetectHandle?.timeoutRunnable?.let(uiHandler::removeCallbacks)
-        onlineDetectHandle?.cancel()
-        onlineDetectHandle = null
+        onlineDetectHandles.values.forEach { handle ->
+            handle.timeoutRunnable?.let(uiHandler::removeCallbacks)
+            handle.cancel()
+        }
+        onlineDetectHandles.clear()
         stopOnlinePipeline("cancelAllOnlineDetection", clearBufferedFrames = true)
     }
 
@@ -1523,7 +1523,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun tryStartImmediateOnlineDetection(reason: String) {
-        if (!awaitingFirstOnlineDetect || onlineDetectHandle != null) {
+        if (!awaitingFirstOnlineDetect || onlineDetectHandles.size >= ONLINE_DETECTION_MAX_IN_FLIGHT) {
             return
         }
         if (!shouldRunOnlineFrameCaptureLoop()) {
@@ -1537,8 +1537,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun startOnlineDetection(frame: CapturedFramePayload, reason: String) {
         if (!isOnlineMode()) return
-        if (onlineDetectHandle != null) {
-            Log.i(TAG, "skip startOnlineDetection reason=in_flight requestId=${onlineDetectHandle?.requestId}")
+        if (onlineDetectHandles.size >= ONLINE_DETECTION_MAX_IN_FLIGHT) {
+            Log.i(TAG, "skip startOnlineDetection reason=max_in_flight inFlight=${onlineDetectHandles.size}")
             return
         }
         val requestId = ++nextOnlineDetectRequestId
@@ -1557,9 +1557,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     hasHazard: Boolean,
                     message: String,
                 ) {
-                    if (onlineDetectHandle?.requestId == handle.requestId) {
-                        onlineDetectHandle = null
-                    }
+                    onlineDetectHandles.remove(handle.requestId)
                     if (destroyed || pageState != PageState.DETECTING) {
                         return
                     }
@@ -1587,34 +1585,44 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     if (awaitingFirstOnlineDetect) {
                         tryStartImmediateOnlineDetection("first_packet_complete")
                     }
+                    tryDispatchBufferedOnlineDetection("first_packet_complete")
                 }
 
                 override fun onTimeout(handle: OnlineHazardDetectionService.DetectionHandle) {
-                    if (onlineDetectHandle?.requestId == handle.requestId) {
-                        onlineDetectHandle = null
-                    }
+                    onlineDetectHandles.remove(handle.requestId)
                     if (!destroyed && awaitingFirstOnlineDetect) {
                         tryStartImmediateOnlineDetection("timeout_complete")
                     }
+                    tryDispatchBufferedOnlineDetection("timeout_complete")
                 }
 
                 override fun onFailure(
                     handle: OnlineHazardDetectionService.DetectionHandle,
                     message: String,
                 ) {
-                    if (onlineDetectHandle?.requestId == handle.requestId) {
-                        onlineDetectHandle = null
-                    }
+                    onlineDetectHandles.remove(handle.requestId)
                     if (!destroyed && awaitingFirstOnlineDetect) {
                         tryStartImmediateOnlineDetection("failure_complete")
                     }
+                    tryDispatchBufferedOnlineDetection("failure_complete")
                 }
 
                 override fun onClosed(handle: OnlineHazardDetectionService.DetectionHandle) = Unit
             },
         )
-        onlineDetectHandle = handle
+        onlineDetectHandles[handle.requestId] = handle
         scheduleOnlineDetectIfNeeded(ONLINE_DETECT_INTERVAL_MS)
+    }
+
+    private fun tryDispatchBufferedOnlineDetection(reason: String) {
+        if (!shouldRunOnlineDetectLoop()) {
+            return
+        }
+        while (onlineDetectHandles.size < ONLINE_DETECTION_MAX_IN_FLIGHT) {
+            val nextFrame = consumeLatestOnlineFrameOrNull(reason) ?: return
+            awaitingFirstOnlineDetect = false
+            startOnlineDetection(nextFrame, reason)
+        }
     }
 
     // ==================== 自动拍摄调度 ====================
@@ -1648,9 +1656,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun logOnlineWorkflowCheckpoint(reason: String) {
         if (!isOnlineMode()) return
         val permissionReady = runCatching { hasRequiredPermissions() }.getOrDefault(false)
-        Log.i(
-            TAG,
-            "online checkpoint=$reason resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState permissions=$permissionReady sdk=${RokidSdkManager.state} stable=$isMotionStable stableSince=$stableQualifiedAtMillis pending=$pendingCaptureRequest capture=$captureInProgress captureDelay=$captureDelayScheduled quickInit=$quickCameraInitializing quickReady=$quickCameraReady infer=${inferenceRunning.get()} autoScheduled=$autoCaptureScheduled frameCaptureScheduled=$onlineFrameCaptureScheduled detectScheduled=$onlineDetectScheduled awaitingFirst=$awaitingFirstOnlineDetect streamPending=$pendingStreamStart streaming=$streamingInProgress callbackActive=$streamCallbackActive mayHazard=$mayHazardVerificationInProgress inFlight=${onlineDetectHandle?.requestId ?: -1} bufferSize=${onlineFrameBuffer.size}",
+            Log.i(
+                TAG,
+                "online checkpoint=$reason resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState permissions=$permissionReady sdk=${RokidSdkManager.state} stable=$isMotionStable stableSince=$stableQualifiedAtMillis pending=$pendingCaptureRequest capture=$captureInProgress captureDelay=$captureDelayScheduled quickInit=$quickCameraInitializing quickReady=$quickCameraReady infer=${inferenceRunning.get()} autoScheduled=$autoCaptureScheduled frameCaptureScheduled=$onlineFrameCaptureScheduled detectScheduled=$onlineDetectScheduled awaitingFirst=$awaitingFirstOnlineDetect streamPending=$pendingStreamStart streaming=$streamingInProgress callbackActive=$streamCallbackActive mayHazard=$mayHazardVerificationInProgress inFlight=${onlineDetectHandles.size} bufferSize=${onlineFrameBuffer.size}",
         )
     }
 
@@ -1729,7 +1737,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 label = "检测页分析",
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                    UnifiedInputSession.InputTrigger.Voice("分析", "fen xi"),
                 ),
                 enabled = { pageState == PageState.DETECTING },
             ) {
@@ -2176,26 +2183,24 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 通过 SSE 接口发送图像数据
      */
     private fun sendImageToSSE(base64Image: String) {
-        // 每次拍照生成新 sessionId，格式：时间戳_snCode
         val snCode = RokidSdkManager.getSerialNumber()
-        sessionId = "${System.currentTimeMillis()}_${snCode}"
-
-        sseUtil.connect(
-            imageUrl = base64Image,
+        val analysisSessionId = InspectionBackendSessionId.create(snCode, prefix = "analysis")
+        sessionId = deepAnalysisService.analyzeBase64(
+            base64Image = base64Image,
             snCode = snCode,
-            sessionId = sessionId,
-            listener = object : SSEUtil.SSEListener {
-                override fun onOpened() {
+            sessionId = analysisSessionId,
+            callback = object : HazardDeepAnalysisService.StreamCallback {
+                override fun onOpened(sessionId: String) {
                     Log.d(TAG, "SSE 连接已建立")
                     uiHandler.post {
                         tvStreamContent.text = "正在分析隐患..."
                     }
                 }
 
-                override fun onMessage(data: String) {
-                    Log.d(TAG, "收到 SSE 消息: $data")
+                override fun onChunk(sessionId: String, text: String) {
+                    Log.d(TAG, "收到 SSE 消息: $text")
                     uiHandler.post {
-                        tvStreamContent.text = data
+                        tvStreamContent.text = text
                         adjustStreamScrollHeight()
                         scrollContent.post {
                             scrollContent.fullScroll(View.FOCUS_DOWN)
@@ -2203,27 +2208,27 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                 }
 
-                override fun onClosed() {
+                override fun onComplete(sessionId: String, fullText: String) {
                     Log.d(TAG, "SSE 连接已关闭")
                     uiHandler.post {
                         streamCallbackActive = false
                         streamingInProgress = false
                         lastAnalysisText = tvStreamContent.text.toString()
+                        InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
                         bottomPromptSync.visibility = View.VISIBLE
                         refreshInputActions()
                     }
                 }
 
-                override fun onFailure(t: Throwable?, response: Response?) {
-                    Log.e(TAG, "SSE 连接失败", t)
-                    val errorMessage = t?.message ?: response?.message ?: "未知错误"
-                    handleSSEError(errorMessage)
+                override fun onError(sessionId: String, message: String) {
+                    Log.e(TAG, "SSE 连接失败 sessionId=$sessionId message=$message")
+                    handleSSEError(message)
                 }
 
-                override fun onEventSourceCreated(eventSource: EventSource) {
+                override fun onEventSourceCreated(sessionId: String, eventSource: EventSource) {
                     currentEventSource = eventSource
                 }
-            }
+            },
         )
     }
 

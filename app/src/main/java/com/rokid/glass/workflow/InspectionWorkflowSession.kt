@@ -35,6 +35,10 @@ object InspectionWorkflowSession {
 
     var workflowMode: WorkflowMode = WorkflowMode.OFFLINE
     var enterpriseInfo: EnterpriseInfo? = null
+    var inspectionSessionId: String = ""
+    var latestAnalysisSessionId: String = ""
+    var latestHazardRecordSessionId: String = ""
+    var latestSyncedSessionId: String = ""
     var latestDetectionTitle: String? = null
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
@@ -43,6 +47,13 @@ object InspectionWorkflowSession {
 
     fun updateMode(connected: Boolean) {
         workflowMode = if (connected) WorkflowMode.ONLINE else WorkflowMode.OFFLINE
+    }
+
+    fun beginInspection(sessionId: String) {
+        inspectionSessionId = sessionId
+        latestAnalysisSessionId = ""
+        latestHazardRecordSessionId = ""
+        latestSyncedSessionId = ""
     }
 
     fun updateEnterpriseFromQr(qrContent: String) {
@@ -72,8 +83,26 @@ object InspectionWorkflowSession {
         latestDetectionMessage = message
     }
 
-    fun recordAnalysis(text: String) {
+    fun recordAnalysis(text: String, sessionId: String = latestAnalysisSessionId) {
         latestAnalysisText = text
+        latestAnalysisSessionId = sessionId
+    }
+
+    fun recordHazardRecordUpload(sessionId: String) {
+        latestHazardRecordSessionId = sessionId
+    }
+
+    fun recordPhoneSync(sessionId: String) {
+        latestSyncedSessionId = sessionId
+    }
+
+    fun resolveFinishSessionId(): String? {
+        return when {
+            latestAnalysisSessionId.isNotBlank() -> latestAnalysisSessionId
+            latestHazardRecordSessionId.isNotBlank() -> latestHazardRecordSessionId
+            inspectionSessionId.isNotBlank() -> inspectionSessionId
+            else -> null
+        }
     }
 
     fun recordCapture(bitmap: Bitmap?) {
@@ -89,6 +118,9 @@ object InspectionWorkflowSession {
         latestDetectionTitle = null
         latestDetectionMessage = null
         latestAnalysisText = ""
+        latestAnalysisSessionId = ""
+        latestHazardRecordSessionId = ""
+        latestSyncedSessionId = ""
         latestCapturedBitmap?.takeIf { !it.isRecycled }?.recycle()
         latestCapturedBitmap = null
         summary = InspectionSummary()
@@ -97,6 +129,7 @@ object InspectionWorkflowSession {
     fun resetAll() {
         clearForNewInspection()
         enterpriseInfo = null
+        inspectionSessionId = ""
         workflowMode = WorkflowMode.OFFLINE
     }
 }

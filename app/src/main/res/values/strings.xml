@@ -84,7 +84,7 @@
     <string name="ai_inspection_status_detecting">AI 隐患识别中</string>
     <string name="ai_inspection_default_location">华北制造基地</string>
     <string name="ai_inspection_default_workshop">装配车间</string>
-    <string name="ai_inspection_auto_capture">语音指令：分析 | 退出</string>
+    <string name="ai_inspection_auto_capture">触控指令：单击分析 | 双击退出</string>
     <string name="ai_inspection_keep_steady">触控指令：单击 | 双击</string>
     <string name="ai_inspection_hazard_found">检测到隐患</string>
     <string name="ai_inspection_hazard_count">已处理隐患0/10</string>
@@ -108,7 +108,7 @@
     <string name="ai_inspection_device_error_title">设备异常</string>
     <string name="ai_inspection_device_error_hint">触控指令：单击 | 双击</string>
     <string name="ai_inspection_guide_title">巡检操作说明</string>
-    <string name="ai_inspection_guide_content">1. 保持眼镜稳定，自动取景识别隐患\n2. 发现隐患后自动分析并生成整改方案\n3. 确认后将隐患同步至手机端</string>
+    <string name="ai_inspection_guide_content">1. 保持眼镜稳定，自动取景识别隐患\n2. 发现隐患后手动点击进入深度分析\n3. 确认后将隐患同步至手机端</string>
     <string name="ai_inspection_guide_hint">语音指令：开始\n触控指令：单击 | 双击</string>
     <string name="ai_inspection_guide_step1">1、保持眼镜稳定，自动取景识别隐患</string>
     <string name="ai_inspection_guide_step2">2、加载完成后，系统自动拍照、上传识别</string>

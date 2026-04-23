@@ -18,6 +18,7 @@ import android.widget.TextView
 import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SpriteToastUtil
+import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import kotlinx.coroutines.CoroutineScope
@@ -73,6 +74,7 @@ class LightshotActivity : BaseGlassActivity() {
     private var mode: String = MODE_LIGHTSHOT
     private var countdownActive = false
     private var syncPromptVisible = false
+    private var hazardRecordUploadInProgress = false
     private var countdownRemaining = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -173,7 +175,7 @@ class LightshotActivity : BaseGlassActivity() {
                         add(UnifiedInputSession.InputTrigger.Voice("录入", "lu ru"))
                     }
                 },
-                enabled = { !countdownActive && !syncPromptVisible },
+                enabled = { !countdownActive && !syncPromptVisible && !hazardRecordUploadInProgress },
             ) {
                 if (isHazardRecordMode()) {
                     startHazardCountdown()
@@ -188,7 +190,7 @@ class LightshotActivity : BaseGlassActivity() {
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
                     UnifiedInputSession.InputTrigger.Voice("缩小", "suo xiao"),
                 ),
-                enabled = { !isHazardRecordMode() && !syncPromptVisible && !countdownActive },
+                enabled = { !isHazardRecordMode() && !syncPromptVisible && !countdownActive && !hazardRecordUploadInProgress },
             ) {
                 adjustFov(-1)
             },
@@ -199,7 +201,7 @@ class LightshotActivity : BaseGlassActivity() {
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
                     UnifiedInputSession.InputTrigger.Voice("放大", "fang da"),
                 ),
-                enabled = { !isHazardRecordMode() && !syncPromptVisible && !countdownActive },
+                enabled = { !isHazardRecordMode() && !syncPromptVisible && !countdownActive && !hazardRecordUploadInProgress },
             ) {
                 adjustFov(1)
             },
@@ -302,7 +304,6 @@ class LightshotActivity : BaseGlassActivity() {
         currentFovIndex = FOV_LEVELS.indices.minByOrNull { index ->
             kotlin.math.abs(FOV_LEVELS[index] - preferredZoom)
         } ?: FOV_LEVELS.indexOfFirst { it == DEFAULT_ZOOM_RATIO }.coerceAtLeast(0)
-        val appliedZoom = QuickCameraManager.setPreviewZoomRatio(FOV_LEVELS[currentFovIndex])
         QuickCameraManager.attachPreviewTexture(surface, width, height)
         QuickCameraManager.initialize(
             size = QUICK_CAPTURE_SIZE,
@@ -312,6 +313,8 @@ class LightshotActivity : BaseGlassActivity() {
                 cameraInitInProgress = false
                 isCameraReady = streamReady
                 if (streamReady) {
+                    // 等 GPU 预览 session ready 后再更新 zoom，避免将未配置的预览 Surface 塞入 repeating request。
+                    val appliedZoom = QuickCameraManager.setPreviewZoomRatio(FOV_LEVELS[currentFovIndex])
                     applyPreviewTransform()
                     updateFovTip(appliedZoom)
                     tvHint.text = "单击拍摄，左右滑动调视野"
@@ -498,15 +501,7 @@ class LightshotActivity : BaseGlassActivity() {
             shutterSound.play(MediaActionSound.SHUTTER_CLICK)
             Log.i(TAG, "GPU 帧保存成功: ${result.absolutePath}, 延迟=${latencyMs}ms")
             if (isHazardRecordMode()) {
-                syncPromptVisible = true
-                tvSaveResult.text = getString(R.string.hazard_record_sync_success)
-                tvSaveResult.visibility = View.VISIBLE
-                tvSyncPrompt.visibility = View.VISIBLE
-                tvHint.text = if (headGestureSupported) {
-                    getString(R.string.hazard_record_continue_hint_with_gyro)
-                } else {
-                    getString(R.string.hazard_record_continue_hint)
-                }
+                startHazardRecordUpload(result)
             } else {
                 showResultTip("已保存：${result.name} (延迟${latencyMs}ms)")
                 tvHint.setText(R.string.lightshot_hint)
@@ -522,8 +517,50 @@ class LightshotActivity : BaseGlassActivity() {
         refreshActions()
     }
 
+    private fun startHazardRecordUpload(result: File) {
+        hazardRecordUploadInProgress = true
+        syncPromptVisible = false
+        tvSaveResult.text = "隐患照片同步中..."
+        tvSaveResult.visibility = View.VISIBLE
+        tvSyncPrompt.visibility = View.GONE
+        tvHint.text = "正在上传隐患照片，请稍候"
+        refreshActions()
+        HazardRecordUploadService.uploadHazardRecord(
+            imageFile = result,
+            snCode = RokidSdkManager.getSerialNumber(),
+            callback = object : HazardRecordUploadService.Callback {
+                override fun onSuccess(result: HazardRecordUploadService.UploadResult) {
+                    if (isFinishing || isDestroyed) return
+                    hazardRecordUploadInProgress = false
+                    syncPromptVisible = true
+                    InspectionWorkflowSession.recordHazardRecordUpload(result.sessionId)
+                    tvSaveResult.text = getString(R.string.hazard_record_sync_success)
+                    tvSaveResult.visibility = View.VISIBLE
+                    tvSyncPrompt.visibility = View.VISIBLE
+                    tvHint.text = if (headGestureSupported) {
+                        getString(R.string.hazard_record_continue_hint_with_gyro)
+                    } else {
+                        getString(R.string.hazard_record_continue_hint)
+                    }
+                    refreshActions()
+                }
+
+                override fun onError(message: String) {
+                    if (isFinishing || isDestroyed) return
+                    hazardRecordUploadInProgress = false
+                    syncPromptVisible = false
+                    tvSaveResult.text = message
+                    tvSaveResult.visibility = View.VISIBLE
+                    tvSyncPrompt.visibility = View.GONE
+                    tvHint.setText(R.string.hazard_record_idle_hint)
+                    refreshActions()
+                }
+            },
+        )
+    }
+
     private fun startHazardCountdown() {
-        if (countdownActive || syncPromptVisible) return
+        if (countdownActive || syncPromptVisible || hazardRecordUploadInProgress) return
         countdownActive = true
         countdownRemaining = 3
         tvCountdownLabel.visibility = View.VISIBLE
@@ -550,6 +587,7 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     private fun resetHazardRecordUi() {
+        hazardRecordUploadInProgress = false
         syncPromptVisible = false
         tvSaveResult.visibility = View.GONE
         tvSyncPrompt.visibility = View.GONE

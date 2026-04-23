@@ -131,11 +131,6 @@
             android:label="@string/hidden_risk_probe_label"
             android:theme="@style/Theme.Glessedemo" />
         <activity
-            android:name="com.rokid.glass.HomeActivity"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.Glessedemo" />
-        <activity
             android:name="com.rokid.glass.CameraPageActivity"
             android:exported="true" />
         <!--        <activity-->

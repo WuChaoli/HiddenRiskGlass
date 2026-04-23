@@ -534,6 +534,9 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     private fun navigateToInspection() {
         InspectionWorkflowSession.clearForNewInspection()
+        InspectionWorkflowSession.beginInspection(
+            InspectionBackendSessionId.create(RokidSdkManager.getSerialNumber(), prefix = "inspection"),
+        )
         val wifiConnected = SystemStateUtils.getCurrentWifiSsid(this) != null
         InspectionWorkflowSession.updateMode(wifiConnected)
         val targetIntent = if (wifiConnected) {

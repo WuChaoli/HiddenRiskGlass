@@ -13,15 +13,13 @@ import android.widget.TextView
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.OperationGuideView
-import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HeadGestureManager
+import com.rokid.glass.hiddenrisk.InspectionFinishService
 import com.rokid.glass.input.UnifiedInputSession
-import com.rokid.glass.utils.HttpUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
-import java.util.Date
 
 class InspectionEndReportActivity : BaseGlassActivity() {
 
@@ -32,10 +30,10 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private lateinit var statusBarEnd: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private var headGestureSupported = false
+    private var finishSubmitting = false
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var batteryReceiver: BroadcastReceiver? = null
-    private val timeFormat = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
     private val timeUpdateRunnable = object : Runnable {
         override fun run() {
             statusBarEnd.updateTime()
@@ -151,21 +149,29 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     private fun finishInspectionAndReturnHome() {
-        // 首批先做模拟结束上报，不阻塞返回流程。
-        HttpUtils().reportSaveResult(
-            snCode = com.rokid.glass.hiddenrisk.RokidSdkManager.getSerialNumber(),
-            isSave = "0",
-            sessionId = System.currentTimeMillis().toString(),
-            callback = object : HttpUtils.SaveResultCallback {
-                override fun onSuccess(response: HttpUtils.ApiResponse) = Unit
-                override fun onFailure(e: Exception) = Unit
+        if (finishSubmitting) return
+        finishSubmitting = true
+        bottomPromptEnd.setSubtitle("正在提交结束请求...")
+        inputSession.updateActions(emptyList())
+        InspectionFinishService.finishInspection(
+            sessionId = InspectionWorkflowSession.resolveFinishSessionId(),
+            callback = object : InspectionFinishService.Callback {
+                override fun onSuccess() {
+                    if (isFinishing || isDestroyed) return
+                    InspectionWorkflowSession.resetAll()
+                    startActivity(Intent(this@InspectionEndReportActivity, AiInspectionMenuActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                    })
+                    finish()
+                }
+
+                override fun onError(message: String) {
+                    finishSubmitting = false
+                    bottomPromptEnd.setSubtitle(message)
+                    inputSession.updateActions(buildInputActions())
+                }
             },
         )
-        InspectionWorkflowSession.resetAll()
-        startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        })
-        finish()
     }
 
     companion object {
