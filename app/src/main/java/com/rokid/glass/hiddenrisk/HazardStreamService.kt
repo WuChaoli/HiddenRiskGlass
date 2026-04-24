@@ -109,7 +109,7 @@ object HazardStreamService {
                     runOnUiThread {
                         Log.d("SaveResult", "上报成功: code=${response.code}, msg=${response.msg}")
                         // 处理成功逻辑
-                        if (response.code == 200) {
+                        if (response.isSuccess()) {
                             // 上报成功
                             callback.onSuccess()
                         } else {

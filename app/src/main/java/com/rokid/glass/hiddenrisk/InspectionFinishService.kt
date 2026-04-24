@@ -1,7 +1,10 @@
 package com.rokid.glass.hiddenrisk
 
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.workflow.InspectionWorkflowSession
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -9,13 +12,11 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
-import android.os.Handler
-import android.os.Looper
 import java.util.concurrent.TimeUnit
 
 /**
  * 结束巡检服务。
- * 负责调用企业侧结束巡检接口。
+ * 负责依次调用企业侧主接口与固定备份接口。
  */
 object InspectionFinishService {
     private const val TAG = "InspectionFinishApi"
@@ -39,63 +40,180 @@ object InspectionFinishService {
         userId: String,
         customParam: String,
         callback: Callback,
-    ) {
-        val requestUrl = runCatching { InspectionFinishApiProtocol.buildRequestUrl(baseUrl) }.getOrElse { error ->
-            Log.e(TAG, "buildRequestUrl failed baseUrl=$baseUrl", error)
-            deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
-            return
-        }
-        val requestBodyJson = gson.toJson(
-            InspectionFinishApiProtocol.PushEndRequest(
+    ): RetryRequestHandle {
+        val handle = RetryRequestHandle()
+        val progress = InspectionWorkflowSession.finishSubmitProgress
+        if (!progress.primaryDone) {
+            submitPrimary(
+                baseUrl = baseUrl,
                 authCode = authCode,
                 objectId = objectId,
                 userId = userId,
                 customParam = customParam,
+                handle = handle,
+                callback = callback,
             )
-        )
-        Log.i(
-            TAG,
-            "finishInspection request url=$requestUrl objectId=$objectId userId=$userId customParamLength=${customParam.length}",
-        )
-        val request = Request.Builder()
-            .url(requestUrl)
-            .header("Content-Type", "application/json")
-            .post(requestBodyJson.toRequestBody(InspectionFinishApiProtocol.JSON_MEDIA_TYPE))
-            .build()
-        client.newCall(request).enqueue(object : okhttp3.Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                Log.e(TAG, "finishInspection failed url=$requestUrl", e)
-                deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
-            }
+        } else {
+            submitBackup(
+                authCode = authCode,
+                objectId = objectId,
+                userId = userId,
+                customParam = customParam,
+                handle = handle,
+                callback = callback,
+            )
+        }
+        return handle
+    }
 
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    if (!response.isSuccessful) {
-                        Log.w(
-                            TAG,
-                            "finishInspection httpFailed code=${response.code} message=${response.message} url=$requestUrl",
-                        )
-                        deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
-                        return
-                    }
-                    val body = response.body?.string().orEmpty()
-                    Log.i(TAG, "finishInspection response code=${response.code} body=$body")
-                    val parseResult = InspectionFinishApiProtocol.parseResponseBody(body, gson)
-                    if (parseResult.success) {
-                        mainHandler.post { callback.onSuccess() }
-                    } else {
-                        Log.w(
-                            TAG,
-                            "finishInspection businessFailed url=$requestUrl message=${parseResult.message} body=$body",
-                        )
-                        deliverFailure(
-                            callback,
-                            parseResult.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
-                        )
-                    }
-                }
+    private fun submitPrimary(
+        baseUrl: String,
+        authCode: String,
+        objectId: String,
+        userId: String,
+        customParam: String,
+        handle: RetryRequestHandle,
+        callback: Callback,
+    ) {
+        val requestUrl = runCatching { InspectionFinishApiProtocol.buildPrimaryRequestUrl(baseUrl) }.getOrElse { error ->
+            Log.e(TAG, "buildPrimaryRequestUrl failed baseUrl=$baseUrl", error)
+            InspectionWorkflowSession.clearFinishSubmitProgress()
+            deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
+            return
+        }
+        val requestBodyJson = InspectionFinishApiProtocol.buildRequestBodyJson(
+            gson = gson,
+            authCode = authCode,
+            objectId = objectId,
+            userId = userId,
+            customParam = customParam,
+        )
+        submitSingleEndpoint(
+            label = "primary",
+            requestUrl = requestUrl,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+        ) { outcome ->
+            if (!outcome.success) {
+                InspectionWorkflowSession.clearFinishSubmitProgress()
+                deliverFailure(
+                    callback,
+                    outcome.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                )
+                return@submitSingleEndpoint
             }
-        })
+            Log.i(TAG, "finish primary success attempts=${outcome.attemptCount}")
+            InspectionWorkflowSession.markFinishSubmitPrimaryDone()
+            submitBackup(
+                authCode = authCode,
+                objectId = objectId,
+                userId = userId,
+                customParam = customParam,
+                handle = handle,
+                callback = callback,
+            )
+        }
+    }
+
+    private fun submitBackup(
+        authCode: String,
+        objectId: String,
+        userId: String,
+        customParam: String,
+        handle: RetryRequestHandle,
+        callback: Callback,
+    ) {
+        val requestBodyJson = InspectionFinishApiProtocol.buildRequestBodyJson(
+            gson = gson,
+            authCode = authCode,
+            objectId = objectId,
+            userId = userId,
+            customParam = customParam,
+        )
+        submitSingleEndpoint(
+            label = "backup",
+            requestUrl = InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+        ) { outcome ->
+            if (!outcome.success) {
+                InspectionWorkflowSession.markFinishSubmitPrimaryDone()
+                deliverFailure(
+                    callback,
+                    outcome.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                )
+                return@submitSingleEndpoint
+            }
+            Log.i(TAG, "finish backup success attempts=${outcome.attemptCount}")
+            InspectionWorkflowSession.markFinishSubmitBackupDone()
+            InspectionWorkflowSession.clearFinishSubmitProgress()
+            mainHandler.post { callback.onSuccess() }
+        }
+    }
+
+    private fun submitSingleEndpoint(
+        label: String,
+        requestUrl: String,
+        requestBodyJson: String,
+        handle: RetryRequestHandle,
+        onComplete: (RetryOutcome) -> Unit,
+    ) {
+        InspectionRetryExecutor.execute(
+            label = "finish-$label",
+            handle = handle,
+            attemptBlock = { attempt, completion ->
+                Log.i(TAG, "finish request endpoint=$label attempt=$attempt url=$requestUrl")
+                val request = Request.Builder()
+                    .url(requestUrl)
+                    .header("Content-Type", "application/json")
+                    .post(requestBodyJson.toRequestBody(InspectionFinishApiProtocol.JSON_MEDIA_TYPE))
+                    .build()
+                val call = client.newCall(request)
+                call.enqueue(object : okhttp3.Callback {
+                    override fun onFailure(call: Call, e: IOException) {
+                        Log.e(TAG, "finish request failed endpoint=$label attempt=$attempt url=$requestUrl", e)
+                        completion(
+                            RetryAttemptResult(
+                                success = false,
+                                message = InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                            ),
+                        )
+                    }
+
+                    override fun onResponse(call: Call, response: Response) {
+                        response.use {
+                            if (!response.isSuccessful) {
+                                Log.w(
+                                    TAG,
+                                    "finish request httpFailed endpoint=$label attempt=$attempt code=${response.code} url=$requestUrl",
+                                )
+                                completion(
+                                    RetryAttemptResult(
+                                        success = false,
+                                        message = InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                                    ),
+                                )
+                                return
+                            }
+                            val body = response.body?.string().orEmpty()
+                            Log.i(
+                                TAG,
+                                "finish request response endpoint=$label attempt=$attempt code=${response.code} body=$body",
+                            )
+                            val parseResult = InspectionFinishApiProtocol.parseResponseBody(body, gson)
+                            completion(
+                                RetryAttemptResult(
+                                    success = parseResult.success,
+                                    message = parseResult.message,
+                                ),
+                            )
+                        }
+                    }
+                })
+                call
+            },
+            onComplete = onComplete,
+        )
     }
 
     private fun deliverFailure(
@@ -108,6 +226,7 @@ object InspectionFinishService {
 
 internal object InspectionFinishApiProtocol {
     internal const val DEFAULT_FAILURE_MESSAGE = "结束巡检失败，请重试"
+    internal const val BACKUP_REQUEST_URL = "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/hazardIsEnd"
     internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
     private const val IF_END_VALUE = "1"
 
@@ -130,7 +249,7 @@ internal object InspectionFinishApiProtocol {
         val message: String? = null,
     )
 
-    fun buildRequestUrl(baseUrl: String): String {
+    fun buildPrimaryRequestUrl(baseUrl: String): String {
         val normalizedBaseUrl = baseUrl.trim().trimEnd('/')
         require(normalizedBaseUrl.isNotEmpty()) { "baseUrl is blank" }
         val hasSmartGlassesPath = normalizedBaseUrl.substringAfter("://", normalizedBaseUrl)
@@ -142,6 +261,23 @@ internal object InspectionFinishApiProtocol {
         }
     }
 
+    fun buildRequestBodyJson(
+        gson: Gson,
+        authCode: String,
+        objectId: String,
+        userId: String,
+        customParam: String,
+    ): String {
+        return gson.toJson(
+            PushEndRequest(
+                authCode = authCode,
+                objectId = objectId,
+                userId = userId,
+                customParam = customParam,
+            ),
+        )
+    }
+
     fun parseResponseBody(
         body: String,
         gson: Gson = Gson(),
@@ -150,7 +286,7 @@ internal object InspectionFinishApiProtocol {
             gson.fromJson(body, PushEndResponse::class.java)
         }.getOrNull() ?: return ParseResult(success = false, message = DEFAULT_FAILURE_MESSAGE)
 
-        if (apiResponse.code == 0) {
+        if (apiResponse.code == 0 || apiResponse.code == 200) {
             return ParseResult(success = true)
         }
         return ParseResult(

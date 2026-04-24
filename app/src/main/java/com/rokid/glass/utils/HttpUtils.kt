@@ -11,6 +11,8 @@ class HttpUtils {
 
     companion object {
         private const val TAG = "HttpUtils"
+        const val PRIMARY_SAVE_RESULT_URL = "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave"
+        const val BACKUP_SAVE_RESULT_URL = "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/saveHazard"
 
         private val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -34,13 +36,15 @@ class HttpUtils {
         isSave: String? = null,
         sessionId: String? = null,
         authorization: String? = null,
+        requestUrl: String = PRIMARY_SAVE_RESULT_URL,
         callback: SaveResultCallback
-    ) {
+    ): Call {
         val requestBody = buildSaveRequestBody(snCode, isSave, sessionId)
         val jsonBody = gson.toJson(requestBody).toRequestBody("application/json".toMediaType())
 
         val request = Request.Builder()
-            .url("http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave")
+            .url(requestUrl)
+            .header("Content-Type", "application/json")
             .post(jsonBody)
             .apply {
                 if (!authorization.isNullOrBlank()) {
@@ -49,7 +53,8 @@ class HttpUtils {
             }
             .build()
 
-        client.newCall(request).enqueue(object : Callback {
+        val call = client.newCall(request)
+        call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.e(TAG, "上报保存结果失败", e)
                 callback.onFailure(e)
@@ -76,6 +81,7 @@ class HttpUtils {
                 }
             }
         })
+        return call
     }
 
     /**
@@ -100,7 +106,9 @@ class HttpUtils {
         val code: Int?,
         val data: Any?,
         val msg: String?
-    )
+    ) {
+        fun isSuccess(): Boolean = code == 0 || code == 200
+    }
 
     /**
      * 保存结果回调接口

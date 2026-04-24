@@ -9,7 +9,7 @@ class InspectionFinishApiProtocolTest {
 
     @Test
     fun buildRequestUrl_appendsSmartGlassesPathWhenMissing() {
-        val url = InspectionFinishApiProtocol.buildRequestUrl("http://example.com/hxy/apis/third")
+        val url = InspectionFinishApiProtocol.buildPrimaryRequestUrl("http://example.com/hxy/apis/third")
 
         assertEquals(
             "http://example.com/hxy/apis/third/smartGlasses/pushHidDangerEnd",
@@ -19,7 +19,7 @@ class InspectionFinishApiProtocolTest {
 
     @Test
     fun buildRequestUrl_reusesExistingSmartGlassesPath() {
-        val url = InspectionFinishApiProtocol.buildRequestUrl("http://example.com/hxy/apis/third/smartGlasses")
+        val url = InspectionFinishApiProtocol.buildPrimaryRequestUrl("http://example.com/hxy/apis/third/smartGlasses")
 
         assertEquals(
             "http://example.com/hxy/apis/third/smartGlasses/pushHidDangerEnd",
@@ -30,6 +30,14 @@ class InspectionFinishApiProtocolTest {
     @Test
     fun parseResponseBody_acceptsSuccessCode() {
         val result = InspectionFinishApiProtocol.parseResponseBody("""{"code":0,"message":"识别成功"}""")
+
+        assertTrue(result.success)
+        assertEquals(null, result.message)
+    }
+
+    @Test
+    fun parseResponseBody_acceptsBackupSuccessCode() {
+        val result = InspectionFinishApiProtocol.parseResponseBody("""{"code":200,"msg":"success"}""")
 
         assertTrue(result.success)
         assertEquals(null, result.message)
@@ -49,5 +57,13 @@ class InspectionFinishApiProtocolTest {
 
         assertFalse(result.success)
         assertEquals(InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE, result.message)
+    }
+
+    @Test
+    fun backupRequestUrl_isFixedEndpoint() {
+        assertEquals(
+            "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/hazardIsEnd",
+            InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
+        )
     }
 }

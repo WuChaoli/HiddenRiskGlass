@@ -49,6 +49,11 @@ object InspectionWorkflowSession {
         val analyzedCount: Int = 0,
     )
 
+    data class DualSubmitProgress(
+        val primaryDone: Boolean = false,
+        val backupDone: Boolean = false,
+    )
+
     var workflowMode: WorkflowMode = WorkflowMode.OFFLINE
     var enterpriseInfo: EnterpriseInfo? = null
     var enterpriseQrPayload: EnterpriseQrPayload? = null
@@ -61,6 +66,10 @@ object InspectionWorkflowSession {
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
     var latestCapturedJpeg: ByteArray? = null
+    var phoneSyncProgress: DualSubmitProgress = DualSubmitProgress()
+        private set
+    var finishSubmitProgress: DualSubmitProgress = DualSubmitProgress()
+        private set
     private val savedHazardJpegList = mutableListOf<ByteArray>()
     val savedHazardJpegs: List<ByteArray>
         get() = savedHazardJpegList.map { it.copyOf() }
@@ -75,6 +84,8 @@ object InspectionWorkflowSession {
         latestAnalysisSessionId = ""
         latestHazardRecordSessionId = ""
         latestSyncedSessionId = ""
+        clearPhoneSyncProgress()
+        clearFinishSubmitProgress()
     }
 
     fun updateEnterpriseFromQr(qrContent: String): Boolean {
@@ -128,6 +139,30 @@ object InspectionWorkflowSession {
         latestSyncedSessionId = sessionId
     }
 
+    fun markPhoneSyncPrimaryDone() {
+        phoneSyncProgress = phoneSyncProgress.copy(primaryDone = true)
+    }
+
+    fun markPhoneSyncBackupDone() {
+        phoneSyncProgress = phoneSyncProgress.copy(backupDone = true)
+    }
+
+    fun clearPhoneSyncProgress() {
+        phoneSyncProgress = DualSubmitProgress()
+    }
+
+    fun markFinishSubmitPrimaryDone() {
+        finishSubmitProgress = finishSubmitProgress.copy(primaryDone = true)
+    }
+
+    fun markFinishSubmitBackupDone() {
+        finishSubmitProgress = finishSubmitProgress.copy(backupDone = true)
+    }
+
+    fun clearFinishSubmitProgress() {
+        finishSubmitProgress = DualSubmitProgress()
+    }
+
     fun resolveFinishSessionId(): String? {
         return when {
             latestAnalysisSessionId.isNotBlank() -> latestAnalysisSessionId
@@ -160,6 +195,8 @@ object InspectionWorkflowSession {
         latestHazardRecordSessionId = ""
         latestSyncedSessionId = ""
         latestCapturedJpeg = null
+        clearPhoneSyncProgress()
+        clearFinishSubmitProgress()
         savedHazardJpegList.clear()
         summary = InspectionSummary()
     }
@@ -168,6 +205,16 @@ object InspectionWorkflowSession {
         clearForNewInspection()
         inspectionSessionId = ""
         workflowMode = WorkflowMode.OFFLINE
+    }
+
+    /**
+     * 清除企业相关信息（扫码结果 + 后端拉取的企业详情）。
+     * 在应用退出时调用，确保下次打开需要重新扫码。
+     */
+    fun clearEnterpriseData() {
+        enterpriseQrPayload = null
+        enterpriseInfo = null
+        Log.i(TAG, "enterprise data cleared")
     }
 
     private fun parseEnterpriseQrPayload(qrContent: String): EnterpriseQrPayload? {
