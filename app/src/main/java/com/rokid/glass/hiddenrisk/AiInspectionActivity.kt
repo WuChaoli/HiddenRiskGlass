@@ -49,10 +49,7 @@ import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
-import okhttp3.sse.EventSource
 import java.io.InputStreamReader
-import java.util.Date
-import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -61,7 +58,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * AI 巡检页面。
- * 流程：加载初始化 -> 本地 NCNN 检测 -> 底部隐患提示 + 自动流式窗口 -> 流式回答 -> 同步确认。
+ * 流程：加载初始化 -> 周期抓拍 -> 本地 NCNN + 在线 /ai/ar 并行识别 -> 结果确认/保存。
  */
 class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -71,10 +68,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val CAPTURE_WARMUP_MS = 1200L
-        private const val DETECT_STABLE_GATE_MS = 500L
         private const val LOCAL_DETECT_INTERVAL_MS = 1000L
-        private const val AUTO_STREAM_WINDOW_MS = 3000L
-        private const val AUTO_STREAM_REQUIRED_STABLE_MS = 1000L
         private const val LOCAL_HAZARD_ALERT_MESSAGE = "识别到隐患"
         private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
@@ -121,7 +115,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         fun requestHidLevel(): String {
             return hidLevel.trim()
-                .ifBlank { mapLevelLabelToCode(legacyLineValue("隐患等级")) }
+                .ifBlank { ResolvedHazardContent.levelCode(legacyLineValue("隐患等级")) }
         }
 
         fun requestLawBasis(): String {
@@ -145,19 +139,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
         }
 
-        fun displayDescription(): String {
-            val sections = buildList {
-                requestDescription().takeIf { it.isNotBlank() }?.let { add("隐患描述：$it") }
-                requestHidLevel().takeIf { it.isNotBlank() }?.let { add("隐患等级：${levelLabel(it)}") }
-                requestLawBasis().takeIf { it.isNotBlank() }?.let { add("法律依据：$it") }
-                requestHidNum().takeIf { it.isNotBlank() }?.let { add("隐患编码：$it") }
-            }
-            return sections.joinToString("\n").ifBlank { description.trim() }
-        }
-
-        fun displayAdvice(): String {
-            val adviceText = requestAdvice()
-            return if (adviceText.isBlank()) "" else "整改建议：\n$adviceText"
+        fun toResolvedContent(
+            matchedItem: String,
+            jpegBytes: ByteArray,
+        ): ResolvedHazardContent {
+            return ResolvedHazardContent(
+                source = HazardSource.LOCAL,
+                description = requestDescription(),
+                advice = requestAdvice(),
+                hidLevel = requestHidLevel(),
+                hidNum = requestHidNum(),
+                lawBasis = requestLawBasis(),
+                displayTitle = matchedItem,
+                jpegBytes = jpegBytes.copyOf(),
+            )
         }
 
         private fun legacyLineValue(prefix: String): String {
@@ -172,25 +167,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
         }
 
-        companion object {
-            private fun mapLevelLabelToCode(label: String): String {
-                return when (label.trim()) {
-                    "一般隐患" -> "1"
-                    "重大隐患" -> "2"
-                    "重点问题" -> "3"
-                    else -> ""
-                }
-            }
-
-            private fun levelLabel(code: String): String {
-                return when (code.trim()) {
-                    "1" -> "一般隐患"
-                    "2" -> "重大隐患"
-                    "3" -> "重点问题"
-                    else -> code.trim()
-                }
-            }
-        }
     }
 
     private data class LocalHazardMatch(
@@ -204,6 +180,32 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         DESCRIPTION,
         ADVICE,
     }
+
+    private enum class ScanCycleLocalState {
+        PENDING,
+        DISPLAYABLE,
+        NO_RESULT,
+    }
+
+    private enum class ScanCycleOnlineState {
+        PENDING,
+        POSITIVE,
+        NEGATIVE,
+        FAILED,
+    }
+
+    private data class ScanCycle(
+        val id: Long,
+        val epoch: Long,
+        val timestamp: Long,
+        var jpegBytes: ByteArray? = null,
+        var localState: ScanCycleLocalState = ScanCycleLocalState.PENDING,
+        var localMatch: LocalHazardMatch? = null,
+        var localResult: ResolvedHazardContent? = null,
+        var onlineState: ScanCycleOnlineState = ScanCycleOnlineState.PENDING,
+        var onlineRawText: String = "",
+        var decided: Boolean = false,
+    )
 
     // --- UI ---
     private lateinit var layoutDetection: FrameLayout
@@ -235,8 +237,49 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val inferenceRunning = AtomicBoolean(false)
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
-    private val deepAnalysisService by lazy { HazardDeepAnalysisService() }
+    private val aiArSseService by lazy { AiArSseService() }
     private val localHazardPushService by lazy { LocalHazardPushService() }
+    private val onlineHazardDetectionService by lazy {
+        OnlineHazardDetectionService(
+            callback = object : OnlineHazardDetectionService.Callback {
+                override fun onDetectionResult(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    hasHazard: Boolean,
+                    rawText: String,
+                ) {
+                    handleOnlineDetectionResult(request, hasHazard, rawText)
+                }
+
+                override fun onDetectionFailure(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    message: String,
+                ) {
+                    handleOnlineDetectionFailure(request, message)
+                }
+
+                override fun onDetectionDropped(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    reason: String,
+                ) {
+                    handleOnlineDetectionDropped(request, reason)
+                }
+
+                override fun onDetailSuccess(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    fullText: String,
+                ) {
+                    handleOnlineDetailSuccess(request, fullText)
+                }
+
+                override fun onDetailFailure(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    message: String,
+                ) {
+                    handleOnlineDetailFailure(request, message)
+                }
+            },
+        )
+    }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
     private var destroyed = false
@@ -257,13 +300,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var streamingInProgress = false
     private var streamCallbackActive = false
     private var pendingStreamStart = false
-    private var pendingAutoWindowStreamStart = false
     private var activeStreamRequestId = 0L
+    private var phoneSyncHandle: RetryRequestHandle? = null
     private var lastAnalysisText = ""
     private var hazardCaptureService: HazardCaptureService? = null
-    private var pendingHazardSnapshot: NativeInferenceStats? = null
-    private var pendingHazardPayload: CapturedFramePayload? = null
-    private var activeLocalHazardInfo: LocalHazardInfo? = null
+    private var activeHazardContent: ResolvedHazardContent? = null
     private var localResultStage = LocalResultStage.NONE
     private var localSaveSubmitting = false
     private var localHazardAlertTtsPlayed = false
@@ -275,12 +316,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var isMotionStable = false
     private var stableQualifiedAtMillis: Long? = null
     private var lastConsumedFrameTimestamp = 0L
-    private var autoStreamWindowDeadlineElapsedMs = 0L
-    private var autoStreamWindowRequestId = 0L
-    private var autoStreamStartRequestId = 0L
+    private var scanCycleEpoch = 0L
+    private var nextScanCycleId = 0L
+    private val activeScanCycles = linkedMapOf<Long, ScanCycle>()
 
-    // SSE 相关
-    private var currentEventSource: EventSource? = null
+    // 手动分析流相关
+    private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
     private var headGestureSupported = false
     private var debugSnapshotState: String? = null
 
@@ -334,11 +375,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             stableQualifiedAtMillis = stableSinceMillis
             if (isStable) {
                 Log.i(TAG, "motion stable qualified stableSinceMillis=$stableSinceMillis")
-                maybeScheduleAutoStreamStart()
                 scheduleDetectionCaptureIfNeeded(reason = "motion_stable", preferImmediate = true)
-            } else {
-                Log.i(TAG, "motion unstable cancel auto stream start")
-                cancelPendingAutoStreamStart()
             }
             refreshDetectionStatus()
         }
@@ -376,37 +413,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         pendingCaptureRequest = true
         startSampleCaptureIfNeeded()
-    }
-
-    private val autoStreamWindowExpireRunnable = Runnable {
-        if (destroyed || pageState != PageState.DETECTING) return@Runnable
-        if (pendingAutoWindowStreamStart || !hasActiveAutoStreamWindow()) return@Runnable
-        clearAutoStreamWindow()
-        clearPendingHazardResult()
-        refreshDetectionStatus()
-    }
-
-    private val autoStreamStartRunnable = Runnable {
-        val requestId = autoStreamStartRequestId
-        autoStreamStartRequestId = 0L
-        if (destroyed || pageState != PageState.DETECTING) return@Runnable
-        if (requestId == 0L || requestId != autoStreamWindowRequestId) return@Runnable
-        if (!hasActiveAutoStreamWindow()) return@Runnable
-        if (!isMotionStable || stableQualifiedAtMillis == null) return@Runnable
-        if (remainingStableMsForAutoStream() > 0L) {
-            maybeScheduleAutoStreamStart()
-            return@Runnable
-        }
-        if (startPendingHazardResultAfterStable()) {
-            return@Runnable
-        }
-        pendingAutoWindowStreamStart = true
-        pendingStreamStart = true
-        refreshDetectionStatus()
-        if (captureInProgress || inferenceRunning.get()) {
-            return@Runnable
-        }
-        startPendingStreamAnalysis()
     }
 
     // ==================== 生命周期 ====================
@@ -532,8 +538,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         stopLocalDetectionLoop("onPause")
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
-        currentEventSource?.cancel()
-        currentEventSource = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         frameStreamInitializing = false
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
@@ -552,14 +558,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         stopLocalDetectionLoop("onStop")
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
-        currentEventSource?.cancel()
-        currentEventSource = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         super.onStop()
     }
 
     override fun onDestroy() {
         destroyed = true
         streamCallbackActive = false
+        phoneSyncHandle?.cancel()
+        phoneSyncHandle = null
         inputSession.release()
         ivSyncLoading.clearAnimation()
         if (debugSnapshotState != null) {
@@ -586,9 +594,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runCatching { nativeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         runCatching { imageEncodeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         hazardCaptureService?.shutdown()
+        onlineHazardDetectionService.shutdown()
         // 关闭当前 SSE 连接
-        currentEventSource?.cancel()
-        currentEventSource = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         clearStreamThumbnailState()
         // 停止时间和电量更新
         stopTimeAndBatteryUpdate()
@@ -787,31 +796,32 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun returnToDetecting() {
-        currentEventSource?.cancel()
-        currentEventSource = null
+        phoneSyncHandle?.cancel()
+        phoneSyncHandle = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
-        pendingAutoWindowStreamStart = false
-        clearPendingHazardResult()
+        invalidateActiveScanCycles()
         clearLocalHazardResultState()
         activeStreamRequestId++
         hideStatusAlertOverlay()
         cameraRecoveryController.resetRecoveryAttempts()
         showPage(PageState.DETECTING)
         applyDefaultDetectionStatus()
-        clearAutoStreamWindow()
         initFrameStreamAndTransition()
     }
 
     private fun returnDirectlyToHome() {
-        currentEventSource?.cancel()
-        currentEventSource = null
+        phoneSyncHandle?.cancel()
+        phoneSyncHandle = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
-        pendingAutoWindowStreamStart = false
-        clearPendingHazardResult()
+        invalidateActiveScanCycles()
         clearLocalHazardResultState()
         activeStreamRequestId++
         stopLocalDetectionLoop("return_home")
@@ -825,13 +835,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun finishInspectionWithReport() {
-        currentEventSource?.cancel()
-        currentEventSource = null
+        phoneSyncHandle?.cancel()
+        phoneSyncHandle = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
-        pendingAutoWindowStreamStart = false
-        clearPendingHazardResult()
+        invalidateActiveScanCycles()
         activeStreamRequestId++
         stopLocalDetectionLoop("finish_inspection")
         hideStatusAlertOverlay()
@@ -907,6 +918,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!inferenceRunning.compareAndSet(false, true)) {
             return
         }
+        val cycleId = ++nextScanCycleId
+        val cycle = ScanCycle(
+            id = cycleId,
+            epoch = scanCycleEpoch,
+            timestamp = frame.timestamp,
+        )
+        activeScanCycles[cycleId] = cycle
+        startOnlineDetectionForCycle(cycle, frame)
 
         if (!submitNativeTask {
                 val nativeStartElapsedMs = SystemClock.elapsedRealtime()
@@ -922,69 +941,34 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val nativeElapsedMs = SystemClock.elapsedRealtime() - nativeStartElapsedMs
                 val inferenceMs = snapshot?.inferenceTimeMs ?: -1L
                 val detectionCount = snapshot?.detectionCount ?: 0
-                val payload = if (success && detectionCount > 0) {
-                    buildCapturedFramePayload(frame)
-                } else {
-                    null
-                }
+                val localMatch = snapshot
+                    ?.takeIf { success && detectionCount > 0 }
+                    ?.let(::findLocalHazardMatch)
                 uiHandler.post {
                     inferenceRunning.set(false)
                     Log.d(
                         TAG,
                         "inference success=$success detectionCount=$detectionCount nativeElapsedMs=$nativeElapsedMs inferenceMs=$inferenceMs"
                     )
-                    if (destroyed) return@post
-                    if (!success) {
-                        if (startPendingStreamAnalysis()) {
-                            return@post
-                        }
-                        scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-                    } else {
-                        if (detectionCount == 0) {
-                            InspectionWorkflowSession.updateSummary { summary ->
-                                summary.copy(
-                                    analyzedCount = summary.analyzedCount + 1,
-                                    noHazardCount = summary.noHazardCount + 1,
-                                )
-                            }
-                            if (startPendingStreamAnalysis()) {
-                                return@post
-                            }
-                            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-                        } else {
-                            pendingHazardSnapshot = snapshot
-                            pendingHazardPayload = payload
-                            payload?.let {
-                                InspectionWorkflowSession.recordCapture(it.jpegBytes)
-                            }
-                            if (ENABLE_HIT_CAPTURE_SAVE) {
-                                payload?.let { captured ->
-                                    ensureHazardCaptureService().saveHazardCapture(
-                                        captured.jpegBytes,
-                                        snapshot
-                                    )
-                                } ?: Log.w(TAG, "当前隐患帧 JPEG 编码失败，跳过保存")
-                            } else {
-                                Log.i(TAG, "检测命中保存已关闭，跳过图片落盘")
-                            }
-
-                            InspectionWorkflowSession.recordDetection("", LOCAL_HAZARD_ALERT_MESSAGE)
-                            InspectionWorkflowSession.updateSummary { summary ->
-                                summary.copy(
-                                    analyzedCount = summary.analyzedCount + 1,
-                                )
-                            }
-                            showLocalHazardAlert()
-                            openAutoStreamWindow()
-                            if (startPendingStreamAnalysis()) {
-                                return@post
-                            }
-                            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-                        }
+                    if (destroyed || cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
+                        activeScanCycles.remove(cycleId)
+                        return@post
                     }
+                    handleLocalInferenceCompleted(
+                        cycleId = cycleId,
+                        success = success,
+                        snapshot = snapshot,
+                        localMatch = localMatch,
+                    )
                 }
             }) {
             inferenceRunning.set(false)
+            handleLocalInferenceCompleted(
+                cycleId = cycleId,
+                success = false,
+                snapshot = null,
+                localMatch = null,
+            )
             if (startPendingStreamAnalysis()) {
                 return
             }
@@ -1046,40 +1030,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         statusAlertOverlay.reset()
     }
 
-    private fun showLocalHazardAlert() {
-        if (!localHazardAlertTtsPlayed) {
-            localHazardAlertTtsPlayed = OfflineTtsPlayer.speak(
-                ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_alert),
-            )
-        }
-        statusAlertOverlay.render(
-            StatusAlertModel(
-                status = AlertStatus.WARNING,
-                titleText = "",
-                messageText = getString(R.string.ai_inspection_hazard_found),
-                behavior = AlertBehavior(
-                    autoDismissMs = AUTO_STREAM_WINDOW_MS,
-                    showCountdownBar = false,
-                ),
-                style = AlertStyle(
-                    iconResId = R.drawable.hidden_risk_alert,
-                ),
-            ),
-        )
-    }
-
     private fun syncToPhone() {
         if (pageState != PageState.STREAM_RESPONSE || streamingInProgress) {
             return
         }
         showSyncing()
-        InspectionSyncService.syncAnalysisToPhone(
+        phoneSyncHandle = InspectionSyncService.syncAnalysisToPhone(
             sessionId = sessionId,
             callback = object : InspectionSyncService.Callback {
                 override fun onSuccess() {
                     uiHandler.post {
                         if (destroyed) return@post
+                        phoneSyncHandle = null
                         InspectionWorkflowSession.recordPhoneSync(sessionId)
                         InspectionWorkflowSession.recordSavedHazardCapture(
                             InspectionWorkflowSession.latestCapturedJpeg
@@ -1094,6 +1056,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 override fun onError(message: String) {
                     uiHandler.post {
                         if (destroyed) return@post
+                        phoneSyncHandle = null
                         Log.e(TAG, "sync failed: $message")
                         showSyncError(message)
                     }
@@ -1134,7 +1097,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return false
         if (!modelLoaded || modelLoading) return false
         if (pendingStreamStart || streamingInProgress || streamCallbackActive) return false
-        if (hasActiveAutoStreamWindow() || pendingHazardSnapshot != null) return false
         if (captureInProgress || captureDelayScheduled || frameStreamInitializing || pendingCaptureRequest) return false
         if (inferenceRunning.get()) return false
         if (pageState != PageState.DETECTING) return false
@@ -1161,9 +1123,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!shouldAutoCaptureNow()) {
             return false
         }
-        if (hasActiveAutoStreamWindow() || pendingAutoWindowStreamStart) {
-            return false
-        }
         Log.i(TAG, "request immediate local detect reason=$reason")
         autoCaptureScheduled = false
         uiHandler.removeCallbacks(autoCaptureRunnable)
@@ -1180,71 +1139,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         cameraRecoveryController.notifyConsumerWaitStopped()
-        clearAutoStreamWindow()
-        clearPendingHazardResult()
+        invalidateActiveScanCycles()
         if (clearPendingStreamState) {
             pendingStreamStart = false
-            pendingAutoWindowStreamStart = false
         }
     }
 
     private fun refreshDetectionStatus() {
         // 检测状态仅保留内部状态机，不再向检测页渲染文案。
-    }
-
-    private fun hasActiveAutoStreamWindow(): Boolean {
-        return autoStreamWindowDeadlineElapsedMs > SystemClock.elapsedRealtime()
-    }
-
-    private fun remainingStableMsForAutoStream(): Long {
-        val qualifiedAtMillis = stableQualifiedAtMillis ?: return AUTO_STREAM_REQUIRED_STABLE_MS
-        val elapsedSinceQualifiedMs = (System.currentTimeMillis() - qualifiedAtMillis).coerceAtLeast(0L)
-        val remainingAfterQualifiedMs = AUTO_STREAM_REQUIRED_STABLE_MS - DETECT_STABLE_GATE_MS
-        return (remainingAfterQualifiedMs - elapsedSinceQualifiedMs).coerceAtLeast(0L)
-    }
-
-    private fun openAutoStreamWindow() {
-        autoStreamWindowRequestId += 1
-        autoStreamWindowDeadlineElapsedMs = SystemClock.elapsedRealtime() + AUTO_STREAM_WINDOW_MS
-        pendingAutoWindowStreamStart = false
-        cancelPendingAutoStreamStart()
-        uiHandler.removeCallbacks(autoStreamWindowExpireRunnable)
-        uiHandler.postDelayed(autoStreamWindowExpireRunnable, AUTO_STREAM_WINDOW_MS)
-        maybeScheduleAutoStreamStart()
-        refreshDetectionStatus()
-    }
-
-    private fun clearAutoStreamWindow() {
-        if (autoStreamWindowDeadlineElapsedMs <= 0L && !pendingAutoWindowStreamStart) {
-            return
-        }
-        autoStreamWindowDeadlineElapsedMs = 0L
-        pendingAutoWindowStreamStart = false
-        autoStreamWindowRequestId += 1
-        cancelPendingAutoStreamStart()
-        uiHandler.removeCallbacks(autoStreamWindowExpireRunnable)
-    }
-
-    private fun cancelPendingAutoStreamStart() {
-        autoStreamStartRequestId = 0L
-        uiHandler.removeCallbacks(autoStreamStartRunnable)
-    }
-
-    private fun maybeScheduleAutoStreamStart() {
-        if (pendingAutoWindowStreamStart || !hasActiveAutoStreamWindow()) return
-        if (pageState != PageState.DETECTING) return
-        cancelPendingAutoStreamStart()
-        if (!isMotionStable || stableQualifiedAtMillis == null) return
-        val remainingStableMs = remainingStableMsForAutoStream()
-        val remainingWindowMs =
-            (autoStreamWindowDeadlineElapsedMs - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
-        if (remainingWindowMs <= 0L) return
-        autoStreamStartRequestId = autoStreamWindowRequestId
-        if (remainingStableMs <= 0L) {
-            uiHandler.post(autoStreamStartRunnable)
-            return
-        }
-        uiHandler.postDelayed(autoStreamStartRunnable, minOf(remainingStableMs, remainingWindowMs))
     }
 
     // ==================== UI 页面切换 ====================
@@ -1715,25 +1617,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // ==================== 本地隐患知识结果 ====================
 
-    private fun startPendingHazardResultAfterStable(): Boolean {
-        val snapshot = pendingHazardSnapshot ?: return false
-        val payload = pendingHazardPayload
-        clearPendingHazardResult()
-        val localMatch = findLocalHazardMatch(snapshot)
-        if (localMatch != null) {
-            startLocalHazardResult(localMatch, payload)
-            return true
-        }
-        pendingAutoWindowStreamStart = true
-        pendingStreamStart = true
-        refreshDetectionStatus()
-        if (captureInProgress || inferenceRunning.get()) {
-            return true
-        }
-        startPendingStreamAnalysis()
-        return true
-    }
-
     private fun findLocalHazardMatch(snapshot: NativeInferenceStats): LocalHazardMatch? {
         if (localHazardInfoByItem.isEmpty()) {
             return null
@@ -1751,33 +1634,309 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .maxByOrNull { it.score }
     }
 
-    private fun startLocalHazardResult(match: LocalHazardMatch, payload: CapturedFramePayload?) {
-        stopLocalDetectionLoop("start_local_hazard_result")
-        currentEventSource?.cancel()
-        currentEventSource = null
+    private fun startOnlineDetectionForCycle(
+        cycle: ScanCycle,
+        frame: RokidFrameSource.CroppedNv21Frame,
+    ) {
+        try {
+            imageEncodeExecutor.execute {
+                val payload = buildCapturedFramePayload(frame)
+                uiHandler.post {
+                    if (!isScanCycleActive(cycle.id, cycle.epoch)) {
+                        return@post
+                    }
+                    if (payload == null) {
+                        val activeCycle = activeScanCycles[cycle.id] ?: return@post
+                        activeCycle.onlineState = ScanCycleOnlineState.FAILED
+                        evaluateScanCycle(activeCycle)
+                        return@post
+                    }
+                    cycle.jpegBytes = payload.jpegBytes
+                    if (cycle.localMatch != null && cycle.localResult == null) {
+                        cycle.localResult = cycle.localMatch?.info?.toResolvedContent(
+                            matchedItem = cycle.localMatch?.matchedItem.orEmpty(),
+                            jpegBytes = payload.jpegBytes,
+                        )
+                    }
+                    onlineHazardDetectionService.submitDetection(
+                        OnlineHazardDetectionService.DetectionRequest(
+                            epoch = cycle.epoch,
+                            cycleId = cycle.id,
+                            jpegBytes = payload.jpegBytes,
+                        ),
+                    )
+                    evaluateScanCycle(cycle)
+                }
+            }
+        } catch (error: RejectedExecutionException) {
+            Log.w(TAG, "startOnlineDetectionForCycle encode rejected cycleId=${cycle.id}", error)
+            cycle.onlineState = ScanCycleOnlineState.FAILED
+            evaluateScanCycle(cycle)
+        }
+    }
+
+    private fun handleLocalInferenceCompleted(
+        cycleId: Long,
+        success: Boolean,
+        snapshot: NativeInferenceStats?,
+        localMatch: LocalHazardMatch?,
+    ) {
+        val cycle = activeScanCycles[cycleId] ?: run {
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            return
+        }
+        if (cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
+            activeScanCycles.remove(cycleId)
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            return
+        }
+
+        val detectionCount = snapshot?.detectionCount ?: 0
+        if (success) {
+            InspectionWorkflowSession.updateSummary { summary ->
+                summary.copy(
+                    analyzedCount = summary.analyzedCount + 1,
+                    noHazardCount = summary.noHazardCount + if (detectionCount == 0) 1 else 0,
+                )
+            }
+        }
+
+        if (!success) {
+            cycle.localState = ScanCycleLocalState.NO_RESULT
+        } else if (localMatch != null) {
+            cycle.localState = ScanCycleLocalState.DISPLAYABLE
+            cycle.localMatch = localMatch
+            cycle.localResult = cycle.jpegBytes?.let { jpegBytes ->
+                localMatch.info.toResolvedContent(
+                    matchedItem = localMatch.matchedItem,
+                    jpegBytes = jpegBytes,
+                )
+            }
+        } else {
+            cycle.localState = ScanCycleLocalState.NO_RESULT
+        }
+
+        if (success && ENABLE_HIT_CAPTURE_SAVE && detectionCount > 0) {
+            cycle.jpegBytes?.let { jpegBytes ->
+                ensureHazardCaptureService().saveHazardCapture(jpegBytes, snapshot)
+            }
+        }
+
+        evaluateScanCycle(cycle)
+        if (pageState == PageState.DETECTING && !cycle.decided) {
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+        }
+    }
+
+    private fun handleOnlineDetectionResult(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        hasHazard: Boolean,
+        rawText: String,
+    ) {
+        val cycle = activeScanCycles[request.cycleId] ?: return
+        if (cycle.epoch != request.epoch || cycle.epoch != scanCycleEpoch) {
+            return
+        }
+        cycle.onlineState = if (hasHazard) {
+            ScanCycleOnlineState.POSITIVE
+        } else {
+            ScanCycleOnlineState.NEGATIVE
+        }
+        cycle.onlineRawText = rawText
+        evaluateScanCycle(cycle)
+    }
+
+    private fun handleOnlineDetectionFailure(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        message: String,
+    ) {
+        val cycle = activeScanCycles[request.cycleId] ?: return
+        if (cycle.epoch != request.epoch || cycle.epoch != scanCycleEpoch) {
+            return
+        }
+        Log.w(TAG, "online detect failed cycleId=${request.cycleId} message=$message")
+        cycle.onlineState = ScanCycleOnlineState.FAILED
+        evaluateScanCycle(cycle)
+    }
+
+    private fun handleOnlineDetectionDropped(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        reason: String,
+    ) {
+        val cycle = activeScanCycles[request.cycleId] ?: return
+        if (cycle.epoch != request.epoch || cycle.epoch != scanCycleEpoch) {
+            return
+        }
+        Log.i(TAG, "online detect dropped cycleId=${request.cycleId} reason=$reason")
+        cycle.onlineState = ScanCycleOnlineState.FAILED
+        evaluateScanCycle(cycle)
+    }
+
+    private fun handleOnlineDetailSuccess(
+        request: OnlineHazardDetectionService.DetailRequest,
+        fullText: String,
+    ) {
+        if (request.epoch != scanCycleEpoch) {
+            return
+        }
+        streamingInProgress = false
+        streamCallbackActive = false
+        val jpegBytes = activeHazardContent?.jpegBytes ?: byteArrayOf()
+        val resolved = runCatching {
+            AiArHazardDetailParser.parse(
+                text = fullText,
+                jpegBytes = jpegBytes,
+            )
+        }.getOrElse { error ->
+            handleOnlineDetailFailure(request, error.message ?: "在线详情解析失败")
+            return
+        }
+        activeHazardContent = resolved
+        localResultStage = LocalResultStage.DESCRIPTION
+        localSaveSubmitting = false
+        sessionId = ""
+        val descriptionText = resolved.displayDescription()
+        tvStreamContent.text = descriptionText
+        lastAnalysisText = descriptionText
+        InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
+        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        renderLocalDescriptionPrompt()
+        adjustStreamScrollHeight()
+        refreshInputActions()
+    }
+
+    private fun handleOnlineDetailFailure(
+        request: OnlineHazardDetectionService.DetailRequest,
+        message: String,
+    ) {
+        if (request.epoch != scanCycleEpoch) {
+            return
+        }
+        Log.e(TAG, "online detail failed cycleId=${request.cycleId} message=$message")
+        streamingInProgress = false
+        streamCallbackActive = false
+        returnToDetecting()
+        SpriteToastUtil.showSpriteToastOld(
+            this,
+            message.ifBlank { "在线详情获取失败，请重试" },
+            R.drawable.ic_warning_triangle,
+            LOCAL_SAVE_SUCCESS_TOAST_MS,
+            false,
+        )
+    }
+
+    private fun evaluateScanCycle(cycle: ScanCycle) {
+        if (cycle.decided || cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
+            return
+        }
+        when (cycle.localState) {
+            ScanCycleLocalState.DISPLAYABLE -> {
+                val resolved = cycle.localResult ?: cycle.localMatch?.info?.toResolvedContent(
+                    matchedItem = cycle.localMatch?.matchedItem.orEmpty(),
+                    jpegBytes = cycle.jpegBytes ?: ByteArray(0),
+                ) ?: return
+                cycle.decided = true
+                presentResolvedHazardContent(resolved)
+                activeScanCycles.remove(cycle.id)
+            }
+
+            ScanCycleLocalState.PENDING -> Unit
+
+            ScanCycleLocalState.NO_RESULT -> {
+                when (cycle.onlineState) {
+                    ScanCycleOnlineState.POSITIVE -> {
+                        cycle.decided = true
+                        activeScanCycles.remove(cycle.id)
+                        beginOnlineDetailFlow(cycle)
+                    }
+
+                    ScanCycleOnlineState.NEGATIVE,
+                    ScanCycleOnlineState.FAILED -> {
+                        activeScanCycles.remove(cycle.id)
+                    }
+
+                    ScanCycleOnlineState.PENDING -> Unit
+                }
+            }
+        }
+    }
+
+    private fun beginOnlineDetailFlow(cycle: ScanCycle) {
+        val jpegBytes = cycle.jpegBytes
+        if (jpegBytes == null || jpegBytes.isEmpty()) {
+            Log.w(TAG, "beginOnlineDetailFlow missing jpeg cycleId=${cycle.id}")
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            return
+        }
+        stopLocalDetectionLoop("accept_online_hazard_result")
+        playHazardAlertIfNeeded()
+        activeHazardContent = ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = "",
+            advice = "",
+            hidLevel = "",
+            hidNum = "",
+            lawBasis = "",
+            displayTitle = "在线识别隐患",
+            jpegBytes = jpegBytes.copyOf(),
+        )
+        localResultStage = LocalResultStage.NONE
+        localSaveSubmitting = false
+        sessionId = ""
+        showPage(PageState.STREAM_RESPONSE)
+        clearStreamResponseUiState()
+        InspectionWorkflowSession.recordCapture(jpegBytes)
+        setStreamThumbnail(jpegBytes)
+        tvStreamContent.text = "正在拉取在线隐患详情..."
+        streamingInProgress = true
+        streamCallbackActive = true
+        bottomPromptSync.visibility = View.INVISIBLE
+        refreshInputActions()
+        onlineHazardDetectionService.fetchHazardDetails(
+            OnlineHazardDetectionService.DetailRequest(
+                epoch = scanCycleEpoch,
+                cycleId = cycle.id,
+                jpegBytes = jpegBytes,
+            ),
+        )
+    }
+
+    private fun presentResolvedHazardContent(result: ResolvedHazardContent) {
+        stopLocalDetectionLoop("present_hazard_result")
+        playHazardAlertIfNeeded()
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         activeStreamRequestId += 1
         streamingInProgress = false
         streamCallbackActive = false
         pendingStreamStart = false
-        pendingAutoWindowStreamStart = false
-        activeLocalHazardInfo = match.info
+        activeHazardContent = result
         localResultStage = LocalResultStage.DESCRIPTION
         localSaveSubmitting = false
         sessionId = ""
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
-        payload?.let {
-            InspectionWorkflowSession.recordCapture(it.jpegBytes)
-            setStreamThumbnail(it.jpegBytes)
+        InspectionWorkflowSession.recordCapture(result.jpegBytes)
+        if (result.jpegBytes.isNotEmpty()) {
+            setStreamThumbnail(result.jpegBytes)
         }
-        val descriptionText = match.info.displayDescription()
+        val descriptionText = result.displayDescription()
         tvStreamContent.text = descriptionText
         lastAnalysisText = descriptionText
-        InspectionWorkflowSession.recordDetection(match.matchedItem, descriptionText)
+        InspectionWorkflowSession.recordDetection(result.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
         adjustStreamScrollHeight()
         refreshInputActions()
+    }
+
+    private fun playHazardAlertIfNeeded() {
+        if (!localHazardAlertTtsPlayed) {
+            localHazardAlertTtsPlayed = OfflineTtsPlayer.speak(
+                ownerTag = TAG,
+                message = getString(R.string.offline_tts_hazard_alert),
+            )
+        }
     }
 
     private fun handleStreamConfirmAction() {
@@ -1808,9 +1967,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (localSaveSubmitting) {
             return
         }
-        val localInfo = activeLocalHazardInfo ?: return
+        val hazardContent = activeHazardContent ?: return
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
-        val capturedJpeg = InspectionWorkflowSession.latestCapturedJpeg
+        val capturedJpeg = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
+            ?: InspectionWorkflowSession.latestCapturedJpeg
         val validationMessage = when {
             enterprisePayload == null -> "缺少企业上下文，请先扫码后再保存"
             enterprisePayload.apiBaseUrl.isBlank() -> "缺少接口地址，请重新扫码后再试"
@@ -1818,10 +1978,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             enterprisePayload.objectId.isBlank() -> "缺少对象 ID，请重新扫码后再试"
             enterprisePayload.userId.isBlank() -> "缺少用户 ID，请重新扫码后再试"
             capturedJpeg == null || capturedJpeg.isEmpty() -> "缺少隐患图片，请重新识别后再试"
-            localInfo.requestDescription().isBlank() -> "隐患模板缺少描述信息"
-            localInfo.requestAdvice().isBlank() -> "隐患模板缺少整改建议"
-            localInfo.requestHidNum().isBlank() -> "隐患模板缺少隐患编码"
-            localInfo.requestHidLevel().isBlank() -> "隐患模板缺少隐患等级"
+            hazardContent.description.isBlank() -> "当前隐患缺少描述信息"
+            hazardContent.advice.isBlank() -> "当前隐患缺少整改建议"
+            hazardContent.hidNum.isBlank() -> "当前隐患缺少隐患编号"
+            hazardContent.hidLevel.isBlank() -> "当前隐患缺少隐患等级"
             else -> null
         }
         if (validationMessage != null) {
@@ -1847,10 +2007,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             hidDanger = listOf(
                 LocalHazardPushService.HidDangerItem(
                     indexNum = "1",
-                    descrip = localInfo.requestDescription(),
-                    advice = localInfo.requestAdvice(),
-                    hidNum = localInfo.requestHidNum(),
-                    hidLevel = localInfo.requestHidLevel(),
+                    descrip = hazardContent.description,
+                    advice = hazardContent.advice,
+                    hidNum = hazardContent.hidNum,
+                    hidLevel = hazardContent.hidLevel,
                 ),
             ),
             callback = object : LocalHazardPushService.Callback {
@@ -1869,7 +2029,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean, countAsSaved: Boolean) {
-        val localInfo = activeLocalHazardInfo ?: return
+        val hazardContent = activeHazardContent ?: return
         if (localResultStage != LocalResultStage.DESCRIPTION) return
         localSaveSubmitting = false
         localResultStage = LocalResultStage.ADVICE
@@ -1879,8 +2039,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 message = getString(R.string.offline_tts_hazard_advice_intro),
             )
         }
-        val descriptionText = localInfo.displayDescription()
-        val adviceText = localInfo.displayAdvice()
+        val descriptionText = hazardContent.displayDescription()
+        val adviceText = hazardContent.displayAdvice()
         tvStreamContent.text = adviceText
         lastAnalysisText = listOf(descriptionText, adviceText)
             .filter { it.isNotBlank() }
@@ -1888,7 +2048,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         if (countAsSaved) {
             InspectionWorkflowSession.recordSavedHazardCapture(
-                InspectionWorkflowSession.latestCapturedJpeg
+                hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
+                    ?: InspectionWorkflowSession.latestCapturedJpeg
             )
             InspectionWorkflowSession.updateSummary { summary ->
                 summary.copy(hasHazardCount = summary.hasHazardCount + 1)
@@ -1948,17 +2109,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         bottomPromptSync.visibility = View.VISIBLE
     }
 
-    private fun clearPendingHazardResult() {
-        pendingHazardSnapshot = null
-        pendingHazardPayload = null
-    }
-
     private fun clearLocalHazardResultState() {
-        activeLocalHazardInfo = null
+        activeHazardContent = null
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
         localHazardAlertTtsPlayed = false
         localHazardAdviceTtsPlayed = false
+    }
+
+    private fun invalidateActiveScanCycles() {
+        scanCycleEpoch += 1
+        activeScanCycles.clear()
+        onlineHazardDetectionService.cancelAll()
+    }
+
+    private fun isScanCycleActive(
+        cycleId: Long,
+        epoch: Long,
+    ): Boolean {
+        return epoch == scanCycleEpoch && activeScanCycles[cycleId]?.epoch == epoch
     }
 
     private fun buildLocalHazardInfoByItem(infos: List<LocalHazardInfo>): Map<String, LocalHazardInfo> {
@@ -2039,11 +2208,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (streamingInProgress || streamCallbackActive) {
             return
         }
-        clearPendingHazardResult()
+        invalidateActiveScanCycles()
         clearLocalHazardResultState()
         pendingStreamStart = true
-        pendingAutoWindowStreamStart = false
-        cancelPendingAutoStreamStart()
         refreshDetectionStatus()
         if (captureInProgress || inferenceRunning.get()) {
             Log.i(
@@ -2064,14 +2231,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         if (streamingInProgress || streamCallbackActive) {
             pendingStreamStart = false
-            pendingAutoWindowStreamStart = false
             return true
         }
         if (captureInProgress || inferenceRunning.get()) {
             return false
         }
         pendingStreamStart = false
-        pendingAutoWindowStreamStart = false
         stopLocalDetectionLoop("start_streaming")
         captureAndSendToSSE()
         return true
@@ -2085,7 +2250,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 if (!shouldDeliverStreamRequest(requestId)) {
                     return@post
                 }
-                sendImageToSSE(base64Image)
+                sendImageToAiAr(base64Image)
             }
         }.onFailure { error ->
             Log.e(
@@ -2192,9 +2357,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun beginStreamingRequest() {
-        currentEventSource?.cancel()
-        currentEventSource = null
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
         clearLocalHazardResultState()
+        sessionId = ""
         activeStreamRequestId += 1
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
@@ -2217,18 +2383,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     /**
-     * 通过 SSE 接口发送图像数据
+     * 通过 /ai/ar 接口发送图像数据。
      */
-    private fun sendImageToSSE(base64Image: String) {
-        val snCode = RokidSdkManager.getSerialNumber()
-        val analysisSessionId = InspectionBackendSessionId.create(snCode, prefix = "analysis")
-        sessionId = deepAnalysisService.analyzeBase64(
+    private fun sendImageToAiAr(base64Image: String) {
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = aiArSseService.fetchHazardDetails(
             base64Image = base64Image,
-            snCode = snCode,
-            sessionId = analysisSessionId,
-            callback = object : HazardDeepAnalysisService.StreamCallback {
-                override fun onOpened(sessionId: String) {
-                    Log.d(TAG, "SSE 连接已建立")
+            callback = object : AiArSseService.DetailCallback {
+                override fun onOpened(handle: AiArSseService.RequestHandle) {
+                    Log.d(TAG, "manual ai/ar opened taskId=${handle.taskId}")
                     uiHandler.post {
                         tvStreamContent.text = "正在分析隐患..."
                         scrollContent.post {
@@ -2238,10 +2401,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                 }
 
-                override fun onChunk(sessionId: String, text: String) {
-                    Log.d(TAG, "收到 SSE 消息: $text")
+                override fun onChunk(handle: AiArSseService.RequestHandle, partialText: String) {
+                    Log.d(TAG, "manual ai/ar chunk taskId=${handle.taskId} length=${partialText.length}")
                     uiHandler.post {
-                        tvStreamContent.text = text
+                        if (currentManualAnalysisHandle != handle) {
+                            return@post
+                        }
+                        tvStreamContent.text = partialText
                         adjustStreamScrollHeight()
                         scrollContent.post {
                             scrollContent.fullScroll(View.FOCUS_DOWN)
@@ -2249,32 +2415,57 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                 }
 
-                override fun onComplete(sessionId: String, fullText: String) {
-                    Log.d(TAG, "SSE 连接已关闭")
+                override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
+                    Log.d(TAG, "manual ai/ar closed taskId=${handle.taskId}")
                     uiHandler.post {
-                        streamCallbackActive = false
-                        streamingInProgress = false
-                        lastAnalysisText = tvStreamContent.text.toString()
-                        InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
-                        bottomPromptSync.setPrompt(
-                            title = getString(R.string.ai_inspection_sync_prompt),
-                            subtitle = syncPromptSubtitle(),
-                        )
-                        bottomPromptSync.visibility = View.VISIBLE
-                        refreshInputActions()
+                        if (currentManualAnalysisHandle != handle) {
+                            return@post
+                        }
+                        currentManualAnalysisHandle = null
+                        handleManualStreamingSuccess(fullText)
                     }
                 }
 
-                override fun onError(sessionId: String, message: String) {
-                    Log.e(TAG, "SSE 连接失败 sessionId=$sessionId message=$message")
+                override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
+                    Log.e(TAG, "manual ai/ar failed taskId=${handle.taskId} message=$message")
+                    if (currentManualAnalysisHandle == handle) {
+                        currentManualAnalysisHandle = null
+                    }
                     handleSSEError(message)
-                }
-
-                override fun onEventSourceCreated(sessionId: String, eventSource: EventSource) {
-                    currentEventSource = eventSource
                 }
             },
         )
+    }
+
+    private fun handleManualStreamingSuccess(fullText: String) {
+        streamCallbackActive = false
+        streamingInProgress = false
+        val jpegBytes = InspectionWorkflowSession.latestCapturedJpeg ?: byteArrayOf()
+        val resolved = runCatching {
+            AiArHazardDetailParser.parse(
+                text = fullText,
+                jpegBytes = jpegBytes,
+            )
+        }.getOrElse { error ->
+            handleSSEError(error.message ?: "在线详情解析失败")
+            return
+        }
+        activeHazardContent = resolved
+        localResultStage = LocalResultStage.DESCRIPTION
+        localSaveSubmitting = false
+        sessionId = ""
+        val descriptionText = resolved.displayDescription()
+        tvStreamContent.text = descriptionText
+        lastAnalysisText = descriptionText
+        InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
+        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        renderLocalDescriptionPrompt()
+        adjustStreamScrollHeight()
+        scrollContent.post {
+            scrollContent.scrollTo(0, 0)
+            scrollContent.fullScroll(View.FOCUS_UP)
+        }
+        refreshInputActions()
     }
 
     /**
@@ -2282,19 +2473,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      */
     private fun handleSSEError(errorMsg: String) {
         uiHandler.post {
-            currentEventSource?.cancel()
-            currentEventSource = null
+            currentManualAnalysisHandle?.cancel()
+            currentManualAnalysisHandle = null
             streamCallbackActive = false
             streamingInProgress = false
             pendingStreamStart = false
-            activeStreamRequestId += 1
-            tvStreamContent.text = "分析失败：$errorMsg"
-            bottomPromptSync.setPrompt(
-                title = getString(R.string.ai_inspection_sync_prompt),
-                subtitle = syncPromptSubtitle(),
+            returnToDetecting()
+            SpriteToastUtil.showSpriteToastOld(
+                this,
+                errorMsg.ifBlank { "在线详情获取失败，请重试" },
+                R.drawable.ic_warning_triangle,
+                LOCAL_SAVE_SUCCESS_TOAST_MS,
+                false,
             )
-            bottomPromptSync.visibility = View.VISIBLE
-            refreshInputActions()
         }
     }
 }
