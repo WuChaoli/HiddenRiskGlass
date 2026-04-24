@@ -4,10 +4,10 @@ import com.rokid.glass.camera.RokidFrameSource
 
 /**
  * 巡检会话管理单例。
- * 负责跨 Activity 共享初始化状态：NCNN 模型实例和 SDK 帧流状态。
+ * 负责在当前 App 进程内缓存 HiddenRisk 模型，并独立管理 inspection 使用的相机帧流状态。
  */
 object InspectionSession {
-    // NCNN 模型实例
+    // 当前 App 进程内复用的 HiddenRisk NCNN 模型实例
     var hiddenRiskNcnn: HiddenRiskNcnn? = null
         private set
 
@@ -28,11 +28,17 @@ object InspectionSession {
     val backendGpu = 1
     val gpuProfile = 1
     /**
-     * 创建 NCNN 实例（不加载模型）
+     * 创建 NCNN 实例（不加载模型）。
+     * 若当前进程中已有缓存实例，则直接复用，避免重复创建 native 对象。
      */
     fun createNcnnInstance(): Boolean {
+        hiddenRiskNcnn?.let {
+            errorMessage = null
+            return true
+        }
         return try {
             hiddenRiskNcnn = HiddenRiskNcnn()
+            errorMessage = null
             true
         } catch (e: Exception) {
             errorMessage = "NCNN 初始化失败: ${e.message}"
@@ -53,6 +59,8 @@ object InspectionSession {
                 gpuProfile,
                 targetInputSize
             )
+            errorMessage = null
+            true
         } catch (e: Exception) {
             errorMessage = "模型加载失败: ${e.message}"
             false
@@ -89,6 +97,7 @@ object InspectionSession {
      */
     fun markInitialized() {
         isInitialized = true
+        errorMessage = null
     }
 
     /**
@@ -99,7 +108,8 @@ object InspectionSession {
     }
 
     /**
-     * 重置会话（用于重新初始化）
+     * 重置会话（用于初始化失败后的重试）。
+     * 会彻底释放模型缓存，并清理 inspection 相机帧流。
      */
     fun reset() {
         hiddenRiskNcnn?.clearFrameState()
@@ -110,7 +120,8 @@ object InspectionSession {
     }
 
     /**
-     * 清理资源（页面销毁时调用）
+     * 显式彻底释放当前进程内缓存的模型与帧流。
+     * 仅在初始化失败、主动重试等明确需要完全释放时调用。
      */
     fun release() {
         hiddenRiskNcnn?.clearFrameState()

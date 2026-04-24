@@ -10,6 +10,8 @@ import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
+import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
+import com.rokid.glass.hiddenrisk.InspectionSession
 import com.rokid.glass.hiddenrisk.LightshotActivity
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glesse.R
@@ -121,12 +123,21 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         when (index) {
-            0 -> startActivity(Intent(this, AiInspectionActivity::class.java))
+            0 -> startHazardAnalysis()
             2 -> startActivity(Intent(this, LightshotActivity::class.java).apply {
                 putExtra(LightshotActivity.EXTRA_MODE, LightshotActivity.MODE_HAZARD_RECORD)
             })
             else -> tvBottomHint.text = getString(R.string.common_feature_in_development)
         }
+    }
+
+    private fun startHazardAnalysis() {
+        val targetActivity = if (InspectionSession.isInitialized && InspectionSession.hiddenRiskNcnn != null) {
+            AiInspectionActivity::class.java
+        } else {
+            InspectionLoadingActivity::class.java
+        }
+        startActivity(Intent(this, targetActivity))
     }
 
     /**

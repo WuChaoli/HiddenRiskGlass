@@ -380,6 +380,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 检查初始化状态，如果未初始化则返回
         if (!InspectionSession.isInitialized || hiddenRiskNcnn == null) {
             Log.e(TAG, "InspectionSession 未初始化，返回加载页面")
+            startActivity(Intent(this, InspectionLoadingActivity::class.java))
             finish()
             return
         }
@@ -485,10 +486,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runCatching { nativeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         runCatching { imageEncodeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         hazardCaptureService?.shutdown()
-        // 只有当真正结束巡检（不是返回重新检测）时才释放 InspectionSession
-        if (isFinishing && !isChangingConfigurations) {
-            InspectionSession.release()
-        }
         // 关闭当前 SSE 连接
         currentEventSource?.cancel()
         currentEventSource = null
@@ -1019,6 +1016,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     uiHandler.post {
                         if (destroyed) return@post
                         InspectionWorkflowSession.recordPhoneSync(sessionId)
+                        InspectionWorkflowSession.recordSavedHazardCapture(
+                            InspectionWorkflowSession.latestCapturedJpeg
+                        )
                         InspectionWorkflowSession.updateSummary { summary ->
                             summary.copy(hasHazardCount = summary.hasHazardCount + 1)
                         }
@@ -1744,6 +1744,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         lastAnalysisText = "${localInfo.description}\n\n${localInfo.advice}"
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         if (countAsSaved) {
+            InspectionWorkflowSession.recordSavedHazardCapture(
+                InspectionWorkflowSession.latestCapturedJpeg
+            )
             InspectionWorkflowSession.updateSummary { summary ->
                 summary.copy(hasHazardCount = summary.hasHazardCount + 1)
             }

@@ -10,7 +10,11 @@ import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.View
+import android.view.ViewGroup
+import android.widget.GridLayout
 import android.widget.ImageView
+import android.widget.ScrollView
 import android.widget.TextView
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
@@ -25,12 +29,14 @@ import com.rokid.glesse.R
 
 class InspectionEndReportActivity : BaseGlassActivity() {
 
-    private lateinit var ivPreview: ImageView
+    private lateinit var scrollSavedHazardThumbs: ScrollView
+    private lateinit var gridSavedHazardThumbs: GridLayout
     private lateinit var tvHazardCount: TextView
     private lateinit var operationGuideEnd: OperationGuideView
     private lateinit var bottomPromptEnd: BottomPromptView
     private lateinit var statusBarEnd: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val thumbnailBitmaps = mutableListOf<Bitmap>()
     private var headGestureSupported = false
     private var finishSubmitting = false
 
@@ -47,7 +53,8 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_inspection_end_report)
 
-        ivPreview = findViewById(R.id.ivPreview)
+        scrollSavedHazardThumbs = findViewById(R.id.scrollSavedHazardThumbs)
+        gridSavedHazardThumbs = findViewById(R.id.gridSavedHazardThumbs)
         tvHazardCount = findViewById(R.id.tvHazardCount)
         operationGuideEnd = findViewById(R.id.operationGuideEnd)
         bottomPromptEnd = findViewById(R.id.bottomPromptEnd)
@@ -55,12 +62,11 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         HeadGestureManager.initialize(this)
         headGestureSupported = HeadGestureManager.isSupported()
 
-        val summary = InspectionWorkflowSession.summary
-        val hasHazardCount = if (summary.hasHazardCount == 0) 3 else summary.hasHazardCount
-        tvHazardCount.text = "分析出${hasHazardCount}条隐患"
-        InspectionWorkflowSession.latestCapturedJpeg
-            ?.let { decodePreviewBitmap(it) }
-            ?.let(ivPreview::setImageBitmap)
+        val savedHazardJpegs = InspectionWorkflowSession.savedHazardJpegs
+        tvHazardCount.text = "分析出${savedHazardJpegs.size}条隐患"
+        scrollSavedHazardThumbs.post {
+            renderSavedHazardThumbnails(savedHazardJpegs)
+        }
 
         operationGuideEnd.setGuide(
             title = "操作指引",
@@ -91,6 +97,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     override fun onDestroy() {
         stopTimeAndBatteryUpdate()
         inputSession.release()
+        clearThumbnailBitmaps()
         super.onDestroy()
     }
 
@@ -178,10 +185,71 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         )
     }
 
-    private fun decodePreviewBitmap(jpegBytes: ByteArray): Bitmap? {
-        val metrics = resources.displayMetrics
-        val targetWidth = maxOf(metrics.widthPixels / 2, 640)
-        val targetHeight = maxOf(metrics.heightPixels / 2, 360)
+    private fun renderSavedHazardThumbnails(savedHazardJpegs: List<ByteArray>) {
+        clearThumbnailBitmaps()
+        gridSavedHazardThumbs.removeAllViews()
+        if (savedHazardJpegs.isEmpty()) {
+            scrollSavedHazardThumbs.visibility = View.GONE
+            return
+        }
+
+        scrollSavedHazardThumbs.visibility = View.VISIBLE
+        val thumbWidth = dp(36)
+        val thumbHeight = dp(27)
+        val thumbGap = dp(3)
+        val availableWidth = scrollSavedHazardThumbs.width.takeIf { it > 0 }
+            ?: (resources.displayMetrics.widthPixels / 2)
+        val columns = maxOf(1, availableWidth / (thumbWidth + thumbGap))
+        gridSavedHazardThumbs.columnCount = columns
+
+        savedHazardJpegs.forEachIndexed { index, jpegBytes ->
+            val thumbnail = decodeSampledBitmap(
+                jpegBytes = jpegBytes,
+                targetWidth = thumbWidth,
+                targetHeight = thumbHeight,
+            ) ?: return@forEachIndexed
+            thumbnailBitmaps.add(thumbnail)
+            gridSavedHazardThumbs.addView(
+                ImageView(this).apply {
+                    scaleType = ImageView.ScaleType.CENTER_CROP
+                    setImageBitmap(thumbnail)
+                    layoutParams = GridLayout.LayoutParams().apply {
+                        width = thumbWidth
+                        height = thumbHeight
+                        setMargins(
+                            if (index % columns == 0) 0 else thumbGap,
+                            if (index < columns) 0 else thumbGap,
+                            0,
+                            0,
+                        )
+                    }
+                }
+            )
+        }
+
+        val rows = (savedHazardJpegs.size + columns - 1) / columns
+        val desiredHeight = rows * thumbHeight + maxOf(0, rows - 1) * thumbGap
+        val maxHeight = resources.displayMetrics.heightPixels / 2
+        scrollSavedHazardThumbs.layoutParams = scrollSavedHazardThumbs.layoutParams.apply {
+            height = if (desiredHeight > maxHeight) maxHeight else ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+        scrollSavedHazardThumbs.requestLayout()
+    }
+
+    private fun clearThumbnailBitmaps() {
+        thumbnailBitmaps.forEach { bitmap ->
+            if (!bitmap.isRecycled) {
+                bitmap.recycle()
+            }
+        }
+        thumbnailBitmaps.clear()
+    }
+
+    private fun decodeSampledBitmap(
+        jpegBytes: ByteArray,
+        targetWidth: Int,
+        targetHeight: Int,
+    ): Bitmap? {
         val bounds = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
@@ -214,6 +282,10 @@ class InspectionEndReportActivity : BaseGlassActivity() {
             sampleSize *= 2
         }
         return sampleSize
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density + 0.5f).toInt()
     }
 
     companion object {

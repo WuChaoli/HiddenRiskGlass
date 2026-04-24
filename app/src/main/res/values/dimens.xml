@@ -7,5 +7,12 @@
     <dimen name="glass_base_item_label_margin">0dp</dimen>
     <dimen name="glass_base_item_label_margin_top">-30dp</dimen>
     <dimen name="glass_base_item_label_text_size">20sp</dimen>
+    <dimen name="inspection_operation_guide_margin_top">22dp</dimen>
+    <dimen name="inspection_operation_guide_margin_end">14dp</dimen>
+    <dimen name="inspection_bottom_card_margin_horizontal">20dp</dimen>
+    <dimen name="inspection_bottom_prompt_margin_top">8dp</dimen>
+    <dimen name="inspection_bottom_prompt_status_spacing">8dp</dimen>
+    <dimen name="inspection_status_bar_padding_horizontal">16dp</dimen>
+    <dimen name="inspection_status_bar_padding_bottom">10dp</dimen>
     <integer name="frame_duration">20</integer>
 </resources>

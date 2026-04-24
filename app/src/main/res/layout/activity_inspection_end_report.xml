@@ -4,13 +4,6 @@
     android:layout_height="match_parent"
     android:background="@color/black">
 
-    <ImageView
-        android:id="@+id/ivPreview"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:alpha="0.38"
-        android:scaleType="centerCrop" />
-
     <View
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -22,56 +15,42 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
-        android:layout_marginTop="22dp"
-        android:layout_marginEnd="14dp" />
+        android:layout_marginTop="@dimen/inspection_operation_guide_margin_top"
+        android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end" />
 
-    <!-- 底部区域：卡片 + 提示 -->
+    <!-- 底部区域：卡片 + 底部提示 + 状态栏 -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:gravity="bottom"
-        android:orientation="vertical"
-        android:paddingHorizontal="20dp"
-        android:paddingBottom="8dp">
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/inspection_bottom_card_margin_horizontal"
             android:background="@drawable/glass_card_outline"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:padding="10dp">
 
-            <!-- 左侧：3 张缩略图 -->
-            <LinearLayout
+            <!-- 左侧：本次保存的隐患缩略图 -->
+            <ScrollView
+                android:id="@+id/scrollSavedHazardThumbs"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:orientation="horizontal">
+                android:fadingEdgeLength="10dp"
+                android:overScrollMode="never"
+                android:requiresFadingEdge="vertical"
+                android:scrollbars="none">
 
-                <ImageView
-                    android:id="@+id/ivThumb1"
-                    android:layout_width="36dp"
-                    android:layout_height="27dp"
-                    android:scaleType="centerCrop"
-                    android:src="@mipmap/icon_photo" />
-
-                <ImageView
-                    android:id="@+id/ivThumb2"
-                    android:layout_width="36dp"
-                    android:layout_height="27dp"
-                    android:layout_marginStart="3dp"
-                    android:scaleType="centerCrop"
-                    android:src="@mipmap/icon_photo" />
-
-                <ImageView
-                    android:id="@+id/ivThumb3"
-                    android:layout_width="36dp"
-                    android:layout_height="27dp"
-                    android:layout_marginStart="3dp"
-                    android:scaleType="centerCrop"
-                    android:src="@mipmap/icon_photo" />
-            </LinearLayout>
+                <GridLayout
+                    android:id="@+id/gridSavedHazardThumbs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:columnCount="6" />
+            </ScrollView>
 
             <!-- 右侧：隐患数量 -->
             <TextView
@@ -90,15 +69,15 @@
             android:id="@+id/bottomPromptEnd"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:paddingBottom="8dp" />
+            android:layout_marginTop="@dimen/inspection_bottom_prompt_margin_top"
+            android:layout_marginBottom="@dimen/inspection_bottom_prompt_status_spacing" />
 
         <!-- 状态栏 -->
         <com.rokid.glass.component.GlassStatusBar
             android:id="@+id/statusBarEnd"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingHorizontal="16dp"
-            android:paddingBottom="10dp" />
+            android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+            android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
     </LinearLayout>
 </FrameLayout>

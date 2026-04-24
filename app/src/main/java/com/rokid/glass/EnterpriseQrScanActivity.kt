@@ -44,12 +44,15 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private lateinit var bottomHints: LinearLayout
     private lateinit var statusBar: GlassStatusBar
 
-    private val scanner: BarcodeScanner by lazy {
+    private val scannerDelegate: Lazy<BarcodeScanner> = lazy {
         val options = BarcodeScannerOptions.Builder()
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
             .build()
         BarcodeScanning.getClient(options)
     }
+
+    private val scanner: BarcodeScanner
+        get() = scannerDelegate.value
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isFrameStreamReady = false
@@ -117,6 +120,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
 
+        if (!debugSnapshotMode && skipScanIfEnterpriseQrCached()) {
+            return
+        }
+
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
         }
@@ -124,7 +131,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (completed) return
         if (debugSnapshotMode) return
+        if (skipScanIfEnterpriseQrCached()) return
         if (hasRequiredPermissions()) {
             startCameraPipeline()
             startScanLoop()
@@ -145,7 +154,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     override fun onDestroy() {
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
-            scanner.close()
+            if (scannerDelegate.isInitialized()) {
+                scanner.close()
+            }
             stopCameraPipeline()
         }
         super.onDestroy()
@@ -171,6 +182,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode != REQUEST_CODE_PERMISSIONS) return
+        if (completed) return
         val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
         if (!granted) {
             tvStatus.setText(R.string.enterprise_qr_permission_denied)
@@ -233,9 +245,12 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             return
         }
         val rawValue = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue ?: return
+        if (!InspectionWorkflowSession.updateEnterpriseFromQr(rawValue)) {
+            tvStatus.setText(R.string.enterprise_qr_invalid)
+            return
+        }
         completed = true
         tvStatus.visibility = View.GONE
-        InspectionWorkflowSession.updateEnterpriseFromQr(rawValue)
 
         cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
@@ -251,6 +266,20 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             startActivity(Intent(this, EnterpriseInfoActivity::class.java))
             finish()
         }, RESULT_STAY_MS)
+    }
+
+    private fun skipScanIfEnterpriseQrCached(): Boolean {
+        if (InspectionWorkflowSession.enterpriseQrPayload == null || InspectionWorkflowSession.enterpriseInfo == null) {
+            return false
+        }
+        completed = true
+        navigateToEnterpriseInfo()
+        return true
+    }
+
+    private fun navigateToEnterpriseInfo() {
+        startActivity(Intent(this, EnterpriseInfoActivity::class.java))
+        finish()
     }
 
     private fun hasRequiredPermissions(): Boolean {

@@ -24,6 +24,16 @@ object InspectionWorkflowSession {
         val hazardHistory: List<String> = emptyList(),
     )
 
+    data class EnterpriseQrPayload(
+        val rightCode: String,
+        val objectId: String,
+        val userId: String,
+        val regionCode: String,
+        val apiBaseUrl: String,
+        val authCode: String,
+        val rawContent: String,
+    )
+
     data class InspectionSummary(
         val hasHazardCount: Int = 0,
         val noHazardCount: Int = 0,
@@ -33,6 +43,8 @@ object InspectionWorkflowSession {
 
     var workflowMode: WorkflowMode = WorkflowMode.OFFLINE
     var enterpriseInfo: EnterpriseInfo? = null
+    var enterpriseQrPayload: EnterpriseQrPayload? = null
+        private set
     var inspectionSessionId: String = ""
     var latestAnalysisSessionId: String = ""
     var latestHazardRecordSessionId: String = ""
@@ -41,6 +53,9 @@ object InspectionWorkflowSession {
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
     var latestCapturedJpeg: ByteArray? = null
+    private val savedHazardJpegList = mutableListOf<ByteArray>()
+    val savedHazardJpegs: List<ByteArray>
+        get() = savedHazardJpegList.map { it.copyOf() }
     var summary: InspectionSummary = InspectionSummary()
 
     fun updateMode(connected: Boolean) {
@@ -54,12 +69,14 @@ object InspectionWorkflowSession {
         latestSyncedSessionId = ""
     }
 
-    fun updateEnterpriseFromQr(qrContent: String) {
+    fun updateEnterpriseFromQr(qrContent: String): Boolean {
+        val payload = parseEnterpriseQrPayload(qrContent) ?: return false
+        enterpriseQrPayload = payload
         enterpriseInfo = EnterpriseInfo(
             companyName = "天天小吃店",
             siteName = "滨江智造园区 3 号车间",
             inspectorName = "眼镜端巡检员",
-            qrContent = qrContent,
+            qrContent = payload.rawContent,
             region = "杭州市萧山区",
             category = "消防安全",
             riskTags = "九小场所（小餐饮）、消防重点场所",
@@ -74,6 +91,7 @@ object InspectionWorkflowSession {
                 "多设备集中连接",
             ),
         )
+        return true
     }
 
     fun recordDetection(title: String, message: String) {
@@ -107,6 +125,13 @@ object InspectionWorkflowSession {
         latestCapturedJpeg = jpegBytes?.copyOf()
     }
 
+    fun recordSavedHazardCapture(jpegBytes: ByteArray?) {
+        if (jpegBytes == null || jpegBytes.isEmpty()) {
+            return
+        }
+        savedHazardJpegList.add(jpegBytes.copyOf())
+    }
+
     fun updateSummary(transform: (InspectionSummary) -> InspectionSummary) {
         summary = transform(summary)
     }
@@ -119,13 +144,37 @@ object InspectionWorkflowSession {
         latestHazardRecordSessionId = ""
         latestSyncedSessionId = ""
         latestCapturedJpeg = null
+        savedHazardJpegList.clear()
         summary = InspectionSummary()
     }
 
     fun resetAll() {
         clearForNewInspection()
-        enterpriseInfo = null
         inspectionSessionId = ""
         workflowMode = WorkflowMode.OFFLINE
     }
+
+    private fun parseEnterpriseQrPayload(qrContent: String): EnterpriseQrPayload? {
+        val rawContent = qrContent.trim()
+        val commaParts = rawContent.split(',', limit = 2)
+        if (commaParts.size != 2) {
+            return null
+        }
+        val rightCode = commaParts[0].trim()
+        val tailParts = commaParts[1].split(';').map { it.trim() }
+        if (rightCode.isBlank() || tailParts.size != ENTERPRISE_QR_TAIL_FIELD_COUNT || tailParts.any { it.isBlank() }) {
+            return null
+        }
+        return EnterpriseQrPayload(
+            rightCode = rightCode,
+            objectId = tailParts[0],
+            userId = tailParts[1],
+            regionCode = tailParts[2],
+            apiBaseUrl = tailParts[3],
+            authCode = tailParts[4],
+            rawContent = rawContent,
+        )
+    }
+
+    private const val ENTERPRISE_QR_TAIL_FIELD_COUNT = 5
 }
