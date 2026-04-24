@@ -133,63 +133,6 @@
                 android:layout_height="0dp"
                 android:layout_weight="1" />
 
-            <!-- 检测状态文字 -->
-            <TextView
-                android:id="@+id/tvDetectionStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:gravity="center"
-                android:paddingHorizontal="24dp"
-                android:text="@string/ai_detection_offline_running"
-                android:textColor="@color/green"
-                android:textSize="16sp"
-                android:textStyle="bold" />
-
-            <!-- 检测到隐患提示弹窗（5.2页面） -->
-            <LinearLayout
-                android:id="@+id/layoutHazardBanner"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginBottom="12dp"
-                android:background="@drawable/glass_card_outline"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:padding="12dp"
-                android:visibility="gone">
-
-                <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:src="@drawable/ic_warning_triangle" />
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="12dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/ai_inspection_hazard_found"
-                        android:textColor="@color/green"
-                        android:textSize="16sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/tvHazardBannerCount"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/ai_inspection_hazard_count"
-                        android:textColor="@color/green"
-                        android:textSize="13sp" />
-                </LinearLayout>
-            </LinearLayout>
-
             <com.rokid.glass.component.GlassStatusBar
                 android:id="@+id/statusBarDetecting"
                 android:layout_width="match_parent"

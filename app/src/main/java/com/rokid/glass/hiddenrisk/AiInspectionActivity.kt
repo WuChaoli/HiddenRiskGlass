@@ -34,13 +34,18 @@ import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.component.AlertBehavior
+import com.rokid.glass.component.AlertStatus
+import com.rokid.glass.component.AlertStyle
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.component.RokidCameraPreviewView
+import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -56,7 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * AI 巡检页面。
- * 流程：加载初始化 -> 本地 NCNN 检测 -> 疑似隐患弹窗 + 自动流式窗口 -> 流式回答 -> 同步确认。
+ * 流程：加载初始化 -> 本地 NCNN 检测 -> 底部隐患提示 + 自动流式窗口 -> 流式回答 -> 同步确认。
  */
 class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -70,7 +75,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val LOCAL_DETECT_INTERVAL_MS = 1000L
         private const val AUTO_STREAM_WINDOW_MS = 3000L
         private const val AUTO_STREAM_REQUIRED_STABLE_MS = 1000L
-        private const val LOCAL_HAZARD_ALERT_MESSAGE = "疑似隐患，请在 3 秒内保持稳定，系统将自动进入分析"
+        private const val LOCAL_HAZARD_ALERT_MESSAGE = "识别到隐患"
         private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
         private const val LOCAL_SAVE_SUCCESS_TOAST_MS = 1500
@@ -100,7 +105,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     )
 
     private data class LocalHazardInfo(
-        val item: String,
+        val item: List<String> = emptyList(),
         val descrip: String = "",
         val hidLevel: String = "",
         val lawBasis: String = "",
@@ -190,6 +195,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private data class LocalHazardMatch(
         val info: LocalHazardInfo,
+        val matchedItem: String,
         val score: Float,
     )
 
@@ -222,8 +228,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var statusBarStream: GlassStatusBar
     private lateinit var statusBarSyncSuccess: GlassStatusBar
     private lateinit var operationGuideSync: OperationGuideView
-    private lateinit var tvDetectionStatus: TextView
-    private lateinit var layoutHazardBanner: LinearLayout
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -262,8 +266,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var activeLocalHazardInfo: LocalHazardInfo? = null
     private var localResultStage = LocalResultStage.NONE
     private var localSaveSubmitting = false
+    private var localHazardAlertTtsPlayed = false
+    private var localHazardAdviceTtsPlayed = false
     private val localHazardInfoByItem: Map<String, LocalHazardInfo> by lazy {
-        loadLocalHazardInfos().associateBy { it.item }
+        buildLocalHazardInfoByItem(loadLocalHazardInfos())
     }
 
     private var isMotionStable = false
@@ -432,14 +438,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         statusBarStream = findViewById(R.id.statusBarStream)
         statusBarSyncSuccess = findViewById(R.id.statusBarSyncSuccess)
         operationGuideSync = findViewById(R.id.operationGuideSync)
-        tvDetectionStatus = findViewById(R.id.tvDetectionStatus)
-        layoutHazardBanner = findViewById(R.id.layoutHazardBanner)
 
         // 设置检测页操作指引内容
         val operationGuideDetecting = findViewById<OperationGuideView>(R.id.operationGuideDetecting)
         operationGuideDetecting.setGuide(
             title = "操作指引",
-            content = "单击 立即分析当前画面\n双击 返回\n说出\"返回\"\n说出\"结束\""
+            content = "说出\"分析\"\n说出\"结束\"\n单击 分析\n双击 结束"
         )
 
         HeadGestureManager.initialize(this)
@@ -970,6 +974,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                     analyzedCount = summary.analyzedCount + 1,
                                 )
                             }
+                            showLocalHazardAlert()
                             openAutoStreamWindow()
                             if (startPendingStreamAnalysis()) {
                                 return@post
@@ -1041,8 +1046,27 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         statusAlertOverlay.reset()
     }
 
-    private fun hideHazardBanner() {
-        layoutHazardBanner.visibility = View.GONE
+    private fun showLocalHazardAlert() {
+        if (!localHazardAlertTtsPlayed) {
+            localHazardAlertTtsPlayed = OfflineTtsPlayer.speak(
+                ownerTag = TAG,
+                message = getString(R.string.offline_tts_hazard_alert),
+            )
+        }
+        statusAlertOverlay.render(
+            StatusAlertModel(
+                status = AlertStatus.WARNING,
+                titleText = "",
+                messageText = getString(R.string.ai_inspection_hazard_found),
+                behavior = AlertBehavior(
+                    autoDismissMs = AUTO_STREAM_WINDOW_MS,
+                    showCountdownBar = false,
+                ),
+                style = AlertStyle(
+                    iconResId = R.drawable.hidden_risk_alert,
+                ),
+            ),
+        )
     }
 
     private fun syncToPhone() {
@@ -1099,7 +1123,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun applyDefaultDetectionStatus() {
-        refreshDetectionStatus()
+        // 检测页不再显示状态监测文案，内部状态仅用于自动抓拍和自动分析调度。
     }
 
     // ==================== 自动拍摄调度 ====================
@@ -1165,16 +1189,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun refreshDetectionStatus() {
-        if (pageState != PageState.DETECTING) {
-            return
-        }
-        val statusRes = when {
-            pendingStreamStart -> R.string.ai_detection_deep_analysis_running
-            hasActiveAutoStreamWindow() -> R.string.ai_detection_deep_analysis_wait
-            !isMotionStable -> R.string.ai_detection_waiting_for_stable
-            else -> R.string.ai_detection_offline_running
-        }
-        tvDetectionStatus.setText(statusRes)
+        // 检测状态仅保留内部状态机，不再向检测页渲染文案。
     }
 
     private fun hasActiveAutoStreamWindow(): Boolean {
@@ -1277,9 +1292,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         if (state != PageState.DETECTING) {
             hideStatusAlertOverlay()
-            hideHazardBanner()
         }
-        // DETECTING 状态时显示隐患 banner
         if (state == PageState.DETECTING) {
             clearStreamResponseUiState()
             refreshDetectionStatus()
@@ -1299,7 +1312,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         when (state) {
             "analyzing" -> {
                 showPage(PageState.DETECTING)
-                tvDetectionStatus.setText(R.string.ai_detection_deep_analysis_running)
             }
             "result" -> {
                 showPage(PageState.STREAM_RESPONSE)
@@ -1323,8 +1335,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             else -> {
                 showPage(PageState.DETECTING)
-                tvDetectionStatus.text = intent.getStringExtra("debug_text")
-                    ?: getString(R.string.ai_detection_offline_running)
             }
         }
         refreshInputActions()
@@ -1337,6 +1347,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 label = "检测页分析",
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("分析", "fen xi"),
                 ),
                 enabled = { pageState == PageState.DETECTING },
             ) {
@@ -1344,15 +1355,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_detecting_exit"),
-                label = "检测页退出",
+                label = "检测页结束",
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("结束", "jie shu"),
                     UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
                 ),
                 enabled = { pageState == PageState.DETECTING },
             ) {
-                returnDirectlyToHome()
+                finishInspectionWithReport()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_stream_confirm_sync"),
@@ -1729,10 +1741,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return snapshot.detections
             .mapNotNull { detection ->
                 val displayLabel = HiddenRiskMultiOverlayRenderer.labelFor(detection)
-                val info = localHazardInfoByItem[detection.label]
-                    ?: localHazardInfoByItem[displayLabel]
+                val matchedItem = sequenceOf(detection.label, displayLabel)
+                    .map { it.trim() }
+                    .firstOrNull { it.isNotBlank() && localHazardInfoByItem.containsKey(it) }
                     ?: return@mapNotNull null
-                LocalHazardMatch(info = info, score = detection.score)
+                val info = localHazardInfoByItem[matchedItem] ?: return@mapNotNull null
+                LocalHazardMatch(info = info, matchedItem = matchedItem, score = detection.score)
             }
             .maxByOrNull { it.score }
     }
@@ -1759,7 +1773,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val descriptionText = match.info.displayDescription()
         tvStreamContent.text = descriptionText
         lastAnalysisText = descriptionText
-        InspectionWorkflowSession.recordDetection(match.info.item, descriptionText)
+        InspectionWorkflowSession.recordDetection(match.matchedItem, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
         adjustStreamScrollHeight()
@@ -1859,6 +1873,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (localResultStage != LocalResultStage.DESCRIPTION) return
         localSaveSubmitting = false
         localResultStage = LocalResultStage.ADVICE
+        if (!localHazardAdviceTtsPlayed) {
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
+                ownerTag = TAG,
+                message = getString(R.string.offline_tts_hazard_advice_intro),
+            )
+        }
         val descriptionText = localInfo.displayDescription()
         val adviceText = localInfo.displayAdvice()
         tvStreamContent.text = adviceText
@@ -1937,6 +1957,29 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeLocalHazardInfo = null
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
+        localHazardAlertTtsPlayed = false
+        localHazardAdviceTtsPlayed = false
+    }
+
+    private fun buildLocalHazardInfoByItem(infos: List<LocalHazardInfo>): Map<String, LocalHazardInfo> {
+        val indexed = linkedMapOf<String, LocalHazardInfo>()
+        infos.forEach { info ->
+            info.item
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .forEach { itemName ->
+                    val previous = indexed[itemName]
+                    if (previous != null) {
+                        Log.w(
+                            TAG,
+                            "duplicate local hazard item key=$itemName keepFirst hidNum=${previous.requestHidNum()} dropped=${info.requestHidNum()}",
+                        )
+                    } else {
+                        indexed[itemName] = info
+                    }
+                }
+        }
+        return indexed
     }
 
     private fun loadLocalHazardInfos(): List<LocalHazardInfo> {
@@ -1945,7 +1988,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 InputStreamReader(input, Charsets.UTF_8).use { reader ->
                     val type = object : TypeToken<List<LocalHazardInfo>>() {}.type
                     Gson().fromJson<List<LocalHazardInfo>>(reader, type).orEmpty()
-                        .filter { it.item.isNotBlank() }
+                        .filter { info -> info.item.any { it.trim().isNotBlank() } }
                 }
             }
         }.onFailure { error ->

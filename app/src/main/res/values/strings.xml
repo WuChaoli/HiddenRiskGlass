@@ -87,8 +87,7 @@
     <string name="ai_inspection_default_workshop">装配车间</string>
     <string name="ai_inspection_auto_capture">触控指令：单击分析 | 双击退出</string>
     <string name="ai_inspection_keep_steady">触控指令：单击 | 双击</string>
-    <string name="ai_inspection_hazard_found">检测到隐患</string>
-    <string name="ai_inspection_hazard_count">已处理隐患0/10</string>
+    <string name="ai_inspection_hazard_found">识别到隐患</string>
     <string name="ai_inspection_sync_prompt">隐患信息是否同步手机端？</string>
     <string name="ai_inspection_sync_hint">语音指令：确认 | 取消\n触控指令：单击 | 双击</string>
     <string name="ai_inspection_sync_hint_with_gyro">语音指令：确认 | 取消\n触控指令：单击 | 双击\n头控指令：点头确认 | 摇头取消</string>
@@ -184,12 +183,6 @@
     <string name="ai_entry_menu_guide">设备指引</string>
     <string name="ai_entry_menu_lightshot">闪拍</string>
     <string name="ai_entry_menu_hint">说出菜单名称，或前后滑动点击选择</string>
-    <string name="ai_detection_waiting_for_stable">请保持头部稳定</string>
-    <string name="ai_detection_online_ready">正在识别中</string>
-    <string name="ai_detection_online_running">正在识别中</string>
-    <string name="ai_detection_offline_running">正在识别中</string>
-    <string name="ai_detection_deep_analysis_wait">已发现疑似隐患</string>
-    <string name="ai_detection_deep_analysis_running">分析中</string>
     <string name="ai_detection_result_sync">是否同步到手机端？</string>
     <string name="ai_detection_result_hint">前后滑动翻页，单击/确认同步，双击/取消返回检测</string>
     <string name="ai_detection_sync_decision_hint">语音：继续 | 结束，触控：单击 | 双击，头控：点头继续 | 摇头结束</string>
