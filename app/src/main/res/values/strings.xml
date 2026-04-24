@@ -70,6 +70,7 @@
     <string name="wifi_scan_permission_denied">缺少必要权限，无法扫码连接 Wi‑Fi</string>
     <string name="wifi_scan_connect_failed">Wi‑Fi 连接失败，请重试</string>
     <string name="wifi_scan_camera_error">相机初始化失败，请重试</string>
+    <string name="wifi_scan_camera_recovery_failed">相机恢复失败，请重试</string>
     <string name="wifi_scan_wait_system">系统正在处理连接请求，请稍候</string>
     <string name="wifi_scan_verify_connection">正在确认 Wi‑Fi 连接：%1$s</string>
     <string name="wifi_scan_cancelled">已取消 Wi‑Fi 连接</string>
@@ -106,6 +107,7 @@
     <string name="ai_inspection_local_continue_hint">说出“继续”\n说出“退出”\n单击 继续\n双击 退出</string>
     <string name="ai_inspection_local_continue_hint_with_gyro">说出“继续”\n说出“退出”\n单击 继续\n双击 退出\n点头 继续\n摇头 退出</string>
     <string name="ai_inspection_local_save_success">保存成功</string>
+    <string name="ai_inspection_local_save_failed">保存失败，请重试</string>
 
     <string name="ai_inspection_load_error_title">加载失败</string>
     <string name="ai_inspection_load_error_hint">触控指令：单击 | 双击</string>
@@ -118,7 +120,7 @@
     <string name="ai_inspection_device_error_title">设备异常</string>
     <string name="ai_inspection_device_error_hint">触控指令：单击 | 双击</string>
     <string name="ai_inspection_guide_title">巡检操作说明</string>
-    <string name="ai_inspection_guide_content">1. 本地模型每 1 秒检测当前画面\n2. 发现疑似隐患后保持稳定进入分析\n3. 单击可立即分析当前最新画面，确认后保存结果</string>
+    <string name="ai_inspection_guide_content">1. 保持眼镜稳定，自动取景识别隐患\n2. 系统自动拍照、识别隐患\n3. 可选择是否同步至手机生成报告</string>
     <string name="ai_inspection_guide_hint">语音指令：开始\n触控指令：单击 | 双击</string>
     <string name="ai_inspection_guide_step1">1、本地模型每 1 秒检测当前画面</string>
     <string name="ai_inspection_guide_step2">2、疑似隐患需保持稳定后进入分析</string>
@@ -153,7 +155,7 @@
     <string name="enterprise_qr_title">扫企业码</string>
     <string name="enterprise_qr_frame_hint">请扫描企业巡检二维码</string>
     <string name="enterprise_qr_guide_title">操作说明</string>
-    <string name="enterprise_qr_guide_line1">请打开智能眼镜-检查对象</string>
+    <string name="enterprise_qr_guide_line1"></string>
     <string name="enterprise_qr_guide_line2">选择企业-日常巡查-眼镜检查</string>
     <string name="enterprise_qr_hint">请对准企业二维码，扫码成功后自动进入企业信息页</string>
     <string name="enterprise_qr_waiting">请将企业二维码放入取景框内</string>
@@ -161,6 +163,9 @@
     <string name="enterprise_qr_invalid">未识别到有效企业码，请重试</string>
     <string name="enterprise_qr_permission_denied">缺少必要权限，无法扫码</string>
     <string name="enterprise_qr_camera_error">相机初始化失败，请重试</string>
+    <string name="enterprise_qr_camera_recovery_failed">相机恢复失败，请重试</string>
+    <string name="enterprise_qr_fetching_object">正在获取对象信息…</string>
+    <string name="enterprise_qr_object_fetch_failed">对象信息获取失败，请重试</string>
     <string name="enterprise_info_region_prefix">所属区域：</string>
     <string name="enterprise_info_category_prefix">所属领域：</string>
     <string name="enterprise_info_risk_tags_prefix">风险标签：</string>
@@ -179,12 +184,12 @@
     <string name="ai_entry_menu_guide">设备指引</string>
     <string name="ai_entry_menu_lightshot">闪拍</string>
     <string name="ai_entry_menu_hint">说出菜单名称，或前后滑动点击选择</string>
-    <string name="ai_detection_waiting_for_stable">头部移动中，待稳定 0.5 秒后继续本地识别</string>
-    <string name="ai_detection_online_ready">已保持稳定，发现疑似隐患后满足 1 秒将自动进入分析</string>
-    <string name="ai_detection_online_running">本地识别中，发现疑似隐患后将进入分析</string>
-    <string name="ai_detection_offline_running">本地识别中，发现疑似隐患后将进入分析</string>
-    <string name="ai_detection_deep_analysis_wait">疑似隐患已发现，连续稳定满 1 秒将自动进入分析</string>
-    <string name="ai_detection_deep_analysis_running">流式分析中，正在抓取当前画面并返回结果</string>
+    <string name="ai_detection_waiting_for_stable">请保持头部稳定</string>
+    <string name="ai_detection_online_ready">正在识别中</string>
+    <string name="ai_detection_online_running">正在识别中</string>
+    <string name="ai_detection_offline_running">正在识别中</string>
+    <string name="ai_detection_deep_analysis_wait">已发现疑似隐患</string>
+    <string name="ai_detection_deep_analysis_running">分析中</string>
     <string name="ai_detection_result_sync">是否同步到手机端？</string>
     <string name="ai_detection_result_hint">前后滑动翻页，单击/确认同步，双击/取消返回检测</string>
     <string name="ai_detection_sync_decision_hint">语音：继续 | 结束，触控：单击 | 双击，头控：点头继续 | 摇头结束</string>

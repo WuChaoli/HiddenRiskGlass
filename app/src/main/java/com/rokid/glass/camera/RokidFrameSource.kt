@@ -47,6 +47,7 @@ object RokidFrameSource {
     private const val DEFAULT_TARGET_CENTER_X_RATIO = 0.50f
     private const val DEFAULT_TARGET_CENTER_Y_RATIO = 0.64f
     private const val CROPPED_TARGET_SIZE = 640
+    private const val FRAME_STREAM_RESTART_RELEASE_DELAY_MS = 500L
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -79,10 +80,12 @@ object RokidFrameSource {
     fun startFrameStream(onReady: (Boolean) -> Unit = {}) {
         synchronized(lock) {
             if (!GlassSdk.isReady()) {
+                Log.w(TAG, "startFrameStream skipped sdkNotReady")
                 mainHandler.post { onReady(false) }
                 return
             }
             if (nv21Helper != null) {
+                Log.i(TAG, "startFrameStream reuse helper opened=$frameStreamOpened")
                 if (frameStreamOpened) {
                     mainHandler.post { onReady(true) }
                 } else {
@@ -90,6 +93,7 @@ object RokidFrameSource {
                 }
                 return
             }
+            Log.i(TAG, "startFrameStream create helper")
             frameReadyCallbacks += onReady
             latestFrame = null
             nv21Helper = CameraShareHelper().apply {
@@ -145,6 +149,7 @@ object RokidFrameSource {
 
     fun stopFrameStream() {
         val helper = synchronized(lock) {
+            Log.i(TAG, "stopFrameStream helperExists=${nv21Helper != null}")
             frameReadyCallbacks.clear()
             frameStreamOpened = false
             frameSize = null
@@ -155,9 +160,29 @@ object RokidFrameSource {
         helper?.releaseNv21Export()
     }
 
+    fun restartFrameStream(
+        releaseDelayMs: Long = FRAME_STREAM_RESTART_RELEASE_DELAY_MS,
+        onReady: (Boolean) -> Unit = {},
+    ) {
+        Log.i(TAG, "restartFrameStream begin releaseDelayMs=$releaseDelayMs")
+        stopFrameStream()
+        mainHandler.postDelayed(
+            {
+                Log.i(TAG, "restartFrameStream relaunch")
+                startFrameStream { success ->
+                    Log.i(TAG, "restartFrameStream finished success=$success")
+                    onReady(success)
+                }
+            },
+            releaseDelayMs.coerceAtLeast(0L),
+        )
+    }
+
     fun releaseAll() {
         stopFrameStream()
     }
+
+    fun isFrameStreamOpen(): Boolean = frameStreamOpened
 
     fun isFrameStreamWarm(): Boolean = frameStreamOpened && latestFrame != null
 

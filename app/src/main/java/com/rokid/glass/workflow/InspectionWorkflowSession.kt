@@ -1,5 +1,12 @@
 package com.rokid.glass.workflow
 
+import android.net.Uri
+import android.util.Log
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+
 /**
  * 巡检主链路会话。
  * 首批先以内存单例承接页面跳转之间的上下文。
@@ -31,6 +38,7 @@ object InspectionWorkflowSession {
         val regionCode: String,
         val apiBaseUrl: String,
         val authCode: String,
+        val extraField: String,
         val rawContent: String,
     )
 
@@ -72,26 +80,34 @@ object InspectionWorkflowSession {
     fun updateEnterpriseFromQr(qrContent: String): Boolean {
         val payload = parseEnterpriseQrPayload(qrContent) ?: return false
         enterpriseQrPayload = payload
-        enterpriseInfo = EnterpriseInfo(
-            companyName = "天天小吃店",
-            siteName = "滨江智造园区 3 号车间",
-            inspectorName = "眼镜端巡检员",
-            qrContent = payload.rawContent,
-            region = "杭州市萧山区",
-            category = "消防安全",
-            riskTags = "九小场所（小餐饮）、消防重点场所",
-            riskLevel = "一般风险",
-            hazardHistory = listOf(
-                "三合一住人",
-                "防盗窗未设紧急逃生口",
-                "电子烟靠近笔记本电脑存在火灾风险",
-                "防盗窗影响逃生和灭火救援",
-                "多孔插线板随意放置",
-                "电气安全",
-                "多设备集中连接",
-            ),
+        enterpriseInfo = null
+        Log.i(
+            TAG,
+            "enterprise qr parsed objectId=${payload.objectId} regionCode=${payload.regionCode} baseUrl=${payload.apiBaseUrl} extraField=${sanitizeQrForLog(payload.extraField)}",
         )
         return true
+    }
+
+    fun updateEnterpriseObjectInfo(
+        companyName: String?,
+        region: String?,
+        category: String?,
+        riskTags: String?,
+        riskLevel: String?,
+        hazardHistory: List<String>,
+    ) {
+        val payload = enterpriseQrPayload ?: return
+        enterpriseInfo = EnterpriseInfo(
+            companyName = companyName?.trim().takeUnless { it.isNullOrEmpty() } ?: "-",
+            siteName = DEFAULT_ENTERPRISE_SITE_NAME,
+            inspectorName = DEFAULT_ENTERPRISE_INSPECTOR_NAME,
+            qrContent = payload.rawContent,
+            region = region.orEmpty(),
+            category = category.orEmpty(),
+            riskTags = riskTags.orEmpty(),
+            riskLevel = riskLevel.orEmpty(),
+            hazardHistory = hazardHistory,
+        )
     }
 
     fun recordDetection(title: String, message: String) {
@@ -156,25 +172,207 @@ object InspectionWorkflowSession {
 
     private fun parseEnterpriseQrPayload(qrContent: String): EnterpriseQrPayload? {
         val rawContent = qrContent.trim()
+        if (rawContent.isBlank()) {
+            Log.w(TAG, "enterprise qr parse failed: blank content")
+            return null
+        }
+
+        parseLegacyEnterpriseQr(rawContent)?.let { return it }
+        parseQueryEnterpriseQr(rawContent)?.let { return it }
+        parseJsonEnterpriseQr(rawContent)?.let { return it }
+
+        val decodedContent = decodeQrContent(rawContent)
+        if (decodedContent != rawContent) {
+            parseLegacyEnterpriseQr(decodedContent)?.let { return it.copy(rawContent = rawContent) }
+            parseQueryEnterpriseQr(decodedContent)?.let { return it.copy(rawContent = rawContent) }
+            parseJsonEnterpriseQr(decodedContent)?.let { return it.copy(rawContent = rawContent) }
+        }
+
+        Log.w(TAG, "enterprise qr parse failed raw=${sanitizeQrForLog(rawContent)}")
+        return null
+    }
+
+    private fun parseLegacyEnterpriseQr(rawContent: String): EnterpriseQrPayload? {
         val commaParts = rawContent.split(',', limit = 2)
-        if (commaParts.size != 2) {
+        if (commaParts.size == 2) {
+            val rightCode = commaParts[0].trim()
+            val tailParts = commaParts[1].split(';').map { it.trim() }
+            if (tailParts.size < LEGACY_ENTERPRISE_QR_MIN_TAIL_FIELD_COUNT) {
+                return null
+            }
+            val objectId = tailParts.getOrNull(0).orEmpty()
+            val userId = tailParts.getOrNull(1).orEmpty()
+            val regionCode = tailParts.getOrNull(2).orEmpty()
+            val apiBaseUrl = tailParts.getOrNull(3).orEmpty()
+            val authCode = tailParts.getOrNull(4).orEmpty()
+            val extraField = tailParts.drop(5).joinToString(";")
+            return buildEnterpriseQrPayload(
+                rightCode = rightCode,
+                objectId = objectId,
+                userId = userId,
+                regionCode = regionCode,
+                apiBaseUrl = apiBaseUrl,
+                authCode = authCode,
+                extraField = extraField,
+                rawContent = rawContent,
+            )
+        }
+
+        val semicolonParts = rawContent.split(';').map { it.trim() }
+        if (semicolonParts.size < ENTERPRISE_QR_MIN_FIELD_COUNT) {
             return null
         }
-        val rightCode = commaParts[0].trim()
-        val tailParts = commaParts[1].split(';').map { it.trim() }
-        if (rightCode.isBlank() || tailParts.size != ENTERPRISE_QR_TAIL_FIELD_COUNT || tailParts.any { it.isBlank() }) {
-            return null
-        }
-        return EnterpriseQrPayload(
+        val rightCode = semicolonParts.getOrNull(0).orEmpty()
+        val objectId = semicolonParts.getOrNull(1).orEmpty()
+        val userId = semicolonParts.getOrNull(2).orEmpty()
+        val regionCode = semicolonParts.getOrNull(3).orEmpty()
+        val apiBaseUrl = semicolonParts.getOrNull(4).orEmpty()
+        val authCode = semicolonParts.getOrNull(5).orEmpty()
+        val extraField = semicolonParts.drop(6).joinToString(";")
+        return buildEnterpriseQrPayload(
             rightCode = rightCode,
-            objectId = tailParts[0],
-            userId = tailParts[1],
-            regionCode = tailParts[2],
-            apiBaseUrl = tailParts[3],
-            authCode = tailParts[4],
+            objectId = objectId,
+            userId = userId,
+            regionCode = regionCode,
+            apiBaseUrl = apiBaseUrl,
+            authCode = authCode,
+            extraField = extraField,
             rawContent = rawContent,
         )
     }
 
-    private const val ENTERPRISE_QR_TAIL_FIELD_COUNT = 5
+    private fun parseQueryEnterpriseQr(rawContent: String): EnterpriseQrPayload? {
+        val uri = runCatching { Uri.parse(rawContent) }.getOrNull() ?: return null
+        val objectId = firstNonBlank(
+            uri.getQueryParameter("objectId"),
+            uri.getQueryParameter("objectid"),
+            uri.getQueryParameter("id"),
+        )
+        val authCode = firstNonBlank(
+            uri.getQueryParameter("authCode"),
+            uri.getQueryParameter("authcode"),
+        )
+        val apiBaseUrl = firstNonBlank(
+            uri.getQueryParameter("apiBaseUrl"),
+            uri.getQueryParameter("apiBaseURL"),
+            uri.getQueryParameter("baseUrl"),
+            uri.getQueryParameter("baseURL"),
+        ) ?: "${uri.scheme ?: "http"}://${uri.authority.orEmpty()}${uri.path.orEmpty()}"
+        val rightCode = firstNonBlank(
+            uri.getQueryParameter("rightCode"),
+            uri.getQueryParameter("objectName"),
+            uri.getQueryParameter("name"),
+        ).orEmpty()
+        return buildEnterpriseQrPayload(
+            rightCode = rightCode,
+            objectId = objectId.orEmpty(),
+            userId = firstNonBlank(uri.getQueryParameter("userId"), uri.getQueryParameter("userid")).orEmpty(),
+            regionCode = firstNonBlank(uri.getQueryParameter("regionCode"), uri.getQueryParameter("regioncode")).orEmpty(),
+            apiBaseUrl = apiBaseUrl.orEmpty(),
+            authCode = authCode.orEmpty(),
+            extraField = firstNonBlank(
+                uri.getQueryParameter("extraField"),
+                uri.getQueryParameter("extra"),
+                uri.getQueryParameter("ext"),
+            ).orEmpty(),
+            rawContent = rawContent,
+        )
+    }
+
+    private fun parseJsonEnterpriseQr(rawContent: String): EnterpriseQrPayload? {
+        val jsonObject = runCatching {
+            gson.fromJson(rawContent, JsonObject::class.java)
+        }.getOrNull() ?: return null
+        return buildEnterpriseQrPayload(
+            rightCode = firstNonBlank(
+                jsonObject.getStringOrNull("rightCode"),
+                jsonObject.getStringOrNull("objectName"),
+                jsonObject.getStringOrNull("name"),
+            ).orEmpty(),
+            objectId = firstNonBlank(
+                jsonObject.getStringOrNull("objectId"),
+                jsonObject.getStringOrNull("objectid"),
+                jsonObject.getStringOrNull("id"),
+            ).orEmpty(),
+            userId = firstNonBlank(
+                jsonObject.getStringOrNull("userId"),
+                jsonObject.getStringOrNull("userid"),
+            ).orEmpty(),
+            regionCode = firstNonBlank(
+                jsonObject.getStringOrNull("regionCode"),
+                jsonObject.getStringOrNull("regioncode"),
+            ).orEmpty(),
+            apiBaseUrl = firstNonBlank(
+                jsonObject.getStringOrNull("apiBaseUrl"),
+                jsonObject.getStringOrNull("apiBaseURL"),
+                jsonObject.getStringOrNull("baseUrl"),
+                jsonObject.getStringOrNull("baseURL"),
+            ).orEmpty(),
+            authCode = firstNonBlank(
+                jsonObject.getStringOrNull("authCode"),
+                jsonObject.getStringOrNull("authcode"),
+            ).orEmpty(),
+            extraField = firstNonBlank(
+                jsonObject.getStringOrNull("extraField"),
+                jsonObject.getStringOrNull("extra"),
+                jsonObject.getStringOrNull("ext"),
+            ).orEmpty(),
+            rawContent = rawContent,
+        )
+    }
+
+    private fun buildEnterpriseQrPayload(
+        rightCode: String,
+        objectId: String,
+        userId: String,
+        regionCode: String,
+        apiBaseUrl: String,
+        authCode: String,
+        extraField: String,
+        rawContent: String,
+    ): EnterpriseQrPayload? {
+        if (objectId.isBlank() || authCode.isBlank() || apiBaseUrl.isBlank()) {
+            return null
+        }
+        return EnterpriseQrPayload(
+            rightCode = rightCode,
+            objectId = objectId,
+            userId = userId,
+            regionCode = regionCode,
+            apiBaseUrl = apiBaseUrl,
+            authCode = authCode,
+            extraField = extraField,
+            rawContent = rawContent,
+        )
+    }
+
+    private fun decodeQrContent(rawContent: String): String {
+        return runCatching {
+            URLDecoder.decode(rawContent, StandardCharsets.UTF_8.name()).trim()
+        }.getOrDefault(rawContent)
+    }
+
+    private fun sanitizeQrForLog(rawContent: String): String {
+        if (rawContent.length <= QR_LOG_VISIBLE_PREFIX_LENGTH) {
+            return rawContent
+        }
+        return rawContent.take(QR_LOG_VISIBLE_PREFIX_LENGTH) + "..."
+    }
+
+    private fun JsonObject.getStringOrNull(key: String): String? {
+        if (!has(key) || get(key).isJsonNull) return null
+        return runCatching { get(key).asString }.getOrNull()?.trim()
+    }
+
+    private fun firstNonBlank(vararg values: String?): String? {
+        return values.firstOrNull { !it.isNullOrBlank() }?.trim()
+    }
+
+    private const val DEFAULT_ENTERPRISE_SITE_NAME = "滨江智造园区 3 号车间"
+    private const val DEFAULT_ENTERPRISE_INSPECTOR_NAME = "眼镜端巡检员"
+    private const val ENTERPRISE_QR_MIN_FIELD_COUNT = 6
+    private const val LEGACY_ENTERPRISE_QR_MIN_TAIL_FIELD_COUNT = 5
+    private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
+    private const val TAG = "InspectionWorkflow"
+    private val gson = Gson()
 }

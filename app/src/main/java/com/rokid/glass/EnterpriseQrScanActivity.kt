@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -21,6 +22,7 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
@@ -54,11 +56,14 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private val scanner: BarcodeScanner
         get() = scannerDelegate.value
 
+    private val objectMessageService by lazy { EnterpriseObjectMessageService() }
     private val mainHandler = Handler(Looper.getMainLooper())
     private var isFrameStreamReady = false
     private var isProcessingFrame = false
     private var completed = false
     private var debugSnapshotMode = false
+    private var destroyed = false
+    private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
 
     @Volatile
     private var latestPreviewFrame: ByteArray? = null
@@ -68,6 +73,53 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     @Volatile
     private var latestPreviewHeight = 0
+
+    private val cameraRecoveryController by lazy {
+        RokidCameraRecoveryController(
+            mode = RokidCameraRecoveryController.RecoveryMode.PREVIEW_HEALTH,
+            previewView = cameraPreviewView,
+            callback = object : RokidCameraRecoveryController.Callback {
+                override fun onRecoveryStarted(
+                    issue: RokidCameraRecoveryController.RecoveryIssue,
+                    attempt: Int,
+                    maxAttempts: Int,
+                ) {
+                    Log.w(TAG, "camera recovery start issue=$issue attempt=$attempt/$maxAttempts")
+                    isFrameStreamReady = false
+                    isProcessingFrame = false
+                    latestPreviewFrame = null
+                    latestPreviewWidth = 0
+                    latestPreviewHeight = 0
+                    mainHandler.removeCallbacks(scanRunnable)
+                    cameraPreviewView.visibility = View.INVISIBLE
+                }
+
+                override fun onRecoverySucceeded() {
+                    Log.i(TAG, "camera recovery success")
+                    isFrameStreamReady = true
+                    isProcessingFrame = false
+                    latestPreviewFrame = null
+                    latestPreviewWidth = 0
+                    latestPreviewHeight = 0
+                    showScanState(tvStatus.text ?: getString(R.string.enterprise_qr_waiting))
+                    if (shouldEnableCameraRecovery()) {
+                        startScanLoop()
+                    }
+                }
+
+                override fun onRecoveryAbandoned(issue: RokidCameraRecoveryController.RecoveryIssue) {
+                    Log.e(TAG, "camera recovery abandoned issue=$issue")
+                    isFrameStreamReady = false
+                    isProcessingFrame = false
+                    latestPreviewFrame = null
+                    latestPreviewWidth = 0
+                    latestPreviewHeight = 0
+                    mainHandler.removeCallbacks(scanRunnable)
+                    showScanState(getString(R.string.enterprise_qr_camera_recovery_failed))
+                }
+            },
+        )
+    }
 
     private val scanRunnable = object : Runnable {
         override fun run() {
@@ -135,8 +187,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         if (debugSnapshotMode) return
         if (skipScanIfEnterpriseQrCached()) return
         if (hasRequiredPermissions()) {
-            startCameraPipeline()
-            startScanLoop()
+            startCameraPipeline(resetRecoveryAttempts = true)
         } else {
             requestPermissions()
         }
@@ -147,13 +198,22 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             super.onPause()
             return
         }
+        objectMessageRequest?.cancel()
+        objectMessageRequest = null
+        if (completed) {
+            completed = false
+            showScanState(getString(R.string.enterprise_qr_waiting))
+        }
         stopCameraPipeline()
         super.onPause()
     }
 
     override fun onDestroy() {
+        destroyed = true
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
+            objectMessageRequest?.cancel()
+            objectMessageRequest = null
             if (scannerDelegate.isInitialized()) {
                 scanner.close()
             }
@@ -166,8 +226,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         return when (keyEvent) {
             GlassKeyEvent.KEYCODE_CLICK -> {
                 if (!completed) {
-                    tvStatus.setText(R.string.enterprise_qr_waiting)
-                    startScanLoop()
+                    startCameraPipeline(
+                        statusMessage = getString(R.string.enterprise_qr_waiting),
+                        resetRecoveryAttempts = true,
+                    )
                 }
                 true
             }
@@ -188,29 +250,43 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             tvStatus.setText(R.string.enterprise_qr_permission_denied)
             return
         }
-        startCameraPipeline()
-        startScanLoop()
+        startCameraPipeline(resetRecoveryAttempts = true)
     }
 
-    private fun startCameraPipeline() {
+    private fun startCameraPipeline(resetRecoveryAttempts: Boolean = false) {
+        startCameraPipeline(
+            statusMessage = getString(R.string.enterprise_qr_waiting),
+            resetRecoveryAttempts = resetRecoveryAttempts,
+        )
+    }
+
+    private fun startCameraPipeline(
+        statusMessage: CharSequence,
+        resetRecoveryAttempts: Boolean = false,
+    ) {
         if (!hasRequiredPermissions()) {
             return
         }
-        cameraPreviewView.startPreview { success ->
-            runOnUiThread {
-                if (!success) {
-                    tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
-                }
-            }
+        if (resetRecoveryAttempts) {
+            cameraRecoveryController.resetRecoveryAttempts()
         }
-        RokidFrameSource.startFrameStream { success ->
+        Log.i(TAG, "startCameraPipeline begin completed=$completed status=$statusMessage")
+        showScanState(statusMessage)
+        isFrameStreamReady = false
+        isProcessingFrame = false
+        latestPreviewFrame = null
+        latestPreviewWidth = 0
+        latestPreviewHeight = 0
+        cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
+        cameraRecoveryController.startOrReuse { success ->
             runOnUiThread {
                 isFrameStreamReady = success
+                Log.i(TAG, "startCameraPipeline frameStreamReady=$success")
                 if (!success) {
                     tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
                     return@runOnUiThread
                 }
-                tvStatus.setText(R.string.enterprise_qr_waiting)
+                tvStatus.text = statusMessage
                 startScanLoop()
             }
         }
@@ -218,8 +294,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     private fun stopCameraPipeline() {
         mainHandler.removeCallbacks(scanRunnable)
-        cameraPreviewView.stopPreview()
-        RokidFrameSource.stopFrameStream()
+        cameraRecoveryController.stop()
         isFrameStreamReady = false
         isProcessingFrame = false
         latestPreviewFrame = null
@@ -228,7 +303,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun refreshLatestFrameFromSdk(): Boolean {
-        val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return false
+        val frame = RokidFrameSource.copyLatestCroppedFrame(SCAN_FRAME_TARGET_SIZE) ?: run {
+            Log.d(TAG, "refreshLatestFrameFromSdk noFrameYet")
+            return false
+        }
         latestPreviewFrame = frame.data
         latestPreviewWidth = frame.width
         latestPreviewHeight = frame.height
@@ -236,6 +314,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun startScanLoop() {
+        if (completed) {
+            return
+        }
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.post(scanRunnable)
     }
@@ -245,27 +326,50 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             return
         }
         val rawValue = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue ?: return
+        Log.i(TAG, "enterprise qr raw=${sanitizeQrForLog(rawValue)}")
         if (!InspectionWorkflowSession.updateEnterpriseFromQr(rawValue)) {
+            Log.w(TAG, "enterprise qr parse rejected raw=${sanitizeQrForLog(rawValue)}")
             tvStatus.setText(R.string.enterprise_qr_invalid)
             return
         }
         completed = true
-        tvStatus.visibility = View.GONE
+        enterObjectFetchLoadingState()
+        mainHandler.removeCallbacks(scanRunnable)
+        isProcessingFrame = false
+        cameraRecoveryController.setRecoveryEnabled(false)
+        val payload = InspectionWorkflowSession.enterpriseQrPayload
+        if (payload == null) {
+            restoreScanStateForRetry(getString(R.string.enterprise_qr_object_fetch_failed))
+            return
+        }
+        objectMessageRequest?.cancel()
+        objectMessageRequest = objectMessageService.fetchObjectMessage(
+            baseUrl = payload.apiBaseUrl,
+            authCode = payload.authCode,
+            objectId = payload.objectId,
+            callback = object : EnterpriseObjectMessageService.ObjectMessageCallback {
+                override fun onSuccess(data: EnterpriseObjectMessageService.ObjectMessageData) {
+                    if (destroyed || isFinishing) return
+                    objectMessageRequest = null
+                    InspectionWorkflowSession.updateEnterpriseObjectInfo(
+                        companyName = data.objectName,
+                        region = data.areaName,
+                        category = data.domain,
+                        riskTags = data.tags,
+                        riskLevel = data.riskLevel,
+                        hazardHistory = data.hidDanger.orEmpty()
+                            .mapNotNull { it.descrip?.trim()?.takeIf(String::isNotEmpty) },
+                    )
+                    navigateToEnterpriseInfo()
+                }
 
-        cameraPreviewView.visibility = View.INVISIBLE
-        viewfinder.visibility = View.INVISIBLE
-        tvScanHint.visibility = View.GONE
-        infoCard.visibility = View.GONE
-
-        scanFrame.background = null
-        resultContent.visibility = View.VISIBLE
-        bottomHints.visibility = View.VISIBLE
-
-        stopCameraPipeline()
-        mainHandler.postDelayed({
-            startActivity(Intent(this, EnterpriseInfoActivity::class.java))
-            finish()
-        }, RESULT_STAY_MS)
+                override fun onFailure(message: String) {
+                    if (destroyed || isFinishing) return
+                    objectMessageRequest = null
+                    restoreScanStateForRetry(message)
+                }
+            },
+        )
     }
 
     private fun skipScanIfEnterpriseQrCached(): Boolean {
@@ -278,8 +382,48 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun navigateToEnterpriseInfo() {
+        stopCameraPipeline()
         startActivity(Intent(this, EnterpriseInfoActivity::class.java))
         finish()
+    }
+
+    private fun enterObjectFetchLoadingState() {
+        tvStatus.visibility = View.VISIBLE
+        tvStatus.setText(R.string.enterprise_qr_fetching_object)
+        cameraPreviewView.visibility = View.INVISIBLE
+        viewfinder.visibility = View.INVISIBLE
+        tvScanHint.visibility = View.GONE
+        infoCard.visibility = View.GONE
+        scanFrame.background = null
+        resultContent.visibility = View.VISIBLE
+        bottomHints.visibility = View.GONE
+    }
+
+    private fun restoreScanStateForRetry(message: String) {
+        completed = false
+        showScanState(message)
+        if (hasRequiredPermissions()) {
+            startCameraPipeline(
+                statusMessage = message,
+                resetRecoveryAttempts = true,
+            )
+        }
+    }
+
+    private fun showScanState(statusMessage: CharSequence) {
+        cameraPreviewView.visibility = View.VISIBLE
+        viewfinder.visibility = View.VISIBLE
+        tvScanHint.visibility = View.VISIBLE
+        infoCard.visibility = View.VISIBLE
+        scanFrame.setBackgroundResource(R.drawable.glass_scan_frame)
+        resultContent.visibility = View.GONE
+        bottomHints.visibility = View.GONE
+        tvStatus.visibility = View.VISIBLE
+        tvStatus.text = statusMessage
+    }
+
+    private fun shouldEnableCameraRecovery(): Boolean {
+        return !debugSnapshotMode && !completed && objectMessageRequest == null
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -335,8 +479,19 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     companion object {
+        private const val TAG = "EnterpriseQrScan"
         private const val REQUEST_CODE_PERMISSIONS = 6001
         private const val SCAN_INTERVAL_MS = 800L
-        private const val RESULT_STAY_MS = 1000L
+        private const val SCAN_FRAME_TARGET_SIZE = 480
+        private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
+
+        private fun sanitizeQrForLog(rawValue: String): String {
+            val normalized = rawValue.replace('\n', ' ').replace('\r', ' ')
+            return if (normalized.length <= QR_LOG_VISIBLE_PREFIX_LENGTH) {
+                normalized
+            } else {
+                normalized.take(QR_LOG_VISIBLE_PREFIX_LENGTH) + "..."
+            }
+        }
     }
 }

@@ -34,6 +34,7 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
@@ -120,6 +121,60 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
     @Volatile
     private var latestPreviewHeight = 0
+
+    private val cameraRecoveryController by lazy {
+        RokidCameraRecoveryController(
+            mode = RokidCameraRecoveryController.RecoveryMode.PREVIEW_HEALTH,
+            previewView = cameraPreviewView,
+            callback = object : RokidCameraRecoveryController.Callback {
+                override fun onRecoveryStarted(
+                    issue: RokidCameraRecoveryController.RecoveryIssue,
+                    attempt: Int,
+                    maxAttempts: Int,
+                ) {
+                    Log.w(TAG, "camera recovery start issue=$issue attempt=$attempt/$maxAttempts")
+                    isCameraReady = false
+                    isProcessingFrame = false
+                    latestPreviewFrame = null
+                    latestPreviewWidth = 0
+                    latestPreviewHeight = 0
+                    mainHandler.removeCallbacks(scanRunnable)
+                    cameraPreviewView.visibility = View.INVISIBLE
+                }
+
+                override fun onRecoverySucceeded() {
+                    Log.i(TAG, "camera recovery success stage=$connectionStage")
+                    isCameraReady = true
+                    isProcessingFrame = false
+                    latestPreviewFrame = null
+                    latestPreviewWidth = 0
+                    latestPreviewHeight = 0
+                    cameraPreviewView.visibility = View.VISIBLE
+                    if (connectionStage == ConnectionStage.SCANNING &&
+                        System.currentTimeMillis() >= scanBlockedUntilMs
+                    ) {
+                        tvStatus.setText(R.string.wifi_scan_waiting)
+                    }
+                    if (shouldEnableCameraRecovery()) {
+                        startScanLoop()
+                    }
+                }
+
+                override fun onRecoveryAbandoned(issue: RokidCameraRecoveryController.RecoveryIssue) {
+                    Log.e(TAG, "camera recovery abandoned issue=$issue")
+                    isCameraReady = false
+                    isProcessingFrame = false
+                    latestPreviewFrame = null
+                    latestPreviewWidth = 0
+                    latestPreviewHeight = 0
+                    scanBlockedUntilMs = 0L
+                    mainHandler.removeCallbacks(scanRunnable)
+                    cameraPreviewView.visibility = View.VISIBLE
+                    tvStatus.setText(R.string.wifi_scan_camera_recovery_failed)
+                }
+            },
+        )
+    }
 
     private val addNetworksLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -254,8 +309,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             else -> Unit
         }
         if (hasRequiredPermissions()) {
-            startCameraPipeline()
-            startScanLoop()
+            startCameraPipeline(resetRecoveryAttempts = true)
         } else {
             requestPermissions()
         }
@@ -296,8 +350,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             GlassKeyEvent.KEYCODE_CLICK -> {
                 if (connectionStage == ConnectionStage.SCANNING) {
                     scanBlockedUntilMs = 0L
-                    tvStatus.setText(R.string.wifi_scan_waiting)
-                    startScanLoop()
+                    startCameraPipeline(resetRecoveryAttempts = true)
                 }
                 true
             }
@@ -323,30 +376,35 @@ class WifiQrScanActivity : BaseGlassActivity() {
             tvStatus.setText(R.string.wifi_scan_permission_denied)
             return
         }
-        startCameraPipeline()
-        startScanLoop()
+        startCameraPipeline(resetRecoveryAttempts = true)
     }
 
-    private fun startCameraPipeline() {
+    private fun startCameraPipeline(resetRecoveryAttempts: Boolean = false) {
         if (!hasRequiredPermissions()) {
             return
         }
-        cameraPreviewView.startPreview { success ->
-            runOnUiThread {
-                if (!success) {
-                    tvStatus.setText(R.string.wifi_scan_camera_error)
-                }
-            }
+        if (resetRecoveryAttempts) {
+            cameraRecoveryController.resetRecoveryAttempts()
         }
-        RokidFrameSource.startFrameStream { success ->
+        isCameraReady = false
+        isProcessingFrame = false
+        latestPreviewFrame = null
+        latestPreviewWidth = 0
+        latestPreviewHeight = 0
+        cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
+        cameraRecoveryController.startOrReuse { success ->
             runOnUiThread {
                 isCameraReady = success
                 if (!success) {
                     tvStatus.setText(R.string.wifi_scan_camera_error)
                     return@runOnUiThread
                 }
-                if (connectionStage == ConnectionStage.SCANNING) {
+                if (connectionStage == ConnectionStage.SCANNING &&
+                    System.currentTimeMillis() >= scanBlockedUntilMs
+                ) {
                     tvStatus.setText(R.string.wifi_scan_waiting)
+                }
+                if (connectionStage == ConnectionStage.SCANNING) {
                     startScanLoop()
                 }
             }
@@ -354,8 +412,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun stopCameraPipeline() {
-        cameraPreviewView.stopPreview()
-        RokidFrameSource.stopFrameStream()
+        cameraRecoveryController.stop()
         isCameraReady = false
         isProcessingFrame = false
         latestPreviewFrame = null
@@ -403,6 +460,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun connectToWifi(payload: WifiQrPayload) {
+        cameraRecoveryController.setRecoveryEnabled(false)
         cancelNetworkRequest()
         pendingPayload = payload
         activeStrategyName = null
@@ -484,6 +542,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun startVerification(payload: WifiQrPayload, source: String) {
+        cameraRecoveryController.setRecoveryEnabled(false)
         connectionStage = ConnectionStage.VERIFYING_CONNECTION
         activeStrategyName = source
         verifyDeadlineMs = System.currentTimeMillis() + VERIFY_TIMEOUT_MS
@@ -494,6 +553,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun handleConnectionVerified(payload: WifiQrPayload, source: String) {
+        cameraRecoveryController.setRecoveryEnabled(false)
         connectionStage = ConnectionStage.SHOWING_RESULT
         activeStrategyName = source
         mainHandler.removeCallbacks(verifyRunnable)
@@ -510,6 +570,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         awaitingPrivateFlowReturn = false
         connectionStage = ConnectionStage.CONNECTING_WITH_SPECIFIER
         activeStrategyName = "specifier_fallback:$reason"
+        cameraRecoveryController.setRecoveryEnabled(false)
         tvStatus.text = getString(R.string.wifi_scan_connecting, payload.ssid)
         Log.i(TAG, "start specifier fallback reason=$reason target=${payload.ssid}")
 
@@ -643,6 +704,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         connectionStage = ConnectionStage.SCANNING
         scanBlockedUntilMs = System.currentTimeMillis() + resumeDelayMs
         tvStatus.text = message
+        cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
         Log.i(TAG, "reset to scanning delayMs=$resumeDelayMs message=$message")
         if (resumeDelayMs <= 0L) {
             tvStatus.setText(R.string.wifi_scan_waiting)
@@ -661,6 +723,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         connectionStage = ConnectionStage.SCANNING
         scanBlockedUntilMs = System.currentTimeMillis() + resumeDelayMs
         tvStatus.text = message
+        cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.postDelayed({
             if (connectionStage == ConnectionStage.SCANNING && !isFinishing) {
@@ -679,6 +742,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private fun showResultAndFinish(message: String) {
         connectionStage = ConnectionStage.SHOWING_RESULT
         val isSuccess = message == getString(R.string.wifi_scan_success_generic)
+        cameraRecoveryController.setRecoveryEnabled(false)
 
         cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
@@ -734,6 +798,12 @@ class WifiQrScanActivity : BaseGlassActivity() {
         cancelNetworkRequest()
         stopCameraPipeline()
     }
+
+    private fun shouldMonitorPreviewHealth(): Boolean {
+        return !debugSnapshotMode && connectionStage == ConnectionStage.SCANNING
+    }
+
+    private fun shouldEnableCameraRecovery(): Boolean = shouldMonitorPreviewHealth()
 
     /**
      * 获取当前电池电量并更新电池图标填充

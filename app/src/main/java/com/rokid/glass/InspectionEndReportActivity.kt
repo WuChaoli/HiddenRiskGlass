@@ -144,36 +144,50 @@ class InspectionEndReportActivity : BaseGlassActivity() {
                     }
                 },
             ) {
-                finishInspectionAndReturnHome()
+                submitFinishInspection()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Exit,
-                label = "重新开始",
+                label = "退出",
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
                 ),
             ) {
-                finishInspectionAndReturnHome()
+                returnHomeDirectly()
             },
         )
     }
 
-    private fun finishInspectionAndReturnHome() {
+    private fun submitFinishInspection() {
         if (finishSubmitting) return
+        val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
+        val validationMessage = when {
+            enterprisePayload == null -> "缺少企业上下文，请先扫码后再试"
+            enterprisePayload.apiBaseUrl.isBlank() -> "缺少接口地址，请重新扫码后再试"
+            enterprisePayload.authCode.isBlank() -> "缺少鉴权码，请重新扫码后再试"
+            enterprisePayload.objectId.isBlank() -> "缺少对象 ID，请重新扫码后再试"
+            enterprisePayload.userId.isBlank() -> "缺少用户 ID，请重新扫码后再试"
+            else -> null
+        }
+        if (validationMessage != null) {
+            bottomPromptEnd.setSubtitle(validationMessage)
+            return
+        }
+        val confirmedPayload = enterprisePayload ?: return
         finishSubmitting = true
         bottomPromptEnd.setSubtitle("正在提交结束请求...")
         inputSession.updateActions(emptyList())
         InspectionFinishService.finishInspection(
-            sessionId = InspectionWorkflowSession.resolveFinishSessionId(),
+            baseUrl = confirmedPayload.apiBaseUrl,
+            authCode = confirmedPayload.authCode,
+            objectId = confirmedPayload.objectId,
+            userId = confirmedPayload.userId,
+            customParam = confirmedPayload.extraField,
             callback = object : InspectionFinishService.Callback {
                 override fun onSuccess() {
                     if (isFinishing || isDestroyed) return
-                    InspectionWorkflowSession.resetAll()
-                    startActivity(Intent(this@InspectionEndReportActivity, AiInspectionMenuActivity::class.java).apply {
-                        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-                    })
-                    finish()
+                    returnHomeDirectly()
                 }
 
                 override fun onError(message: String) {
@@ -183,6 +197,16 @@ class InspectionEndReportActivity : BaseGlassActivity() {
                 }
             },
         )
+    }
+
+    private fun returnHomeDirectly() {
+        if (isFinishing || isDestroyed) return
+        finishSubmitting = false
+        InspectionWorkflowSession.resetAll()
+        startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        })
+        finish()
     }
 
     private fun renderSavedHazardThumbnails(savedHazardJpegs: List<ByteArray>) {

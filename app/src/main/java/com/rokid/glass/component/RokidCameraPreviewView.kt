@@ -3,7 +3,11 @@ package com.rokid.glass.component
 import android.content.Context
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.util.AttributeSet
+import android.util.Log
 import com.rokid.glass.camera.RokidFrameSource
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -26,11 +30,35 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 ) : GLSurfaceView(context, attrs) {
 
     companion object {
+        private const val TAG = "RokidCameraPreview"
         private const val PREVIEW_PULL_INTERVAL_MS = 66L
+        private const val HEALTH_CHECK_INTERVAL_MS = 300L
+        private const val FIRST_FRAME_TIMEOUT_MS = 1500L
+        private const val STALE_FRAME_TIMEOUT_MS = 1000L
+        private const val MAX_CONSECUTIVE_HEALTH_ISSUES = 3
+    }
+
+    enum class PreviewHealthIssue {
+        FIRST_FRAME_TIMEOUT,
+        FRAME_STALLED,
+    }
+
+    enum class PreviewRecoveryState {
+        SUCCESS,
+        FAILED,
+        ABANDONED,
+    }
+
+    interface PreviewHealthListener {
+        fun onPreviewHealthIssue(issue: PreviewHealthIssue)
+
+        fun onPreviewRecoveryStateChanged(state: PreviewRecoveryState) = Unit
     }
 
     private val renderer = Nv21Renderer()
+    private val mainHandler = Handler(Looper.getMainLooper())
     private val framePullExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private val healthLock = Any()
     private val latestSubmittedTimestamp = AtomicLong(-1L)
 
     @Volatile
@@ -39,11 +67,55 @@ class RokidCameraPreviewView @JvmOverloads constructor(
     @Volatile
     private var framePullTask: ScheduledFuture<*>? = null
 
+    @Volatile
+    private var healthCheckTask: ScheduledFuture<*>? = null
+
+    @Volatile
+    private var previewHealthListener: PreviewHealthListener? = null
+
+    @Volatile
+    private var healthMonitoringEnabled = false
+
+    private var previewStartedAtElapsedMs = 0L
+    private var firstFrameReceived = false
+    private var lastFrameReceivedAtElapsedMs = 0L
+    private var lastHealthIssue: PreviewHealthIssue? = null
+    private var consecutiveHealthIssueCount = 0
+    private var recoveryPending = false
+
     init {
         setEGLContextClientVersion(2)
         preserveEGLContextOnPause = true
         setRenderer(renderer)
         renderMode = RENDERMODE_WHEN_DIRTY
+    }
+
+    fun setPreviewHealthListener(listener: PreviewHealthListener?) {
+        previewHealthListener = listener
+    }
+
+    fun setPreviewHealthMonitoringEnabled(enabled: Boolean) {
+        healthMonitoringEnabled = enabled
+        if (!enabled) {
+            synchronized(healthLock) {
+                resetHealthStateLocked()
+            }
+        }
+    }
+
+    fun reportPreviewRecoveryState(state: PreviewRecoveryState) {
+        synchronized(healthLock) {
+            recoveryPending = false
+            lastHealthIssue = null
+            consecutiveHealthIssueCount = 0
+            if (state != PreviewRecoveryState.SUCCESS && !previewStarted) {
+                firstFrameReceived = false
+                lastFrameReceivedAtElapsedMs = 0L
+            }
+        }
+        previewHealthListener?.let { listener ->
+            mainHandler.post { listener.onPreviewRecoveryStateChanged(state) }
+        }
     }
 
     fun startPreview(onReady: (Boolean) -> Unit = {}) {
@@ -53,7 +125,12 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         }
         previewStarted = true
         latestSubmittedTimestamp.set(-1L)
+        synchronized(healthLock) {
+            previewStartedAtElapsedMs = SystemClock.elapsedRealtime()
+            resetHealthStateLocked()
+        }
         onResume()
+        framePullTask?.cancel(true)
         framePullTask = framePullExecutor.scheduleWithFixedDelay(
             {
                 if (!previewStarted) {
@@ -64,6 +141,14 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                     return@scheduleWithFixedDelay
                 }
                 latestSubmittedTimestamp.set(frame.timestamp)
+                synchronized(healthLock) {
+                    firstFrameReceived = true
+                    lastFrameReceivedAtElapsedMs = SystemClock.elapsedRealtime()
+                    if (!recoveryPending) {
+                        lastHealthIssue = null
+                        consecutiveHealthIssueCount = 0
+                    }
+                }
                 queueEvent {
                     renderer.updateFrame(frame.data, frame.width, frame.height)
                 }
@@ -71,6 +156,25 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             },
             0L,
             PREVIEW_PULL_INTERVAL_MS,
+            TimeUnit.MILLISECONDS,
+        )
+        healthCheckTask?.cancel(true)
+        healthCheckTask = framePullExecutor.scheduleWithFixedDelay(
+            {
+                if (!previewStarted || !healthMonitoringEnabled) {
+                    return@scheduleWithFixedDelay
+                }
+                val issue = detectPreviewHealthIssue() ?: return@scheduleWithFixedDelay
+                if (!shouldDispatchHealthIssue(issue)) {
+                    return@scheduleWithFixedDelay
+                }
+                Log.w(TAG, "preview health issue issue=$issue")
+                previewHealthListener?.let { listener ->
+                    mainHandler.post { listener.onPreviewHealthIssue(issue) }
+                }
+            },
+            HEALTH_CHECK_INTERVAL_MS,
+            HEALTH_CHECK_INTERVAL_MS,
             TimeUnit.MILLISECONDS,
         )
         onReady(true)
@@ -86,15 +190,77 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         latestSubmittedTimestamp.set(-1L)
         framePullTask?.cancel(true)
         framePullTask = null
+        healthCheckTask?.cancel(true)
+        healthCheckTask = null
+        synchronized(healthLock) {
+            previewStartedAtElapsedMs = 0L
+            resetHealthStateLocked()
+        }
         queueEvent { renderer.clearFrame() }
         requestRender()
         onPause()
     }
 
+    fun isPreviewStarted(): Boolean = previewStarted
+
     override fun onDetachedFromWindow() {
         stopPreview()
         framePullExecutor.shutdownNow()
         super.onDetachedFromWindow()
+    }
+
+    private fun detectPreviewHealthIssue(): PreviewHealthIssue? {
+        val now = SystemClock.elapsedRealtime()
+        synchronized(healthLock) {
+            if (recoveryPending) {
+                return null
+            }
+            return when {
+                !firstFrameReceived && previewStartedAtElapsedMs > 0L &&
+                    now - previewStartedAtElapsedMs >= FIRST_FRAME_TIMEOUT_MS -> {
+                    PreviewHealthIssue.FIRST_FRAME_TIMEOUT
+                }
+
+                firstFrameReceived && lastFrameReceivedAtElapsedMs > 0L &&
+                    now - lastFrameReceivedAtElapsedMs >= STALE_FRAME_TIMEOUT_MS -> {
+                    PreviewHealthIssue.FRAME_STALLED
+                }
+
+                else -> null
+            }
+        }
+    }
+
+    private fun shouldDispatchHealthIssue(issue: PreviewHealthIssue): Boolean {
+        synchronized(healthLock) {
+            if (recoveryPending) {
+                return false
+            }
+            if (lastHealthIssue != issue) {
+                lastHealthIssue = issue
+                consecutiveHealthIssueCount = 1
+            } else {
+                consecutiveHealthIssueCount++
+            }
+            Log.w(
+                TAG,
+                "preview health issue observed issue=$issue consecutive=$consecutiveHealthIssueCount",
+            )
+            if (consecutiveHealthIssueCount < MAX_CONSECUTIVE_HEALTH_ISSUES) {
+                return false
+            }
+            recoveryPending = true
+            consecutiveHealthIssueCount = 0
+            return true
+        }
+    }
+
+    private fun resetHealthStateLocked() {
+        firstFrameReceived = false
+        lastFrameReceivedAtElapsedMs = 0L
+        lastHealthIssue = null
+        consecutiveHealthIssueCount = 0
+        recoveryPending = false
     }
 
     private class Nv21Renderer : GLSurfaceView.Renderer {

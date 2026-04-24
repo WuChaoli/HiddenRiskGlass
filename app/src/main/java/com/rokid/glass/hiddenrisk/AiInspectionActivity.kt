@@ -32,6 +32,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.InspectionEndReportActivity
+import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
@@ -64,9 +65,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     companion object {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
-        private const val CAPTURE_TIMEOUT_MS = 1000L  // 从15000改为1000，快速超时并自动重试
-        private const val MAX_CONSECUTIVE_TIMEOUTS = 3
-        private const val MAX_CAMERA_RESTART_ATTEMPTS = 3
         private const val CAPTURE_WARMUP_MS = 1200L
         private const val DETECT_STABLE_GATE_MS = 500L
         private const val LOCAL_DETECT_INTERVAL_MS = 1000L
@@ -103,9 +101,92 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private data class LocalHazardInfo(
         val item: String,
-        val description: String,
-        val advice: String,
-    )
+        val descrip: String = "",
+        val hidLevel: String = "",
+        val lawBasis: String = "",
+        val hidNum: String = "",
+        val advice: String = "",
+        val description: String = "",
+    ) {
+        fun requestDescription(): String {
+            return descrip.trim()
+                .ifBlank { legacyLineValue("隐患描述") }
+                .ifBlank { description.trim() }
+        }
+
+        fun requestHidLevel(): String {
+            return hidLevel.trim()
+                .ifBlank { mapLevelLabelToCode(legacyLineValue("隐患等级")) }
+        }
+
+        fun requestLawBasis(): String {
+            return lawBasis.trim()
+                .ifBlank { legacyLineValue("法律依据") }
+        }
+
+        fun requestHidNum(): String {
+            return hidNum.trim()
+                .ifBlank { legacyLineValue("隐患编码") }
+        }
+
+        fun requestAdvice(): String {
+            val trimmedAdvice = advice.trim()
+            return when {
+                trimmedAdvice.startsWith("整改建议：") -> trimmedAdvice.removePrefix("整改建议：").trim()
+                trimmedAdvice.startsWith("整改建议:") -> trimmedAdvice.removePrefix("整改建议:").trim()
+                trimmedAdvice.startsWith("建议重点检查：") -> trimmedAdvice.removePrefix("建议重点检查：").trim()
+                trimmedAdvice.startsWith("建议重点检查:") -> trimmedAdvice.removePrefix("建议重点检查:").trim()
+                else -> trimmedAdvice
+            }
+        }
+
+        fun displayDescription(): String {
+            val sections = buildList {
+                requestDescription().takeIf { it.isNotBlank() }?.let { add("隐患描述：$it") }
+                requestHidLevel().takeIf { it.isNotBlank() }?.let { add("隐患等级：${levelLabel(it)}") }
+                requestLawBasis().takeIf { it.isNotBlank() }?.let { add("法律依据：$it") }
+                requestHidNum().takeIf { it.isNotBlank() }?.let { add("隐患编码：$it") }
+            }
+            return sections.joinToString("\n").ifBlank { description.trim() }
+        }
+
+        fun displayAdvice(): String {
+            val adviceText = requestAdvice()
+            return if (adviceText.isBlank()) "" else "整改建议：\n$adviceText"
+        }
+
+        private fun legacyLineValue(prefix: String): String {
+            val line = description.lineSequence()
+                .map { it.trim() }
+                .firstOrNull { it.startsWith("$prefix：") || it.startsWith("$prefix:") }
+                .orEmpty()
+            return when {
+                line.startsWith("$prefix：") -> line.substringAfter("：").trim()
+                line.startsWith("$prefix:") -> line.substringAfter(":").trim()
+                else -> ""
+            }
+        }
+
+        companion object {
+            private fun mapLevelLabelToCode(label: String): String {
+                return when (label.trim()) {
+                    "一般隐患" -> "1"
+                    "重大隐患" -> "2"
+                    "重点问题" -> "3"
+                    else -> ""
+                }
+            }
+
+            private fun levelLabel(code: String): String {
+                return when (code.trim()) {
+                    "1" -> "一般隐患"
+                    "2" -> "重大隐患"
+                    "3" -> "重点问题"
+                    else -> code.trim()
+                }
+            }
+        }
+    }
 
     private data class LocalHazardMatch(
         val info: LocalHazardInfo,
@@ -151,6 +232,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
     private val deepAnalysisService by lazy { HazardDeepAnalysisService() }
+    private val localHazardPushService by lazy { LocalHazardPushService() }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
     private var destroyed = false
@@ -179,6 +261,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var pendingHazardPayload: CapturedFramePayload? = null
     private var activeLocalHazardInfo: LocalHazardInfo? = null
     private var localResultStage = LocalResultStage.NONE
+    private var localSaveSubmitting = false
     private val localHazardInfoByItem: Map<String, LocalHazardInfo> by lazy {
         loadLocalHazardInfos().associateBy { it.item }
     }
@@ -194,6 +277,42 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var currentEventSource: EventSource? = null
     private var headGestureSupported = false
     private var debugSnapshotState: String? = null
+
+    private val cameraRecoveryController by lazy {
+        RokidCameraRecoveryController(
+            mode = RokidCameraRecoveryController.RecoveryMode.CONSUMER_TIMEOUT,
+            callback = object : RokidCameraRecoveryController.Callback {
+                override fun onRecoveryStarted(
+                    issue: RokidCameraRecoveryController.RecoveryIssue,
+                    attempt: Int,
+                    maxAttempts: Int,
+                ) {
+                    Log.w(TAG, "camera recovery start issue=$issue attempt=$attempt/$maxAttempts")
+                    frameStreamInitializing = false
+                    frameStreamReady = false
+                    frameStreamReadyAtElapsedMs = 0L
+                    lastConsumedFrameTimestamp = 0L
+                    captureInProgress = false
+                    stopLocalDetectionLoop("camera_recovery", clearPendingStreamState = false)
+                }
+
+                override fun onRecoverySucceeded() {
+                    Log.i(TAG, "camera recovery success")
+                    frameStreamReady = true
+                    frameStreamReadyAtElapsedMs = SystemClock.elapsedRealtime()
+                    lastConsumedFrameTimestamp = 0L
+                    if (!destroyed && isActivityResumed && isWorkflowActive && pageState == PageState.DETECTING) {
+                        scheduleDetectionCaptureIfNeeded(reason = "camera_recovery", preferImmediate = true)
+                    }
+                }
+
+                override fun onRecoveryAbandoned(issue: RokidCameraRecoveryController.RecoveryIssue) {
+                    Log.e(TAG, "camera recovery abandoned issue=$issue")
+                    failWorkflow("相机帧流连续超时，请检查设备")
+                }
+            },
+        )
+    }
 
     // 时间和电量更新
     private val timeUpdateRunnable = object : Runnable {
@@ -222,11 +341,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // 本次拍照上传的会话 ID，用于与 save 接口保持一致的指纹
     private var sessionId = ""
 
-    // 拍摄超时恢复机制
-    private var consecutiveTimeoutCount = 0
-    private var frameStreamRestartAttempts = 0
-    private var isFrameStreamRestarting = false
-
     private val mayHazardLoadingRotateAnimation: RotateAnimation by lazy {
         RotateAnimation(
             0f,
@@ -239,28 +353,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             duration = 900L
             repeatCount = Animation.INFINITE
             interpolator = LinearInterpolator()
-        }
-    }
-
-    private val captureTimeoutRunnable = Runnable {
-        if (!captureInProgress || destroyed) return@Runnable
-
-        Log.w(TAG, "拍摄超时，连续超时次数: ${consecutiveTimeoutCount + 1}")
-        captureInProgress = false
-        consecutiveTimeoutCount++
-        if (startPendingStreamAnalysis()) return@Runnable
-
-        when {
-            consecutiveTimeoutCount >= MAX_CONSECUTIVE_TIMEOUTS -> {
-                Log.w(TAG, "连续3次拍摄超时，准备静默重启相机帧流")
-                silentRestartFrameStream()
-            }
-
-            else -> {
-                // 记录异常但继续自动拍摄
-                Log.d(TAG, "拍摄超时，自动获取下一帧")
-                scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-            }
         }
     }
 
@@ -395,6 +487,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      */
     private fun startDetectionImmediately() {
         pendingCaptureRequest = false
+        cameraRecoveryController.resetRecoveryAttempts()
         initFrameStreamAndTransition()
     }
 
@@ -409,6 +502,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         motionStabilityTracker.start()
         refreshInputActions()
         if (pageState == PageState.DETECTING) {
+            cameraRecoveryController.setRecoveryEnabled(true)
             startDetectionPreviewIfNeeded()
             initFrameStreamAndTransition()
         }
@@ -428,6 +522,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         motionStabilityTracker.stop()
+        cameraRecoveryController.setRecoveryEnabled(false)
+        cameraRecoveryController.notifyConsumerWaitStopped()
         stopDetectionPreview()
         stopLocalDetectionLoop("onPause")
         hideStatusAlertOverlay()
@@ -438,6 +534,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
         lastConsumedFrameTimestamp = 0L
+        cameraRecoveryController.stop()
         InspectionSession.stopFrameStream()
         super.onPause()
     }
@@ -475,10 +572,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
         lastConsumedFrameTimestamp = 0L
-        // 重置超时恢复计数器
-        consecutiveTimeoutCount = 0
-        frameStreamRestartAttempts = 0
-        isFrameStreamRestarting = false
+        cameraRecoveryController.setRecoveryEnabled(false)
+        cameraRecoveryController.notifyConsumerWaitStopped()
+        cameraRecoveryController.stop()
         RokidSdkManager.removeListener(this)
         // 注意：不单独释放 RokidFrameSource 和 hiddenRiskNcnn，由 InspectionSession 管理生命周期
         nativeExecutor.shutdown()
@@ -645,19 +741,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (frameStreamInitializing) return
 
         frameStreamInitializing = true
-        RokidFrameSource.startFrameStream { success ->
+        cameraRecoveryController.startOrReuse { success ->
             uiHandler.post {
                 frameStreamInitializing = false
                 frameStreamReady = success
                 frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
                 if (destroyed) {
-                    RokidFrameSource.stopFrameStream()
+                    cameraRecoveryController.stop()
+                    InspectionSession.stopFrameStream()
                     return@post
                 }
                 if (!isActivityResumed || !isWorkflowActive) {
                     frameStreamReady = false
                     frameStreamReadyAtElapsedMs = 0L
-                    RokidFrameSource.stopFrameStream()
+                    cameraRecoveryController.stop()
+                    InspectionSession.stopFrameStream()
                     return@post
                 }
                 if (!success) {
@@ -684,55 +782,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshDetectionStatus()
     }
 
-    /**
-     * 静默重启 SDK 帧流，不显示错误页面。
-     * 用于连续超时后的自动恢复。
-     */
-    private fun silentRestartFrameStream() {
-        if (isFrameStreamRestarting || destroyed) return
-
-        frameStreamRestartAttempts++
-
-        if (frameStreamRestartAttempts > MAX_CAMERA_RESTART_ATTEMPTS) {
-            Log.e(TAG, "相机帧流重启${MAX_CAMERA_RESTART_ATTEMPTS}次失败，显示错误")
-            failWorkflow("相机帧流连续超时，请检查设备")
-            return
-        }
-
-        Log.i(TAG, "静默重启相机帧流 (尝试 ${frameStreamRestartAttempts}/${MAX_CAMERA_RESTART_ATTEMPTS})")
-        isFrameStreamRestarting = true
-
-        frameStreamReady = false
-        frameStreamReadyAtElapsedMs = 0L
-        lastConsumedFrameTimestamp = 0L
-        RokidFrameSource.stopFrameStream()
-
-        uiHandler.postDelayed({
-            if (destroyed) {
-                isFrameStreamRestarting = false
-                return@postDelayed
-            }
-            RokidFrameSource.startFrameStream { success ->
-                uiHandler.post {
-                    isFrameStreamRestarting = false
-
-                    if (success) {
-                        Log.i(TAG, "相机帧流静默重启成功")
-                        consecutiveTimeoutCount = 0
-                        frameStreamRestartAttempts = 0
-                        frameStreamReady = true
-                        frameStreamReadyAtElapsedMs = SystemClock.elapsedRealtime()
-                        pendingCaptureRequest = false
-                        scheduleDetectionCaptureIfNeeded(reason = "frame_stream_restart", preferImmediate = true)
-                    } else {
-                        Log.e(TAG, "相机帧流静默重启失败")
-                        silentRestartFrameStream()
-                    }
-                }
-            }
-        }, 500L)  // 500ms延迟确保资源释放
-    }
-
     private fun returnToDetecting() {
         currentEventSource?.cancel()
         currentEventSource = null
@@ -744,10 +793,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         clearLocalHazardResultState()
         activeStreamRequestId++
         hideStatusAlertOverlay()
-        // 重置超时恢复计数器
-        consecutiveTimeoutCount = 0
-        frameStreamRestartAttempts = 0
-        isFrameStreamRestarting = false
+        cameraRecoveryController.resetRecoveryAttempts()
         showPage(PageState.DETECTING)
         applyDefaultDetectionStatus()
         clearAutoStreamWindow()
@@ -823,20 +869,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
+        cameraRecoveryController.notifyConsumerWaitStarted()
         pendingCaptureRequest = false
         captureInProgress = true
-        uiHandler.removeCallbacks(captureTimeoutRunnable)
-        uiHandler.postDelayed(captureTimeoutRunnable, CAPTURE_TIMEOUT_MS)
         val captureRequestStartMs = SystemClock.elapsedRealtime()
 
         val frame = copyFrameForDetectionOrNull()
         captureInProgress = false
-        uiHandler.removeCallbacks(captureTimeoutRunnable)
-
-        if (consecutiveTimeoutCount > 0) {
-            Log.d(TAG, "取帧成功，重置超时计数器")
-            consecutiveTimeoutCount = 0
-        }
 
         if (frame == null) {
             Log.w(
@@ -962,6 +1001,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             Log.w(TAG, "drop frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
             return null
         }
+        cameraRecoveryController.reportFrameConsumed(frame.timestamp)
+        cameraRecoveryController.notifyConsumerWaitStopped()
         lastConsumedFrameTimestamp = frame.timestamp
         return frame
     }
@@ -1113,8 +1154,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         captureDelayScheduled = false
         autoCaptureScheduled = false
         uiHandler.removeCallbacks(captureDelayRunnable)
-        uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
+        cameraRecoveryController.notifyConsumerWaitStopped()
         clearAutoStreamWindow()
         clearPendingHazardResult()
         if (clearPendingStreamState) {
@@ -1212,6 +1253,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun showPage(state: PageState) {
         pageState = state
+        cameraRecoveryController.setRecoveryEnabled(
+            debugSnapshotState == null &&
+                state == PageState.DETECTING &&
+                isActivityResumed &&
+                isWorkflowActive,
+        )
+        if (state != PageState.DETECTING) {
+            cameraRecoveryController.notifyConsumerWaitStopped()
+        }
         layoutLoading.visibility = View.GONE
         layoutDetection.visibility = if (state == PageState.DETECTING) View.VISIBLE else View.GONE
         layoutStreamResponse.visibility =
@@ -1317,6 +1367,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
+                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.NONE
                 },
             ) {
@@ -1335,6 +1386,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
+                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.DESCRIPTION
                 },
             ) {
@@ -1353,6 +1405,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
+                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.ADVICE
                 },
             ) {
@@ -1371,6 +1424,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 },
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
+                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.NONE
                 },
             ) {
@@ -1390,6 +1444,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
+                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.DESCRIPTION
                 },
             ) {
@@ -1409,6 +1464,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
+                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.ADVICE
                 },
             ) {
@@ -1692,6 +1748,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         pendingAutoWindowStreamStart = false
         activeLocalHazardInfo = match.info
         localResultStage = LocalResultStage.DESCRIPTION
+        localSaveSubmitting = false
         sessionId = ""
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
@@ -1699,9 +1756,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             InspectionWorkflowSession.recordCapture(it.jpegBytes)
             setStreamThumbnail(it.jpegBytes)
         }
-        tvStreamContent.text = match.info.description
-        lastAnalysisText = match.info.description
-        InspectionWorkflowSession.recordDetection(match.info.item, match.info.description)
+        val descriptionText = match.info.displayDescription()
+        tvStreamContent.text = descriptionText
+        lastAnalysisText = descriptionText
+        InspectionWorkflowSession.recordDetection(match.info.item, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
         adjustStreamScrollHeight()
@@ -1733,15 +1791,80 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun confirmLocalHazardSave() {
-        showLocalHazardAdvice(showSaveSuccessToast = true, countAsSaved = true)
+        if (localSaveSubmitting) {
+            return
+        }
+        val localInfo = activeLocalHazardInfo ?: return
+        val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
+        val capturedJpeg = InspectionWorkflowSession.latestCapturedJpeg
+        val validationMessage = when {
+            enterprisePayload == null -> "缺少企业上下文，请先扫码后再保存"
+            enterprisePayload.apiBaseUrl.isBlank() -> "缺少接口地址，请重新扫码后再试"
+            enterprisePayload.authCode.isBlank() -> "缺少鉴权码，请重新扫码后再试"
+            enterprisePayload.objectId.isBlank() -> "缺少对象 ID，请重新扫码后再试"
+            enterprisePayload.userId.isBlank() -> "缺少用户 ID，请重新扫码后再试"
+            capturedJpeg == null || capturedJpeg.isEmpty() -> "缺少隐患图片，请重新识别后再试"
+            localInfo.requestDescription().isBlank() -> "隐患模板缺少描述信息"
+            localInfo.requestAdvice().isBlank() -> "隐患模板缺少整改建议"
+            localInfo.requestHidNum().isBlank() -> "隐患模板缺少隐患编码"
+            localInfo.requestHidLevel().isBlank() -> "隐患模板缺少隐患等级"
+            else -> null
+        }
+        if (validationMessage != null) {
+            showLocalSaveError(validationMessage)
+            return
+        }
+        val confirmedPayload = enterprisePayload ?: return
+        val confirmedJpeg = capturedJpeg ?: return
+        localSaveSubmitting = true
+        bottomPromptSync.setPrompt(
+            title = getString(R.string.ai_inspection_syncing),
+            subtitle = getString(R.string.ai_inspection_syncing_detail),
+        )
+        bottomPromptSync.visibility = View.VISIBLE
+        refreshInputActions()
+        localHazardPushService.pushLocalHazard(
+            baseUrl = confirmedPayload.apiBaseUrl,
+            authCode = confirmedPayload.authCode,
+            objectId = confirmedPayload.objectId,
+            userId = confirmedPayload.userId,
+            customParam = confirmedPayload.extraField,
+            jpegBytes = confirmedJpeg,
+            hidDanger = listOf(
+                LocalHazardPushService.HidDangerItem(
+                    indexNum = "1",
+                    descrip = localInfo.requestDescription(),
+                    advice = localInfo.requestAdvice(),
+                    hidNum = localInfo.requestHidNum(),
+                    hidLevel = localInfo.requestHidLevel(),
+                ),
+            ),
+            callback = object : LocalHazardPushService.Callback {
+                override fun onSuccess() {
+                    if (destroyed) return
+                    localSaveSubmitting = false
+                    showLocalHazardAdvice(showSaveSuccessToast = true, countAsSaved = true)
+                }
+
+                override fun onFailure(message: String) {
+                    if (destroyed) return
+                    showLocalSaveError(message)
+                }
+            },
+        )
     }
 
     private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean, countAsSaved: Boolean) {
         val localInfo = activeLocalHazardInfo ?: return
         if (localResultStage != LocalResultStage.DESCRIPTION) return
+        localSaveSubmitting = false
         localResultStage = LocalResultStage.ADVICE
-        tvStreamContent.text = localInfo.advice
-        lastAnalysisText = "${localInfo.description}\n\n${localInfo.advice}"
+        val descriptionText = localInfo.displayDescription()
+        val adviceText = localInfo.displayAdvice()
+        tvStreamContent.text = adviceText
+        lastAnalysisText = listOf(descriptionText, adviceText)
+            .filter { it.isNotBlank() }
+            .joinToString("\n\n")
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         if (countAsSaved) {
             InspectionWorkflowSession.recordSavedHazardCapture(
@@ -1766,6 +1889,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             scrollContent.scrollTo(0, 0)
             scrollContent.fullScroll(View.FOCUS_UP)
         }
+        refreshInputActions()
+    }
+
+    private fun showLocalSaveError(message: String) {
+        localSaveSubmitting = false
+        Log.e(TAG, "local save failed: $message")
+        renderLocalDescriptionPrompt()
+        bottomPromptSync.setPrompt(
+            title = message.ifBlank { getString(R.string.ai_inspection_local_save_failed) },
+            subtitle = null,
+        )
+        bottomPromptSync.visibility = View.VISIBLE
         refreshInputActions()
     }
 
@@ -1801,6 +1936,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun clearLocalHazardResultState() {
         activeLocalHazardInfo = null
         localResultStage = LocalResultStage.NONE
+        localSaveSubmitting = false
     }
 
     private fun loadLocalHazardInfos(): List<LocalHazardInfo> {

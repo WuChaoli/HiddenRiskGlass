@@ -546,7 +546,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, EnterpriseQrScanActivity::class.java.name)
             }
         }
-        // 企业/Wi-Fi 扫码页已经切到同一套 SDK 帧源，进入时由页面自身接管预览和扫描流。
+        // 企业/Wi-Fi 扫码页复用加载页已预热的共享帧流，进入后只检测是否可用。
         startActivity(targetIntent)
         finish()
     }
