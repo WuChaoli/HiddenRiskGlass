@@ -116,7 +116,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="48dp"
-            android:text="滑动右侧镜腿进行菜单选择"
+            android:text="@string/ai_entry_menu_hint"
             android:textColor="@color/green"
             android:textSize="14sp" />
 
@@ -136,15 +136,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="语音指令：确认 | 返回"
-                android:textColor="@color/green"
-                android:textSize="13sp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="触控操作：单击 | 双击"
+                android:text="@string/ai_entry_menu_voice_hint"
                 android:textColor="@color/green"
                 android:textSize="13sp" />
         </LinearLayout>

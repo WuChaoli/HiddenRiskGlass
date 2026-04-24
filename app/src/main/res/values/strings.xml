@@ -28,6 +28,9 @@
     <string name="item_take_photo">拍照</string>
     <string name="page_ai_into_tip">你好，我在听</string>
     <string name="offline_tts_start_video_record">Recording finished</string>
+    <string name="offline_tts_hazard_alert">发现疑似隐患，请查看</string>
+    <string name="offline_tts_hazard_advice_intro">基于上述隐患，建议您重点关注以下问题</string>
+    <string name="offline_tts_inspection_end_report">检查已结束，请在手机端确认检查结果</string>
     <string name="page_word_tips_ai_mode">智能模式</string>
     <string name="page_word_toast_tv_change">文本字号修改成功</string>
     <string name="page_word_toast_content_change">文本内容修改成功</string>
@@ -182,7 +185,8 @@
     <string name="ai_entry_menu_record">隐患录入</string>
     <string name="ai_entry_menu_guide">设备指引</string>
     <string name="ai_entry_menu_lightshot">闪拍</string>
-    <string name="ai_entry_menu_hint">说出菜单名称，或前后滑动点击选择</string>
+    <string name="ai_entry_menu_hint">请直接说出功能名称</string>
+    <string name="ai_entry_menu_voice_hint">语音指令：隐患分析 | 设备指引 | 隐患录入</string>
     <string name="ai_detection_result_sync">是否同步到手机端？</string>
     <string name="ai_detection_result_hint">前后滑动翻页，单击/确认同步，双击/取消返回检测</string>
     <string name="ai_detection_sync_decision_hint">语音：继续 | 结束，触控：单击 | 双击，头控：点头继续 | 摇头结束</string>

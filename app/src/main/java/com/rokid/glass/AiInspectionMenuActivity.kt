@@ -12,7 +12,6 @@ import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.InspectionSession
-import com.rokid.glass.hiddenrisk.LightshotActivity
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glesse.R
 
@@ -119,15 +118,14 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 else R.drawable.glass_menu_card,
             )
         }
+        tvBottomHint.text = getString(R.string.ai_entry_menu_hint)
     }
 
     private fun onItemConfirmed(index: Int) {
         when (index) {
             0 -> startHazardAnalysis()
-            2 -> startActivity(Intent(this, LightshotActivity::class.java).apply {
-                putExtra(LightshotActivity.EXTRA_MODE, LightshotActivity.MODE_HAZARD_RECORD)
-            })
-            else -> tvBottomHint.text = getString(R.string.common_feature_in_development)
+            1, 2 -> tvBottomHint.text = getString(R.string.common_feature_in_development)
+            else -> Unit
         }
     }
 
