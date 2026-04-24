@@ -28,7 +28,7 @@
     <string name="item_take_photo">拍照</string>
     <string name="page_ai_into_tip">你好，我在听</string>
     <string name="offline_tts_start_video_record">Recording finished</string>
-    <string name="offline_tts_hazard_alert">发现疑似隐患，请查看</string>
+    <string name="offline_tts_hazard_alert">发现疑四隐患，请查看</string>
     <string name="offline_tts_hazard_advice_intro">基于上述隐患，建议您重点关注以下问题</string>
     <string name="offline_tts_inspection_end_report">检查已结束，请在手机端确认检查结果</string>
     <string name="page_word_tips_ai_mode">智能模式</string>

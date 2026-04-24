@@ -23,7 +23,9 @@ import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HeadGestureManager
 import com.rokid.glass.hiddenrisk.InspectionFinishService
+import com.rokid.glass.hiddenrisk.RetryRequestHandle
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 
@@ -39,6 +41,8 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private val thumbnailBitmaps = mutableListOf<Bitmap>()
     private var headGestureSupported = false
     private var finishSubmitting = false
+    private var finishRequestHandle: RetryRequestHandle? = null
+    private var endReportTtsPlayed = false
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var batteryReceiver: BroadcastReceiver? = null
@@ -85,6 +89,12 @@ class InspectionEndReportActivity : BaseGlassActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!endReportTtsPlayed) {
+            endReportTtsPlayed = OfflineTtsPlayer.speak(
+                ownerTag = TAG,
+                message = getString(R.string.offline_tts_inspection_end_report),
+            )
+        }
         inputSession.attach()
         inputSession.updateActions(buildInputActions())
     }
@@ -95,6 +105,8 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
+        finishRequestHandle?.cancel()
+        finishRequestHandle = null
         stopTimeAndBatteryUpdate()
         inputSession.release()
         clearThumbnailBitmaps()
@@ -178,7 +190,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         finishSubmitting = true
         bottomPromptEnd.setSubtitle("正在提交结束请求...")
         inputSession.updateActions(emptyList())
-        InspectionFinishService.finishInspection(
+        finishRequestHandle = InspectionFinishService.finishInspection(
             baseUrl = confirmedPayload.apiBaseUrl,
             authCode = confirmedPayload.authCode,
             objectId = confirmedPayload.objectId,
@@ -187,10 +199,12 @@ class InspectionEndReportActivity : BaseGlassActivity() {
             callback = object : InspectionFinishService.Callback {
                 override fun onSuccess() {
                     if (isFinishing || isDestroyed) return
+                    finishRequestHandle = null
                     returnHomeDirectly()
                 }
 
                 override fun onError(message: String) {
+                    finishRequestHandle = null
                     finishSubmitting = false
                     bottomPromptEnd.setSubtitle(message)
                     inputSession.updateActions(buildInputActions())
@@ -201,6 +215,8 @@ class InspectionEndReportActivity : BaseGlassActivity() {
 
     private fun returnHomeDirectly() {
         if (isFinishing || isDestroyed) return
+        finishRequestHandle?.cancel()
+        finishRequestHandle = null
         finishSubmitting = false
         InspectionWorkflowSession.resetAll()
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
