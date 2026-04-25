@@ -39,7 +39,7 @@ import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
-import com.rokid.glass.hiddenrisk.GlassKeyEvent
+import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.WifiQrParser
 import com.rokid.glass.utils.WifiQrPayload
@@ -52,7 +52,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         private const val TAG = "WifiQrScanActivity"
         private const val REQUEST_CODE_PERMISSIONS = 5001
         private const val SCAN_INTERVAL_MS = 800L
-        private const val SCAN_FRAME_TARGET_SIZE = 480
+        private const val SCAN_FRAME_TARGET_SIZE = 1080
         private const val INVALID_QR_COOLDOWN_MS = 1600L
         private const val CONNECT_RESULT_COOLDOWN_MS = 2200L
         private const val VERIFY_INTERVAL_MS = 500L
@@ -89,9 +89,8 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private lateinit var tvErrorDetail: TextView
     private lateinit var infoCard: LinearLayout
     private lateinit var bottomHints: LinearLayout
-    private lateinit var tvVoiceHint: TextView
-    private lateinit var tvTouchHint: TextView
     private lateinit var statusBar: GlassStatusBar
+    private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     private val scanner: BarcodeScanner by lazy {
         val options = BarcodeScannerOptions.Builder()
@@ -112,15 +111,11 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private var verifyDeadlineMs = 0L
     private var nextAfterSuccess: String? = null
     private var debugSnapshotMode = false
+    private var resultWasSuccess = false
 
-    @Volatile
-    private var latestPreviewFrame: ByteArray? = null
-
-    @Volatile
-    private var latestPreviewWidth = 0
-
-    @Volatile
-    private var latestPreviewHeight = 0
+    private val finishResultRunnable = Runnable {
+        completeDisplayedResult()
+    }
 
     private val cameraRecoveryController by lazy {
         RokidCameraRecoveryController(
@@ -135,9 +130,6 @@ class WifiQrScanActivity : BaseGlassActivity() {
                     Log.w(TAG, "camera recovery start issue=$issue attempt=$attempt/$maxAttempts")
                     isCameraReady = false
                     isProcessingFrame = false
-                    latestPreviewFrame = null
-                    latestPreviewWidth = 0
-                    latestPreviewHeight = 0
                     mainHandler.removeCallbacks(scanRunnable)
                     cameraPreviewView.visibility = View.INVISIBLE
                 }
@@ -146,9 +138,6 @@ class WifiQrScanActivity : BaseGlassActivity() {
                     Log.i(TAG, "camera recovery success stage=$connectionStage")
                     isCameraReady = true
                     isProcessingFrame = false
-                    latestPreviewFrame = null
-                    latestPreviewWidth = 0
-                    latestPreviewHeight = 0
                     cameraPreviewView.visibility = View.VISIBLE
                     if (connectionStage == ConnectionStage.SCANNING &&
                         System.currentTimeMillis() >= scanBlockedUntilMs
@@ -164,9 +153,6 @@ class WifiQrScanActivity : BaseGlassActivity() {
                     Log.e(TAG, "camera recovery abandoned issue=$issue")
                     isCameraReady = false
                     isProcessingFrame = false
-                    latestPreviewFrame = null
-                    latestPreviewWidth = 0
-                    latestPreviewHeight = 0
                     scanBlockedUntilMs = 0L
                     mainHandler.removeCallbacks(scanRunnable)
                     cameraPreviewView.visibility = View.VISIBLE
@@ -214,19 +200,19 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
-            if (!refreshLatestFrameFromSdk()) {
+            val frame = RokidFrameSource.copyLatestScanFrame(SCAN_FRAME_TARGET_SIZE)
+            if (frame == null) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
-            val frame = latestPreviewFrame
-            val width = latestPreviewWidth
-            val height = latestPreviewHeight
-            if (frame == null || width <= 0 || height <= 0) {
+            if (frame.width <= 0 || frame.height <= 0) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
             isProcessingFrame = true
-            scanner.process(InputImage.fromByteArray(frame, width, height, 0, ImageFormat.NV21))
+            scanner.process(
+                InputImage.fromByteArray(frame.data, frame.width, frame.height, 0, ImageFormat.NV21),
+            )
                 .addOnSuccessListener { barcodes -> handleScanResult(barcodes) }
                 .addOnFailureListener { error -> Log.w(TAG, "scan failed: ${error.message}") }
                 .addOnCompleteListener {
@@ -279,18 +265,19 @@ class WifiQrScanActivity : BaseGlassActivity() {
         tvErrorDetail = findViewById(R.id.tvErrorDetail)
         infoCard = findViewById(R.id.infoCard)
         bottomHints = findViewById(R.id.bottomHints)
-        tvVoiceHint = findViewById(R.id.tvVoiceHint)
-        tvTouchHint = findViewById(R.id.tvTouchHint)
         statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
 
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
         }
+        hideBottomHints()
     }
 
     override fun onResume() {
         super.onResume()
+        inputSession.attach()
+        refreshInputActions()
         if (debugSnapshotMode) return
         if (awaitingPrivateFlowReturn && pendingPayload != null) {
             awaitingPrivateFlowReturn = false
@@ -316,6 +303,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onPause() {
+        inputSession.detach()
         if (debugSnapshotMode) {
             super.onPause()
             return
@@ -336,6 +324,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
+        inputSession.release()
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
             cancelNetworkRequest()
@@ -346,21 +335,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        return when (keyEvent) {
-            GlassKeyEvent.KEYCODE_CLICK -> {
-                if (connectionStage == ConnectionStage.SCANNING) {
-                    scanBlockedUntilMs = 0L
-                    startCameraPipeline(resetRecoveryAttempts = true)
-                }
-                true
-            }
-            GlassKeyEvent.KEYCODE_BACK,
-            GlassKeyEvent.KEYCODE_DOUBLE_CLICK -> {
-                finish()
-                true
-            }
-            else -> super.onGlassKeyEvent(keyEvent)
-        }
+        return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
     override fun onRequestPermissionsResult(
@@ -374,6 +349,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
         if (!granted) {
             tvStatus.setText(R.string.wifi_scan_permission_denied)
+            refreshInputActions()
             return
         }
         startCameraPipeline(resetRecoveryAttempts = true)
@@ -388,9 +364,6 @@ class WifiQrScanActivity : BaseGlassActivity() {
         }
         isCameraReady = false
         isProcessingFrame = false
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
         cameraRecoveryController.startOrReuse { success ->
             runOnUiThread {
@@ -407,6 +380,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 if (connectionStage == ConnectionStage.SCANNING) {
                     startScanLoop()
                 }
+                refreshInputActions()
             }
         }
     }
@@ -415,17 +389,6 @@ class WifiQrScanActivity : BaseGlassActivity() {
         cameraRecoveryController.stop()
         isCameraReady = false
         isProcessingFrame = false
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
-    }
-
-    private fun refreshLatestFrameFromSdk(): Boolean {
-        val frame = RokidFrameSource.copyLatestCroppedFrame(SCAN_FRAME_TARGET_SIZE) ?: return false
-        latestPreviewFrame = frame.data
-        latestPreviewWidth = frame.width
-        latestPreviewHeight = frame.height
-        return true
     }
 
     private fun startScanLoop() {
@@ -468,6 +431,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.removeCallbacks(verifyRunnable)
         connectionStage = ConnectionStage.WAITING_SYSTEM_RESULT
+        refreshInputActions()
         Log.i(
             TAG,
             "wifi qr parsed ssid=${payload.ssid} security=${payload.security} hidden=${payload.hidden}"
@@ -535,6 +499,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         }
         activeStrategyName = "add_networks"
         connectionStage = ConnectionStage.WAITING_SYSTEM_RESULT
+        refreshInputActions()
         tvStatus.text = getString(R.string.wifi_scan_strategy_add_networks, payload.ssid)
         Log.i(TAG, "launch add networks flow target=${payload.ssid}")
         addNetworksLauncher.launch(intent)
@@ -544,6 +509,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private fun startVerification(payload: WifiQrPayload, source: String) {
         cameraRecoveryController.setRecoveryEnabled(false)
         connectionStage = ConnectionStage.VERIFYING_CONNECTION
+        refreshInputActions()
         activeStrategyName = source
         verifyDeadlineMs = System.currentTimeMillis() + VERIFY_TIMEOUT_MS
         tvStatus.text = getString(R.string.wifi_scan_verify_connection, payload.ssid)
@@ -569,6 +535,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         cancelNetworkRequest()
         awaitingPrivateFlowReturn = false
         connectionStage = ConnectionStage.CONNECTING_WITH_SPECIFIER
+        refreshInputActions()
         activeStrategyName = "specifier_fallback:$reason"
         cameraRecoveryController.setRecoveryEnabled(false)
         tvStatus.text = getString(R.string.wifi_scan_connecting, payload.ssid)
@@ -662,9 +629,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 resultContent.visibility = View.VISIBLE
                 ivResultIcon.setImageResource(R.drawable.ic_check_circle)
                 tvResultStatusInFrame.text = getString(R.string.wifi_scan_result_success)
-                bottomHints.visibility = View.VISIBLE
-                tvVoiceHint.setText(R.string.wifi_scan_voice_hint)
-                tvTouchHint.setText(R.string.wifi_scan_touch_hint)
+                hideBottomHints()
             }
             "failed" -> {
                 scanFrame.background = null
@@ -675,15 +640,15 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 ivResultIcon.setImageResource(R.drawable.ic_close_circle)
                 tvResultStatusInFrame.text = getString(R.string.wifi_scan_result_failed)
                 tvErrorDetail.visibility = View.VISIBLE
-                bottomHints.visibility = View.VISIBLE
-                tvVoiceHint.setText(R.string.wifi_scan_voice_hint_retry)
-                tvTouchHint.setText(R.string.wifi_scan_touch_hint_retry)
+                hideBottomHints()
             }
             else -> {
                 tvStatus.visibility = View.GONE
                 tvScanHint.visibility = View.VISIBLE
+                hideBottomHints()
             }
         }
+        refreshInputActions()
     }
 
     private fun requiredPermissions(): Array<String> = buildList {
@@ -698,14 +663,17 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private fun resetToScanning(message: String, resumeDelayMs: Long) {
         cancelNetworkRequest()
         mainHandler.removeCallbacks(verifyRunnable)
+        mainHandler.removeCallbacks(finishResultRunnable)
         pendingPayload = null
         activeStrategyName = null
         awaitingPrivateFlowReturn = false
         connectionStage = ConnectionStage.SCANNING
+        resultWasSuccess = false
         scanBlockedUntilMs = System.currentTimeMillis() + resumeDelayMs
         tvStatus.text = message
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
         Log.i(TAG, "reset to scanning delayMs=$resumeDelayMs message=$message")
+        refreshInputActions()
         if (resumeDelayMs <= 0L) {
             tvStatus.setText(R.string.wifi_scan_waiting)
             startScanLoop()
@@ -721,6 +689,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
     private fun showTemporaryStatus(message: String, resumeDelayMs: Long) {
         connectionStage = ConnectionStage.SCANNING
+        resultWasSuccess = false
         scanBlockedUntilMs = System.currentTimeMillis() + resumeDelayMs
         tvStatus.text = message
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
@@ -731,6 +700,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 startScanLoop()
             }
         }, resumeDelayMs)
+        refreshInputActions()
     }
 
     private fun privateWifiEntries(): List<PrivateWifiEntry> {
@@ -742,6 +712,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private fun showResultAndFinish(message: String) {
         connectionStage = ConnectionStage.SHOWING_RESULT
         val isSuccess = message == getString(R.string.wifi_scan_success_generic)
+        resultWasSuccess = isSuccess
         cameraRecoveryController.setRecoveryEnabled(false)
 
         cameraPreviewView.visibility = View.INVISIBLE
@@ -758,33 +729,16 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
         if (!isSuccess) {
             tvErrorDetail.visibility = View.VISIBLE
+        } else {
+            tvErrorDetail.visibility = View.GONE
         }
 
-        bottomHints.visibility = View.VISIBLE
-        if (isSuccess) {
-            tvVoiceHint.setText(R.string.wifi_scan_voice_hint)
-            tvTouchHint.setText(R.string.wifi_scan_touch_hint)
-        } else {
-            tvVoiceHint.setText(R.string.wifi_scan_voice_hint_retry)
-            tvTouchHint.setText(R.string.wifi_scan_touch_hint_retry)
-        }
+        hideBottomHints()
 
         releaseScanResources()
-        mainHandler.postDelayed({
-            if (!isFinishing) {
-                val targetClassName = nextAfterSuccess
-                if (isSuccess && !targetClassName.isNullOrBlank()) {
-                    runCatching {
-                        @Suppress("UNCHECKED_CAST")
-                        val targetClass = Class.forName(targetClassName) as Class<out Activity>
-                        startActivity(Intent(this, targetClass))
-                    }.onFailure {
-                        finish()
-                    }
-                }
-                finish()
-            }
-        }, RESULT_STAY_MS)
+        mainHandler.removeCallbacks(finishResultRunnable)
+        mainHandler.postDelayed(finishResultRunnable, RESULT_STAY_MS)
+        refreshInputActions()
     }
 
     private fun finishDirectly() {
@@ -795,8 +749,148 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private fun releaseScanResources() {
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.removeCallbacks(verifyRunnable)
+        mainHandler.removeCallbacks(finishResultRunnable)
         cancelNetworkRequest()
         stopCameraPipeline()
+    }
+
+    private fun refreshInputActions() {
+        inputSession.updateActions(buildInputActions())
+    }
+
+    private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        return listOf(
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
+                enabled = { isPrimaryActionEnabled() },
+            ) {
+                handlePrimaryAction()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
+            ) {
+                exitAppDirectly()
+            },
+        )
+    }
+
+    private fun isPrimaryActionEnabled(): Boolean {
+        if (debugSnapshotMode) {
+            val debugState = intent.getStringExtra("debug_state") ?: "idle"
+            return debugState == "success"
+        }
+        return when (connectionStage) {
+            ConnectionStage.SCANNING,
+            ConnectionStage.SHOWING_RESULT -> true
+            ConnectionStage.WAITING_SYSTEM_RESULT,
+            ConnectionStage.VERIFYING_CONNECTION,
+            ConnectionStage.CONNECTING_WITH_SPECIFIER -> false
+        }
+    }
+
+    private fun handlePrimaryAction() {
+        if (debugSnapshotMode) {
+            val debugState = intent.getStringExtra("debug_state") ?: "idle"
+            if (debugState == "success") {
+                resultWasSuccess = true
+                completeDisplayedResult()
+            }
+            return
+        }
+        when (connectionStage) {
+            ConnectionStage.SCANNING -> {
+                scanBlockedUntilMs = 0L
+                startCameraPipeline(resetRecoveryAttempts = true)
+            }
+            ConnectionStage.SHOWING_RESULT -> {
+                if (resultWasSuccess) {
+                    completeDisplayedResult()
+                } else {
+                    retryAfterFailureResult()
+                }
+            }
+            ConnectionStage.WAITING_SYSTEM_RESULT,
+            ConnectionStage.VERIFYING_CONNECTION,
+            ConnectionStage.CONNECTING_WITH_SPECIFIER -> Unit
+        }
+    }
+
+    private fun buildConfirmTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_confirm, "que ren"),
+            voiceTrigger(R.string.ai_inspection_voice_confirm_alias, "que ding"),
+            voiceTrigger(R.string.ai_inspection_voice_continue_alias, "ji xu"),
+        )
+    }
+
+    private fun buildReturnTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
+            voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
+        )
+    }
+
+    private fun voiceTrigger(
+        textRes: Int,
+        pinyin: String,
+    ): UnifiedInputSession.InputTrigger {
+        return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
+    }
+
+    private fun retryAfterFailureResult() {
+        resultWasSuccess = false
+        cameraPreviewView.visibility = View.VISIBLE
+        viewfinder.visibility = View.VISIBLE
+        tvScanHint.visibility = View.VISIBLE
+        infoCard.visibility = View.VISIBLE
+        findViewById<View>(R.id.scanFrame).setBackgroundResource(R.drawable.glass_scan_frame)
+        resultContent.visibility = View.GONE
+        tvErrorDetail.visibility = View.GONE
+        hideBottomHints()
+        resetToScanning(getString(R.string.wifi_scan_waiting), 0L)
+        startCameraPipeline(resetRecoveryAttempts = true)
+    }
+
+    private fun completeDisplayedResult() {
+        if (isFinishing) {
+            return
+        }
+        mainHandler.removeCallbacks(finishResultRunnable)
+        val targetClassName = nextAfterSuccess
+        if (resultWasSuccess && !targetClassName.isNullOrBlank()) {
+            runCatching {
+                @Suppress("UNCHECKED_CAST")
+                val targetClass = Class.forName(targetClassName) as Class<out Activity>
+                startActivity(Intent(this, targetClass))
+                finish()
+            }.onFailure {
+                finish()
+            }
+            return
+        }
+        finish()
+    }
+
+    private fun hideBottomHints() {
+        bottomHints.visibility = View.GONE
+    }
+
+    private fun exitAppDirectly() {
+        releaseScanResources()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAffinity()
+            finishAndRemoveTask()
+        } else {
+            finishAffinity()
+            finish()
+        }
     }
 
     private fun shouldMonitorPreviewHealth(): Boolean {
