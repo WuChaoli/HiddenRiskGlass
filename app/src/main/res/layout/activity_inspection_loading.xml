@@ -191,7 +191,7 @@
             android:id="@+id/tvErrorMessage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="初始化失败"
+            android:text="@string/ai_inspection_loading_error_default"
             android:textColor="@color/tip_color"
             android:textSize="18sp"
             android:textStyle="bold" />
@@ -200,7 +200,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
-            android:text="单击重试，双击退出"
+            android:text="@string/ai_inspection_loading_error_retry_hint"
             android:textColor="@color/green"
             android:textSize="15sp" />
     </LinearLayout>

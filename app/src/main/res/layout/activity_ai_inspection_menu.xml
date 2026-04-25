@@ -127,11 +127,13 @@
 
         <!-- 底部操作提示 -->
         <LinearLayout
+            android:id="@+id/layoutBottomVoiceHint"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"

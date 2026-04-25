@@ -16,7 +16,8 @@
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
         android:layout_marginTop="@dimen/inspection_operation_guide_margin_top"
-        android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end" />
+        android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end"
+        android:visibility="gone" />
 
     <!-- 底部区域：卡片 + 底部提示 + 状态栏 -->
     <LinearLayout
@@ -58,7 +59,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-                android:text="分析出3条隐患"
+                android:text="@string/ai_inspection_end_report_hazard_count_placeholder"
                 android:textColor="@color/green"
                 android:textSize="14sp"
                 android:textStyle="bold" />
@@ -70,7 +71,8 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/inspection_bottom_prompt_margin_top"
-            android:layout_marginBottom="@dimen/inspection_bottom_prompt_status_spacing" />
+            android:layout_marginBottom="@dimen/inspection_bottom_prompt_status_spacing"
+            android:visibility="gone" />
 
         <!-- 状态栏 -->
         <com.rokid.glass.component.GlassStatusBar

@@ -201,6 +201,7 @@
         android:layout_marginBottom="20dp"
         android:text="@string/inspection_mode_hint"
         android:textColor="#99FFFFFF"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:visibility="gone" />
 
 </FrameLayout>

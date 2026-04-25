@@ -6,7 +6,6 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.rokid.glesse.R
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
-import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.LightshotActivity
 import com.rokid.glass.hiddenrisk.UnifiedInputDebugActivity
@@ -168,12 +167,16 @@ class InspectionModeActivity : BaseGlassActivity() {
                 else R.drawable.inspection_mode_item_bg,
             )
         }
+        tvBottomHint.visibility = android.view.View.GONE
     }
 
     private fun onItemConfirmed(index: Int) {
         when (index) {
             0 -> startActivity(Intent(this, InspectionLoadingActivity::class.java))
-            1 -> tvBottomHint.text = getString(R.string.common_feature_in_development)
+            1 -> {
+                tvBottomHint.text = getString(R.string.common_feature_in_development)
+                tvBottomHint.visibility = android.view.View.VISIBLE
+            }
             2 -> startActivity(Intent(this, LightshotActivity::class.java).apply {
                 putExtra(LightshotActivity.EXTRA_MODE, LightshotActivity.MODE_LIGHTSHOT)
             })

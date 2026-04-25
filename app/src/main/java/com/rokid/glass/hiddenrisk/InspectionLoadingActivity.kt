@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import androidx.annotation.StringRes
 import com.rokid.glass.component.GlassStatusBar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -171,7 +172,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 currentProgress = debugProgress
                 targetProgress = debugProgress
                 startSpinner()
-                setSubtitle(intent.getStringExtra("debug_subtitle") ?: "正在准备检测设备", animated = true)
+                setSubtitle(intent.getStringExtra("debug_subtitle") ?: getString(R.string.ai_inspection_loading_subtitle), animated = true)
             } else {
                 stopSpinner()
                 tvLoadingSubtitle.text = intent.getStringExtra("debug_subtitle")
@@ -242,7 +243,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         if (granted) {
             startInitializationFlow()
         } else {
-            showError("缺少相机权限，无法继续")
+            showError(getString(R.string.ai_inspection_loading_missing_camera_permission))
         }
     }
 
@@ -251,14 +252,14 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         uiHandler.post {
             when (state) {
                 RokidSdkManager.SdkState.READY -> {
-                    setSubtitle("SDK 就绪，正在加载模型", animated = true)
+                    setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
                     animateProgressTo(30)
                     // 延迟一下确保 SDK 完全就绪
                     uiHandler.removeCallbacks(startModelLoadRunnable)
                     uiHandler.postDelayed(startModelLoadRunnable, 200)
                 }
                 RokidSdkManager.SdkState.FAILED -> {
-                    showError(RokidSdkManager.lastErrorMessage ?: "SDK 初始化失败")
+                    showError(RokidSdkManager.lastErrorMessage ?: getString(R.string.ai_inspection_loading_error_sdk_init))
                 }
                 else -> {}
             }
@@ -270,7 +271,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         return listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("loading_retry"),
-                label = "重试初始化",
+                label = getString(R.string.ai_inspection_input_label_retry_init),
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
                 ),
@@ -280,16 +281,20 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Exit,
-                label = "退出",
+                label = getString(R.string.ai_inspection_input_label_exit),
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                    UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
+                    voiceTrigger(R.string.ai_inspection_voice_exit, "tui chu"),
                 ),
             ) {
                 finish()
             },
         )
+    }
+
+    private fun voiceTrigger(@StringRes textRes: Int, pinyin: String): UnifiedInputSession.InputTrigger {
+        return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
     }
 
     private fun refreshInputActions() {
@@ -389,13 +394,13 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     private fun startInitializationFlow() {
         loadingStage = LoadingStage.SDK_INIT
-        setSubtitle("正在初始化 SDK", animated = true)
+        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_init), animated = true)
         refreshInputActions()
 
         // SDK 初始化由 RokidSdkManager 处理，等待回调
         // 如果 SDK 已经就绪，直接开始模型加载
         if (RokidSdkManager.state == RokidSdkManager.SdkState.READY) {
-            setSubtitle("SDK 就绪，正在加载模型", animated = true)
+            setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
             animateProgressTo(30)
             startModelLoading()
         }
@@ -412,13 +417,13 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         modelLoadStarted = true
         loadingStage = LoadingStage.MODEL_LOAD
-        setSubtitle("正在加载检测模型", animated = true)
+        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_model_loading), animated = true)
         animateProgressTo(50)
         refreshInputActions()
 
         // 创建 NCNN 实例
         if (!InspectionSession.createNcnnInstance()) {
-            showError(InspectionSession.errorMessage ?: "NCNN 初始化失败")
+            showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_ncnn_init))
             return
         }
 
@@ -428,11 +433,11 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             uiHandler.post {
                 if (activityDestroyed) return@post
                 if (success) {
-                    setSubtitle("模型加载完成，准备相机", animated = true)
+                    setSubtitle(getString(R.string.ai_inspection_loading_subtitle_model_ready), animated = true)
                     animateProgressTo(70)
                     startCameraInit()
                 } else {
-                    showError(InspectionSession.errorMessage ?: "模型加载失败")
+                    showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_model_load))
                 }
             }
         }.start()
@@ -449,7 +454,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
         cameraInitStarted = true
         loadingStage = LoadingStage.CAMERA_INIT
-        setSubtitle("正在初始化相机", animated = true)
+        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_camera_init), animated = true)
         animateProgressTo(90)
         refreshInputActions()
 
@@ -459,7 +464,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 if (success) {
                     onInitializationComplete()
                 } else {
-                    showError(InspectionSession.errorMessage ?: "相机帧流初始化失败")
+                    showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_frame_stream))
                 }
             }
         }
@@ -605,7 +610,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         completionUiCommitted = true
         stopSpinner()
         stopSubtitleAnimation()
-        setSubtitle("初始化完成", animated = false)
+        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_complete), animated = false)
         uiHandler.removeCallbacks(finishNavigationRunnable)
         uiHandler.postDelayed(finishNavigationRunnable, COMPLETE_HOLD_DELAY_MS)
     }
