@@ -80,15 +80,8 @@ class UnifiedInputDebugActivity : BaseGlassActivity() {
     }
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
-        val confirmTriggers = listOf(
-            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-            UnifiedInputSession.InputTrigger.Voice("确认", "que ren"),
-        )
-        val exitTriggers = listOf(
-            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-            UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
-        )
+        val confirmTriggers = UnifiedInputSession.buildConfirmTriggers(enableHeadGesture = false)
+        val cancelTriggers = UnifiedInputSession.buildCancelTriggers(enableHeadGesture = false)
         val fullOnly = currentProfile == DebugProfile.FULL
 
         return buildList {
@@ -109,11 +102,11 @@ class UnifiedInputDebugActivity : BaseGlassActivity() {
             )
             add(
                 UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.Exit,
-                    label = "退出",
-                    triggers = exitTriggers,
+                    id = UnifiedInputSession.InputActionId.Cancel,
+                    label = "取消 / 退出",
+                    triggers = cancelTriggers,
                 ) { event ->
-                    recordEvent("动作 Exit", event)
+                    recordEvent("动作 Cancel", event)
                     finish()
                 },
             )
@@ -141,29 +134,6 @@ class UnifiedInputDebugActivity : BaseGlassActivity() {
                     enabled = { fullOnly },
                 ) { event ->
                     recordEvent("动作 Previous", event)
-                },
-            )
-            add(
-                UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.DebugNod,
-                    label = "点头调试",
-                    triggers = listOf(
-                        UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD),
-                    ),
-                ) { event ->
-                    recordEvent("动作 DebugNod", event)
-                },
-            )
-            add(
-                UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.DebugShake,
-                    label = "摇头调试",
-                    triggers = listOf(
-                        UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE),
-                    ),
-                    enabled = { fullOnly },
-                ) { event ->
-                    recordEvent("动作 DebugShake", event)
                 },
             )
         }

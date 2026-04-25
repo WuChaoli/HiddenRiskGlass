@@ -31,8 +31,7 @@
 
 - 调试页用于验证统一输入注册层闭环是否稳定
 - `LightshotActivity` 是第一个正式迁移页面，用来验证真实业务页改造方式
-- `InspectionLoadingActivity` 已接入“点头开始巡检”
-- `AiInspectionActivity` 已接入“点头确认 / 摇头取消”确认流
+- 当前已临时关闭陀螺仪监听，确认态仅保留语音 + 触控
 
 ## 核心结构
 
@@ -56,26 +55,20 @@
 - `InputEvent`
   - 统一分发给页面的事件对象
 
-## 当前手势约定
+## 当前确认约定
 
 在需要用户做“确认 / 取消”选择的页面，统一约定为：
 
-- `NOD` = 主确认动作
-- `SHAKE` = 次动作 / 取消动作
+- `Confirm` 固定语义：
+  - 单击
+  - 语音“确认”
+- `Cancel` 固定语义：
+  - 返回 / 双击
+  - 语音“取消”
 
-当前只在确认节点启用陀螺仪：
+确认态页面不要再分别注册“保存 / 继续 / 结束 / 退出”这类语音词；这些词只允许保留在非确认态的业务动作里，例如检测页“分析”、导航页“退出”。
 
-- `InspectionLoadingActivity`
-  - 完成态：点头开始巡检
-- `AiInspectionActivity`
-  - `STREAM_RESPONSE`：点头确认同步、摇头取消同步
-  - `SYNC_SUCCESS`：点头继续巡检、摇头退出巡检
-
-以下场景不接陀螺仪：
-
-- `DETECTING` 持续检测态
-- 加载失败重试态
-- 导航和连续操作场景
+当前阶段已临时关闭陀螺仪监听，页面不要展示点头 / 摇头提示，也不要再声明 `HeadGesture` 触发器。
 
 ## 页面接入方式
 
@@ -100,28 +93,23 @@
   - 单击 -> Confirm
   - 前滑 -> Previous
   - 后滑 -> Next
-  - 返回 / 双击 -> Exit
+  - 返回 / 双击 -> Cancel
 - 语音
   - “确认” -> Confirm
+  - “取消” -> Cancel
   - “上一个” -> Previous
   - “下一个” -> Next
-  - “退出” -> Exit
-- 陀螺仪
-  - `NOD` -> DebugNod
-  - `SHAKE` -> DebugShake
 
 ### GESTURE_ONLY 配置
 
 - 保留：
   - Confirm
-  - Exit
-  - DebugNod
+  - Cancel
 - 关闭：
   - Next
   - Previous
-  - DebugShake
 
-通过 Confirm 在两套配置间切换，用来验证 `updateActions()` 是否会正确替换语音注册和 gesture 映射。
+通过 Confirm 在两套配置间切换，用来验证 `updateActions()` 是否会正确替换语音注册。
 
 ## 验证建议
 

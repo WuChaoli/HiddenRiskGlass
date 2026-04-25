@@ -81,12 +81,17 @@ class UnifiedInputSession(
             return
         }
         voiceAdapter.attach(actionSpecs) { trigger -> dispatchTrigger(trigger) }
-        gestureAdapter.attach(actionSpecs) { trigger -> dispatchTrigger(trigger) }
+        if (HEAD_GESTURE_LISTENING_ENABLED) {
+            gestureAdapter.attach(actionSpecs) { trigger -> dispatchTrigger(trigger) }
+        } else {
+            gestureAdapter.detach()
+        }
     }
 
     data class InputActionId(val value: String) {
         companion object {
             val Confirm = InputActionId("confirm")
+            val Cancel = InputActionId("cancel")
             val Exit = InputActionId("exit")
             val Next = InputActionId("next")
             val Previous = InputActionId("previous")
@@ -155,6 +160,31 @@ class UnifiedInputSession(
         val enabled: () -> Boolean = { true },
         val onTrigger: (InputEvent) -> Unit,
     )
+
+    companion object {
+        private const val HEAD_GESTURE_LISTENING_ENABLED = false
+
+        fun buildConfirmTriggers(enableHeadGesture: Boolean): List<InputTrigger> {
+            return buildList {
+                add(InputTrigger.Touch(InputKey.CLICK))
+                add(InputTrigger.Voice("确认", "que ren"))
+                if (enableHeadGesture) {
+                    add(InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
+                }
+            }
+        }
+
+        fun buildCancelTriggers(enableHeadGesture: Boolean): List<InputTrigger> {
+            return buildList {
+                add(InputTrigger.Touch(InputKey.BACK))
+                add(InputTrigger.Touch(InputKey.DOUBLE_CLICK))
+                add(InputTrigger.Voice("取消", "qu xiao"))
+                if (enableHeadGesture) {
+                    add(InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
+                }
+            }
+        }
+    }
 
     private class VoiceInputAdapter(
         private val ownerTag: String,
