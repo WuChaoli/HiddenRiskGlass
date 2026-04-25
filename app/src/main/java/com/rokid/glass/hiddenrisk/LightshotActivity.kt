@@ -17,7 +17,6 @@ import android.view.View
 import android.widget.TextView
 import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glass.input.UnifiedInputSession
-import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import com.rokid.security.glass3.open.sdk.GlassSdk
@@ -70,7 +69,6 @@ class LightshotActivity : BaseGlassActivity() {
     private val shutterSound by lazy { MediaActionSound() }
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var headGestureSupported = false
     private var mode: String = MODE_LIGHTSHOT
     private var countdownActive = false
     private var syncPromptVisible = false
@@ -115,12 +113,7 @@ class LightshotActivity : BaseGlassActivity() {
         shutterSound.load(MediaActionSound.SHUTTER_CLICK)
         syncFovWithManager()
         updateFovTip()
-        HeadGestureManager.initialize(this)
-        headGestureSupported = HeadGestureManager.isSupported()
         applyModeUi()
-        if (!headGestureSupported) {
-            Log.w(TAG, "头部动作识别不可用，设备缺少所需传感器")
-        }
         inputSession.updateActions(buildInputActions())
     }
 
@@ -133,9 +126,6 @@ class LightshotActivity : BaseGlassActivity() {
         }
         inputSession.attach()
         inputSession.updateActions(buildInputActions())
-        if (!headGestureSupported) {
-            tvHint.text = "设备不支持头部动作识别，仍可正常拍照"
-        }
     }
 
     override fun onPause() {
@@ -163,7 +153,6 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
-        val gestureEnabled = { headGestureSupported }
         val actions = mutableListOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("lightshot_capture"),
@@ -212,75 +201,30 @@ class LightshotActivity : BaseGlassActivity() {
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
                     UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
                 ),
+                enabled = { !syncPromptVisible || !isHazardRecordMode() },
             ) {
-                if (syncPromptVisible && isHazardRecordMode()) {
-                    finish()
-                } else {
-                    finish()
-                }
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.DebugNod,
-                label = "点头提示",
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD),
-                ),
-                enabled = gestureEnabled,
-            ) { event ->
-                handleGestureEvent(event)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.DebugShake,
-                label = "摇头提示",
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE),
-                ),
-                enabled = gestureEnabled,
-            ) { event ->
-                handleGestureEvent(event)
+                finish()
             },
         )
         if (isHazardRecordMode()) {
             actions += UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
-                label = "继续录入",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                label = "确认",
+                triggers = UnifiedInputSession.buildConfirmTriggers(enableHeadGesture = false),
                 enabled = { syncPromptVisible },
             ) {
                 resetHazardRecordUi()
             }
             actions += UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("hazard_record_finish"),
-                label = "结束录入",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("结束", "jie shu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = "取消",
+                triggers = UnifiedInputSession.buildCancelTriggers(enableHeadGesture = false),
                 enabled = { syncPromptVisible },
             ) {
                 finish()
             }
         }
         return actions
-    }
-
-    private fun handleGestureEvent(event: UnifiedInputSession.InputEvent) {
-        val gestureTrigger = event.trigger as? UnifiedInputSession.InputTrigger.HeadGesture ?: return
-        val gestureLabel = when (gestureTrigger.type) {
-            HeadGestureManager.HeadGestureType.NOD -> "点头"
-            HeadGestureManager.HeadGestureType.SHAKE -> "摇头"
-        }
-        showResultTip("检测到$gestureLabel")
-        SpriteToastUtil.showSpriteToast(this, "检测到$gestureLabel", 0, 1500, false)
-        Log.i(TAG, "head gesture event type=${gestureTrigger.type}")
     }
 
     private fun initCamera(surface: SurfaceTexture? = previewView.surfaceTexture, width: Int = previewView.width, height: Int = previewView.height) {
@@ -537,11 +481,7 @@ class LightshotActivity : BaseGlassActivity() {
                     tvSaveResult.text = getString(R.string.hazard_record_sync_success)
                     tvSaveResult.visibility = View.VISIBLE
                     tvSyncPrompt.visibility = View.VISIBLE
-                    tvHint.text = if (headGestureSupported) {
-                        getString(R.string.hazard_record_continue_hint_with_gyro)
-                    } else {
-                        getString(R.string.hazard_record_continue_hint)
-                    }
+                    tvHint.setText(R.string.hazard_record_continue_hint)
                     refreshActions()
                 }
 
@@ -605,11 +545,7 @@ class LightshotActivity : BaseGlassActivity() {
                 tvSaveResult.setText(R.string.hazard_record_sync_success)
                 tvSaveResult.visibility = View.VISIBLE
                 tvSyncPrompt.visibility = View.VISIBLE
-                tvHint.text = if (headGestureSupported) {
-                    getString(R.string.hazard_record_continue_hint_with_gyro)
-                } else {
-                    getString(R.string.hazard_record_continue_hint)
-                }
+                tvHint.setText(R.string.hazard_record_continue_hint)
             }
         } else {
             tvTitle.setText(R.string.lightshot_title)
