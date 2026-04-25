@@ -35,7 +35,6 @@ class AiArSseService(
 
     interface DetailCallback {
         fun onOpened(handle: RequestHandle)
-        fun onChunk(handle: RequestHandle, partialText: String) = Unit
         fun onSuccess(handle: RequestHandle, fullText: String)
         fun onFailure(handle: RequestHandle, message: String)
     }
@@ -99,6 +98,7 @@ class AiArSseService(
 
     fun fetchHazardDetails(
         base64Image: String,
+        onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
@@ -108,9 +108,7 @@ class AiArSseService(
             handle = handle,
             payload = RequestPayload(task_id = taskId, image = base64Image, ctype = CTYPE_DETAIL),
             onOpened = { callback.onOpened(handle) },
-            onChunk = { partialText ->
-                callback.onChunk(handle, partialText)
-            },
+            onChunk = onChunk,
             onClosed = { fullText ->
                 callback.onSuccess(handle, fullText)
             },

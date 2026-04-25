@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Rect
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -26,6 +27,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.annotation.StringRes
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.gson.Gson
@@ -69,7 +71,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val CAPTURE_WARMUP_MS = 1200L
         private const val LOCAL_DETECT_INTERVAL_MS = 1000L
-        private const val LOCAL_HAZARD_ALERT_MESSAGE = "识别到隐患"
+        private const val AUTO_HAZARD_PRESENT_DELAY_MS = 3000L
+        private const val LOCAL_LABEL_COOLDOWN_MS = 30_000L
         private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
         private const val LOCAL_SAVE_SUCCESS_TOAST_MS = 1500
@@ -79,6 +82,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val DEFAULT_TARGET_INPUT_SIZE = 640
         private const val ENABLE_HIT_CAPTURE_SAVE = false
         private const val STALE_FRAME_THRESHOLD_MS = 1200L
+        private const val ONLINE_JPEG_QUALITY = 97
+        private const val ONLINE_SELECT_WINDOW_MS = 240L
+        private const val ONLINE_SELECT_MAX_FRAMES = 3
+        private const val ONLINE_SELECT_POLL_INTERVAL_MS = 80L
+        private val AUTO_INFERENCE_MODE = AutoInferenceMode.BOTH
+    }
+
+    private enum class AutoInferenceMode {
+        LOCAL_ONLY,
+        ONLINE_ONLY,
+        BOTH,
     }
 
     /**
@@ -96,6 +110,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val width: Int,
         val height: Int,
         val timestamp: Long,
+        val sourceWidth: Int,
+        val sourceHeight: Int,
+        val cropRect: Rect,
+        val sharpnessScore: Double,
+    )
+
+    private data class SquareFramePayload(
+        val nv21: ByteArray,
+        val width: Int,
+        val height: Int,
+        val timestamp: Long,
+        val receivedAtElapsedMs: Long,
+        val sourceWidth: Int,
+        val sourceHeight: Int,
+        val cropRect: Rect,
+        val sharpnessScore: Double,
     )
 
     private data class LocalHazardInfo(
@@ -105,6 +135,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val lawBasis: String = "",
         val hidNum: String = "",
         val advice: String = "",
+        val modify: String = "",
         val description: String = "",
     ) {
         fun requestDescription(): String {
@@ -139,6 +170,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
         }
 
+        fun requestModify(): String {
+            val trimmedModify = modify.trim()
+            return when {
+                trimmedModify.startsWith("整改建议：") -> trimmedModify.removePrefix("整改建议：").trim()
+                trimmedModify.startsWith("整改建议:") -> trimmedModify.removePrefix("整改建议:").trim()
+                else -> trimmedModify
+            }
+        }
+
         fun toResolvedContent(
             matchedItem: String,
             jpegBytes: ByteArray,
@@ -147,11 +187,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 source = HazardSource.LOCAL,
                 description = requestDescription(),
                 advice = requestAdvice(),
+                uploadAdvice = requestModify(),
                 hidLevel = requestHidLevel(),
                 hidNum = requestHidNum(),
                 lawBasis = requestLawBasis(),
                 displayTitle = matchedItem,
                 jpegBytes = jpegBytes.copyOf(),
+                hazards = listOf(toResolvedItem(matchedItem)),
+            )
+        }
+
+        fun toResolvedItem(matchedItem: String): ResolvedHazardItem {
+            return ResolvedHazardItem(
+                displayTitle = matchedItem,
+                description = requestDescription(),
+                advice = requestAdvice(),
+                uploadAdvice = requestModify(),
+                hidLevel = requestHidLevel(),
+                hidNum = requestHidNum(),
+                lawBasis = requestLawBasis(),
             )
         }
 
@@ -173,7 +227,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val info: LocalHazardInfo,
         val matchedItem: String,
         val score: Float,
-    )
+    ) {
+        fun uniqueKey(): String {
+            return listOf(
+                matchedItem.trim(),
+                info.requestHidNum().trim(),
+                info.requestDescription().trim(),
+                info.requestAdvice().trim(),
+                info.requestModify().trim(),
+                info.requestHidLevel().trim(),
+                info.requestLawBasis().trim(),
+            ).joinToString(separator = "|")
+        }
+
+        fun toResolvedItem(): ResolvedHazardItem {
+            return info.toResolvedItem(matchedItem)
+        }
+    }
 
     private enum class LocalResultStage {
         NONE,
@@ -182,12 +252,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private enum class ScanCycleLocalState {
+        DISABLED,
         PENDING,
         DISPLAYABLE,
         NO_RESULT,
     }
 
     private enum class ScanCycleOnlineState {
+        DISABLED,
         PENDING,
         POSITIVE,
         NEGATIVE,
@@ -199,24 +271,54 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val epoch: Long,
         val timestamp: Long,
         var jpegBytes: ByteArray? = null,
+        var capturePayloadReady: Boolean = false,
+        var capturePayloadFailed: Boolean = false,
         var localState: ScanCycleLocalState = ScanCycleLocalState.PENDING,
-        var localMatch: LocalHazardMatch? = null,
+        var rawLocalMatches: List<LocalHazardMatch> = emptyList(),
+        var localMatches: List<LocalHazardMatch> = emptyList(),
         var localResult: ResolvedHazardContent? = null,
         var onlineState: ScanCycleOnlineState = ScanCycleOnlineState.PENDING,
         var onlineRawText: String = "",
+        var suppressOnlineByCooldown: Boolean = false,
         var decided: Boolean = false,
     )
 
+    private sealed class PendingAutoHazardPresentation {
+        abstract val detectedAtElapsedMs: Long
+
+        data class Local(
+            override val detectedAtElapsedMs: Long,
+            val resolved: ResolvedHazardContent,
+        ) : PendingAutoHazardPresentation()
+
+        data class Online(
+            override val detectedAtElapsedMs: Long,
+            val cycleId: Long,
+            val resolved: ResolvedHazardContent? = null,
+        ) : PendingAutoHazardPresentation()
+    }
+
+    private val isLocalAutoDetectEnabled: Boolean
+        get() = AUTO_INFERENCE_MODE != AutoInferenceMode.ONLINE_ONLY
+
+    private val isOnlineAutoDetectEnabled: Boolean
+        get() = AUTO_INFERENCE_MODE != AutoInferenceMode.LOCAL_ONLY
+
     // --- UI ---
     private lateinit var layoutDetection: FrameLayout
+    private lateinit var layoutLivePreviewCard: FrameLayout
     private lateinit var viewLivePreview: RokidCameraPreviewView
     private lateinit var statusAlertOverlay: StatusAlertOverlayView
     private lateinit var layoutStreamResponse: FrameLayout
+    private lateinit var layoutStreamContentContainer: LinearLayout
     private lateinit var layoutStreamThumbnailCard: FrameLayout
+    private lateinit var streamTopSpacer: View
+    private lateinit var streamBottomSpacer: View
     private lateinit var tvStreamContent: TextView
     private lateinit var scrollContent: ScrollView
     private lateinit var ivStreamThumbnail: ImageView
     private lateinit var bottomPromptSync: BottomPromptView
+    private lateinit var operationGuideDetecting: OperationGuideView
     private lateinit var operationGuideStream: OperationGuideView
     private var currentStreamThumbnail: Bitmap? = null
     private lateinit var layoutSyncSuccess: FrameLayout
@@ -234,11 +336,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val imageEncodeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val autoHazardPresentationCoordinator = AutoHazardPresentationCoordinator(
+        delayMs = AUTO_HAZARD_PRESENT_DELAY_MS,
+    )
     private val inferenceRunning = AtomicBoolean(false)
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
     private val aiArSseService by lazy { AiArSseService() }
-    private val localHazardPushService by lazy { LocalHazardPushService() }
     private val onlineHazardDetectionService by lazy {
         OnlineHazardDetectionService(
             callback = object : OnlineHazardDetectionService.Callback {
@@ -307,9 +411,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var activeHazardContent: ResolvedHazardContent? = null
     private var localResultStage = LocalResultStage.NONE
     private var localSaveSubmitting = false
+    private var localHazardAutoSaveTaskKey: String? = null
     private var localHazardAlertTtsPlayed = false
     private var localHazardAdviceTtsPlayed = false
-    private val localHazardInfoByItem: Map<String, LocalHazardInfo> by lazy {
+    private var streamAutoScrollLocked = false
+    private var pendingAutoHazardPresentation: PendingAutoHazardPresentation? = null
+    private val localLabelCooldownUntilMs = linkedMapOf<String, Long>()
+    private val localHazardInfoByItem: Map<String, List<LocalHazardInfo>> by lazy {
         buildLocalHazardInfoByItem(loadLocalHazardInfos())
     }
 
@@ -322,7 +430,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // 手动分析流相关
     private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
-    private var headGestureSupported = false
     private var debugSnapshotState: String? = null
 
     private val cameraRecoveryController by lazy {
@@ -405,6 +512,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         startSampleCaptureIfNeeded()
     }
 
+    private val pendingAutoHazardPresentationRunnable = Runnable {
+        tryPresentPendingAutoHazard()
+    }
+
     private val autoCaptureRunnable = Runnable {
         autoCaptureScheduled = false
         if (!shouldAutoCaptureNow()) {
@@ -423,14 +534,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         layoutLoading = findViewById(R.id.layoutLoading)
         layoutDetection = findViewById(R.id.layoutDetection)
+        layoutLivePreviewCard = findViewById(R.id.layoutLivePreviewCard)
         viewLivePreview = findViewById(R.id.viewLivePreview)
         statusAlertOverlay = findViewById(R.id.statusAlertOverlay)
         layoutStreamResponse = findViewById(R.id.layoutStreamResponse)
+        layoutStreamContentContainer = findViewById(R.id.layoutStreamContentContainer)
         layoutStreamThumbnailCard = findViewById(R.id.layoutStreamThumbnailCard)
+        streamTopSpacer = findViewById(R.id.streamTopSpacer)
+        streamBottomSpacer = findViewById(R.id.streamBottomSpacer)
         tvStreamContent = findViewById(R.id.tvStreamContent)
         scrollContent = findViewById(R.id.scrollContent)
         ivStreamThumbnail = findViewById(R.id.ivStreamThumbnail)
         bottomPromptSync = findViewById(R.id.bottomPromptSync)
+        operationGuideDetecting = findViewById(R.id.operationGuideDetecting)
         operationGuideStream = findViewById(R.id.operationGuideStream)
         // 流式结果卡片高度限制在 onMessage / applyDebugSnapshotState 中动态处理
         layoutSyncSuccess = findViewById(R.id.layoutSyncSuccess)
@@ -446,17 +562,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         operationGuideSync = findViewById(R.id.operationGuideSync)
 
         // 设置检测页操作指引内容
-        val operationGuideDetecting = findViewById<OperationGuideView>(R.id.operationGuideDetecting)
         operationGuideDetecting.setGuide(
-            title = "操作指引",
-            content = "说出\"分析\"\n说出\"结束\"\n单击 分析\n双击 结束"
+            content = getString(R.string.ai_inspection_operation_guide_detecting),
         )
+        hideActionPrompts()
 
-        HeadGestureManager.initialize(this)
-        headGestureSupported = HeadGestureManager.isSupported()
-        if (!headGestureSupported) {
-            Log.w(TAG, "头部动作识别不可用，确认节点仅支持触控与语音")
-        }
         updateConfirmationHints()
         motionStabilityTracker.addListener(motionStabilityListener)
 
@@ -513,7 +623,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshInputActions()
         if (pageState == PageState.DETECTING) {
             cameraRecoveryController.setRecoveryEnabled(true)
-            startDetectionPreviewIfNeeded()
             initFrameStreamAndTransition()
         }
     }
@@ -779,6 +888,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     TAG,
                     "frame stream ready pending=$pendingCaptureRequest pageState=$pageState"
                 )
+                if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
+                    startDetectionPreviewIfNeeded()
+                }
                 if (pendingCaptureRequest) {
                     startSampleCaptureIfNeeded()
                 } else if (pageState == PageState.DETECTING) {
@@ -803,6 +915,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
+        clearPendingAutoHazardPresentation()
         invalidateActiveScanCycles()
         clearLocalHazardResultState()
         activeStreamRequestId++
@@ -821,10 +934,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
+        clearPendingAutoHazardPresentation()
         invalidateActiveScanCycles()
         clearLocalHazardResultState()
         activeStreamRequestId++
         stopLocalDetectionLoop("return_home")
+        localLabelCooldownUntilMs.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionWorkflowSession.clearForNewInspection()
@@ -842,9 +957,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
+        clearPendingAutoHazardPresentation()
         invalidateActiveScanCycles()
         activeStreamRequestId++
         stopLocalDetectionLoop("finish_inspection")
+        localLabelCooldownUntilMs.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
@@ -895,7 +1012,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (frame == null) {
             Log.w(
                 TAG,
-                "copyFrameForDetectionOrNull failed elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isCroppedFrameStreamWarm()}",
+                "copyFrameForDetectionOrNull failed elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isFrameStreamWarm()}",
             )
             if (startPendingStreamAnalysis()) {
                 return
@@ -906,34 +1023,83 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         Log.i(
             TAG,
-            "copyFrameForDetectionOrNull submitted width=${frame.width} height=${frame.height} timestamp=${frame.timestamp} elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isCroppedFrameStreamWarm()}",
+            "copyFrameForDetectionOrNull submitted baseline=${frame.width}x${frame.height} source=${frame.sourceWidth}x${frame.sourceHeight} timestamp=${frame.timestamp} elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isFrameStreamWarm()}",
         )
         triggerInference(frame)
     }
 
-    private fun triggerInference(frame: RokidFrameSource.CroppedNv21Frame) {
-        val local = hiddenRiskNcnn ?: run {
-            return
-        }
-        if (!inferenceRunning.compareAndSet(false, true)) {
-            return
-        }
+    private fun triggerInference(frame: SquareFramePayload) {
         val cycleId = ++nextScanCycleId
         val cycle = ScanCycle(
             id = cycleId,
             epoch = scanCycleEpoch,
             timestamp = frame.timestamp,
+            localState = if (isLocalAutoDetectEnabled) {
+                ScanCycleLocalState.PENDING
+            } else {
+                ScanCycleLocalState.DISABLED
+            },
+            onlineState = if (isOnlineAutoDetectEnabled) {
+                ScanCycleOnlineState.PENDING
+            } else {
+                ScanCycleOnlineState.DISABLED
+            },
         )
         activeScanCycles[cycleId] = cycle
-        startOnlineDetectionForCycle(cycle, frame)
+        prepareCapturedPayloadForCycle(cycle, frame)
+        if (isOnlineAutoDetectEnabled && !isLocalAutoDetectEnabled) {
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+        }
+        if (!isLocalAutoDetectEnabled) {
+            evaluateScanCycle(cycle)
+            return
+        }
+
+        val local = hiddenRiskNcnn ?: run {
+            handleLocalInferenceCompleted(
+                cycleId = cycleId,
+                success = false,
+                snapshot = null,
+                localMatches = emptyList(),
+            )
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            return
+        }
+        if (!inferenceRunning.compareAndSet(false, true)) {
+            cycle.localState = ScanCycleLocalState.NO_RESULT
+            evaluateScanCycle(cycle)
+            if (!isOnlineAutoDetectEnabled) {
+                scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            }
+            return
+        }
+        val localInput = BitmapUtils.resizeSquareNv21(
+            nv21 = frame.nv21,
+            width = frame.width,
+            height = frame.height,
+            targetSize = DEFAULT_TARGET_INPUT_SIZE,
+        ) ?: run {
+            inferenceRunning.set(false)
+            handleLocalInferenceCompleted(
+                cycleId = cycleId,
+                success = false,
+                snapshot = null,
+                localMatches = emptyList(),
+            )
+            if (startPendingStreamAnalysis()) {
+                return
+            }
+            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            return
+        }
 
         if (!submitNativeTask {
                 val nativeStartElapsedMs = SystemClock.elapsedRealtime()
                 val success = runCatching {
                     local.submitNv21(
-                        frame.data,
-                        frame.width,
-                        frame.height,
+                        localInput,
+                        DEFAULT_TARGET_INPUT_SIZE,
+                        DEFAULT_TARGET_INPUT_SIZE,
                     )
                 }.onFailure { e -> Log.e(TAG, "submitNv21 failed", e) }
                     .getOrDefault(false)
@@ -941,9 +1107,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val nativeElapsedMs = SystemClock.elapsedRealtime() - nativeStartElapsedMs
                 val inferenceMs = snapshot?.inferenceTimeMs ?: -1L
                 val detectionCount = snapshot?.detectionCount ?: 0
-                val localMatch = snapshot
+                val localMatches = snapshot
                     ?.takeIf { success && detectionCount > 0 }
-                    ?.let(::findLocalHazardMatch)
+                    ?.let(::findLocalHazardMatches)
+                    .orEmpty()
                 uiHandler.post {
                     inferenceRunning.set(false)
                     Log.d(
@@ -958,7 +1125,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         cycleId = cycleId,
                         success = success,
                         snapshot = snapshot,
-                        localMatch = localMatch,
+                        localMatches = localMatches,
                     )
                 }
             }) {
@@ -967,7 +1134,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 cycleId = cycleId,
                 success = false,
                 snapshot = null,
-                localMatch = null,
+                localMatches = emptyList(),
             )
             if (startPendingStreamAnalysis()) {
                 return
@@ -976,11 +1143,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun copyFrameForDetectionOrNull(): RokidFrameSource.CroppedNv21Frame? {
+    private fun copyFrameForDetectionOrNull(): SquareFramePayload? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
-        val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return null
+        val rawFrame = RokidFrameSource.copyLatestRawFrame() ?: return null
+        val frame = buildSquareFramePayload(rawFrame) ?: return null
         if (frame.timestamp <= lastConsumedFrameTimestamp) {
             Log.w(TAG, "drop frame reason=duplicate timestamp=${frame.timestamp} last=$lastConsumedFrameTimestamp")
             return null
@@ -996,38 +1164,164 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return frame
     }
 
-    private fun copyLatestFrameForStreamingOrNull(): RokidFrameSource.CroppedNv21Frame? {
+    private fun copyLatestRawFrameForOnlineOrNull(): RokidFrameSource.Nv21Frame? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
-        val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return null
+        val frame = RokidFrameSource.copyLatestRawFrame() ?: return null
         val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
         if (ageMs > STALE_FRAME_THRESHOLD_MS) {
-            Log.w(TAG, "drop stream frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
+            Log.w(TAG, "drop online raw frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
             return null
         }
         return frame
     }
 
-    private fun buildCapturedFramePayload(frame: RokidFrameSource.CroppedNv21Frame): CapturedFramePayload? {
-        val jpegBytes = BitmapUtils.encodeNv21ToJpeg(
+    private fun buildSquareFramePayload(frame: RokidFrameSource.Nv21Frame): SquareFramePayload? {
+        val cropRect = RokidFrameSource.calculateSquareCropRect(frame.width, frame.height)
+        if (cropRect.width() <= 0 || cropRect.height() <= 0) {
+            Log.w(TAG, "buildSquareFramePayload invalid crop timestamp=${frame.timestamp} crop=$cropRect")
+            return null
+        }
+        val squareNv21 = BitmapUtils.cropNv21Rect(
             nv21 = frame.data,
             width = frame.width,
             height = frame.height,
-            jpegQuality = 80,
+            cropRect = cropRect,
+        ) ?: return null
+        return SquareFramePayload(
+            nv21 = squareNv21,
+            width = cropRect.width(),
+            height = cropRect.height(),
+            timestamp = frame.timestamp,
+            receivedAtElapsedMs = frame.receivedAtElapsedMs,
+            sourceWidth = frame.width,
+            sourceHeight = frame.height,
+            cropRect = Rect(cropRect),
+            sharpnessScore = computeSquareFrameSharpnessScore(
+                squareNv21,
+                cropRect.width(),
+                cropRect.height(),
+            ),
+        )
+    }
+
+    private fun buildCapturedFramePayload(frame: SquareFramePayload): CapturedFramePayload? {
+        val jpegBytes = BitmapUtils.encodeNv21CropRectToJpeg(
+            nv21 = frame.nv21,
+            width = frame.width,
+            height = frame.height,
+            cropRect = Rect(0, 0, frame.width, frame.height),
+            jpegQuality = ONLINE_JPEG_QUALITY,
         ) ?: return null
         return CapturedFramePayload(
             jpegBytes = jpegBytes,
             width = frame.width,
             height = frame.height,
             timestamp = frame.timestamp,
+            sourceWidth = frame.sourceWidth,
+            sourceHeight = frame.sourceHeight,
+            cropRect = Rect(frame.cropRect),
+            sharpnessScore = frame.sharpnessScore,
         )
+    }
+
+    private fun buildOnlineFramePayload(frame: RokidFrameSource.Nv21Frame): CapturedFramePayload? {
+        val squareFrame = buildSquareFramePayload(frame) ?: return null
+        return buildCapturedFramePayload(squareFrame)
+    }
+
+    private fun selectBestOnlineFramePayload(): CapturedFramePayload? {
+        val deadline = SystemClock.elapsedRealtime() + ONLINE_SELECT_WINDOW_MS
+        var bestPayload: CapturedFramePayload? = null
+        var lastTimestamp = Long.MIN_VALUE
+        var sampledFrames = 0
+        while (sampledFrames < ONLINE_SELECT_MAX_FRAMES) {
+            val frame = copyLatestRawFrameForOnlineOrNull()
+            if (frame == null || frame.timestamp <= lastTimestamp) {
+                if (SystemClock.elapsedRealtime() >= deadline) {
+                    break
+                }
+                SystemClock.sleep(ONLINE_SELECT_POLL_INTERVAL_MS)
+                continue
+            }
+            lastTimestamp = frame.timestamp
+            val payload = buildOnlineFramePayload(frame)
+            if (payload != null) {
+                sampledFrames += 1
+                if (bestPayload == null ||
+                    payload.sharpnessScore > bestPayload.sharpnessScore ||
+                    (payload.sharpnessScore == bestPayload.sharpnessScore && payload.timestamp > bestPayload.timestamp)
+                ) {
+                    bestPayload = payload
+                }
+            }
+            if (sampledFrames >= ONLINE_SELECT_MAX_FRAMES || SystemClock.elapsedRealtime() >= deadline) {
+                break
+            }
+            SystemClock.sleep(ONLINE_SELECT_POLL_INTERVAL_MS)
+        }
+        bestPayload?.let { payload ->
+            Log.i(
+                TAG,
+                "selected online frame ts=${payload.timestamp} sharpness=${"%.2f".format(payload.sharpnessScore)} crop=${payload.cropRect} output=${payload.width}x${payload.height} bytes=${payload.jpegBytes.size}",
+            )
+        }
+        return bestPayload
+    }
+
+    private fun computeSquareFrameSharpnessScore(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+    ): Double {
+        if (width <= 2 || height <= 2) {
+            return 0.0
+        }
+        val stride = 4
+        var score = 0.0
+        var samples = 0
+        var y = stride
+        while (y < height - stride) {
+            var x = stride
+            while (x < width - stride) {
+                val center = nv21[y * width + x].toInt() and 0xFF
+                val leftPx = nv21[y * width + (x - stride)].toInt() and 0xFF
+                val rightPx = nv21[y * width + (x + stride)].toInt() and 0xFF
+                val topPx = nv21[(y - stride) * width + x].toInt() and 0xFF
+                val bottomPx = nv21[(y + stride) * width + x].toInt() and 0xFF
+                val laplacian = kotlin.math.abs(leftPx + rightPx + topPx + bottomPx - 4 * center)
+                score += laplacian.toDouble()
+                samples += 1
+                x += stride
+            }
+            y += stride
+        }
+        return if (samples == 0) 0.0 else score / samples
     }
 
     // ==================== 隐患处理流程 ====================
 
     private fun hideStatusAlertOverlay() {
         statusAlertOverlay.reset()
+    }
+
+    private fun refreshPendingHazardAlertOverlay() {
+        if (pageState != PageState.DETECTING || pendingAutoHazardPresentation == null) {
+            hideStatusAlertOverlay()
+            return
+        }
+        statusAlertOverlay.render(
+            StatusAlertModel(
+                status = AlertStatus.WARNING,
+                titleText = "",
+                messageText = getString(R.string.ai_inspection_pending_hazard_alert),
+                behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
+                style = AlertStyle(
+                    iconResId = R.drawable.hidden_risk_alert,
+                ),
+            ),
+        )
     }
 
     private fun syncToPhone() {
@@ -1043,11 +1337,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         if (destroyed) return@post
                         phoneSyncHandle = null
                         InspectionWorkflowSession.recordPhoneSync(sessionId)
-                        InspectionWorkflowSession.recordSavedHazardCapture(
-                            InspectionWorkflowSession.latestCapturedJpeg
-                        )
+                        InspectionWorkflowSession.recordSavedHazardCapture(activeHazardContent?.jpegBytes)
                         InspectionWorkflowSession.updateSummary { summary ->
-                            summary.copy(hasHazardCount = summary.hasHazardCount + 1)
+                            summary.copy(
+                                hasHazardCount = summary.hasHazardCount + (activeHazardContent?.hazardCount() ?: 0),
+                            )
                         }
                         showSyncSuccess()
                     }
@@ -1079,10 +1373,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             title = getString(R.string.ai_inspection_sync_failed),
             subtitle = syncPromptSubtitle(),
         )
-        bottomPromptSync.visibility = View.VISIBLE
+        bottomPromptSync.visibility = View.GONE
         if (message.isNotBlank()) {
             Log.w(TAG, "sync error prompt message=$message")
         }
+        hideActionPrompts()
     }
 
     private fun applyDefaultDetectionStatus() {
@@ -1093,6 +1388,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun shouldAutoCaptureNow(): Boolean {
         if (destroyed || !isActivityResumed || !isWorkflowActive) return false
+        if (isAutoHazardPresentationPending()) return false
         if (!hasRequiredPermissions()) return false
         if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return false
         if (!modelLoaded || modelLoading) return false
@@ -1106,6 +1402,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun scheduleAutoCaptureIfNeeded(delayMs: Long) {
         if (autoCaptureScheduled || destroyed || !isActivityResumed || !isWorkflowActive) return
+        if (isAutoHazardPresentationPending()) return
         if (pendingStreamStart || streamingInProgress || streamCallbackActive) return
         if (pageState != PageState.DETECTING) return
         autoCaptureScheduled = true
@@ -1113,6 +1410,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun scheduleDetectionCaptureIfNeeded(reason: String, preferImmediate: Boolean) {
+        if (isAutoHazardPresentationPending()) {
+            return
+        }
         if (preferImmediate && requestImmediateDetectionCaptureIfPossible(reason)) {
             return
         }
@@ -1136,6 +1436,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         pendingCaptureRequest = false
         captureDelayScheduled = false
         autoCaptureScheduled = false
+        clearPendingAutoHazardPresentation()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         cameraRecoveryController.notifyConsumerWaitStopped()
@@ -1153,18 +1454,61 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun startDetectionPreviewIfNeeded() {
         if (!isActivityResumed || destroyed) {
+            Log.i(
+                TAG,
+                "skip start left-top live preview resumed=$isActivityResumed destroyed=$destroyed pageState=$pageState",
+            )
             return
         }
+        if (!frameStreamReady || !RokidFrameSource.isFrameStreamOpen()) {
+            Log.i(
+                TAG,
+                "defer start left-top live preview frameStreamReady=$frameStreamReady frameStreamOpen=${RokidFrameSource.isFrameStreamOpen()} pageState=$pageState",
+            )
+            return
+        }
+        Log.i(
+            TAG,
+            "start left-top live preview pageState=$pageState previewStarted=${viewLivePreview.isPreviewStarted()}",
+        )
+        layoutLivePreviewCard.visibility = View.VISIBLE
         viewLivePreview.visibility = View.VISIBLE
-        viewLivePreview.startPreview { success ->
-            if (!success) {
-                Log.w(TAG, "left-top live preview start failed")
+        viewLivePreview.post {
+            if (!isActivityResumed || destroyed) {
+                Log.i(
+                    TAG,
+                    "skip posted left-top live preview resumed=$isActivityResumed destroyed=$destroyed pageState=$pageState",
+                )
+                return@post
+            }
+            if (pageState != PageState.DETECTING && pageState != PageState.STREAM_RESPONSE) {
+                Log.i(TAG, "skip posted left-top live preview pageState=$pageState")
+                return@post
+            }
+            if (!frameStreamReady || !RokidFrameSource.isFrameStreamOpen()) {
+                Log.i(
+                    TAG,
+                    "skip posted left-top live preview frameStreamReady=$frameStreamReady frameStreamOpen=${RokidFrameSource.isFrameStreamOpen()} pageState=$pageState",
+                )
+                return@post
+            }
+            viewLivePreview.startPreview { success ->
+                if (!success) {
+                    Log.w(TAG, "left-top live preview start failed")
+                } else {
+                    Log.i(TAG, "left-top live preview ready pageState=$pageState")
+                }
             }
         }
     }
 
     private fun stopDetectionPreview() {
-        viewLivePreview.visibility = View.GONE
+        Log.i(
+            TAG,
+            "stop left-top live preview pageState=$pageState previewStarted=${viewLivePreview.isPreviewStarted()}",
+        )
+        layoutLivePreviewCard.visibility = View.INVISIBLE
+        viewLivePreview.visibility = View.INVISIBLE
         viewLivePreview.stopPreview()
     }
 
@@ -1185,9 +1529,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
         layoutSyncSuccess.visibility =
             if (state == PageState.SYNCING || state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
-        bottomPromptSuccess.visibility =
-            if (state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
-        if (state == PageState.DETECTING) {
+        bottomPromptSuccess.visibility = View.GONE
+        val shouldShowLivePreview =
+            state == PageState.DETECTING || state == PageState.STREAM_RESPONSE
+        Log.i(
+            TAG,
+            "showPage state=$state shouldShowLivePreview=$shouldShowLivePreview resumed=$isActivityResumed workflowActive=$isWorkflowActive",
+        )
+        if (shouldShowLivePreview) {
             startDetectionPreviewIfNeeded()
         } else {
             stopDetectionPreview()
@@ -1198,6 +1547,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (state == PageState.DETECTING) {
             clearStreamResponseUiState()
             refreshDetectionStatus()
+            refreshPendingHazardAlertOverlay()
         }
         if (state == PageState.SYNCING || state == PageState.SYNC_SUCCESS) {
             renderSyncStatusUi(state)
@@ -1205,8 +1555,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             ivSyncLoading.clearAnimation()
             ivSyncLoading.visibility = View.GONE
             ivSyncSuccessIcon.visibility = View.VISIBLE
-            operationGuideSync.visibility = View.VISIBLE
+            operationGuideSync.visibility = View.GONE
         }
+        hideActionPrompts()
         refreshInputActions()
     }
 
@@ -1217,15 +1568,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             "result" -> {
                 showPage(PageState.STREAM_RESPONSE)
-                tvStreamContent.text = intent.getStringExtra("debug_text")
-                    ?: "隐患描述：\n三合一住人，防盗窗未设置紧急逃生口，电子烟靠近笔记本电脑存在火灾风险。\n\n整改建议：\n立即拆除住宿隔断，增设逃生口，远离易燃物。"
-                bottomPromptSync.setPrompt(
-                    title = getString(R.string.ai_inspection_sync_prompt),
-                    subtitle = syncPromptSubtitle(),
+                localResultStage = LocalResultStage.DESCRIPTION
+                setStreamContentAndResetViewport(
+                    intent.getStringExtra("debug_text")
+                        ?: getString(R.string.ai_inspection_debug_result_text),
                 )
-                bottomPromptSync.visibility = View.VISIBLE
-                // 限制结果卡片高度不超过半屏
-                adjustStreamScrollHeight()
+                renderLocalDescriptionPrompt()
                 // 调试模式：显示一个测试缩略图
                 showDebugThumbnail()
             }
@@ -1234,6 +1582,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 bottomPromptSuccess.setPrompt(
                     title = getString(R.string.ai_inspection_continue_prompt)
                 )
+                hideActionPrompts()
             }
             else -> {
                 showPage(PageState.DETECTING)
@@ -1246,38 +1595,45 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_detecting_stream_analysis"),
-                label = "检测页分析",
+                label = getString(R.string.ai_inspection_input_label_detecting_analysis),
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                    UnifiedInputSession.InputTrigger.Voice("分析", "fen xi"),
+                    voiceTrigger(R.string.ai_inspection_voice_analysis, "fen xi"),
+                    voiceTrigger(R.string.ai_inspection_voice_analysis_deep, "shen du fen xi"),
                 ),
-                enabled = { pageState == PageState.DETECTING },
+                enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
             ) {
                 requestStreamingAnalysis()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_detecting_exit"),
-                label = "检测页结束",
+                id = UnifiedInputSession.InputActionId("ai_detecting_back_to_menu"),
+                label = getString(R.string.ai_inspection_input_label_detecting_return),
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
                     UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                    UnifiedInputSession.InputTrigger.Voice("结束", "jie shu"),
-                    UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"),
+                    voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
+                    voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
                 ),
-                enabled = { pageState == PageState.DETECTING },
+                enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
+            ) {
+                returnDirectlyToHome()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_detecting_finish"),
+                label = getString(R.string.ai_inspection_input_label_detecting_finish),
+                triggers = listOf(
+                    voiceTrigger(R.string.ai_inspection_voice_finish, "jie shu"),
+                    voiceTrigger(R.string.ai_inspection_voice_finish_patrol, "jie shu xun cha"),
+                    voiceTrigger(R.string.ai_inspection_voice_finish_detect, "jie shu shi huan"),
+                ),
+                enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
             ) {
                 finishInspectionWithReport()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_stream_confirm_sync"),
-                label = "确认同步",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("确认", "que ren"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
@@ -1288,15 +1644,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 handleStreamConfirmAction()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_local_description_save"),
-                label = "保存隐患",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("保存", "bao cun"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
@@ -1304,18 +1654,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         localResultStage == LocalResultStage.DESCRIPTION
                 },
             ) {
-                confirmLocalHazardSave()
+                handleStreamConfirmAction()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_local_advice_continue"),
-                label = "继续识别",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
@@ -1326,35 +1670,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 returnToDetecting()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_stream_cancel_sync"),
-                label = "取消同步",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("取消", "qu xiao"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !localSaveSubmitting &&
                         localResultStage == LocalResultStage.NONE
                 },
             ) {
-                handleStreamCancelAction(it)
+                handleStreamCancelAction()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_local_description_cancel_save"),
-                label = "取消保存",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("取消", "qu xiao"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
@@ -1362,19 +1692,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         localResultStage == LocalResultStage.DESCRIPTION
                 },
             ) {
-                showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
+                returnToDetecting()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_local_advice_exit"),
-                label = "退出识别",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
@@ -1382,33 +1705,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         localResultStage == LocalResultStage.ADVICE
                 },
             ) {
-                finishInspectionWithReport()
+                returnToDetecting()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_sync_continue"),
-                label = "继续巡检",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
                 enabled = { pageState == PageState.SYNC_SUCCESS },
             ) {
                 returnToDetecting()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_sync_finish"),
-                label = "结束巡检",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("退出", "tui chu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
                 enabled = { pageState == PageState.SYNC_SUCCESS },
             ) {
                 finishInspectionWithReport()
@@ -1420,14 +1730,32 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         inputSession.updateActions(buildInputActions())
     }
 
+    private fun voiceTrigger(@StringRes textRes: Int, pinyin: String): UnifiedInputSession.InputTrigger {
+        return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
+    }
+
+    private fun buildConfirmTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_confirm, "que ren"),
+            voiceTrigger(R.string.ai_inspection_voice_confirm_alias, "que ding"),
+            voiceTrigger(R.string.ai_inspection_voice_continue_alias, "ji xu"),
+        )
+    }
+
+    private fun buildReturnTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
+            voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
+        )
+    }
+
     private fun updateConfirmationHints() {
-        val streamGuide = if (headGestureSupported) {
-            "说出\"确认\"\n说出\"取消\"\n单击 确认\n双击 取消\n点头 确认\n摇头 取消"
-        } else {
-            "说出\"确认\"\n说出\"取消\"\n单击 确认\n双击 取消"
-        }
+        val streamGuide = getString(R.string.ai_inspection_operation_guide_confirm_return)
         operationGuideStream.setContent(streamGuide)
-        operationGuideSync.setGuide(title = "操作指引", content = streamGuide)
+        operationGuideSync.setGuide(content = streamGuide)
         bottomPromptSync.setPrompt(
             title = getString(R.string.ai_inspection_sync_prompt),
             subtitle = syncPromptSubtitle(),
@@ -1436,37 +1764,69 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             title = getString(R.string.ai_inspection_continue_prompt),
             subtitle = continuePromptSubtitle(),
         )
+        hideActionPrompts()
     }
 
     private fun syncPromptSubtitle(): String {
-        return if (headGestureSupported) {
-            getString(R.string.ai_inspection_sync_hint_with_gyro)
-        } else {
-            getString(R.string.ai_inspection_sync_hint)
-        }
+        return getString(R.string.ai_inspection_sync_hint)
     }
 
     private fun localDescriptionPromptSubtitle(): String {
-        return if (headGestureSupported) {
-            getString(R.string.ai_inspection_local_save_hint_with_gyro)
-        } else {
-            getString(R.string.ai_inspection_local_save_hint)
-        }
+        return getString(R.string.ai_inspection_local_save_hint)
     }
 
     private fun localContinuePromptSubtitle(): String {
-        return if (headGestureSupported) {
-            getString(R.string.ai_inspection_local_continue_hint_with_gyro)
-        } else {
-            getString(R.string.ai_inspection_local_continue_hint)
-        }
+        return getString(R.string.ai_inspection_local_continue_hint)
     }
 
     private fun continuePromptSubtitle(): String {
-        return if (headGestureSupported) {
-            getString(R.string.ai_inspection_continue_hint_with_gyro)
+        return getString(R.string.ai_inspection_continue_hint)
+    }
+
+    private fun isFixedResultPanelMode(): Boolean {
+        return pageState == PageState.STREAM_RESPONSE &&
+            !streamingInProgress &&
+            (localResultStage == LocalResultStage.DESCRIPTION || localResultStage == LocalResultStage.ADVICE)
+    }
+
+    private fun previewBottomOffsetPx(): Int {
+        return resources.getDimensionPixelSize(R.dimen.inspection_preview_card_margin_top) +
+            resources.getDimensionPixelSize(R.dimen.inspection_preview_card_size)
+    }
+
+    private fun applyDefaultStreamPanelLayout() {
+        val topParams = streamTopSpacer.layoutParams as LinearLayout.LayoutParams
+        topParams.height = 0
+        topParams.weight = 0f
+        streamTopSpacer.layoutParams = topParams
+        streamTopSpacer.visibility = View.GONE
+
+        val bottomParams = streamBottomSpacer.layoutParams as LinearLayout.LayoutParams
+        bottomParams.height = 0
+        bottomParams.weight = 1f
+        streamBottomSpacer.layoutParams = bottomParams
+        streamBottomSpacer.visibility = View.VISIBLE
+    }
+
+    private fun applyFixedResultStreamPanelLayout() {
+        val topParams = streamTopSpacer.layoutParams as LinearLayout.LayoutParams
+        topParams.height = previewBottomOffsetPx()
+        topParams.weight = 0f
+        streamTopSpacer.layoutParams = topParams
+        streamTopSpacer.visibility = View.VISIBLE
+
+        val bottomParams = streamBottomSpacer.layoutParams as LinearLayout.LayoutParams
+        bottomParams.height = 0
+        bottomParams.weight = 1f
+        streamBottomSpacer.layoutParams = bottomParams
+        streamBottomSpacer.visibility = View.VISIBLE
+    }
+
+    private fun applyCurrentStreamPanelLayout() {
+        if (isFixedResultPanelMode()) {
+            applyFixedResultStreamPanelLayout()
         } else {
-            getString(R.string.ai_inspection_continue_hint)
+            applyDefaultStreamPanelLayout()
         }
     }
 
@@ -1480,8 +1840,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun clearStreamResponseUiState() {
         clearStreamThumbnailState()
+        streamAutoScrollLocked = false
         tvStreamContent.text = ""
-        bottomPromptSync.visibility = View.INVISIBLE
+        applyDefaultStreamPanelLayout()
+        bottomPromptSync.visibility = View.GONE
         bottomPromptSync.setPrompt(
             title = getString(R.string.ai_inspection_sync_prompt),
             subtitle = syncPromptSubtitle(),
@@ -1494,6 +1856,61 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             scrollContent.scrollTo(0, 0)
             scrollContent.fullScroll(View.FOCUS_UP)
         }
+        hideActionPrompts()
+    }
+
+    private fun setStreamContentAndResetViewport(text: String) {
+        streamAutoScrollLocked = false
+        tvStreamContent.text = text
+        applyCurrentStreamPanelLayout()
+        adjustStreamScrollHeight()
+        scrollContent.post {
+            scrollContent.scrollTo(0, 0)
+            scrollContent.fullScroll(View.FOCUS_UP)
+        }
+    }
+
+    private fun updateStreamingText(partialText: String) {
+        val previousScrollY = scrollContent.scrollY
+        tvStreamContent.text = partialText
+        applyCurrentStreamPanelLayout()
+        adjustStreamScrollHeight()
+        scrollContent.post {
+            val maxScrollY = maxStreamScrollY()
+            when {
+                streamAutoScrollLocked -> {
+                    scrollContent.scrollTo(0, previousScrollY.coerceAtMost(maxScrollY))
+                }
+
+                maxScrollY > 0 -> {
+                    streamAutoScrollLocked = true
+                    scrollContent.scrollTo(0, previousScrollY.coerceAtMost(maxScrollY))
+                }
+
+                else -> {
+                    scrollContent.fullScroll(View.FOCUS_DOWN)
+                }
+            }
+        }
+    }
+
+    private fun maxStreamScrollY(): Int {
+        val contentView = scrollContent.getChildAt(0) ?: return 0
+        return (contentView.height - scrollContent.height).coerceAtLeast(0)
+    }
+
+    private fun advanceStreamViewportByPage(): Boolean {
+        val maxScrollY = maxStreamScrollY()
+        if (maxScrollY <= scrollContent.scrollY) {
+            return false
+        }
+        val pageHeight = scrollContent.height.takeIf { it > 0 }
+            ?: (resources.displayMetrics.heightPixels / 2).coerceAtLeast(1)
+        val targetScrollY = (scrollContent.scrollY + pageHeight).coerceAtMost(maxScrollY)
+        scrollContent.post {
+            scrollContent.scrollTo(0, targetScrollY)
+        }
+        return true
     }
 
     private fun renderSyncStatusUi(state: PageState) {
@@ -1515,16 +1932,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ivSyncSuccessIcon.visibility = View.VISIBLE
                 tvSyncStatusTitle.setText(R.string.ai_inspection_synced)
                 tvSyncStatusDetail.setText(R.string.ai_inspection_synced_detail)
-                operationGuideSync.visibility = View.VISIBLE
+                operationGuideSync.visibility = View.GONE
             }
 
             else -> {
                 ivSyncLoading.clearAnimation()
                 ivSyncLoading.visibility = View.GONE
                 ivSyncSuccessIcon.visibility = View.GONE
-                operationGuideSync.visibility = View.VISIBLE
+                operationGuideSync.visibility = View.GONE
             }
         }
+        hideActionPrompts()
     }
 
     private fun failWorkflow(message: String) {
@@ -1617,27 +2035,121 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // ==================== 本地隐患知识结果 ====================
 
-    private fun findLocalHazardMatch(snapshot: NativeInferenceStats): LocalHazardMatch? {
+    private fun findLocalHazardMatches(snapshot: NativeInferenceStats): List<LocalHazardMatch> {
         if (localHazardInfoByItem.isEmpty()) {
-            return null
+            return emptyList()
         }
-        return snapshot.detections
-            .mapNotNull { detection ->
+        val deduped = linkedMapOf<String, LocalHazardMatch>()
+        snapshot.detections
+            .flatMap { detection ->
                 val displayLabel = HiddenRiskMultiOverlayRenderer.labelFor(detection)
                 val matchedItem = sequenceOf(detection.label, displayLabel)
                     .map { it.trim() }
                     .firstOrNull { it.isNotBlank() && localHazardInfoByItem.containsKey(it) }
-                    ?: return@mapNotNull null
-                val info = localHazardInfoByItem[matchedItem] ?: return@mapNotNull null
-                LocalHazardMatch(info = info, matchedItem = matchedItem, score = detection.score)
+                    ?: return@flatMap emptyList()
+                val infos = localHazardInfoByItem[matchedItem].orEmpty()
+                infos.map { info ->
+                    LocalHazardMatch(info = info, matchedItem = matchedItem, score = detection.score)
+                }
             }
-            .maxByOrNull { it.score }
+            .forEach { match ->
+                val key = match.uniqueKey()
+                val previous = deduped[key]
+                if (previous == null || match.score > previous.score) {
+                    deduped[key] = match
+                }
+            }
+        return deduped.values.sortedByDescending { it.score }
     }
 
-    private fun startOnlineDetectionForCycle(
-        cycle: ScanCycle,
-        frame: RokidFrameSource.CroppedNv21Frame,
+    private fun buildLocalResolvedContent(
+        localMatches: List<LocalHazardMatch>,
+        jpegBytes: ByteArray,
+    ): ResolvedHazardContent? {
+        if (localMatches.isEmpty()) {
+            return null
+        }
+        val resolvedHazards = localMatches.map { it.toResolvedItem() }
+        val primaryHazard = resolvedHazards.first()
+        return ResolvedHazardContent(
+            source = HazardSource.LOCAL,
+            description = primaryHazard.description,
+            advice = primaryHazard.advice,
+            uploadAdvice = primaryHazard.uploadAdvice,
+            hidLevel = primaryHazard.hidLevel,
+            hidNum = primaryHazard.hidNum,
+            lawBasis = primaryHazard.lawBasis,
+            displayTitle = primaryHazard.displayTitle,
+            jpegBytes = jpegBytes.copyOf(),
+            hazards = resolvedHazards,
+        )
+    }
+
+    private fun buildLocalHazardUploadItems(hazardContent: ResolvedHazardContent): List<LocalHazardPushService.HidDangerItem> {
+        return LocalHazardUploadItemBuilder.build(hazardContent)
+    }
+
+    private fun pruneExpiredLocalCooldowns(nowElapsedMs: Long) {
+        val iterator = localLabelCooldownUntilMs.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.value <= nowElapsedMs) {
+                iterator.remove()
+            }
+        }
+    }
+
+    private fun isLocalLabelCooling(label: String, nowElapsedMs: Long): Boolean {
+        val normalizedLabel = label.trim()
+        if (normalizedLabel.isBlank()) {
+            return false
+        }
+        val cooldownUntilMs = localLabelCooldownUntilMs[normalizedLabel] ?: return false
+        return cooldownUntilMs > nowElapsedMs
+    }
+
+    private fun filterLocalMatchesByCooldown(
+        localMatches: List<LocalHazardMatch>,
+        nowElapsedMs: Long,
+    ): List<LocalHazardMatch> {
+        if (localMatches.isEmpty()) {
+            return emptyList()
+        }
+        pruneExpiredLocalCooldowns(nowElapsedMs)
+        return localMatches.filterNot { match ->
+            isLocalLabelCooling(match.matchedItem, nowElapsedMs)
+        }
+    }
+
+    private fun markLocalLabelsCooldown(
+        localMatches: List<LocalHazardMatch>,
+        nowElapsedMs: Long,
     ) {
+        markLocalLabelsCooldownByName(
+            labels = localMatches.map { it.matchedItem },
+            nowElapsedMs = nowElapsedMs,
+        )
+    }
+
+    private fun markLocalLabelsCooldownByName(
+        labels: List<String>,
+        nowElapsedMs: Long,
+    ) {
+        if (labels.isEmpty()) {
+            return
+        }
+        pruneExpiredLocalCooldowns(nowElapsedMs)
+        val cooldownUntilMs = nowElapsedMs + LOCAL_LABEL_COOLDOWN_MS
+        labels
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .forEach { label ->
+                localLabelCooldownUntilMs[label] = cooldownUntilMs
+            }
+    }
+
+    private fun prepareCapturedPayloadForCycle(cycle: ScanCycle, frame: SquareFramePayload) {
         try {
             imageEncodeExecutor.execute {
                 val payload = buildCapturedFramePayload(frame)
@@ -1647,30 +2159,51 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                     if (payload == null) {
                         val activeCycle = activeScanCycles[cycle.id] ?: return@post
-                        activeCycle.onlineState = ScanCycleOnlineState.FAILED
+                        activeCycle.capturePayloadFailed = true
+                        if (isOnlineAutoDetectEnabled) {
+                            activeCycle.onlineState = ScanCycleOnlineState.FAILED
+                        }
+                        if (activeCycle.localMatches.isNotEmpty() && activeCycle.localResult == null) {
+                            activeCycle.localResult = buildLocalResolvedContent(
+                                localMatches = activeCycle.localMatches,
+                                jpegBytes = ByteArray(0),
+                            )
+                        }
                         evaluateScanCycle(activeCycle)
                         return@post
                     }
+                    cycle.capturePayloadReady = true
                     cycle.jpegBytes = payload.jpegBytes
-                    if (cycle.localMatch != null && cycle.localResult == null) {
-                        cycle.localResult = cycle.localMatch?.info?.toResolvedContent(
-                            matchedItem = cycle.localMatch?.matchedItem.orEmpty(),
+                    if (cycle.localMatches.isNotEmpty() && cycle.localResult == null) {
+                        cycle.localResult = buildLocalResolvedContent(
+                            localMatches = cycle.localMatches,
                             jpegBytes = payload.jpegBytes,
                         )
                     }
-                    onlineHazardDetectionService.submitDetection(
-                        OnlineHazardDetectionService.DetectionRequest(
-                            epoch = cycle.epoch,
-                            cycleId = cycle.id,
-                            jpegBytes = payload.jpegBytes,
-                        ),
-                    )
+                    if (isOnlineAutoDetectEnabled) {
+                        onlineHazardDetectionService.submitDetection(
+                            OnlineHazardDetectionService.DetectionRequest(
+                                epoch = cycle.epoch,
+                                cycleId = cycle.id,
+                                jpegBytes = payload.jpegBytes,
+                            ),
+                        )
+                    }
                     evaluateScanCycle(cycle)
                 }
             }
         } catch (error: RejectedExecutionException) {
-            Log.w(TAG, "startOnlineDetectionForCycle encode rejected cycleId=${cycle.id}", error)
-            cycle.onlineState = ScanCycleOnlineState.FAILED
+            Log.w(TAG, "prepareCapturedPayloadForCycle encode rejected cycleId=${cycle.id}", error)
+            cycle.capturePayloadFailed = true
+            if (isOnlineAutoDetectEnabled) {
+                cycle.onlineState = ScanCycleOnlineState.FAILED
+            }
+            if (cycle.localMatches.isNotEmpty() && cycle.localResult == null) {
+                cycle.localResult = buildLocalResolvedContent(
+                    localMatches = cycle.localMatches,
+                    jpegBytes = ByteArray(0),
+                )
+            }
             evaluateScanCycle(cycle)
         }
     }
@@ -1679,7 +2212,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cycleId: Long,
         success: Boolean,
         snapshot: NativeInferenceStats?,
-        localMatch: LocalHazardMatch?,
+        localMatches: List<LocalHazardMatch>,
     ) {
         val cycle = activeScanCycles[cycleId] ?: run {
             scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
@@ -1701,19 +2234,42 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
         }
 
+        cycle.rawLocalMatches = localMatches
         if (!success) {
             cycle.localState = ScanCycleLocalState.NO_RESULT
-        } else if (localMatch != null) {
+            cycle.localMatches = emptyList()
+            cycle.suppressOnlineByCooldown = false
+        } else if (localMatches.isNotEmpty()) {
+            val filteredLocalMatches = filterLocalMatchesByCooldown(
+                localMatches = localMatches,
+                nowElapsedMs = SystemClock.elapsedRealtime(),
+            )
+            cycle.localMatches = filteredLocalMatches
+            cycle.suppressOnlineByCooldown = filteredLocalMatches.isEmpty()
             cycle.localState = ScanCycleLocalState.DISPLAYABLE
-            cycle.localMatch = localMatch
-            cycle.localResult = cycle.jpegBytes?.let { jpegBytes ->
-                localMatch.info.toResolvedContent(
-                    matchedItem = localMatch.matchedItem,
-                    jpegBytes = jpegBytes,
+            cycle.localResult = when {
+                filteredLocalMatches.isEmpty() -> null
+                cycle.capturePayloadReady -> cycle.jpegBytes?.let { jpegBytes ->
+                    buildLocalResolvedContent(
+                        localMatches = filteredLocalMatches,
+                        jpegBytes = jpegBytes,
+                    )
+                }
+
+                cycle.capturePayloadFailed -> buildLocalResolvedContent(
+                    localMatches = filteredLocalMatches,
+                    jpegBytes = ByteArray(0),
                 )
+
+                else -> null
+            }
+            if (filteredLocalMatches.isEmpty()) {
+                cycle.localState = ScanCycleLocalState.NO_RESULT
             }
         } else {
             cycle.localState = ScanCycleLocalState.NO_RESULT
+            cycle.localMatches = emptyList()
+            cycle.suppressOnlineByCooldown = false
         }
 
         if (success && ENABLE_HIT_CAPTURE_SAVE && detectionCount > 0) {
@@ -1723,7 +2279,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
 
         evaluateScanCycle(cycle)
-        if (pageState == PageState.DETECTING && !cycle.decided) {
+        if (pageState == PageState.DETECTING &&
+            !cycle.decided &&
+            cycle.localState != ScanCycleLocalState.DISPLAYABLE &&
+            cycle.onlineState != ScanCycleOnlineState.POSITIVE
+        ) {
             scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
         }
     }
@@ -1779,29 +2339,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != scanCycleEpoch) {
             return
         }
-        streamingInProgress = false
-        streamCallbackActive = false
-        val jpegBytes = activeHazardContent?.jpegBytes ?: byteArrayOf()
+        val jpegBytes = request.jpegBytes
         val resolved = runCatching {
             AiArHazardDetailParser.parse(
                 text = fullText,
                 jpegBytes = jpegBytes,
             )
         }.getOrElse { error ->
-            handleOnlineDetailFailure(request, error.message ?: "在线详情解析失败")
+            handleOnlineDetailFailure(request, error.message ?: getString(R.string.ai_inspection_online_detail_parse_failed))
             return
         }
-        activeHazardContent = resolved
-        localResultStage = LocalResultStage.DESCRIPTION
-        localSaveSubmitting = false
-        sessionId = ""
-        val descriptionText = resolved.displayDescription()
-        tvStreamContent.text = descriptionText
-        lastAnalysisText = descriptionText
-        InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
-        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        renderLocalDescriptionPrompt()
-        adjustStreamScrollHeight()
+        val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
+        if (pending.cycleId != request.cycleId) {
+            return
+        }
+        pendingAutoHazardPresentation = pending.copy(resolved = resolved)
+        schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
+        tryPresentPendingAutoHazard()
         refreshInputActions()
     }
 
@@ -1812,13 +2366,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != scanCycleEpoch) {
             return
         }
+        val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
+        if (pending.cycleId != request.cycleId) {
+            return
+        }
         Log.e(TAG, "online detail failed cycleId=${request.cycleId} message=$message")
-        streamingInProgress = false
-        streamCallbackActive = false
         returnToDetecting()
         SpriteToastUtil.showSpriteToastOld(
             this,
-            message.ifBlank { "在线详情获取失败，请重试" },
+            message.ifBlank { getString(R.string.ai_inspection_online_detail_fetch_failed) },
             R.drawable.ic_warning_triangle,
             LOCAL_SAVE_SUCCESS_TOAST_MS,
             false,
@@ -1829,74 +2385,70 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (cycle.decided || cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
             return
         }
-        when (cycle.localState) {
-            ScanCycleLocalState.DISPLAYABLE -> {
-                val resolved = cycle.localResult ?: cycle.localMatch?.info?.toResolvedContent(
-                    matchedItem = cycle.localMatch?.matchedItem.orEmpty(),
-                    jpegBytes = cycle.jpegBytes ?: ByteArray(0),
-                ) ?: return
+        if (cycle.localState == ScanCycleLocalState.DISPLAYABLE) {
+            val resolved = cycle.localResult ?: return
+            cycle.decided = true
+            activeScanCycles.remove(cycle.id)
+            queueAutoDetectedLocalHazardPresentation(resolved)
+            return
+        }
+        if (cycle.onlineState == ScanCycleOnlineState.POSITIVE) {
+            if (cycle.suppressOnlineByCooldown) {
                 cycle.decided = true
-                presentResolvedHazardContent(resolved)
                 activeScanCycles.remove(cycle.id)
+                return
             }
-
-            ScanCycleLocalState.PENDING -> Unit
-
-            ScanCycleLocalState.NO_RESULT -> {
-                when (cycle.onlineState) {
-                    ScanCycleOnlineState.POSITIVE -> {
-                        cycle.decided = true
-                        activeScanCycles.remove(cycle.id)
-                        beginOnlineDetailFlow(cycle)
-                    }
-
-                    ScanCycleOnlineState.NEGATIVE,
-                    ScanCycleOnlineState.FAILED -> {
-                        activeScanCycles.remove(cycle.id)
-                    }
-
-                    ScanCycleOnlineState.PENDING -> Unit
-                }
+            val jpegBytes = cycle.jpegBytes
+            if (jpegBytes == null || jpegBytes.isEmpty()) {
+                return
             }
+            cycle.decided = true
+            activeScanCycles.remove(cycle.id)
+            queueAutoDetectedOnlineHazardPresentation(cycle)
+            return
+        }
+
+        val localTerminal = when (cycle.localState) {
+            ScanCycleLocalState.DISABLED,
+            ScanCycleLocalState.NO_RESULT,
+            ScanCycleLocalState.DISPLAYABLE -> true
+
+            ScanCycleLocalState.PENDING -> false
+        }
+        val onlineTerminal = when (cycle.onlineState) {
+            ScanCycleOnlineState.DISABLED,
+            ScanCycleOnlineState.NEGATIVE,
+            ScanCycleOnlineState.FAILED,
+            ScanCycleOnlineState.POSITIVE -> true
+
+            ScanCycleOnlineState.PENDING -> false
+        }
+        if (localTerminal && onlineTerminal) {
+            activeScanCycles.remove(cycle.id)
         }
     }
 
-    private fun beginOnlineDetailFlow(cycle: ScanCycle) {
+    private fun queueAutoDetectedOnlineHazardPresentation(cycle: ScanCycle) {
         val jpegBytes = cycle.jpegBytes
         if (jpegBytes == null || jpegBytes.isEmpty()) {
-            Log.w(TAG, "beginOnlineDetailFlow missing jpeg cycleId=${cycle.id}")
+            Log.w(TAG, "queueAutoDetectedOnlineHazardPresentation missing jpeg cycleId=${cycle.id}")
             scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
             return
         }
         stopLocalDetectionLoop("accept_online_hazard_result")
-        playHazardAlertIfNeeded()
-        activeHazardContent = ResolvedHazardContent(
-            source = HazardSource.ONLINE,
-            description = "",
-            advice = "",
-            hidLevel = "",
-            hidNum = "",
-            lawBasis = "",
-            displayTitle = "在线识别隐患",
-            jpegBytes = jpegBytes.copyOf(),
+        val detectedAtElapsedMs = SystemClock.elapsedRealtime()
+        pendingAutoHazardPresentation = PendingAutoHazardPresentation.Online(
+            detectedAtElapsedMs = detectedAtElapsedMs,
+            cycleId = cycle.id,
         )
-        localResultStage = LocalResultStage.NONE
-        localSaveSubmitting = false
-        sessionId = ""
-        showPage(PageState.STREAM_RESPONSE)
-        clearStreamResponseUiState()
-        InspectionWorkflowSession.recordCapture(jpegBytes)
-        setStreamThumbnail(jpegBytes)
-        tvStreamContent.text = "正在拉取在线隐患详情..."
-        streamingInProgress = true
-        streamCallbackActive = true
-        bottomPromptSync.visibility = View.INVISIBLE
+        refreshPendingHazardAlertOverlay()
+        schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
         refreshInputActions()
         onlineHazardDetectionService.fetchHazardDetails(
             OnlineHazardDetectionService.DetailRequest(
                 epoch = scanCycleEpoch,
                 cycleId = cycle.id,
-                jpegBytes = jpegBytes,
+                jpegBytes = jpegBytes.copyOf(),
             ),
         )
     }
@@ -1914,6 +2466,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localResultStage = LocalResultStage.DESCRIPTION
         localSaveSubmitting = false
         sessionId = ""
+        if (result.source == HazardSource.LOCAL) {
+            markLocalLabelsCooldownByName(
+                labels = result.resolvedHazards()
+                    .map { it.displayTitle.trim() }
+                    .filter { it.isNotBlank() },
+                nowElapsedMs = SystemClock.elapsedRealtime(),
+            )
+        }
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
         InspectionWorkflowSession.recordCapture(result.jpegBytes)
@@ -1921,13 +2481,65 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             setStreamThumbnail(result.jpegBytes)
         }
         val descriptionText = result.displayDescription()
-        tvStreamContent.text = descriptionText
+        setStreamContentAndResetViewport(descriptionText)
         lastAnalysisText = descriptionText
         InspectionWorkflowSession.recordDetection(result.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
-        adjustStreamScrollHeight()
+        scheduleBackgroundLocalHazardSaveIfNeeded(result)
         refreshInputActions()
+    }
+
+    private fun queueAutoDetectedLocalHazardPresentation(result: ResolvedHazardContent) {
+        stopLocalDetectionLoop("accept_local_hazard_result")
+        val detectedAtElapsedMs = SystemClock.elapsedRealtime()
+        pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
+            detectedAtElapsedMs = detectedAtElapsedMs,
+            resolved = result,
+        )
+        refreshPendingHazardAlertOverlay()
+        schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
+        refreshInputActions()
+    }
+
+    private fun schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs: Long) {
+        uiHandler.removeCallbacks(pendingAutoHazardPresentationRunnable)
+        val remainingDelayMs = autoHazardPresentationCoordinator.remainingDelayMs(
+            detectedAtElapsedMs = detectedAtElapsedMs,
+            nowElapsedMs = SystemClock.elapsedRealtime(),
+        )
+        Log.i(
+            TAG,
+            "schedule pending hazard presentation remainingDelayMs=$remainingDelayMs detectedAtElapsedMs=$detectedAtElapsedMs",
+        )
+        uiHandler.postDelayed(pendingAutoHazardPresentationRunnable, remainingDelayMs)
+    }
+
+    private fun tryPresentPendingAutoHazard() {
+        val pending = pendingAutoHazardPresentation ?: return
+        val readyResult = when (pending) {
+            is PendingAutoHazardPresentation.Local -> pending.resolved
+            is PendingAutoHazardPresentation.Online -> pending.resolved
+        }
+        val canPresent = autoHazardPresentationCoordinator.canPresent(
+            detectedAtElapsedMs = pending.detectedAtElapsedMs,
+            isReady = readyResult != null,
+            nowElapsedMs = SystemClock.elapsedRealtime(),
+        )
+        if (!canPresent || readyResult == null) {
+            Log.i(
+                TAG,
+                "pending hazard not ready for presentation canPresent=$canPresent ready=${readyResult != null} detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
+            )
+            schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
+            return
+        }
+        Log.i(
+            TAG,
+            "present pending hazard now source=${readyResult.source} detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
+        )
+        clearPendingAutoHazardPresentation()
+        presentResolvedHazardContent(readyResult)
     }
 
     private fun playHazardAlertIfNeeded() {
@@ -1941,91 +2553,115 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun handleStreamConfirmAction() {
         when (localResultStage) {
-            LocalResultStage.DESCRIPTION -> confirmLocalHazardSave()
-            LocalResultStage.ADVICE -> returnToDetecting()
+            LocalResultStage.DESCRIPTION -> {
+                if (advanceStreamViewportByPage()) {
+                    return
+                }
+                if (activeHazardContent == null) {
+                    returnToDetecting()
+                    return
+                }
+                advanceToLocalHazardAdvice()
+            }
+            LocalResultStage.ADVICE -> {
+                if (advanceStreamViewportByPage()) {
+                    return
+                }
+                returnToDetecting()
+            }
             LocalResultStage.NONE -> syncToPhone()
         }
     }
 
-    private fun handleStreamCancelAction(event: UnifiedInputSession.InputEvent) {
+    private fun handleStreamCancelAction() {
         when (localResultStage) {
-            LocalResultStage.DESCRIPTION -> {
-                if (event.trigger is UnifiedInputSession.InputTrigger.Touch &&
-                    event.trigger.key == UnifiedInputSession.InputKey.DOUBLE_CLICK
-                ) {
-                    showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
-                } else {
-                    returnToDetecting()
-                }
-            }
-            LocalResultStage.ADVICE -> finishInspectionWithReport()
+            LocalResultStage.DESCRIPTION -> returnToDetecting()
+            LocalResultStage.ADVICE -> returnToDetecting()
             LocalResultStage.NONE -> returnToDetecting()
         }
     }
 
-    private fun confirmLocalHazardSave() {
-        if (localSaveSubmitting) {
+    private fun advanceToLocalHazardAdvice() {
+        showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
+    }
+
+    private fun scheduleBackgroundLocalHazardSaveIfNeeded(hazardContent: ResolvedHazardContent) {
+        val taskKey = buildLocalHazardAutoSaveTaskKey(hazardContent)
+        if (localHazardAutoSaveTaskKey == taskKey) {
             return
         }
-        val hazardContent = activeHazardContent ?: return
+        localHazardAutoSaveTaskKey = taskKey
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         val capturedJpeg = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
-            ?: InspectionWorkflowSession.latestCapturedJpeg
-        val validationMessage = when {
-            enterprisePayload == null -> "缺少企业上下文，请先扫码后再保存"
-            enterprisePayload.apiBaseUrl.isBlank() -> "缺少接口地址，请重新扫码后再试"
-            enterprisePayload.authCode.isBlank() -> "缺少鉴权码，请重新扫码后再试"
-            enterprisePayload.objectId.isBlank() -> "缺少对象 ID，请重新扫码后再试"
-            enterprisePayload.userId.isBlank() -> "缺少用户 ID，请重新扫码后再试"
-            capturedJpeg == null || capturedJpeg.isEmpty() -> "缺少隐患图片，请重新识别后再试"
-            hazardContent.description.isBlank() -> "当前隐患缺少描述信息"
-            hazardContent.advice.isBlank() -> "当前隐患缺少整改建议"
-            hazardContent.hidNum.isBlank() -> "当前隐患缺少隐患编号"
-            hazardContent.hidLevel.isBlank() -> "当前隐患缺少隐患等级"
-            else -> null
+        val taskId = when {
+            enterprisePayload == null -> {
+                Log.w(TAG, "skip local hazard background upload: missing enterprise payload")
+                null
+            }
+
+            enterprisePayload.apiBaseUrl.isBlank() -> {
+                Log.w(TAG, "skip local hazard background upload: blank api base url")
+                null
+            }
+
+            enterprisePayload.authCode.isBlank() -> {
+                Log.w(TAG, "skip local hazard background upload: blank auth code")
+                null
+            }
+
+            enterprisePayload.objectId.isBlank() -> {
+                Log.w(TAG, "skip local hazard background upload: blank object id")
+                null
+            }
+
+            enterprisePayload.userId.isBlank() -> {
+                Log.w(TAG, "skip local hazard background upload: blank user id")
+                null
+            }
+
+            capturedJpeg == null -> {
+                Log.w(TAG, "skip local hazard background upload: missing jpeg")
+                null
+            }
+
+            else -> {
+                InspectionBackgroundUploadQueue.enqueueLocalHazardSave(
+                    taskKey = taskKey,
+                    baseUrl = enterprisePayload.apiBaseUrl,
+                    authCode = enterprisePayload.authCode,
+                    objectId = enterprisePayload.objectId,
+                    userId = enterprisePayload.userId,
+                    customParam = enterprisePayload.extraField,
+                    jpegBytes = capturedJpeg,
+                    hidDanger = buildLocalHazardUploadItems(hazardContent),
+                )
+            }
         }
-        if (validationMessage != null) {
-            showLocalSaveError(validationMessage)
+        if (taskId.isNullOrBlank()) {
             return
         }
-        val confirmedPayload = enterprisePayload ?: return
-        val confirmedJpeg = capturedJpeg ?: return
-        localSaveSubmitting = true
-        bottomPromptSync.setPrompt(
-            title = getString(R.string.ai_inspection_syncing),
-            subtitle = getString(R.string.ai_inspection_syncing_detail),
-        )
-        bottomPromptSync.visibility = View.VISIBLE
-        refreshInputActions()
-        localHazardPushService.pushLocalHazard(
-            baseUrl = confirmedPayload.apiBaseUrl,
-            authCode = confirmedPayload.authCode,
-            objectId = confirmedPayload.objectId,
-            userId = confirmedPayload.userId,
-            customParam = confirmedPayload.extraField,
-            jpegBytes = confirmedJpeg,
-            hidDanger = listOf(
-                LocalHazardPushService.HidDangerItem(
-                    indexNum = "1",
-                    descrip = hazardContent.description,
-                    advice = hazardContent.advice,
-                    hidNum = hazardContent.hidNum,
-                    hidLevel = hazardContent.hidLevel,
-                ),
-            ),
-            callback = object : LocalHazardPushService.Callback {
-                override fun onSuccess() {
-                    if (destroyed) return
-                    localSaveSubmitting = false
-                    showLocalHazardAdvice(showSaveSuccessToast = true, countAsSaved = true)
-                }
+        InspectionBackgroundUploadService.start(this, taskId)
+    }
 
-                override fun onFailure(message: String) {
-                    if (destroyed) return
-                    showLocalSaveError(message)
-                }
-            },
-        )
+    private fun buildLocalHazardAutoSaveTaskKey(hazardContent: ResolvedHazardContent): String {
+        val hazardKey = hazardContent.resolvedHazards()
+            .joinToString(separator = "||") { hazard ->
+                listOf(
+                    hazard.displayTitle,
+                    hazard.description,
+                    hazard.advice,
+                    hazard.uploadAdvice,
+                    hazard.hidNum,
+                    hazard.hidLevel,
+                    hazard.lawBasis,
+                ).joinToString(separator = "|")
+            }
+        return listOf(
+            hazardContent.source.name,
+            hazardContent.displayTitle,
+            hazardKey,
+            hazardContent.jpegBytes.contentHashCode().toString(),
+        ).joinToString(separator = "|")
     }
 
     private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean, countAsSaved: Boolean) {
@@ -2041,18 +2677,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         val descriptionText = hazardContent.displayDescription()
         val adviceText = hazardContent.displayAdvice()
-        tvStreamContent.text = adviceText
+        setStreamContentAndResetViewport(adviceText)
         lastAnalysisText = listOf(descriptionText, adviceText)
             .filter { it.isNotBlank() }
+            .distinct()
             .joinToString("\n\n")
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         if (countAsSaved) {
-            InspectionWorkflowSession.recordSavedHazardCapture(
-                hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
-                    ?: InspectionWorkflowSession.latestCapturedJpeg
-            )
+            InspectionWorkflowSession.recordSavedHazardCapture(hazardContent.jpegBytes)
             InspectionWorkflowSession.updateSummary { summary ->
-                summary.copy(hasHazardCount = summary.hasHazardCount + 1)
+                summary.copy(hasHazardCount = summary.hasHazardCount + hazardContent.hazardCount())
             }
         }
         if (showSaveSuccessToast) {
@@ -2065,11 +2699,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
         }
         renderLocalAdvicePrompt()
-        adjustStreamScrollHeight()
-        scrollContent.post {
-            scrollContent.scrollTo(0, 0)
-            scrollContent.fullScroll(View.FOCUS_UP)
-        }
         refreshInputActions()
     }
 
@@ -2081,38 +2710,45 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             title = message.ifBlank { getString(R.string.ai_inspection_local_save_failed) },
             subtitle = null,
         )
-        bottomPromptSync.visibility = View.VISIBLE
+        bottomPromptSync.visibility = View.GONE
+        hideActionPrompts()
         refreshInputActions()
     }
 
-    private fun renderLocalDescriptionPrompt() {
+    private fun renderLocalDescriptionGuide() {
         operationGuideStream.setGuide(
-            title = "操作指引",
             content = localDescriptionPromptSubtitle(),
         )
-        bottomPromptSync.setPrompt(
-            title = getString(R.string.ai_inspection_local_save_prompt),
-            subtitle = null,
-        )
-        bottomPromptSync.visibility = View.VISIBLE
+        operationGuideStream.visibility = View.GONE
+    }
+
+    private fun renderLocalDescriptionPrompt() {
+        renderLocalDescriptionGuide()
+        bottomPromptSync.visibility = View.GONE
     }
 
     private fun renderLocalAdvicePrompt() {
         operationGuideStream.setGuide(
-            title = "操作指引",
             content = localContinuePromptSubtitle(),
         )
-        bottomPromptSync.setPrompt(
-            title = getString(R.string.ai_inspection_local_continue_prompt),
-            subtitle = null,
-        )
-        bottomPromptSync.visibility = View.VISIBLE
+        operationGuideStream.visibility = View.GONE
+        bottomPromptSync.visibility = View.GONE
+    }
+
+    private fun hideActionPrompts() {
+        operationGuideDetecting.visibility = View.GONE
+        operationGuideStream.visibility = View.GONE
+        operationGuideSync.visibility = View.GONE
+        bottomPromptSync.visibility = View.GONE
+        bottomPromptSuccess.visibility = View.GONE
     }
 
     private fun clearLocalHazardResultState() {
+        clearPendingAutoHazardPresentation()
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
+        localHazardAutoSaveTaskKey = null
         localHazardAlertTtsPlayed = false
         localHazardAdviceTtsPlayed = false
     }
@@ -2123,6 +2759,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         onlineHazardDetectionService.cancelAll()
     }
 
+    private fun isAutoHazardPresentationPending(): Boolean {
+        return pendingAutoHazardPresentation != null
+    }
+
+    private fun clearPendingAutoHazardPresentation() {
+        uiHandler.removeCallbacks(pendingAutoHazardPresentationRunnable)
+        pendingAutoHazardPresentation = null
+        refreshPendingHazardAlertOverlay()
+    }
+
     private fun isScanCycleActive(
         cycleId: Long,
         epoch: Long,
@@ -2130,25 +2776,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return epoch == scanCycleEpoch && activeScanCycles[cycleId]?.epoch == epoch
     }
 
-    private fun buildLocalHazardInfoByItem(infos: List<LocalHazardInfo>): Map<String, LocalHazardInfo> {
-        val indexed = linkedMapOf<String, LocalHazardInfo>()
+    private fun buildLocalHazardInfoByItem(infos: List<LocalHazardInfo>): Map<String, List<LocalHazardInfo>> {
+        val indexed = linkedMapOf<String, MutableList<LocalHazardInfo>>()
         infos.forEach { info ->
             info.item
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
                 .forEach { itemName ->
-                    val previous = indexed[itemName]
-                    if (previous != null) {
-                        Log.w(
-                            TAG,
-                            "duplicate local hazard item key=$itemName keepFirst hidNum=${previous.requestHidNum()} dropped=${info.requestHidNum()}",
-                        )
-                    } else {
-                        indexed[itemName] = info
-                    }
+                    indexed.getOrPut(itemName) { mutableListOf() }.add(info)
                 }
         }
-        return indexed
+        indexed.forEach { (itemName, itemInfos) ->
+            if (itemInfos.size > 1) {
+                Log.i(
+                    TAG,
+                    "local hazard item key=$itemName variants=${itemInfos.size}",
+                )
+            }
+        }
+        return indexed.mapValues { (_, itemInfos) -> itemInfos.toList() }
     }
 
     private fun loadLocalHazardInfos(): List<LocalHazardInfo> {
@@ -2173,30 +2819,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun captureAndSendToSSE() {
         beginStreamingRequest()
         val requestId = activeStreamRequestId
-        val frame = copyLatestFrameForStreamingOrNull()
         if (!shouldDeliverStreamRequest(requestId)) {
-            return
-        }
-        if (frame == null) {
-            Log.e(TAG, "拍照失败：无可用 SDK NV21 帧")
-            handleSSEError("拍照失败")
             return
         }
         try {
             imageEncodeExecutor.execute {
-                val payload = buildCapturedFramePayload(frame)
+                val payload = selectBestOnlineFramePayload()
                 if (payload == null) {
-                    Log.e(TAG, "当前 SDK NV21 帧编码失败")
-                    handleSSEError("图像编码失败")
+                    Log.e(TAG, "当前 SDK 在线选帧失败")
+                    handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
                     return@execute
                 }
-                InspectionWorkflowSession.recordCapture(payload.jpegBytes)
-                setStreamThumbnail(payload.jpegBytes)
                 encodePayloadToBase64AndSend(requestId, payload)
             }
         } catch (error: RejectedExecutionException) {
             Log.w(TAG, "image encode task rejected", error)
-            handleSSEError("图像编码任务提交失败")
+            handleSSEError(getString(R.string.ai_inspection_online_image_encode_submit_failed))
         }
     }
 
@@ -2250,6 +2888,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 if (!shouldDeliverStreamRequest(requestId)) {
                     return@post
                 }
+                val frozenJpeg = payload.jpegBytes.copyOf()
+                activeHazardContent = ResolvedHazardContent(
+                    source = HazardSource.ONLINE,
+                    description = "",
+                    advice = "",
+                    hidLevel = "",
+                    hidNum = "",
+                    lawBasis = "",
+                    displayTitle = getString(R.string.ai_inspection_online_display_title),
+                    jpegBytes = frozenJpeg,
+                )
+                InspectionWorkflowSession.recordCapture(frozenJpeg)
+                setStreamThumbnail(frozenJpeg)
                 sendImageToAiAr(base64Image)
             }
         }.onFailure { error ->
@@ -2258,7 +2909,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 "JPEG Base64 编码失败 width=${payload.width} height=${payload.height} ts=${payload.timestamp}",
                 error,
             )
-            handleSSEError("图像编码失败")
+            handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
         }
     }
 
@@ -2320,17 +2971,27 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     /**
      * 动态调整流式结果卡片高度：
-     * 内容少时自适应，内容超过半屏时限制为半屏。
+     * descrip/advice 固定在预览框下沿向下展开，其他状态维持底部半屏布局。
      */
     private fun adjustStreamScrollHeight() {
         scrollContent.post {
             val contentView = scrollContent.getChildAt(0) ?: return@post
-            val maxH = resources.displayMetrics.heightPixels / 2
+            val maxH = if (isFixedResultPanelMode()) {
+                val containerHeight = layoutStreamContentContainer.height
+                    .takeIf { it > 0 }
+                    ?: layoutStreamResponse.height
+                    .takeIf { it > 0 }
+                    ?: resources.displayMetrics.heightPixels
+                val statusHeight = statusBarStream.height
+                    .takeIf { it > 0 }
+                    ?: statusBarStream.measuredHeight
+                (containerHeight - previewBottomOffsetPx() - statusHeight).coerceAtLeast(0)
+            } else {
+                resources.displayMetrics.heightPixels / 2
+            }
             val desiredHeight = minOf(contentView.height, maxH)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                desiredHeight,
-            )
+            val params = scrollContent.layoutParams as LinearLayout.LayoutParams
+            params.height = desiredHeight
             scrollContent.layoutParams = params
         }
     }
@@ -2348,7 +3009,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             textSize = 20f
             textAlign = android.graphics.Paint.Align.CENTER
         }
-        canvas.drawText("测试图", 60f, 65f, paint)
+        canvas.drawText(getString(R.string.ai_inspection_debug_thumbnail_text), 60f, 65f, paint)
         layoutStreamThumbnailCard.visibility = View.VISIBLE
         ivStreamThumbnail.setImageBitmap(bitmap)
         ivStreamThumbnail.visibility = View.VISIBLE
@@ -2364,11 +3025,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeStreamRequestId += 1
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
-        operationGuideStream.setContent(syncPromptSubtitle())
-        tvStreamContent.text = "正在准备图像..."
+        renderLocalDescriptionGuide()
+        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_prepare_image))
         streamingInProgress = true
         streamCallbackActive = true
-        bottomPromptSync.visibility = View.INVISIBLE
+        bottomPromptSync.visibility = View.GONE
+        hideActionPrompts()
         refreshInputActions()
     }
 
@@ -2389,29 +3051,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = aiArSseService.fetchHazardDetails(
             base64Image = base64Image,
+            onChunk = { partialText ->
+                Log.d(TAG, "manual ai/ar chunk length=${partialText.length}")
+                uiHandler.post {
+                    if (currentManualAnalysisHandle == null) {
+                        return@post
+                    }
+                    updateStreamingText(partialText)
+                }
+            },
             callback = object : AiArSseService.DetailCallback {
                 override fun onOpened(handle: AiArSseService.RequestHandle) {
                     Log.d(TAG, "manual ai/ar opened taskId=${handle.taskId}")
                     uiHandler.post {
-                        tvStreamContent.text = "正在分析隐患..."
-                        scrollContent.post {
-                            scrollContent.scrollTo(0, 0)
-                            scrollContent.fullScroll(View.FOCUS_UP)
-                        }
-                    }
-                }
-
-                override fun onChunk(handle: AiArSseService.RequestHandle, partialText: String) {
-                    Log.d(TAG, "manual ai/ar chunk taskId=${handle.taskId} length=${partialText.length}")
-                    uiHandler.post {
-                        if (currentManualAnalysisHandle != handle) {
-                            return@post
-                        }
-                        tvStreamContent.text = partialText
-                        adjustStreamScrollHeight()
-                        scrollContent.post {
-                            scrollContent.fullScroll(View.FOCUS_DOWN)
-                        }
+                        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_analyzing))
                     }
                 }
 
@@ -2440,14 +3093,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun handleManualStreamingSuccess(fullText: String) {
         streamCallbackActive = false
         streamingInProgress = false
-        val jpegBytes = InspectionWorkflowSession.latestCapturedJpeg ?: byteArrayOf()
+        val jpegBytes = activeHazardContent?.jpegBytes ?: byteArrayOf()
         val resolved = runCatching {
             AiArHazardDetailParser.parse(
                 text = fullText,
                 jpegBytes = jpegBytes,
             )
         }.getOrElse { error ->
-            handleSSEError(error.message ?: "在线详情解析失败")
+            handleSSEError(error.message ?: getString(R.string.ai_inspection_online_detail_parse_failed))
             return
         }
         activeHazardContent = resolved
@@ -2455,16 +3108,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localSaveSubmitting = false
         sessionId = ""
         val descriptionText = resolved.displayDescription()
-        tvStreamContent.text = descriptionText
+        setStreamContentAndResetViewport(descriptionText)
         lastAnalysisText = descriptionText
         InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
-        adjustStreamScrollHeight()
-        scrollContent.post {
-            scrollContent.scrollTo(0, 0)
-            scrollContent.fullScroll(View.FOCUS_UP)
-        }
+        scheduleBackgroundLocalHazardSaveIfNeeded(resolved)
         refreshInputActions()
     }
 
@@ -2481,7 +3130,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             returnToDetecting()
             SpriteToastUtil.showSpriteToastOld(
                 this,
-                errorMsg.ifBlank { "在线详情获取失败，请重试" },
+                errorMsg.ifBlank { getString(R.string.ai_inspection_online_detail_fetch_failed) },
                 R.drawable.ic_warning_triangle,
                 LOCAL_SAVE_SUCCESS_TOAST_MS,
                 false,

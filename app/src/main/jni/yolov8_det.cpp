@@ -560,7 +560,7 @@ static int postprocess_hiddenrisk_output(
     int crop_offset_x = 0,
     int crop_offset_y = 0)
 {
-    const float prob_threshold = 0.60f;
+    const float prob_threshold = 0.70f;
     const float nms_threshold = 0.45f;
 
     std::vector<int> strides(3);

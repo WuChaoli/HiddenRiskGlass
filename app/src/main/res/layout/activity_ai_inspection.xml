@@ -106,22 +106,6 @@
         android:layout_height="match_parent"
         android:visibility="visible">
 
-        <FrameLayout
-            android:id="@+id/layoutLivePreviewCard"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
-            android:layout_gravity="top|start"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="24dp"
-            android:background="@drawable/glass_card_outline"
-            android:padding="4dp">
-
-            <com.rokid.glass.component.RokidCameraPreviewView
-                android:id="@+id/viewLivePreview"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-        </FrameLayout>
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
@@ -148,7 +132,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_marginTop="@dimen/inspection_operation_guide_margin_top"
-            android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end" />
+            android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end"
+            android:visibility="gone" />
     </FrameLayout>
 
     <com.rokid.glass.component.StatusAlertOverlayView
@@ -165,11 +150,11 @@
 
         <FrameLayout
             android:id="@+id/layoutStreamThumbnailCard"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
+            android:layout_width="@dimen/inspection_preview_card_size"
+            android:layout_height="@dimen/inspection_preview_card_size"
             android:layout_gravity="top|start"
-            android:layout_marginStart="16dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginStart="@dimen/inspection_preview_card_margin_start"
+            android:layout_marginTop="@dimen/inspection_preview_card_margin_top"
             android:background="@drawable/glass_card_outline"
             android:padding="4dp"
             android:visibility="gone">
@@ -189,14 +174,20 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_marginTop="@dimen/inspection_operation_guide_margin_top"
-            android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end" />
+            android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end"
+            android:visibility="gone" />
 
-        <!-- 底部区域：结果卡片 + 底部提示 + 状态栏 -->
         <LinearLayout
+            android:id="@+id/layoutStreamContentContainer"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
+            android:layout_height="match_parent"
             android:orientation="vertical">
+
+            <View
+                android:id="@+id/streamTopSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:visibility="gone" />
 
             <ScrollView
                 android:id="@+id/scrollContent"
@@ -219,15 +210,22 @@
                         android:padding="12dp"
                         android:textColor="@color/green"
                         android:textSize="12sp" />
-                </LinearLayout>
+                    </LinearLayout>
             </ScrollView>
+
+            <View
+                android:id="@+id/streamBottomSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
             <com.rokid.glass.component.BottomPromptView
                 android:id="@+id/bottomPromptSync"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/inspection_bottom_prompt_margin_top"
-                android:layout_marginBottom="@dimen/inspection_bottom_prompt_status_spacing" />
+                android:layout_marginBottom="@dimen/inspection_bottom_prompt_status_spacing"
+                android:visibility="gone" />
 
             <com.rokid.glass.component.GlassStatusBar
                 android:id="@+id/statusBarStream"
@@ -292,7 +290,8 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_marginTop="@dimen/inspection_operation_guide_margin_top"
-            android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end" />
+            android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end"
+            android:visibility="gone" />
 
         <!-- 底部区域：底部提示 + 状态栏 -->
         <LinearLayout
@@ -315,6 +314,23 @@
                 android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
                 android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
         </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutLivePreviewCard"
+        android:layout_width="@dimen/inspection_preview_card_size"
+        android:layout_height="@dimen/inspection_preview_card_size"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="@dimen/inspection_preview_card_margin_start"
+        android:layout_marginTop="@dimen/inspection_preview_card_margin_top"
+        android:background="@drawable/glass_card_outline"
+        android:padding="4dp"
+        android:visibility="invisible">
+
+        <com.rokid.glass.component.RokidCameraPreviewView
+            android:id="@+id/viewLivePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
     </FrameLayout>
 
 </FrameLayout>
