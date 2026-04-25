@@ -17,8 +17,6 @@ object AiArHazardDetailParser {
         require(normalizedText.isNotBlank()) { "在线详情为空" }
 
         val matches = labelRegex.findAll(normalizedText).toList()
-        require(matches.isNotEmpty()) { "在线详情缺少结构化标签" }
-
         val fields = linkedMapOf<String, String>()
         matches.forEachIndexed { index, match ->
             val label = match.groupValues[1]
@@ -27,15 +25,27 @@ object AiArHazardDetailParser {
             fields[label] = normalizedText.substring(valueStart, valueEnd).trim()
         }
 
-        return ResolvedHazardContent(
-            source = HazardSource.ONLINE,
+        val resolvedHazard = ResolvedHazardItem(
+            displayTitle = displayTitle,
             description = fields["隐患描述"].orEmpty(),
             advice = fields["整改建议"].orEmpty(),
+            uploadAdvice = fields["整改建议"].orEmpty(),
             hidLevel = ResolvedHazardContent.levelCode(fields["隐患等级"].orEmpty()),
             hidNum = fields["隐患编号"].orEmpty(),
             lawBasis = fields["主要依据"].orEmpty(),
+        )
+        return ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = resolvedHazard.description,
+            advice = resolvedHazard.advice,
+            uploadAdvice = resolvedHazard.uploadAdvice,
+            hidLevel = resolvedHazard.hidLevel,
+            hidNum = resolvedHazard.hidNum,
+            lawBasis = resolvedHazard.lawBasis,
             displayTitle = displayTitle,
             jpegBytes = jpegBytes.copyOf(),
+            rawDetailText = normalizedText,
+            hazards = if (resolvedHazard.hasStructuredFields()) listOf(resolvedHazard) else emptyList(),
         )
     }
 }

@@ -3,28 +3,104 @@ package com.rokid.glass.hiddenrisk
 /**
  * 可直接展示并可进入保存链路的隐患结果。
  */
+data class ResolvedHazardItem(
+    val displayTitle: String,
+    val description: String,
+    val advice: String,
+    val uploadAdvice: String,
+    val hidLevel: String,
+    val hidNum: String,
+    val lawBasis: String,
+) {
+    fun hasStructuredFields(): Boolean {
+        return description.isNotBlank() ||
+            advice.isNotBlank() ||
+            uploadAdvice.isNotBlank() ||
+            hidLevel.isNotBlank() ||
+            hidNum.isNotBlank() ||
+            lawBasis.isNotBlank()
+    }
+}
+
 data class ResolvedHazardContent(
     val source: HazardSource,
     val description: String,
     val advice: String,
+    val uploadAdvice: String = "",
     val hidLevel: String,
     val hidNum: String,
     val lawBasis: String,
     val displayTitle: String,
     val jpegBytes: ByteArray,
+    val rawDetailText: String = "",
+    val hazards: List<ResolvedHazardItem> = emptyList(),
 ) {
+    fun resolvedHazards(): List<ResolvedHazardItem> {
+        if (hazards.isNotEmpty()) {
+            return hazards
+        }
+        val fallback = ResolvedHazardItem(
+            displayTitle = displayTitle,
+            description = description,
+            advice = advice,
+            uploadAdvice = uploadAdvice,
+            hidLevel = hidLevel,
+            hidNum = hidNum,
+            lawBasis = lawBasis,
+        )
+        return if (fallback.hasStructuredFields()) listOf(fallback) else emptyList()
+    }
+
+    fun primaryHazard(): ResolvedHazardItem? {
+        return resolvedHazards().firstOrNull()
+    }
+
+    fun hazardCount(): Int {
+        return resolvedHazards().size
+    }
+
+    fun hasStructuredFields(): Boolean {
+        return resolvedHazards().any { it.hasStructuredFields() }
+    }
+
     fun displayDescription(): String {
-        return buildList {
-            description.trim().takeIf { it.isNotBlank() }?.let { add("隐患描述：$it") }
-            hidLevel.trim().takeIf { it.isNotBlank() }?.let { add("隐患等级：${levelLabel(it)}") }
-            lawBasis.trim().takeIf { it.isNotBlank() }?.let { add("主要依据：$it") }
-            hidNum.trim().takeIf { it.isNotBlank() }?.let { add("隐患编号：$it") }
-        }.joinToString("\n")
+        val resolvedHazards = resolvedHazards()
+        val structuredText = when {
+            resolvedHazards.isEmpty() -> ""
+            resolvedHazards.size == 1 -> buildHazardDescriptionBlock(resolvedHazards.first())
+            else -> resolvedHazards.mapIndexed { index, hazard ->
+                buildList {
+                    add("隐患${index + 1}")
+                    buildHazardDescriptionBlock(hazard)
+                        .lineSequence()
+                        .map { it.trimEnd() }
+                        .filter { it.isNotBlank() }
+                        .forEach(::add)
+                }.joinToString("\n")
+            }.joinToString("\n\n")
+        }
+        return structuredText.ifBlank { rawDetailText.trim() }
     }
 
     fun displayAdvice(): String {
-        val adviceText = advice.trim()
-        return if (adviceText.isBlank()) "" else "整改建议：\n$adviceText"
+        val adviceText = primaryHazard()?.advice?.trim().orEmpty()
+        return when {
+            adviceText.isNotBlank() -> "基于上述隐患，建议您重点关注以下问题：\n$adviceText"
+            !hasStructuredFields() -> rawDetailText.trim()
+            else -> ""
+        }
+    }
+
+    private fun buildHazardDescriptionBlock(hazard: ResolvedHazardItem): String {
+        return buildList {
+            hazard.description.trim().takeIf { it.isNotBlank() }?.let { add("隐患描述：$it") }
+            hazard.hidLevel.trim().takeIf { it.isNotBlank() }?.let { add("隐患等级：${levelLabel(it)}") }
+            hazard.lawBasis.trim().takeIf { it.isNotBlank() }?.let { add("主要依据：$it") }
+            hazard.hidNum.trim().takeIf { it.isNotBlank() }?.let { add("隐患编号：$it") }
+            if (source == HazardSource.LOCAL) {
+                hazard.uploadAdvice.trim().takeIf { it.isNotBlank() }?.let { add("整改建议：$it") }
+            }
+        }.joinToString("\n")
     }
 
     companion object {
