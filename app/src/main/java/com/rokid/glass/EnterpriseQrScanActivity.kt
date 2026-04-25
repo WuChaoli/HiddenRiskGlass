@@ -27,7 +27,7 @@ import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
-import com.rokid.glass.hiddenrisk.GlassKeyEvent
+import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 
@@ -45,6 +45,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private lateinit var infoCard: LinearLayout
     private lateinit var bottomHints: LinearLayout
     private lateinit var statusBar: GlassStatusBar
+    private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     private val scannerDelegate: Lazy<BarcodeScanner> = lazy {
         val options = BarcodeScannerOptions.Builder()
@@ -65,15 +66,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private var destroyed = false
     private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
 
-    @Volatile
-    private var latestPreviewFrame: ByteArray? = null
-
-    @Volatile
-    private var latestPreviewWidth = 0
-
-    @Volatile
-    private var latestPreviewHeight = 0
-
     private val cameraRecoveryController by lazy {
         RokidCameraRecoveryController(
             mode = RokidCameraRecoveryController.RecoveryMode.PREVIEW_HEALTH,
@@ -87,9 +79,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                     Log.w(TAG, "camera recovery start issue=$issue attempt=$attempt/$maxAttempts")
                     isFrameStreamReady = false
                     isProcessingFrame = false
-                    latestPreviewFrame = null
-                    latestPreviewWidth = 0
-                    latestPreviewHeight = 0
                     mainHandler.removeCallbacks(scanRunnable)
                     cameraPreviewView.visibility = View.INVISIBLE
                 }
@@ -98,9 +87,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                     Log.i(TAG, "camera recovery success")
                     isFrameStreamReady = true
                     isProcessingFrame = false
-                    latestPreviewFrame = null
-                    latestPreviewWidth = 0
-                    latestPreviewHeight = 0
                     showScanState(tvStatus.text ?: getString(R.string.enterprise_qr_waiting))
                     if (shouldEnableCameraRecovery()) {
                         startScanLoop()
@@ -111,9 +97,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                     Log.e(TAG, "camera recovery abandoned issue=$issue")
                     isFrameStreamReady = false
                     isProcessingFrame = false
-                    latestPreviewFrame = null
-                    latestPreviewWidth = 0
-                    latestPreviewHeight = 0
                     mainHandler.removeCallbacks(scanRunnable)
                     showScanState(getString(R.string.enterprise_qr_camera_recovery_failed))
                 }
@@ -127,19 +110,19 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
-            if (!refreshLatestFrameFromSdk()) {
+            val frame = RokidFrameSource.copyLatestScanFrame(SCAN_FRAME_TARGET_SIZE)
+            if (frame == null) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
-            val frame = latestPreviewFrame
-            val width = latestPreviewWidth
-            val height = latestPreviewHeight
-            if (frame == null || width <= 0 || height <= 0) {
+            if (frame.width <= 0 || frame.height <= 0) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
             isProcessingFrame = true
-            scanner.process(InputImage.fromByteArray(frame, width, height, 0, ImageFormat.NV21))
+            scanner.process(
+                InputImage.fromByteArray(frame.data, frame.width, frame.height, 0, ImageFormat.NV21),
+            )
                 .addOnSuccessListener { barcodes -> handleScanResult(barcodes) }
                 .addOnFailureListener {
                     tvStatus.setText(R.string.enterprise_qr_invalid)
@@ -179,10 +162,13 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
         }
+        hideBottomHints()
     }
 
     override fun onResume() {
         super.onResume()
+        inputSession.attach()
+        refreshInputActions()
         if (completed) return
         if (debugSnapshotMode) return
         if (skipScanIfEnterpriseQrCached()) return
@@ -194,6 +180,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onPause() {
+        inputSession.detach()
         if (debugSnapshotMode) {
             super.onPause()
             return
@@ -210,6 +197,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     override fun onDestroy() {
         destroyed = true
+        inputSession.release()
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
             objectMessageRequest?.cancel()
@@ -223,18 +211,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        return when (keyEvent) {
-            GlassKeyEvent.KEYCODE_CLICK -> {
-                if (!completed) {
-                    startCameraPipeline(
-                        statusMessage = getString(R.string.enterprise_qr_waiting),
-                        resetRecoveryAttempts = true,
-                    )
-                }
-                true
-            }
-            else -> super.onGlassKeyEvent(keyEvent)
-        }
+        return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
     override fun onRequestPermissionsResult(
@@ -248,6 +225,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         val granted = grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }
         if (!granted) {
             tvStatus.setText(R.string.enterprise_qr_permission_denied)
+            refreshInputActions()
             return
         }
         startCameraPipeline(resetRecoveryAttempts = true)
@@ -272,11 +250,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         }
         Log.i(TAG, "startCameraPipeline begin completed=$completed status=$statusMessage")
         showScanState(statusMessage)
+        refreshInputActions()
         isFrameStreamReady = false
         isProcessingFrame = false
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
         cameraRecoveryController.startOrReuse { success ->
             runOnUiThread {
@@ -297,20 +273,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         cameraRecoveryController.stop()
         isFrameStreamReady = false
         isProcessingFrame = false
-        latestPreviewFrame = null
-        latestPreviewWidth = 0
-        latestPreviewHeight = 0
-    }
-
-    private fun refreshLatestFrameFromSdk(): Boolean {
-        val frame = RokidFrameSource.copyLatestCroppedFrame(SCAN_FRAME_TARGET_SIZE) ?: run {
-            Log.d(TAG, "refreshLatestFrameFromSdk noFrameYet")
-            return false
-        }
-        latestPreviewFrame = frame.data
-        latestPreviewWidth = frame.width
-        latestPreviewHeight = frame.height
-        return true
     }
 
     private fun startScanLoop() {
@@ -334,14 +296,21 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         }
         completed = true
         enterObjectFetchLoadingState()
+        refreshInputActions()
         mainHandler.removeCallbacks(scanRunnable)
         isProcessingFrame = false
         cameraRecoveryController.setRecoveryEnabled(false)
         val payload = InspectionWorkflowSession.enterpriseQrPayload
         if (payload == null) {
+            Log.e(TAG, "enterprise object fetch aborted: payload missing after qr parse")
             restoreScanStateForRetry(getString(R.string.enterprise_qr_object_fetch_failed))
             return
         }
+        Log.i(
+            TAG,
+            "enterprise object fetch start baseUrl=${payload.apiBaseUrl} objectId=${maskTokenForLog(payload.objectId)} authCode=${maskTokenForLog(payload.authCode)}",
+        )
+        var objectFetchRequestId = ""
         objectMessageRequest?.cancel()
         objectMessageRequest = objectMessageService.fetchObjectMessage(
             baseUrl = payload.apiBaseUrl,
@@ -351,25 +320,37 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                 override fun onSuccess(data: EnterpriseObjectMessageService.ObjectMessageData) {
                     if (destroyed || isFinishing) return
                     objectMessageRequest = null
+                    val hazardHistory = data.hidDanger.orEmpty()
+                        .mapNotNull { it.descrip?.trim()?.takeIf(String::isNotEmpty) }
+                    Log.i(
+                        TAG,
+                        "enterprise object fetch success requestId=$objectFetchRequestId objectNameBlank=${data.objectName.isNullOrBlank()} areaNameBlank=${data.areaName.isNullOrBlank()} domainBlank=${data.domain.isNullOrBlank()} tagsBlank=${data.tags.isNullOrBlank()} riskLevelBlank=${data.riskLevel.isNullOrBlank()} hazardCount=${data.hidDanger.orEmpty().size} hazardWithDescriptionCount=${hazardHistory.size}",
+                    )
                     InspectionWorkflowSession.updateEnterpriseObjectInfo(
                         companyName = data.objectName,
                         region = data.areaName,
                         category = data.domain,
                         riskTags = data.tags,
                         riskLevel = data.riskLevel,
-                        hazardHistory = data.hidDanger.orEmpty()
-                            .mapNotNull { it.descrip?.trim()?.takeIf(String::isNotEmpty) },
+                        hazardHistory = hazardHistory,
                     )
+                    Log.i(TAG, "enterprise object fetch navigate requestId=$objectFetchRequestId target=EnterpriseInfoActivity")
                     navigateToEnterpriseInfo()
                 }
 
                 override fun onFailure(message: String) {
                     if (destroyed || isFinishing) return
                     objectMessageRequest = null
+                    Log.w(
+                        TAG,
+                        "enterprise object fetch failure requestId=$objectFetchRequestId message=$message completed=$completed frameReady=$isFrameStreamReady",
+                    )
                     restoreScanStateForRetry(message)
                 }
             },
         )
+        objectFetchRequestId = objectMessageRequest?.requestId.orEmpty()
+        Log.i(TAG, "enterprise object fetch queued requestId=$objectFetchRequestId")
     }
 
     private fun skipScanIfEnterpriseQrCached(): Boolean {
@@ -396,12 +377,13 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         infoCard.visibility = View.GONE
         scanFrame.background = null
         resultContent.visibility = View.VISIBLE
-        bottomHints.visibility = View.GONE
+        hideBottomHints()
     }
 
     private fun restoreScanStateForRetry(message: String) {
         completed = false
         showScanState(message)
+        refreshInputActions()
         if (hasRequiredPermissions()) {
             startCameraPipeline(
                 statusMessage = message,
@@ -417,7 +399,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         infoCard.visibility = View.VISIBLE
         scanFrame.setBackgroundResource(R.drawable.glass_scan_frame)
         resultContent.visibility = View.GONE
-        bottomHints.visibility = View.GONE
+        hideBottomHints()
         tvStatus.visibility = View.VISIBLE
         tvStatus.text = statusMessage
     }
@@ -469,12 +451,103 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             tvScanHint.visibility = View.GONE
             infoCard.visibility = View.GONE
             resultContent.visibility = View.VISIBLE
-            bottomHints.visibility = View.VISIBLE
+            hideBottomHints()
         } else {
             tvScanHint.visibility = View.VISIBLE
             infoCard.visibility = View.VISIBLE
             resultContent.visibility = View.GONE
-            bottomHints.visibility = View.GONE
+            hideBottomHints()
+        }
+        refreshInputActions()
+    }
+
+    private fun refreshInputActions() {
+        inputSession.updateActions(buildInputActions())
+    }
+
+    private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        return listOf(
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
+                enabled = { isPrimaryActionEnabled() },
+            ) {
+                handlePrimaryAction()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
+            ) {
+                exitAppDirectly()
+            },
+        )
+    }
+
+    private fun isPrimaryActionEnabled(): Boolean {
+        if (debugSnapshotMode) {
+            return intent.getStringExtra("debug_state") == "success"
+        }
+        return !completed && objectMessageRequest == null
+    }
+
+    private fun handlePrimaryAction() {
+        if (debugSnapshotMode) {
+            if (intent.getStringExtra("debug_state") == "success") {
+                navigateToEnterpriseInfo()
+            }
+            return
+        }
+        if (completed || objectMessageRequest != null) {
+            return
+        }
+        startCameraPipeline(
+            statusMessage = getString(R.string.enterprise_qr_waiting),
+            resetRecoveryAttempts = true,
+        )
+    }
+
+    private fun buildConfirmTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_confirm, "que ren"),
+            voiceTrigger(R.string.ai_inspection_voice_confirm_alias, "que ding"),
+            voiceTrigger(R.string.ai_inspection_voice_continue_alias, "ji xu"),
+        )
+    }
+
+    private fun buildReturnTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
+            voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
+        )
+    }
+
+    private fun voiceTrigger(
+        textRes: Int,
+        pinyin: String,
+    ): UnifiedInputSession.InputTrigger {
+        return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
+    }
+
+    private fun hideBottomHints() {
+        bottomHints.visibility = View.GONE
+    }
+
+    private fun exitAppDirectly() {
+        objectMessageRequest?.cancel()
+        objectMessageRequest = null
+        mainHandler.removeCallbacks(scanRunnable)
+        stopCameraPipeline()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAffinity()
+            finishAndRemoveTask()
+        } else {
+            finishAffinity()
+            finish()
         }
     }
 
@@ -482,7 +555,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         private const val TAG = "EnterpriseQrScan"
         private const val REQUEST_CODE_PERMISSIONS = 6001
         private const val SCAN_INTERVAL_MS = 800L
-        private const val SCAN_FRAME_TARGET_SIZE = 480
+        private const val SCAN_FRAME_TARGET_SIZE = 1080
         private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
 
         private fun sanitizeQrForLog(rawValue: String): String {
@@ -491,6 +564,18 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                 normalized
             } else {
                 normalized.take(QR_LOG_VISIBLE_PREFIX_LENGTH) + "..."
+            }
+        }
+
+        private fun maskTokenForLog(value: String?): String {
+            val normalized = value?.trim().orEmpty()
+            if (normalized.isBlank()) {
+                return "(blank)"
+            }
+            return if (normalized.length <= 6) {
+                "***$normalized"
+            } else {
+                "***${normalized.takeLast(6)}"
             }
         }
     }
