@@ -46,11 +46,11 @@ class LocalHazardInfoAssetSchemaTest {
         )
         assertRecord(
             records,
-            hidNum = "ZJYJ_HZ_JX_XCY_006",
-            items = listOf("燃气灶"),
-            hidLevel = "2",
-            lawBasis = "《安全生产法》第36条",
-            modify = "在使用燃气的厨房规范安装可燃气体报警装置，并确保其完好有效。",
+            hidNum = "ZJYJ_HZ_JX_XCY_007",
+            items = listOf("炭炉&燃气灶"),
+            hidLevel = "1",
+            lawBasis = "《燃气用户设施安全检查标准》第3.0.9条",
+            modify = "建议在同一用气场所只使用一种燃料，避免因燃料混用引发的安全事故。",
         )
     }
 

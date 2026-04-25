@@ -34,6 +34,7 @@ data class ResolvedHazardContent(
     val jpegBytes: ByteArray,
     val rawDetailText: String = "",
     val hazards: List<ResolvedHazardItem> = emptyList(),
+    val localCooldownLabels: List<String> = emptyList(),
 ) {
     fun resolvedHazards(): List<ResolvedHazardItem> {
         if (hazards.isNotEmpty()) {

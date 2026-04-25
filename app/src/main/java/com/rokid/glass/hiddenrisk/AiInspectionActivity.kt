@@ -226,6 +226,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private data class LocalHazardMatch(
         val info: LocalHazardInfo,
         val matchedItem: String,
+        val cooldownLabel: String,
         val score: Float,
     ) {
         fun toResolvedItem(): ResolvedHazardItem {
@@ -2033,16 +2034,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (localHazardInfoByItem.isEmpty()) {
             return emptyList()
         }
-        val matches = snapshot.detections
-            .flatMap { detection ->
-                val displayLabel = HiddenRiskMultiOverlayRenderer.labelFor(detection)
-                val matchedItem = sequenceOf(detection.label, displayLabel)
-                    .map { it.trim() }
-                    .firstOrNull { it.isNotBlank() && localHazardInfoByItem.containsKey(it) }
-                    ?: return@flatMap emptyList()
-                val infos = localHazardInfoByItem[matchedItem].orEmpty()
+        val detectedScoresByLabel = buildDetectedScoresByLabel(snapshot)
+        if (detectedScoresByLabel.isEmpty()) {
+            return emptyList()
+        }
+        val matches = localHazardInfoByItem
+            .flatMap { (itemName, infos) ->
+                val itemMatch = LocalHazardItemMatcher.match(
+                    itemName = itemName,
+                    detectedScoresByLabel = detectedScoresByLabel,
+                ) ?: return@flatMap emptyList()
                 infos.map { info ->
-                    LocalHazardMatch(info = info, matchedItem = matchedItem, score = detection.score)
+                    LocalHazardMatch(
+                        info = info,
+                        matchedItem = itemMatch.matchedItem,
+                        cooldownLabel = itemMatch.cooldownLabel,
+                        score = itemMatch.score,
+                    )
                 }
             }
         return LocalHazardResultDeduper.dedupeByHidNumKeepingHighestScore(
@@ -2050,6 +2058,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             hidNumOf = { it.info.requestHidNum() },
             scoreOf = { it.score },
         ).sortedByDescending { it.score }
+    }
+
+    private fun buildDetectedScoresByLabel(snapshot: NativeInferenceStats): Map<String, Float> {
+        val scoresByLabel = linkedMapOf<String, Float>()
+        snapshot.detections.forEach { detection ->
+            sequenceOf(detection.label, HiddenRiskMultiOverlayRenderer.labelFor(detection))
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+                .forEach { label ->
+                    val previousScore = scoresByLabel[label]
+                    if (previousScore == null || detection.score > previousScore) {
+                        scoresByLabel[label] = detection.score
+                    }
+                }
+        }
+        return scoresByLabel
     }
 
     private fun buildLocalResolvedContent(
@@ -2072,6 +2097,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             displayTitle = primaryHazard.displayTitle,
             jpegBytes = jpegBytes.copyOf(),
             hazards = resolvedHazards,
+            localCooldownLabels = localMatches.map { it.cooldownLabel },
         )
     }
 
@@ -2107,7 +2133,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         pruneExpiredLocalCooldowns(nowElapsedMs)
         return localMatches.filterNot { match ->
-            isLocalLabelCooling(match.matchedItem, nowElapsedMs)
+            isLocalLabelCooling(match.cooldownLabel, nowElapsedMs)
         }
     }
 
@@ -2116,7 +2142,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         nowElapsedMs: Long,
     ) {
         markLocalLabelsCooldownByName(
-            labels = localMatches.map { it.matchedItem },
+            labels = localMatches.map { it.cooldownLabel },
             nowElapsedMs = nowElapsedMs,
         )
     }
@@ -2457,10 +2483,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localSaveSubmitting = false
         sessionId = ""
         if (result.source == HazardSource.LOCAL) {
-            markLocalLabelsCooldownByName(
-                labels = result.resolvedHazards()
+            val cooldownLabels = result.localCooldownLabels.ifEmpty {
+                result.resolvedHazards()
                     .map { it.displayTitle.trim() }
-                    .filter { it.isNotBlank() },
+                    .filter { it.isNotBlank() }
+            }
+            markLocalLabelsCooldownByName(
+                labels = cooldownLabels,
                 nowElapsedMs = SystemClock.elapsedRealtime(),
             )
         }
