@@ -10,7 +10,7 @@ import com.rokid.glesse.R
 /**
  * 操作指引组件。
  * 用于页面右上角显示操作指引，支持动态标题和多行提示内容。
- * 默认标题为"操作指引"，内容通过代码动态设置。
+ * 默认标题为字符串资源中的"操作指引"，内容通过代码动态设置。
  */
 class OperationGuideView @JvmOverloads constructor(
     context: Context,
@@ -39,8 +39,8 @@ class OperationGuideView @JvmOverloads constructor(
     }
 
     /** 同时设置标题和内容 */
-    fun setGuide(title: String? = "操作指引", content: String?) {
-        setTitle(title)
+    fun setGuide(title: String? = null, content: String?) {
+        setTitle(title ?: context.getString(R.string.ai_inspection_operation_guide_title))
         setContent(content)
     }
 }

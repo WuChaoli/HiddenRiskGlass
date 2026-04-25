@@ -27,9 +27,16 @@ object BitmapUtils {
      * @return 裁剪后的 640x640 Bitmap
      */
     fun cropCenterTo640(source: Bitmap?): Bitmap? {
-        if (source == null) return null
+        return cropCenterToSize(source, OUTPUT_SIZE)
+    }
 
-        val targetSize = OUTPUT_SIZE
+    /**
+     * 从 Bitmap 中心裁剪出指定尺寸的正方形区域。
+     * 如果原图小于目标尺寸，则使用 letterbox 方式缩放。
+     */
+    fun cropCenterToSize(source: Bitmap?, targetSize: Int): Bitmap? {
+        if (source == null) return null
+        if (targetSize <= 0) return null
 
         // 如果已经是 640x640，直接返回
         if (source.width == targetSize && source.height == targetSize) {
@@ -38,8 +45,8 @@ object BitmapUtils {
 
         // 如果原图小于目标尺寸，使用 letterbox 缩放
         if (source.width < targetSize || source.height < targetSize) {
-            Log.w(TAG, "Source bitmap (${source.width}x${source.height}) smaller than target, using letterbox")
-            return letterboxTo640(source)
+            Log.w(TAG, "Source bitmap (${source.width}x${source.height}) smaller than target=$targetSize, using letterbox")
+            return letterboxToSize(source, targetSize)
         }
 
         // 计算中心裁剪区域
@@ -50,7 +57,7 @@ object BitmapUtils {
             Bitmap.createBitmap(source, x, y, targetSize, targetSize)
         } catch (e: Exception) {
             Log.e(TAG, "Center crop failed: ${e.message}")
-            letterboxTo640(source)
+            letterboxToSize(source, targetSize)
         }
     }
 
@@ -92,6 +99,25 @@ object BitmapUtils {
     }
 
     /**
+     * 将 NV21 指定裁切区域编码为 JPEG。
+     */
+    fun encodeNv21CropRectToJpeg(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        cropRect: Rect,
+        jpegQuality: Int = 80,
+    ): ByteArray? {
+        return encodeNv21RectToJpeg(
+            nv21 = nv21,
+            width = width,
+            height = height,
+            cropRect = cropRect,
+            jpegQuality = jpegQuality,
+        )
+    }
+
+    /**
      * 将 NV21 中心裁剪/回退处理为指定尺寸的 NV21。
      * 常规路径直接复制 NV21 的中心区域；异常尺寸时回退到 Bitmap letterbox。
      */
@@ -112,7 +138,7 @@ object BitmapUtils {
         }
 
         val source = nv21ToBitmap(nv21, width, height, jpegQuality = 95) ?: return null
-        val output = cropCenterTo640(source) ?: run {
+        val output = cropCenterToSize(source, targetSize) ?: run {
             if (!source.isRecycled) {
                 source.recycle()
             }
@@ -157,7 +183,7 @@ object BitmapUtils {
         }
 
         val source = nv21ToBitmap(nv21, width, height, jpegQuality = jpegQuality) ?: return null
-        val output = cropCenterTo640(source) ?: run {
+        val output = cropCenterToSize(source, targetSize) ?: run {
             if (!source.isRecycled) {
                 source.recycle()
             }
@@ -183,6 +209,50 @@ object BitmapUtils {
     }
 
     /**
+     * 将正方形 NV21 缩放到目标尺寸。
+     * 当前项目只在“基准方图 -> 本地推理 640x640”链路使用，优先保证结果稳定。
+     */
+    fun resizeSquareNv21(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        targetSize: Int,
+        jpegQuality: Int = 100,
+    ): ByteArray? {
+        if (width <= 0 || height <= 0 || targetSize <= 0) {
+            return null
+        }
+        if (width == targetSize && height == targetSize) {
+            return nv21.copyOf()
+        }
+
+        val source = nv21ToBitmap(nv21, width, height, jpegQuality = jpegQuality) ?: return null
+        val scaled = try {
+            Bitmap.createScaledBitmap(source, targetSize, targetSize, true)
+        } catch (error: Exception) {
+            Log.e(TAG, "Square NV21 缩放失败: ${error.message}", error)
+            if (!source.isRecycled) {
+                source.recycle()
+            }
+            return null
+        }
+
+        return try {
+            bitmapToNv21(scaled)
+        } catch (error: Exception) {
+            Log.e(TAG, "缩放后 Bitmap 转 NV21 失败: ${error.message}", error)
+            null
+        } finally {
+            if (scaled !== source && !scaled.isRecycled) {
+                scaled.recycle()
+            }
+            if (!source.isRecycled) {
+                source.recycle()
+            }
+        }
+    }
+
+    /**
      * Letterbox 缩放至 640x640
      * 保持宽高比，短边填充黑边
      *
@@ -190,8 +260,10 @@ object BitmapUtils {
      * @return 缩放后的 640x640 Bitmap
      */
     private fun letterboxTo640(source: Bitmap): Bitmap {
-        val targetSize = OUTPUT_SIZE
+        return letterboxToSize(source, OUTPUT_SIZE)
+    }
 
+    private fun letterboxToSize(source: Bitmap, targetSize: Int): Bitmap {
         // 计算缩放比例
         val scale = targetSize.toFloat() / kotlin.math.max(source.width, source.height)
         val newWidth = (source.width * scale).toInt()
@@ -226,7 +298,7 @@ object BitmapUtils {
         return Rect(left, top, left + targetSize, top + targetSize)
     }
 
-    private fun cropNv21Rect(
+    fun cropNv21Rect(
         nv21: ByteArray,
         width: Int,
         height: Int,

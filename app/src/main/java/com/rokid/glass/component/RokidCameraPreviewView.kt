@@ -1,28 +1,33 @@
 package com.rokid.glass.component
 
 import android.content.Context
+import android.graphics.PixelFormat
+import android.opengl.GLES11Ext
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
+import android.opengl.Matrix
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.AttributeSet
 import android.util.Log
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 /**
- * 统一显示 RokidFrameSource 的中心裁剪 NV21 画面。
- * 预览只拉取最新帧并走 GPU YUV 渲染，避免实时 JPEG/Bitmap 转换。
+ * 统一显示与上传/推理同一取景 ROI 的共享相机预览。
+ * 预览链路使用 SDK Surface 共享，避免走 NV21 -> CPU -> GL 的重复搬运。
  */
 class RokidCameraPreviewView @JvmOverloads constructor(
     context: Context,
@@ -31,11 +36,11 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
     companion object {
         private const val TAG = "RokidCameraPreview"
-        private const val PREVIEW_PULL_INTERVAL_MS = 66L
         private const val HEALTH_CHECK_INTERVAL_MS = 300L
         private const val FIRST_FRAME_TIMEOUT_MS = 1500L
         private const val STALE_FRAME_TIMEOUT_MS = 1000L
         private const val MAX_CONSECUTIVE_HEALTH_ISSUES = 3
+        private const val STOP_RELEASE_WAIT_TIMEOUT_MS = 400L
     }
 
     enum class PreviewHealthIssue {
@@ -55,17 +60,30 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         fun onPreviewRecoveryStateChanged(state: PreviewRecoveryState) = Unit
     }
 
-    private val renderer = Nv21Renderer()
+    private val renderer = SharedSurfaceRenderer(
+        frameAvailableCallback = {
+            requestRender()
+        },
+        frameDrawnCallback = {
+            synchronized(healthLock) {
+                firstFrameReceived = true
+                lastFrameReceivedAtElapsedMs = SystemClock.elapsedRealtime()
+                if (!recoveryPending) {
+                    lastHealthIssue = null
+                    consecutiveHealthIssueCount = 0
+                }
+            }
+        },
+        surfaceErrorCallback = { code, message ->
+            Log.e(TAG, "surface preview error code=$code msg=$message")
+        },
+    )
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val framePullExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private val healthExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
     private val healthLock = Any()
-    private val latestSubmittedTimestamp = AtomicLong(-1L)
 
     @Volatile
     private var previewStarted = false
-
-    @Volatile
-    private var framePullTask: ScheduledFuture<*>? = null
 
     @Volatile
     private var healthCheckTask: ScheduledFuture<*>? = null
@@ -86,6 +104,8 @@ class RokidCameraPreviewView @JvmOverloads constructor(
     init {
         setEGLContextClientVersion(2)
         preserveEGLContextOnPause = true
+        setZOrderMediaOverlay(true)
+        holder.setFormat(PixelFormat.TRANSLUCENT)
         setRenderer(renderer)
         renderMode = RENDERMODE_WHEN_DIRTY
     }
@@ -124,42 +144,26 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             return
         }
         previewStarted = true
-        latestSubmittedTimestamp.set(-1L)
         synchronized(healthLock) {
             previewStartedAtElapsedMs = SystemClock.elapsedRealtime()
             resetHealthStateLocked()
         }
         onResume()
-        framePullTask?.cancel(true)
-        framePullTask = framePullExecutor.scheduleWithFixedDelay(
-            {
-                if (!previewStarted) {
-                    return@scheduleWithFixedDelay
-                }
-                val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return@scheduleWithFixedDelay
-                if (latestSubmittedTimestamp.get() == frame.timestamp) {
-                    return@scheduleWithFixedDelay
-                }
-                latestSubmittedTimestamp.set(frame.timestamp)
-                synchronized(healthLock) {
-                    firstFrameReceived = true
-                    lastFrameReceivedAtElapsedMs = SystemClock.elapsedRealtime()
-                    if (!recoveryPending) {
-                        lastHealthIssue = null
-                        consecutiveHealthIssueCount = 0
+        renderMode = RENDERMODE_CONTINUOUSLY
+        Log.i(TAG, "startPreview requested")
+        queueEvent {
+            renderer.startSurfacePreview { success ->
+                mainHandler.post {
+                    if (!previewStarted) {
+                        onReady(false)
+                        return@post
                     }
+                    onReady(success)
                 }
-                queueEvent {
-                    renderer.updateFrame(frame.data, frame.width, frame.height)
-                }
-                requestRender()
-            },
-            0L,
-            PREVIEW_PULL_INTERVAL_MS,
-            TimeUnit.MILLISECONDS,
-        )
+            }
+        }
         healthCheckTask?.cancel(true)
-        healthCheckTask = framePullExecutor.scheduleWithFixedDelay(
+        healthCheckTask = healthExecutor.scheduleWithFixedDelay(
             {
                 if (!previewStarted || !healthMonitoringEnabled) {
                     return@scheduleWithFixedDelay
@@ -177,27 +181,23 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             HEALTH_CHECK_INTERVAL_MS,
             TimeUnit.MILLISECONDS,
         )
-        onReady(true)
     }
 
     fun stopPreview() {
         if (!previewStarted) {
-            queueEvent { renderer.clearFrame() }
-            requestRender()
+            runRendererStopAndWait()
             return
         }
+        Log.i(TAG, "stopPreview requested")
         previewStarted = false
-        latestSubmittedTimestamp.set(-1L)
-        framePullTask?.cancel(true)
-        framePullTask = null
         healthCheckTask?.cancel(true)
         healthCheckTask = null
         synchronized(healthLock) {
             previewStartedAtElapsedMs = 0L
             resetHealthStateLocked()
         }
-        queueEvent { renderer.clearFrame() }
-        requestRender()
+        runRendererStopAndWait()
+        renderMode = RENDERMODE_WHEN_DIRTY
         onPause()
     }
 
@@ -205,8 +205,25 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         stopPreview()
-        framePullExecutor.shutdownNow()
+        healthExecutor.shutdownNow()
         super.onDetachedFromWindow()
+    }
+
+    private fun runRendererStopAndWait() {
+        val releaseLatch = CountDownLatch(1)
+        queueEvent {
+            try {
+                renderer.stopSurfacePreview()
+            } finally {
+                releaseLatch.countDown()
+            }
+        }
+        val released = runCatching {
+            releaseLatch.await(STOP_RELEASE_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        }.getOrDefault(false)
+        if (!released) {
+            Log.w(TAG, "timeout waiting shared surface release before pause")
+        }
     }
 
     private fun detectPreviewHealthIssue(): PreviewHealthIssue? {
@@ -263,83 +280,139 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         recoveryPending = false
     }
 
-    private class Nv21Renderer : GLSurfaceView.Renderer {
+    private class SharedSurfaceRenderer(
+        private val frameAvailableCallback: () -> Unit,
+        private val frameDrawnCallback: () -> Unit,
+        private val surfaceErrorCallback: (Int, String) -> Unit,
+    ) : GLSurfaceView.Renderer {
         private val vertexBuffer: FloatBuffer = allocateBuffer(
             floatArrayOf(
                 -1f, -1f,
                 1f, -1f,
                 -1f, 1f,
                 1f, 1f,
-            )
+            ),
         )
         private val texCoordBuffer: FloatBuffer = allocateBuffer(
             floatArrayOf(
-                0f, 1f,
-                1f, 1f,
                 0f, 0f,
                 1f, 0f,
-            )
+                0f, 1f,
+                1f, 1f,
+            ),
         )
-
-        private val frameLock = Any()
-        private val textures = IntArray(2)
+        private val textureMatrix = FloatArray(16).apply { Matrix.setIdentityM(this, 0) }
+        private val cropRect = FloatArray(4).apply {
+            this[0] = 0f
+            this[1] = 0f
+            this[2] = 1f
+            this[3] = 1f
+        }
 
         private var program = 0
         private var positionHandle = 0
         private var texCoordHandle = 0
-        private var yTextureHandle = 0
-        private var uvTextureHandle = 0
+        private var textureMatrixHandle = 0
+        private var cropRectHandle = 0
+        private var oesTextureHandle = 0
+        private var surfaceWidth = 0
+        private var surfaceHeight = 0
+        private var pendingStartCallback: ((Boolean) -> Unit)? = null
+        @Volatile
+        private var surfaceActive = false
 
-        private var pendingFrameData: ByteArray? = null
-        private var pendingWidth = 0
-        private var pendingHeight = 0
+        @Volatile
+        private var framePending = false
 
-        private var activeWidth = 0
-        private var activeHeight = 0
+        @Volatile
         private var hasFrame = false
-        private var texturesAllocated = false
 
-        fun updateFrame(data: ByteArray, width: Int, height: Int) {
-            synchronized(frameLock) {
-                pendingFrameData = data
-                pendingWidth = width
-                pendingHeight = height
-            }
-        }
+        @Volatile
+        private var firstFrameLogged = false
 
-        fun clearFrame() {
-            synchronized(frameLock) {
-                pendingFrameData = null
-                pendingWidth = 0
-                pendingHeight = 0
-            }
-            hasFrame = false
-            activeWidth = 0
-            activeHeight = 0
-            texturesAllocated = false
-        }
+        @Volatile
+        private var firstDrawLogged = false
+
+        @Volatile
+        private var invalidTextureWarned = false
+
+        @Volatile
+        private var cropLogged = false
 
         override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
             GLES20.glClearColor(0f, 0f, 0f, 1f)
             program = createProgram(VERTEX_SHADER, FRAGMENT_SHADER)
             positionHandle = GLES20.glGetAttribLocation(program, "aPosition")
             texCoordHandle = GLES20.glGetAttribLocation(program, "aTexCoord")
-            yTextureHandle = GLES20.glGetUniformLocation(program, "uYTexture")
-            uvTextureHandle = GLES20.glGetUniformLocation(program, "uVUTexture")
-            GLES20.glGenTextures(2, textures, 0)
-            configureTexture(textures[0])
-            configureTexture(textures[1])
+            textureMatrixHandle = GLES20.glGetUniformLocation(program, "uTexMatrix")
+            cropRectHandle = GLES20.glGetUniformLocation(program, "uCropRect")
+            oesTextureHandle = GLES20.glGetUniformLocation(program, "uOesTexture")
+            Log.i(TAG, "gl surface created program=$program")
         }
 
         override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
             GLES20.glViewport(0, 0, width, height)
+            surfaceWidth = width
+            surfaceHeight = height
+            Log.i(TAG, "gl surface changed width=$width height=$height")
+            val pendingCallback = pendingStartCallback
+            if (pendingCallback != null && isGlSurfaceReady()) {
+                pendingStartCallback = null
+                Log.i(TAG, "resume deferred surface preview start width=$surfaceWidth height=$surfaceHeight")
+                performStartSurfacePreview(pendingCallback)
+            }
         }
 
         override fun onDrawFrame(gl: GL10?) {
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-            uploadPendingFrameIfNeeded()
-            if (!hasFrame || activeWidth <= 0 || activeHeight <= 0 || program == 0) {
+            if (!surfaceActive) {
                 return
+            }
+
+            var frameAdvanced = false
+            runCatching {
+                RokidFrameSource.updateSurfaceTexture()
+                val latestMatrix = RokidFrameSource.getSurfaceTransformMatrix()
+                if (latestMatrix.size == 16) {
+                    System.arraycopy(latestMatrix, 0, textureMatrix, 0, 16)
+                } else {
+                    Matrix.setIdentityM(textureMatrix, 0)
+                }
+                updateCropRect()
+                hasFrame = true
+                frameAdvanced = true
+            }.onFailure { error ->
+                if (framePending || !hasFrame) {
+                    Log.w(TAG, "update shared surface texture failed", error)
+                }
+            }
+            framePending = false
+            if (frameAdvanced) {
+                frameDrawnCallback.invoke()
+            }
+
+            if (!hasFrame) {
+                return
+            }
+            if (program == 0) {
+                return
+            }
+
+            val textureId = RokidFrameSource.getSurfaceTextureId()
+            if (textureId == 0) {
+                if (!invalidTextureWarned) {
+                    invalidTextureWarned = true
+                    Log.w(TAG, "shared surface texture id still 0 after frame update")
+                }
+                return
+            }
+
+            if (!firstDrawLogged) {
+                firstDrawLogged = true
+                Log.i(
+                    TAG,
+                    "first preview draw textureId=$textureId crop=[${cropRect[0]},${cropRect[1]},${cropRect[2]},${cropRect[3]}]",
+                )
             }
 
             GLES20.glUseProgram(program)
@@ -352,104 +425,137 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             GLES20.glVertexAttribPointer(texCoordHandle, 2, GLES20.GL_FLOAT, false, 0, texCoordBuffer)
             GLES20.glEnableVertexAttribArray(texCoordHandle)
 
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[0])
-            GLES20.glUniform1i(yTextureHandle, 0)
+            GLES20.glUniformMatrix4fv(textureMatrixHandle, 1, false, textureMatrix, 0)
+            GLES20.glUniform4fv(cropRectHandle, 1, cropRect, 0)
 
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[1])
-            GLES20.glUniform1i(uvTextureHandle, 1)
+            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
+            GLES20.glUniform1i(oesTextureHandle, 0)
 
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
 
             GLES20.glDisableVertexAttribArray(positionHandle)
             GLES20.glDisableVertexAttribArray(texCoordHandle)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
+            GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0)
         }
 
-        private fun uploadPendingFrameIfNeeded() {
-            val frameData: ByteArray
-            val width: Int
-            val height: Int
-            synchronized(frameLock) {
-                frameData = pendingFrameData ?: return
-                width = pendingWidth
-                height = pendingHeight
-                pendingFrameData = null
-            }
-
-            if (width <= 0 || height <= 0) {
+        fun startSurfacePreview(onReady: (Boolean) -> Unit) {
+            stopSurfacePreview()
+            surfaceActive = true
+            firstFrameLogged = false
+            firstDrawLogged = false
+            invalidTextureWarned = false
+            cropLogged = false
+            if (!isGlSurfaceReady()) {
+                pendingStartCallback = onReady
+                Log.i(
+                    TAG,
+                    "defer surface preview start until gl ready program=$program width=$surfaceWidth height=$surfaceHeight",
+                )
                 return
             }
+            performStartSurfacePreview(onReady)
+        }
 
-            val ySize = width * height
-            val uvSize = width * height / 2
-            if (frameData.size < ySize + uvSize) {
+        private fun performStartSurfacePreview(onReady: (Boolean) -> Unit) {
+            val readyDispatched = AtomicBoolean(false)
+            val started = RokidFrameSource.startSurfacePreview(
+                object : CameraShareHelper.SurfaceCallback {
+                    override fun onCameraOpened(width: Int, height: Int) {
+                        Log.i(TAG, "surface preview camera opened width=$width height=$height")
+                        if (readyDispatched.compareAndSet(false, true)) {
+                            onReady(true)
+                        }
+                    }
+
+                    override fun onFrameAvailable() {
+                        framePending = true
+                        if (!firstFrameLogged) {
+                            firstFrameLogged = true
+                            Log.i(TAG, "shared surface first frame available")
+                        }
+                        frameAvailableCallback.invoke()
+                    }
+
+                    override fun onCameraClosed() {
+                        Log.i(TAG, "surface preview camera closed")
+                        surfaceActive = false
+                        framePending = false
+                        hasFrame = false
+                    }
+
+                    override fun onError(code: Int, msg: String) {
+                        surfaceActive = false
+                        framePending = false
+                        hasFrame = false
+                        surfaceErrorCallback(code, msg)
+                        if (readyDispatched.compareAndSet(false, true)) {
+                            onReady(false)
+                        }
+                    }
+                },
+            )
+            if (!started) {
+                surfaceActive = false
+                if (readyDispatched.compareAndSet(false, true)) {
+                    onReady(false)
+                }
+            }
+        }
+
+        fun stopSurfacePreview() {
+            pendingStartCallback = null
+            surfaceActive = false
+            framePending = false
+            hasFrame = false
+            firstFrameLogged = false
+            firstDrawLogged = false
+            invalidTextureWarned = false
+            cropLogged = false
+            Matrix.setIdentityM(textureMatrix, 0)
+            cropRect[0] = 0f
+            cropRect[1] = 0f
+            cropRect[2] = 1f
+            cropRect[3] = 1f
+            RokidFrameSource.stopSurfacePreview()
+        }
+
+        private fun isGlSurfaceReady(): Boolean {
+            return program != 0 && surfaceWidth > 0 && surfaceHeight > 0
+        }
+
+        private fun updateCropRect() {
+            val sourceWidth = RokidFrameSource.getSurfaceCameraWidth()
+            val sourceHeight = RokidFrameSource.getSurfaceCameraHeight()
+            if (sourceWidth <= 0 || sourceHeight <= 0) {
+                cropRect[0] = 0f
+                cropRect[1] = 0f
+                cropRect[2] = 1f
+                cropRect[3] = 1f
                 return
             }
-
-            val yBuffer = ByteBuffer.wrap(frameData, 0, ySize)
-            val uvBuffer = ByteBuffer.wrap(frameData, ySize, uvSize)
-            val sizeChanged = !texturesAllocated || width != activeWidth || height != activeHeight
-
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[0])
-            if (sizeChanged) {
-                GLES20.glTexImage2D(
-                    GLES20.GL_TEXTURE_2D,
-                    0,
-                    GLES20.GL_LUMINANCE,
-                    width,
-                    height,
-                    0,
-                    GLES20.GL_LUMINANCE,
-                    GLES20.GL_UNSIGNED_BYTE,
-                    null,
+            val latestFrameSize = RokidFrameSource.getLatestFrameSize()
+            val latestFrameWidth = latestFrameSize?.width ?: 0
+            val latestFrameHeight = latestFrameSize?.height ?: 0
+            val axisSwappedFromFrameSize =
+                latestFrameWidth > 0 &&
+                    latestFrameHeight > 0 &&
+                    (sourceWidth > sourceHeight) != (latestFrameWidth > latestFrameHeight)
+            val axisSwapped = axisSwappedFromFrameSize || isAxisSwapped(textureMatrix)
+            val previewWidth = if (axisSwapped) sourceHeight else sourceWidth
+            val previewHeight = if (axisSwapped) sourceWidth else sourceHeight
+            val squareRect = RokidFrameSource.calculateSquareCropRect(previewWidth, previewHeight)
+            cropRect[0] = squareRect.left.toFloat() / previewWidth.toFloat()
+            cropRect[1] = squareRect.top.toFloat() / previewHeight.toFloat()
+            cropRect[2] = squareRect.width().toFloat() / previewWidth.toFloat()
+            cropRect[3] = squareRect.height().toFloat() / previewHeight.toFloat()
+            if (firstFrameLogged && !cropLogged) {
+                cropLogged = true
+                Log.i(
+                    TAG,
+                    "preview crop updated source=${sourceWidth}x${sourceHeight} latestFrame=${latestFrameWidth}x${latestFrameHeight} preview=${previewWidth}x${previewHeight} swapped=$axisSwapped crop=$squareRect matrix=${textureMatrixSummary(textureMatrix)}",
                 )
             }
-            GLES20.glTexSubImage2D(
-                GLES20.GL_TEXTURE_2D,
-                0,
-                0,
-                0,
-                width,
-                height,
-                GLES20.GL_LUMINANCE,
-                GLES20.GL_UNSIGNED_BYTE,
-                yBuffer,
-            )
-
-            GLES20.glActiveTexture(GLES20.GL_TEXTURE1)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textures[1])
-            if (sizeChanged) {
-                GLES20.glTexImage2D(
-                    GLES20.GL_TEXTURE_2D,
-                    0,
-                    GLES20.GL_LUMINANCE_ALPHA,
-                    width / 2,
-                    height / 2,
-                    0,
-                    GLES20.GL_LUMINANCE_ALPHA,
-                    GLES20.GL_UNSIGNED_BYTE,
-                    null,
-                )
-            }
-            GLES20.glTexSubImage2D(
-                GLES20.GL_TEXTURE_2D,
-                0,
-                0,
-                0,
-                width / 2,
-                height / 2,
-                GLES20.GL_LUMINANCE_ALPHA,
-                GLES20.GL_UNSIGNED_BYTE,
-                uvBuffer,
-            )
-
-            activeWidth = width
-            activeHeight = height
-            hasFrame = true
-            texturesAllocated = true
         }
 
         private fun createProgram(vertexShaderCode: String, fragmentShaderCode: String): Int {
@@ -469,41 +575,32 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             }
         }
 
-        private fun configureTexture(textureId: Int) {
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, textureId)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0)
-        }
-
         companion object {
+            private const val TAG = "RokidCameraPreview"
+
             private const val VERTEX_SHADER = """
                 attribute vec4 aPosition;
                 attribute vec2 aTexCoord;
                 varying vec2 vTexCoord;
+                uniform mat4 uTexMatrix;
+                uniform vec4 uCropRect;
                 void main() {
                     gl_Position = aPosition;
-                    vTexCoord = aTexCoord;
+                    vec2 transformedTexCoord = (uTexMatrix * vec4(aTexCoord, 0.0, 1.0)).xy;
+                    vTexCoord = vec2(
+                        uCropRect.x + transformedTexCoord.x * uCropRect.z,
+                        uCropRect.y + transformedTexCoord.y * uCropRect.w
+                    );
                 }
             """
 
             private const val FRAGMENT_SHADER = """
+                #extension GL_OES_EGL_image_external : require
                 precision mediump float;
                 varying vec2 vTexCoord;
-                uniform sampler2D uYTexture;
-                uniform sampler2D uVUTexture;
+                uniform samplerExternalOES uOesTexture;
                 void main() {
-                    float y = texture2D(uYTexture, vTexCoord).r;
-                    vec4 vu = texture2D(uVUTexture, vTexCoord);
-                    float v = vu.r - 0.5;
-                    float u = vu.a - 0.5;
-                    float yy = 1.1643 * (y - 0.0625);
-                    float r = yy + 1.5958 * v;
-                    float g = yy - 0.39173 * u - 0.81290 * v;
-                    float b = yy + 2.017 * u;
-                    gl_FragColor = vec4(r, g, b, 1.0);
+                    gl_FragColor = texture2D(uOesTexture, vTexCoord);
                 }
             """
 
@@ -515,6 +612,25 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                         put(data)
                         position(0)
                     }
+            }
+
+            private fun isAxisSwapped(matrix: FloatArray): Boolean {
+                if (matrix.size < 16) {
+                    return false
+                }
+                val xAxisX = matrix[0]
+                val xAxisY = matrix[1]
+                val yAxisX = matrix[4]
+                val yAxisY = matrix[5]
+                return kotlin.math.abs(xAxisY) > kotlin.math.abs(xAxisX) ||
+                    kotlin.math.abs(yAxisX) > kotlin.math.abs(yAxisY)
+            }
+
+            private fun textureMatrixSummary(matrix: FloatArray): String {
+                if (matrix.size < 16) {
+                    return "invalid"
+                }
+                return "[${matrix[0]},${matrix[1]},${matrix[4]},${matrix[5]},${matrix[12]},${matrix[13]}]"
             }
         }
     }

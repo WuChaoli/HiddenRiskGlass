@@ -5,7 +5,9 @@ import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.util.TypedValue
 import android.util.AttributeSet
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.animation.Animation
@@ -49,6 +51,8 @@ class StatusAlertOverlayView @JvmOverloads constructor(
     private val defaultCountdownBarHeightPx: Int
     private val defaultCountdownDrawable: Drawable?
     private val defaultMessageTopMarginPx: Int
+    private val defaultMessageTextSizePx: Float
+    private val defaultMessageGravity: Int
 
     private var countdownStartElapsedMs = 0L
     private var countdownDurationMs = 0L
@@ -99,6 +103,8 @@ class StatusAlertOverlayView @JvmOverloads constructor(
         defaultCountdownBarHeightPx = countdownBar.layoutParams.height
         defaultCountdownDrawable = cloneDrawable(countdownBar.progressDrawable)
         defaultMessageTopMarginPx = (messageView.layoutParams as? LinearLayout.LayoutParams)?.topMargin ?: 0
+        defaultMessageTextSizePx = messageView.textSize
+        defaultMessageGravity = messageView.gravity
     }
 
     fun render(model: StatusAlertModel?) {
@@ -154,6 +160,15 @@ class StatusAlertOverlayView @JvmOverloads constructor(
         if (messageParams != null) {
             messageParams.topMargin = if (hasTitle) defaultMessageTopMarginPx else 0
             messageView.layoutParams = messageParams
+        }
+        if (hasTitle) {
+            messageView.setTextSize(TypedValue.COMPLEX_UNIT_PX, defaultMessageTextSizePx)
+            messageView.gravity = defaultMessageGravity
+            messageView.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
+        } else {
+            messageView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            messageView.gravity = Gravity.CENTER
+            messageView.textAlignment = View.TEXT_ALIGNMENT_CENTER
         }
 
         updateSize(

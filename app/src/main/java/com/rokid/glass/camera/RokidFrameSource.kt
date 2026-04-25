@@ -1,15 +1,16 @@
 package com.rokid.glass.camera
 
+import android.graphics.Rect
+import android.opengl.Matrix
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
-import com.rokid.glass.MyApplication
 import com.rokid.glass.utils.BitmapUtils
-import com.rokid.glass.utils.SPUtil
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
+import kotlin.math.min
 
 /**
  * 基于 Rokid CameraShareHelper 的统一 NV21 帧源。
@@ -41,9 +42,20 @@ object RokidFrameSource {
         val receivedAtElapsedMs: Long,
     )
 
+    data class SquareNv21Frame(
+        val data: ByteArray,
+        val width: Int,
+        val height: Int,
+        val sourceWidth: Int,
+        val sourceHeight: Int,
+        val cropRect: Rect,
+        val timestamp: Long,
+        val receivedAtElapsedMs: Long,
+    )
+
     private const val TAG = "RokidFrameSource"
-    private const val PREF_KEY_PREVIEW_ZOOM_RATIO = "rokid_frame_source.preview_zoom_ratio"
-    private const val DEFAULT_PREVIEW_ZOOM_RATIO = 2.0f
+    // 共享 NV21 帧流统一固定为 2x，避免各业务页出现不同视野。
+    internal const val SHARED_FRAME_STREAM_ZOOM_RATIO = 2.0f
     private const val DEFAULT_TARGET_CENTER_X_RATIO = 0.50f
     private const val DEFAULT_TARGET_CENTER_Y_RATIO = 0.64f
     private const val CROPPED_TARGET_SIZE = 640
@@ -66,7 +78,7 @@ object RokidFrameSource {
     private var latestFrameBuffer: ByteArray? = null
 
     @Volatile
-    private var currentZoomRatio = loadStoredPreviewZoomRatio()
+    private var currentZoomRatio = SHARED_FRAME_STREAM_ZOOM_RATIO
 
     @Volatile
     private var currentFramingMode = PreviewFramingMode.CENTER
@@ -84,9 +96,11 @@ object RokidFrameSource {
                 mainHandler.post { onReady(false) }
                 return
             }
+            enforceSharedPreviewZoom(applyImmediately = frameStreamOpened)
             if (nv21Helper != null) {
                 Log.i(TAG, "startFrameStream reuse helper opened=$frameStreamOpened")
                 if (frameStreamOpened) {
+                    enforceSharedPreviewZoom(applyImmediately = true)
                     mainHandler.post { onReady(true) }
                 } else {
                     frameReadyCallbacks += onReady
@@ -101,7 +115,7 @@ object RokidFrameSource {
                     override fun onCameraOpened(width: Int, height: Int) {
                         frameStreamOpened = true
                         frameSize = Size(width, height)
-                        applySdkZoom(currentZoomRatio)
+                        enforceSharedPreviewZoom(applyImmediately = true)
                         notifyFrameReady(true)
                     }
 
@@ -197,36 +211,185 @@ object RokidFrameSource {
 
     fun copyLatestFrame(): Nv21Frame? = copyLatestRawFrame()
 
-    fun copyLatestCroppedFrame(targetSize: Int = CROPPED_TARGET_SIZE): CroppedNv21Frame? {
+    fun getLatestFrameSize(): Size? {
+        return synchronized(lock) {
+            latestFrame?.let { Size(it.width, it.height) } ?: frameSize
+        }
+    }
+
+    fun copyLatestSquareFrame(): SquareNv21Frame? {
+        return copyLatestSquareFrame(::calculateSquareCropRect)
+    }
+
+    fun copyLatestScanSquareFrame(): SquareNv21Frame? {
+        return copyLatestSquareFrame(::calculateScanCropRect)
+    }
+
+    fun copyLatestScanFrame(targetSize: Int): CroppedNv21Frame? {
+        return copyLatestResizedSquareFrame(
+            targetSize = targetSize,
+            cropRectProvider = ::calculateScanCropRect,
+        )
+    }
+
+    private fun copyLatestSquareFrame(cropRectProvider: (Int, Int) -> Rect): SquareNv21Frame? {
         return synchronized(lock) {
             val frame = latestFrame ?: return@synchronized null
-            val croppedData = BitmapUtils.cropCenterNv21(
+            val cropRect = cropRectProvider(frame.width, frame.height)
+            if (cropRect.width() <= 0 || cropRect.height() <= 0) {
+                return@synchronized null
+            }
+            val croppedData = BitmapUtils.cropNv21Rect(
                 nv21 = frame.data,
                 width = frame.width,
                 height = frame.height,
-                targetSize = targetSize,
+                cropRect = cropRect,
             ) ?: return@synchronized null
-            CroppedNv21Frame(
+            SquareNv21Frame(
                 data = croppedData,
-                width = targetSize,
-                height = targetSize,
+                width = cropRect.width(),
+                height = cropRect.height(),
                 sourceWidth = frame.width,
                 sourceHeight = frame.height,
+                cropRect = Rect(cropRect),
                 timestamp = frame.timestamp,
                 receivedAtElapsedMs = frame.receivedAtElapsedMs,
             )
         }
     }
 
-    fun setPreviewZoomRatio(zoomRatio: Float): Float {
-        val clamped = zoomRatio.coerceIn(1.0f, 3.0f)
-        currentZoomRatio = clamped
-        persistPreviewZoomRatio(clamped)
-        applySdkZoom(clamped)
-        return zoomLevelFor(clamped).toFloat()
+    fun copyLatestCroppedFrame(targetSize: Int = CROPPED_TARGET_SIZE): CroppedNv21Frame? {
+        return copyLatestResizedSquareFrame(
+            targetSize = targetSize,
+            cropRectProvider = ::calculateSquareCropRect,
+        )
     }
 
-    fun getAppliedPreviewZoomRatio(): Float = zoomLevelFor(currentZoomRatio).toFloat()
+    private fun copyLatestResizedSquareFrame(
+        targetSize: Int,
+        cropRectProvider: (Int, Int) -> Rect,
+    ): CroppedNv21Frame? {
+        if (targetSize <= 0) {
+            return null
+        }
+        val squareFrame = copyLatestSquareFrame(cropRectProvider) ?: return null
+        val outputData = if (squareFrame.width == targetSize && squareFrame.height == targetSize) {
+            squareFrame.data.copyOf()
+        } else {
+            BitmapUtils.resizeSquareNv21(
+                nv21 = squareFrame.data,
+                width = squareFrame.width,
+                height = squareFrame.height,
+                targetSize = targetSize,
+            ) ?: return null
+        }
+        return CroppedNv21Frame(
+            data = outputData,
+            width = targetSize,
+            height = targetSize,
+            sourceWidth = squareFrame.sourceWidth,
+            sourceHeight = squareFrame.sourceHeight,
+            timestamp = squareFrame.timestamp,
+            receivedAtElapsedMs = squareFrame.receivedAtElapsedMs,
+        )
+    }
+
+    fun startSurfacePreview(callback: CameraShareHelper.SurfaceCallback): Boolean {
+        val helper = synchronized(lock) {
+            nv21Helper
+        } ?: return false
+        return runCatching {
+            helper.initSurface(callback)
+            true
+        }.onFailure { error ->
+            Log.e(TAG, "startSurfacePreview failed: ${error.message}", error)
+        }.getOrDefault(false)
+    }
+
+    fun updateSurfaceTexture() {
+        synchronized(lock) {
+            nv21Helper
+        }?.updateTexture()
+    }
+
+    fun getSurfaceTextureId(): Int {
+        return synchronized(lock) {
+            nv21Helper
+        }?.getTextureId() ?: 0
+    }
+
+    fun getSurfaceTransformMatrix(): FloatArray {
+        return synchronized(lock) {
+            nv21Helper
+        }?.getTransformMatrix() ?: FloatArray(16).also { Matrix.setIdentityM(it, 0) }
+    }
+
+    fun getSurfaceCameraWidth(): Int {
+        return synchronized(lock) {
+            nv21Helper
+        }?.getCameraWidth() ?: 0
+    }
+
+    fun getSurfaceCameraHeight(): Int {
+        return synchronized(lock) {
+            nv21Helper
+        }?.getCameraHeight() ?: 0
+    }
+
+    fun stopSurfacePreview() {
+        synchronized(lock) {
+            nv21Helper
+        }?.releaseSurface()
+    }
+
+    fun calculateSquareCropRect(width: Int, height: Int): Rect {
+        if (width <= 0 || height <= 0) {
+            return Rect(0, 0, 0, 0)
+        }
+        val framingMode = currentFramingMode
+        val targetCenterXRatio = currentTargetCenterXRatio
+        val targetCenterYRatio = currentTargetCenterYRatio
+        val side = min(width, height) and -2
+        if (side <= 0) {
+            return Rect(0, 0, width, height)
+        }
+        val targetCenterX = (width * targetCenterXRatio).toInt()
+        val targetCenterY = (height * targetCenterYRatio).toInt()
+        val left = ((targetCenterX - side / 2).coerceIn(0, width - side)) and -2
+        val top = when (framingMode) {
+            PreviewFramingMode.TARGET_CENTER -> {
+                (targetCenterY - side / 2).coerceIn(0, height - side)
+            }
+            PreviewFramingMode.BOTTOM -> height - side
+            PreviewFramingMode.CENTER -> (height - side) / 2
+        } and -2
+        return Rect(left, top, left + side, top + side)
+    }
+
+    fun calculateScanCropRect(width: Int, height: Int): Rect {
+        if (width <= 0 || height <= 0) {
+            return Rect(0, 0, 0, 0)
+        }
+        val side = min(width, height) and -2
+        if (side <= 0) {
+            return Rect(0, 0, width, height)
+        }
+        val left = ((width - side) / 2) and -2
+        val top = ((height - side) / 2) and -2
+        return Rect(left, top, left + side, top + side)
+    }
+
+    fun setPreviewZoomRatio(zoomRatio: Float): Float {
+        if (kotlin.math.abs(zoomRatio - SHARED_FRAME_STREAM_ZOOM_RATIO) > 0.001f) {
+            Log.i(
+                TAG,
+                "ignore custom preview zoom request requested=$zoomRatio enforceShared=$SHARED_FRAME_STREAM_ZOOM_RATIO",
+            )
+        }
+        return enforceSharedPreviewZoom(applyImmediately = frameStreamOpened)
+    }
+
+    fun getAppliedPreviewZoomRatio(): Float = currentZoomRatio
 
     fun getPreferredPreviewZoomRatio(): Float = currentZoomRatio
 
@@ -247,21 +410,12 @@ object RokidFrameSource {
 
     fun getFrameSize(): Size? = frameSize
 
-    private fun loadStoredPreviewZoomRatio(): Float {
-        return runCatching {
-            SPUtil.getInstance(MyApplication.getContext())
-                .getFloat(PREF_KEY_PREVIEW_ZOOM_RATIO, DEFAULT_PREVIEW_ZOOM_RATIO)
-                .coerceIn(1.0f, 3.0f)
-        }.getOrDefault(DEFAULT_PREVIEW_ZOOM_RATIO)
-    }
-
-    private fun persistPreviewZoomRatio(zoomRatio: Float) {
-        runCatching {
-            SPUtil.getInstance(MyApplication.getContext())
-                .putFloat(PREF_KEY_PREVIEW_ZOOM_RATIO, zoomRatio)
-        }.onFailure { error ->
-            Log.w(TAG, "persist preview zoom failed: ${error.message}")
+    private fun enforceSharedPreviewZoom(applyImmediately: Boolean): Float {
+        currentZoomRatio = SHARED_FRAME_STREAM_ZOOM_RATIO
+        if (applyImmediately) {
+            applySdkZoom(currentZoomRatio)
         }
+        return currentZoomRatio
     }
 
     private fun applySdkZoom(zoomRatio: Float) {
@@ -269,6 +423,7 @@ object RokidFrameSource {
             return
         }
         val level = zoomLevelFor(zoomRatio)
+        Log.i(TAG, "applySdkZoom zoomRatio=$zoomRatio level=$level")
         runCatching {
             GlassSdk.getGlassMediaService()?.zoomCamera(level)
         }.onFailure { error ->
@@ -276,13 +431,15 @@ object RokidFrameSource {
         }
     }
 
-    private fun zoomLevelFor(zoomRatio: Float): Int {
+    internal fun sdkZoomLevelFor(zoomRatio: Float): Int {
         return when {
             zoomRatio < 1.9f -> 1
             zoomRatio < 2.5f -> 2
             else -> 3
         }
     }
+
+    private fun zoomLevelFor(zoomRatio: Float): Int = sdkZoomLevelFor(zoomRatio)
 
     private fun notifyFrameReady(success: Boolean) {
         val callbacks = synchronized(lock) {
