@@ -3,14 +3,13 @@ package com.rokid.glass
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
-import com.rokid.glass.hiddenrisk.GlassKeyEvent
-import com.rokid.glass.hiddenrisk.HeadGestureManager
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -22,10 +21,10 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
     private lateinit var tvCategory: TextView
     private lateinit var tvRiskTags: TextView
     private lateinit var tvRiskLevel: TextView
+    private lateinit var tvRecentInspectionTime: TextView
     private lateinit var hazardListContainer: LinearLayout
     private lateinit var statusBar: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
-    private var headGestureSupported = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,12 +35,10 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         tvCategory = findViewById(R.id.tvCategory)
         tvRiskTags = findViewById(R.id.tvRiskTags)
         tvRiskLevel = findViewById(R.id.tvRiskLevel)
+        tvRecentInspectionTime = findViewById(R.id.tvRecentInspectionTime)
         hazardListContainer = findViewById(R.id.hazardListContainer)
         statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
-
-        HeadGestureManager.initialize(this)
-        headGestureSupported = HeadGestureManager.isSupported()
 
         // debug模式：从Intent读取测试数据
         if (intent.hasExtra("debug_company")) {
@@ -57,9 +54,8 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         tvCategory.text = getString(R.string.enterprise_info_category_prefix) + (intent.getStringExtra("debug_category") ?: "")
         tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + (intent.getStringExtra("debug_risk_tags") ?: "")
         tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + (intent.getStringExtra("debug_risk_level") ?: "")
+        tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
 
-        // 动态添加历史隐患列表
-        hazardListContainer.removeAllViews()
         val hazards = listOf(
             "三合一住人",
             "防盗窗未设紧急逃生口",
@@ -69,15 +65,7 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
             "电气安全",
             "多设备集中连接",
         )
-        hazards.forEachIndexed { index, hazard ->
-            val itemView = LayoutInflater.from(this)
-                .inflate(R.layout.item_hazard_history, hazardListContainer, false)
-            val tvNumber = itemView.findViewById<TextView>(R.id.tvNumber)
-            val tvHazard = itemView.findViewById<TextView>(R.id.tvHazard)
-            tvNumber.text = (index + 1).toString()
-            tvHazard.text = hazard
-            hazardListContainer.addView(itemView)
-        }
+        renderHazardHistory(hazards)
     }
 
     private fun bindEnterpriseInfo() {
@@ -88,6 +76,8 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
             tvCategory.text = getString(R.string.enterprise_info_category_prefix)
             tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix)
             tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix)
+            tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
+            hazardListContainer.removeAllViews()
             return
         }
 
@@ -96,10 +86,14 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         tvCategory.text = getString(R.string.enterprise_info_category_prefix) + info.category
         tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + info.riskTags
         tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + info.riskLevel
+        tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
 
-        // 动态添加历史隐患列表
+        renderHazardHistory(info.hazardHistory)
+    }
+
+    private fun renderHazardHistory(hazards: List<String>) {
         hazardListContainer.removeAllViews()
-        info.hazardHistory.forEachIndexed { index, hazard ->
+        hazards.take(MAX_HAZARD_HISTORY_DISPLAY_COUNT).forEachIndexed { index, hazard ->
             val itemView = LayoutInflater.from(this)
                 .inflate(R.layout.item_hazard_history, hazardListContainer, false)
             val tvNumber = itemView.findViewById<TextView>(R.id.tvNumber)
@@ -134,32 +128,55 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         return listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
-                label = "确认",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("确认", "que ren"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers(),
             ) {
                 startActivity(Intent(this, AiInspectionMenuActivity::class.java))
                 finish()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Exit,
-                label = "返回",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK))
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.SHAKE))
-                    }
-                },
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildReturnTriggers(),
             ) {
-                finish()
+                exitPage()
             },
         )
+    }
+
+    private fun buildConfirmTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_confirm, "que ren"),
+            voiceTrigger(R.string.ai_inspection_voice_confirm_alias, "que ding"),
+            voiceTrigger(R.string.ai_inspection_voice_continue_alias, "ji xu"),
+        )
+    }
+
+    private fun buildReturnTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
+            voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
+        )
+    }
+
+    private fun voiceTrigger(
+        textRes: Int,
+        pinyin: String,
+    ): UnifiedInputSession.InputTrigger {
+        return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
+    }
+
+    private fun exitPage() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAffinity()
+            finishAndRemoveTask()
+        } else {
+            finishAffinity()
+            finish()
+        }
     }
 
     /**
@@ -179,5 +196,7 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
 
     companion object {
         private const val TAG = "EnterpriseInfoActivity"
+        private const val MAX_HAZARD_HISTORY_DISPLAY_COUNT = 3
+        private const val RECENT_INSPECTION_TIME = "最近巡查时间：2026年1月21日"
     }
 }

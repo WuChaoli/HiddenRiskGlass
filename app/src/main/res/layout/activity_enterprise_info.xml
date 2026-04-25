@@ -70,6 +70,14 @@
                 android:layout_marginTop="3dp"
                 android:textColor="@color/green"
                 android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/tvRecentInspectionTime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
+                android:textColor="@color/green"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <!-- 分隔线 -->
@@ -106,13 +114,14 @@
 
         <!-- 底部操作提示 -->
         <LinearLayout
+            android:id="@+id/bottomHints"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:layout_marginBottom="8dp"
             android:gravity="center"
             android:orientation="vertical"
-            android:visibility="visible">
+            android:visibility="gone">
 
             <TextView
                 android:layout_width="wrap_content"
