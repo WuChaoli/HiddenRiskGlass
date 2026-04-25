@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.BatteryManager
 import android.os.Bundle
 import android.os.Handler
@@ -16,14 +17,14 @@ import android.widget.GridLayout
 import android.widget.ImageView
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.annotation.StringRes
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
-import com.rokid.glass.hiddenrisk.HeadGestureManager
-import com.rokid.glass.hiddenrisk.InspectionFinishService
-import com.rokid.glass.hiddenrisk.RetryRequestHandle
+import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadQueue
+import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadService
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -39,9 +40,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private lateinit var statusBarEnd: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val thumbnailBitmaps = mutableListOf<Bitmap>()
-    private var headGestureSupported = false
-    private var finishSubmitting = false
-    private var finishRequestHandle: RetryRequestHandle? = null
+    private var finishExitTriggered = false
     private var endReportTtsPlayed = false
 
     private val uiHandler = Handler(Looper.getMainLooper())
@@ -63,26 +62,23 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         operationGuideEnd = findViewById(R.id.operationGuideEnd)
         bottomPromptEnd = findViewById(R.id.bottomPromptEnd)
         statusBarEnd = findViewById(R.id.statusBarEnd)
-        HeadGestureManager.initialize(this)
-        headGestureSupported = HeadGestureManager.isSupported()
-
         val savedHazardJpegs = InspectionWorkflowSession.savedHazardJpegs
-        tvHazardCount.text = "分析出${savedHazardJpegs.size}条隐患"
+        tvHazardCount.text = getString(
+            R.string.ai_inspection_end_report_hazard_count,
+            InspectionWorkflowSession.summary.hasHazardCount,
+        )
         scrollSavedHazardThumbs.post {
             renderSavedHazardThumbnails(savedHazardJpegs)
         }
 
         operationGuideEnd.setGuide(
-            title = "操作指引",
-            content = if (headGestureSupported) {
-                "说出\"结束\"\n说出\"退出\"\n单击 结束\n双击 退出\n点头 结束\n摇头 退出"
-            } else {
-                "说出\"结束\"\n说出\"退出\"\n单击 结束\n双击 退出"
-            }
+            content = getString(R.string.ai_inspection_operation_guide_confirm_return),
         )
         bottomPromptEnd.setPrompt(
-            title = "请确认是否结束本次巡检？"
+            title = getString(R.string.ai_inspection_end_report_prompt_title),
+            subtitle = getString(R.string.ai_inspection_end_report_prompt_subtitle),
         )
+        hideActionPrompts()
 
         startTimeAndBatteryUpdate()
     }
@@ -105,8 +101,6 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
-        finishRequestHandle?.cancel()
-        finishRequestHandle = null
         stopTimeAndBatteryUpdate()
         inputSession.release()
         clearThumbnailBitmaps()
@@ -139,6 +133,11 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         }
     }
 
+    private fun hideActionPrompts() {
+        operationGuideEnd.visibility = View.GONE
+        bottomPromptEnd.visibility = View.GONE
+    }
+
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
@@ -147,82 +146,96 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         return listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
-                label = "结束",
-                triggers = buildList {
-                    add(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK))
-                    add(UnifiedInputSession.InputTrigger.Voice("结束", "jie shu"))
-                    if (headGestureSupported) {
-                        add(UnifiedInputSession.InputTrigger.HeadGesture(HeadGestureManager.HeadGestureType.NOD))
-                    }
-                },
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildSingleStepTriggers(),
             ) {
-                submitFinishInspection()
+                submitFinishInspectionInBackground()
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Exit,
-                label = "退出",
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                ),
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = buildDoubleStepTriggers(),
             ) {
-                returnHomeDirectly()
+                returnToMenuDirectly()
             },
         )
     }
 
-    private fun submitFinishInspection() {
-        if (finishSubmitting) return
+    private fun buildSingleStepTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_confirm, "que ren"),
+            voiceTrigger(R.string.ai_inspection_voice_confirm_alias, "que ding"),
+            voiceTrigger(R.string.ai_inspection_voice_continue_alias, "ji xu"),
+        )
+    }
+
+    private fun buildDoubleStepTriggers(): List<UnifiedInputSession.InputTrigger> {
+        return listOf(
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+            voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
+            voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
+        )
+    }
+
+    private fun voiceTrigger(@StringRes textRes: Int, pinyin: String): UnifiedInputSession.InputTrigger {
+        return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
+    }
+
+    private fun submitFinishInspectionInBackground() {
+        if (finishExitTriggered) return
+        finishExitTriggered = true
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
-        val validationMessage = when {
-            enterprisePayload == null -> "缺少企业上下文，请先扫码后再试"
-            enterprisePayload.apiBaseUrl.isBlank() -> "缺少接口地址，请重新扫码后再试"
-            enterprisePayload.authCode.isBlank() -> "缺少鉴权码，请重新扫码后再试"
-            enterprisePayload.objectId.isBlank() -> "缺少对象 ID，请重新扫码后再试"
-            enterprisePayload.userId.isBlank() -> "缺少用户 ID，请重新扫码后再试"
-            else -> null
-        }
-        if (validationMessage != null) {
-            bottomPromptEnd.setSubtitle(validationMessage)
+        if (enterprisePayload == null) {
+            android.util.Log.w(TAG, "skip finish background upload: missing enterprise payload")
+            exitAppAfterFinishSubmitted()
             return
         }
-        val confirmedPayload = enterprisePayload ?: return
-        finishSubmitting = true
-        bottomPromptEnd.setSubtitle("正在提交结束请求...")
-        inputSession.updateActions(emptyList())
-        finishRequestHandle = InspectionFinishService.finishInspection(
-            baseUrl = confirmedPayload.apiBaseUrl,
-            authCode = confirmedPayload.authCode,
-            objectId = confirmedPayload.objectId,
-            userId = confirmedPayload.userId,
-            customParam = confirmedPayload.extraField,
-            callback = object : InspectionFinishService.Callback {
-                override fun onSuccess() {
-                    if (isFinishing || isDestroyed) return
-                    finishRequestHandle = null
-                    returnHomeDirectly()
-                }
-
-                override fun onError(message: String) {
-                    finishRequestHandle = null
-                    finishSubmitting = false
-                    bottomPromptEnd.setSubtitle(message)
-                    inputSession.updateActions(buildInputActions())
-                }
-            },
+        val taskId = InspectionBackgroundUploadQueue.enqueueFinishInspection(
+            taskKey = buildFinishUploadTaskKey(enterprisePayload),
+            baseUrl = enterprisePayload.apiBaseUrl,
+            authCode = enterprisePayload.authCode,
+            objectId = enterprisePayload.objectId,
+            userId = enterprisePayload.userId,
+            customParam = enterprisePayload.extraField,
         )
+        if (!taskId.isNullOrBlank()) {
+            InspectionBackgroundUploadService.start(this, taskId)
+        }
+        exitAppAfterFinishSubmitted()
     }
 
-    private fun returnHomeDirectly() {
+    private fun buildFinishUploadTaskKey(payload: InspectionWorkflowSession.EnterpriseQrPayload): String {
+        return listOf(
+            payload.apiBaseUrl,
+            payload.authCode,
+            payload.objectId,
+            payload.userId,
+            payload.extraField,
+            InspectionWorkflowSession.resolveFinishSessionId().orEmpty(),
+        ).joinToString(separator = "|")
+    }
+
+    private fun returnToMenuDirectly() {
         if (isFinishing || isDestroyed) return
-        finishRequestHandle?.cancel()
-        finishRequestHandle = null
-        finishSubmitting = false
+        finishExitTriggered = false
         InspectionWorkflowSession.resetAll()
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })
         finish()
+    }
+
+    private fun exitAppAfterFinishSubmitted() {
+        if (isFinishing || isDestroyed) return
+        InspectionWorkflowSession.resetAll()
+        finishAffinity()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAndRemoveTask()
+        } else {
+            finish()
+        }
     }
 
     private fun renderSavedHazardThumbnails(savedHazardJpegs: List<ByteArray>) {

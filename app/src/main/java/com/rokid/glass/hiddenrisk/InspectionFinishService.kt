@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.workflow.InspectionWorkflowSession
+import com.rokid.glass.utils.HttpUtils
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -16,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * 结束巡检服务。
- * 负责依次调用企业侧主接口与固定备份接口。
+ * 主备接口并行发送，两个端点都完成后再统一汇总结果。
  */
 object InspectionFinishService {
     private const val TAG = "InspectionFinishApi"
@@ -42,44 +43,10 @@ object InspectionFinishService {
         callback: Callback,
     ): RetryRequestHandle {
         val handle = RetryRequestHandle()
-        val progress = InspectionWorkflowSession.finishSubmitProgress
-        if (!progress.primaryDone) {
-            submitPrimary(
-                baseUrl = baseUrl,
-                authCode = authCode,
-                objectId = objectId,
-                userId = userId,
-                customParam = customParam,
-                handle = handle,
-                callback = callback,
-            )
-        } else {
-            submitBackup(
-                authCode = authCode,
-                objectId = objectId,
-                userId = userId,
-                customParam = customParam,
-                handle = handle,
-                callback = callback,
-            )
-        }
-        return handle
-    }
-
-    private fun submitPrimary(
-        baseUrl: String,
-        authCode: String,
-        objectId: String,
-        userId: String,
-        customParam: String,
-        handle: RetryRequestHandle,
-        callback: Callback,
-    ) {
-        val requestUrl = runCatching { InspectionFinishApiProtocol.buildPrimaryRequestUrl(baseUrl) }.getOrElse { error ->
+        InspectionWorkflowSession.clearFinishSubmitProgress()
+        val primaryUrl = runCatching { InspectionFinishApiProtocol.buildPrimaryRequestUrl(baseUrl) }.getOrElse { error ->
             Log.e(TAG, "buildPrimaryRequestUrl failed baseUrl=$baseUrl", error)
-            InspectionWorkflowSession.clearFinishSubmitProgress()
-            deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
-            return
+            null
         }
         val requestBodyJson = InspectionFinishApiProtocol.buildRequestBodyJson(
             gson = gson,
@@ -88,67 +55,63 @@ object InspectionFinishService {
             userId = userId,
             customParam = customParam,
         )
-        submitSingleEndpoint(
-            label = "primary",
-            requestUrl = requestUrl,
-            requestBodyJson = requestBodyJson,
-            handle = handle,
-        ) { outcome ->
-            if (!outcome.success) {
+        val coordinator = DualEndpointSubmitCoordinator(
+            labels = listOf("primary", "backup"),
+        ) { outcomes ->
+            val primaryOutcome = outcomes.getValue("primary")
+            val backupOutcome = outcomes.getValue("backup")
+            if (primaryOutcome.success && backupOutcome.success) {
                 InspectionWorkflowSession.clearFinishSubmitProgress()
+                mainHandler.post { callback.onSuccess() }
+            } else {
+                InspectionWorkflowSession.clearFinishSubmitProgress()
+                Log.w(
+                    TAG,
+                    "finish final failed primarySuccess=${primaryOutcome.success} backupSuccess=${backupOutcome.success}",
+                )
                 deliverFailure(
                     callback,
-                    outcome.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                    firstFailureMessage(primaryOutcome, backupOutcome),
                 )
-                return@submitSingleEndpoint
             }
-            Log.i(TAG, "finish primary success attempts=${outcome.attemptCount}")
-            InspectionWorkflowSession.markFinishSubmitPrimaryDone()
-            submitBackup(
-                authCode = authCode,
-                objectId = objectId,
-                userId = userId,
-                customParam = customParam,
-                handle = handle,
-                callback = callback,
-            )
         }
-    }
 
-    private fun submitBackup(
-        authCode: String,
-        objectId: String,
-        userId: String,
-        customParam: String,
-        handle: RetryRequestHandle,
-        callback: Callback,
-    ) {
-        val requestBodyJson = InspectionFinishApiProtocol.buildRequestBodyJson(
-            gson = gson,
-            authCode = authCode,
-            objectId = objectId,
-            userId = userId,
-            customParam = customParam,
-        )
+        if (primaryUrl == null) {
+            coordinator.record(
+                label = "primary",
+                outcome = RetryOutcome(
+                    success = false,
+                    message = InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                    attemptCount = 0,
+                ),
+            )
+        } else {
+            submitSingleEndpoint(
+                label = "primary",
+                requestUrl = primaryUrl,
+                requestBodyJson = requestBodyJson,
+                handle = handle,
+            ) { outcome ->
+                if (outcome.success) {
+                    Log.i(TAG, "finish primary success attempts=${outcome.attemptCount}")
+                    InspectionWorkflowSession.markFinishSubmitPrimaryDone()
+                }
+                coordinator.record(label = "primary", outcome = outcome)
+            }
+        }
         submitSingleEndpoint(
             label = "backup",
             requestUrl = InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
             requestBodyJson = requestBodyJson,
             handle = handle,
         ) { outcome ->
-            if (!outcome.success) {
-                InspectionWorkflowSession.markFinishSubmitPrimaryDone()
-                deliverFailure(
-                    callback,
-                    outcome.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
-                )
-                return@submitSingleEndpoint
+            if (outcome.success) {
+                Log.i(TAG, "finish backup success attempts=${outcome.attemptCount}")
+                InspectionWorkflowSession.markFinishSubmitBackupDone()
             }
-            Log.i(TAG, "finish backup success attempts=${outcome.attemptCount}")
-            InspectionWorkflowSession.markFinishSubmitBackupDone()
-            InspectionWorkflowSession.clearFinishSubmitProgress()
-            mainHandler.post { callback.onSuccess() }
+            coordinator.record(label = "backup", outcome = outcome)
         }
+        return handle
     }
 
     private fun submitSingleEndpoint(
@@ -162,7 +125,6 @@ object InspectionFinishService {
             label = "finish-$label",
             handle = handle,
             attemptBlock = { attempt, completion ->
-                Log.i(TAG, "finish request endpoint=$label attempt=$attempt url=$requestUrl")
                 val request = Request.Builder()
                     .url(requestUrl)
                     .header("Content-Type", "application/json")
@@ -222,11 +184,16 @@ object InspectionFinishService {
     ) {
         mainHandler.post { callback.onError(message) }
     }
+
+    private fun firstFailureMessage(vararg outcomes: RetryOutcome): String {
+        return outcomes.firstOrNull { !it.success }?.message
+            ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE
+    }
 }
 
 internal object InspectionFinishApiProtocol {
     internal const val DEFAULT_FAILURE_MESSAGE = "结束巡检失败，请重试"
-    internal const val BACKUP_REQUEST_URL = "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/hazardIsEnd"
+    internal const val BACKUP_REQUEST_URL = "${HttpUtils.BACKUP_BASE_URL}/hxy/apis/hazardCheckRecord/hazardIsEnd"
     internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
     private const val IF_END_VALUE = "1"
 

@@ -71,6 +71,7 @@ object InspectionWorkflowSession {
     var finishSubmitProgress: DualSubmitProgress = DualSubmitProgress()
         private set
     private val savedHazardJpegList = mutableListOf<ByteArray>()
+    private val backgroundSavedHazardKeys = mutableSetOf<String>()
     val savedHazardJpegs: List<ByteArray>
         get() = savedHazardJpegList.map { it.copyOf() }
     var summary: InspectionSummary = InspectionSummary()
@@ -183,6 +184,22 @@ object InspectionWorkflowSession {
         savedHazardJpegList.add(jpegBytes.copyOf())
     }
 
+    fun recordSavedHazardCaptureOnce(
+        taskKey: String,
+        jpegBytes: ByteArray?,
+        hazardCount: Int = 1,
+    ): Boolean {
+        if (taskKey.isBlank() || jpegBytes == null || jpegBytes.isEmpty()) {
+            return false
+        }
+        if (!backgroundSavedHazardKeys.add(taskKey)) {
+            return false
+        }
+        savedHazardJpegList.add(jpegBytes.copyOf())
+        summary = summary.copy(hasHazardCount = summary.hasHazardCount + hazardCount.coerceAtLeast(0))
+        return true
+    }
+
     fun updateSummary(transform: (InspectionSummary) -> InspectionSummary) {
         summary = transform(summary)
     }
@@ -198,6 +215,7 @@ object InspectionWorkflowSession {
         clearPhoneSyncProgress()
         clearFinishSubmitProgress()
         savedHazardJpegList.clear()
+        backgroundSavedHazardKeys.clear()
         summary = InspectionSummary()
     }
 

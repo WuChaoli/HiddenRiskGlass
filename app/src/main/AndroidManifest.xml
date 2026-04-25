@@ -155,6 +155,10 @@
             android:exported="true"
             android:foregroundServiceType="connectedDevice|location|microphone|dataSync|camera"
             tools:ignore="ForegroundServicePermission" />
+        <service
+            android:name="com.rokid.glass.hiddenrisk.InspectionBackgroundUploadService"
+            android:enabled="true"
+            android:exported="false" />
         <activity
             android:name="com.rokid.glass.TestMediaActivity"
             android:exported="true" />

@@ -12,7 +12,8 @@ class HttpUtils {
     companion object {
         private const val TAG = "HttpUtils"
         const val PRIMARY_SAVE_RESULT_URL = "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave"
-        const val BACKUP_SAVE_RESULT_URL = "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/saveHazard"
+        const val BACKUP_BASE_URL = "http://183.147.142.133:7443"
+        const val BACKUP_SAVE_RESULT_URL = "$BACKUP_BASE_URL/hxy/apis/hazardCheckRecord/saveHazard"
 
         private val client = OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
