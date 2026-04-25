@@ -228,18 +228,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val matchedItem: String,
         val score: Float,
     ) {
-        fun uniqueKey(): String {
-            return listOf(
-                matchedItem.trim(),
-                info.requestHidNum().trim(),
-                info.requestDescription().trim(),
-                info.requestAdvice().trim(),
-                info.requestModify().trim(),
-                info.requestHidLevel().trim(),
-                info.requestLawBasis().trim(),
-            ).joinToString(separator = "|")
-        }
-
         fun toResolvedItem(): ResolvedHazardItem {
             return info.toResolvedItem(matchedItem)
         }
@@ -415,6 +403,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var localHazardAlertTtsPlayed = false
     private var localHazardAdviceTtsPlayed = false
     private var streamAutoScrollLocked = false
+    private var streamPanelAnchoredBelowPreview = false
     private var pendingAutoHazardPresentation: PendingAutoHazardPresentation? = null
     private val localLabelCooldownUntilMs = linkedMapOf<String, Long>()
     private val localHazardInfoByItem: Map<String, List<LocalHazardInfo>> by lazy {
@@ -1514,6 +1503,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun showPage(state: PageState) {
         pageState = state
+        if (state != PageState.STREAM_RESPONSE) {
+            streamPanelAnchoredBelowPreview = false
+        }
         cameraRecoveryController.setRecoveryEnabled(
             debugSnapshotState == null &&
                 state == PageState.DETECTING &&
@@ -1784,9 +1776,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun isFixedResultPanelMode(): Boolean {
+        val hasLocalResult =
+            localResultStage == LocalResultStage.DESCRIPTION || localResultStage == LocalResultStage.ADVICE
         return pageState == PageState.STREAM_RESPONSE &&
-            !streamingInProgress &&
-            (localResultStage == LocalResultStage.DESCRIPTION || localResultStage == LocalResultStage.ADVICE)
+            (streamPanelAnchoredBelowPreview ||
+                (!streamingInProgress && hasLocalResult))
     }
 
     private fun previewBottomOffsetPx(): Int {
@@ -2039,8 +2033,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (localHazardInfoByItem.isEmpty()) {
             return emptyList()
         }
-        val deduped = linkedMapOf<String, LocalHazardMatch>()
-        snapshot.detections
+        val matches = snapshot.detections
             .flatMap { detection ->
                 val displayLabel = HiddenRiskMultiOverlayRenderer.labelFor(detection)
                 val matchedItem = sequenceOf(detection.label, displayLabel)
@@ -2052,14 +2045,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     LocalHazardMatch(info = info, matchedItem = matchedItem, score = detection.score)
                 }
             }
-            .forEach { match ->
-                val key = match.uniqueKey()
-                val previous = deduped[key]
-                if (previous == null || match.score > previous.score) {
-                    deduped[key] = match
-                }
-            }
-        return deduped.values.sortedByDescending { it.score }
+        return LocalHazardResultDeduper.dedupeByHidNumKeepingHighestScore(
+            matches = matches,
+            hidNumOf = { it.info.requestHidNum() },
+            scoreOf = { it.score },
+        ).sortedByDescending { it.score }
     }
 
     private fun buildLocalResolvedContent(
@@ -2745,6 +2735,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun clearLocalHazardResultState() {
         clearPendingAutoHazardPresentation()
+        streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
@@ -3026,7 +3017,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
         renderLocalDescriptionGuide()
-        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_prepare_image))
+        streamPanelAnchoredBelowPreview = true
+        applyCurrentStreamPanelLayout()
         streamingInProgress = true
         streamCallbackActive = true
         bottomPromptSync.visibility = View.GONE
@@ -3063,9 +3055,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             callback = object : AiArSseService.DetailCallback {
                 override fun onOpened(handle: AiArSseService.RequestHandle) {
                     Log.d(TAG, "manual ai/ar opened taskId=${handle.taskId}")
-                    uiHandler.post {
-                        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_analyzing))
-                    }
                 }
 
                 override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
