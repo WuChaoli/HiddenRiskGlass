@@ -2601,6 +2601,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun advanceToLocalHazardAdvice() {
+        val hazardContent = activeHazardContent ?: return
+        if (hazardContent.source == HazardSource.ONLINE) {
+            requestOnlineHazardAdvice(hazardContent)
+            return
+        }
         showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
     }
 
@@ -2719,6 +2724,114 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         renderLocalAdvicePrompt()
         refreshInputActions()
+    }
+
+    private fun requestOnlineHazardAdvice(hazardContent: ResolvedHazardContent) {
+        if (localResultStage != LocalResultStage.DESCRIPTION) return
+        val sourceText = hazardContent.rawDetailText.trim()
+            .ifBlank { hazardContent.displayDescription().trim() }
+        if (sourceText.isBlank()) {
+            showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
+            return
+        }
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
+        activeStreamRequestId += 1
+        val requestId = activeStreamRequestId
+        localSaveSubmitting = false
+        localResultStage = LocalResultStage.ADVICE
+        streamingInProgress = true
+        streamCallbackActive = true
+        pendingStreamStart = false
+        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_fetching_advice))
+        hideActionPrompts()
+        refreshInputActions()
+        if (!localHazardAdviceTtsPlayed) {
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
+                ownerTag = TAG,
+                message = getString(R.string.offline_tts_hazard_advice_intro),
+            )
+        }
+        currentManualAnalysisHandle = aiArSseService.fetchHazardAdvice(
+            text = sourceText,
+            onChunk = { partialText ->
+                Log.d(TAG, "online advice chunk length=${partialText.length}")
+                uiHandler.post {
+                    if (!shouldDeliverStreamRequest(requestId)) {
+                        return@post
+                    }
+                    updateStreamingText(OnlineHazardAdviceFormatter.format(partialText))
+                }
+            },
+            callback = object : AiArSseService.DetailCallback {
+                override fun onOpened(handle: AiArSseService.RequestHandle) {
+                    Log.d(TAG, "online advice opened taskId=${handle.taskId}")
+                }
+
+                override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
+                    Log.d(TAG, "online advice closed taskId=${handle.taskId}")
+                    uiHandler.post {
+                        if (currentManualAnalysisHandle != handle || requestId != activeStreamRequestId) {
+                            return@post
+                        }
+                        currentManualAnalysisHandle = null
+                        handleOnlineAdviceSuccess(
+                            hazardContent = hazardContent,
+                            adviceText = fullText,
+                        )
+                    }
+                }
+
+                override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
+                    Log.e(TAG, "online advice failed taskId=${handle.taskId} message=$message")
+                    uiHandler.post {
+                        if (currentManualAnalysisHandle == handle) {
+                            currentManualAnalysisHandle = null
+                        }
+                        handleOnlineAdviceFailure(message)
+                    }
+                }
+            },
+        )
+    }
+
+    private fun handleOnlineAdviceSuccess(
+        hazardContent: ResolvedHazardContent,
+        adviceText: String,
+    ) {
+        streamCallbackActive = false
+        streamingInProgress = false
+        val displayAdviceText = OnlineHazardAdviceFormatter.format(adviceText)
+            .ifBlank { hazardContent.displayAdvice() }
+        setStreamContentAndResetViewport(displayAdviceText)
+        val descriptionText = hazardContent.displayDescription()
+        lastAnalysisText = listOf(descriptionText, displayAdviceText)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString("\n\n")
+        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        renderLocalAdvicePrompt()
+        refreshInputActions()
+    }
+
+    private fun handleOnlineAdviceFailure(message: String) {
+        streamCallbackActive = false
+        streamingInProgress = false
+        pendingStreamStart = false
+        localResultStage = LocalResultStage.DESCRIPTION
+        val fallback = activeHazardContent?.displayDescription().orEmpty()
+        if (fallback.isNotBlank()) {
+            setStreamContentAndResetViewport(fallback)
+        }
+        renderLocalDescriptionPrompt()
+        refreshInputActions()
+        SpriteToastUtil.showSpriteToastOld(
+            this,
+            message.ifBlank { getString(R.string.ai_inspection_online_advice_fetch_failed) },
+            R.drawable.ic_warning_triangle,
+            LOCAL_SAVE_SUCCESS_TOAST_MS,
+            false,
+        )
     }
 
     private fun showLocalSaveError(message: String) {

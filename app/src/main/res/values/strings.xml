@@ -176,6 +176,8 @@
     <string name="ai_inspection_online_fetching_detail">正在拉取在线隐患详情...</string>
     <string name="ai_inspection_online_prepare_image">正在准备图像...</string>
     <string name="ai_inspection_online_analyzing">正在分析隐患...</string>
+    <string name="ai_inspection_online_fetching_advice">正在生成整改建议...</string>
+    <string name="ai_inspection_online_advice_fetch_failed">整改建议获取失败，请重试</string>
     <string name="ai_inspection_online_detail_parse_failed">在线详情解析失败</string>
     <string name="ai_inspection_online_detail_fetch_failed">在线详情获取失败，请重试</string>
     <string name="ai_inspection_online_image_encode_failed">图像编码失败</string>

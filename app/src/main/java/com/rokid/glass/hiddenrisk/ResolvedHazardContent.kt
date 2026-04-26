@@ -98,9 +98,7 @@ data class ResolvedHazardContent(
             hazard.hidLevel.trim().takeIf { it.isNotBlank() }?.let { add("隐患等级：${levelLabel(it)}") }
             hazard.lawBasis.trim().takeIf { it.isNotBlank() }?.let { add("主要依据：$it") }
             hazard.hidNum.trim().takeIf { it.isNotBlank() }?.let { add("隐患编号：$it") }
-            if (source == HazardSource.LOCAL) {
-                hazard.uploadAdvice.trim().takeIf { it.isNotBlank() }?.let { add("整改建议：$it") }
-            }
+            hazard.uploadAdvice.trim().takeIf { it.isNotBlank() }?.let { add("整改建议：$it") }
         }.joinToString("\n")
     }
 

@@ -41,9 +41,10 @@ class AiArSseService(
 
     data class RequestPayload(
         val task_id: String,
-        val image: String,
         val stream: Boolean = true,
         val ctype: Int,
+        val image: String? = null,
+        val text: String? = null,
     )
 
     class RequestHandle(
@@ -82,7 +83,7 @@ class AiArSseService(
         val aggregator = AiArEventAggregator(gson)
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, image = base64Image, ctype = CTYPE_HAS_HAZARD),
+            payload = RequestPayload(task_id = taskId, ctype = CTYPE_HAS_HAZARD, image = base64Image),
             onOpened = { callback.onOpened(handle) },
             onClosed = { fullText ->
                 val hasHazard = parseHasHazard(fullText)
@@ -106,7 +107,31 @@ class AiArSseService(
         val aggregator = AiArEventAggregator(gson)
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, image = base64Image, ctype = CTYPE_DETAIL),
+            payload = RequestPayload(task_id = taskId, ctype = CTYPE_DETAIL, image = base64Image),
+            onOpened = { callback.onOpened(handle) },
+            onChunk = onChunk,
+            onClosed = { fullText ->
+                callback.onSuccess(handle, fullText)
+            },
+            onFailure = { message ->
+                callback.onFailure(handle, message)
+            },
+            aggregator = aggregator,
+        )
+        return handle
+    }
+
+    fun fetchHazardAdvice(
+        text: String,
+        onChunk: (String) -> Unit = {},
+        callback: DetailCallback,
+    ): RequestHandle {
+        val taskId = System.currentTimeMillis().toString()
+        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_ADVICE)
+        val aggregator = AiArEventAggregator(gson)
+        openStream(
+            handle = handle,
+            payload = RequestPayload(task_id = taskId, ctype = CTYPE_ADVICE, text = text),
             onOpened = { callback.onOpened(handle) },
             onChunk = onChunk,
             onClosed = { fullText ->
@@ -267,6 +292,7 @@ class AiArSseService(
         private const val DONE_SENTINEL = "[DONE]"
         private const val CTYPE_DETAIL = 0
         private const val CTYPE_HAS_HAZARD = 1
+        private const val CTYPE_ADVICE = 2
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
     }
 }

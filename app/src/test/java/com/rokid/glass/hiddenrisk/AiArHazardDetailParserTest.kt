@@ -64,6 +64,50 @@ class AiArHazardDetailParserTest {
     }
 
     @Test
+    fun parse_extractsMultipleHazardsAndAdviceUsesFirstHazardOnly() {
+        val parsed = AiArHazardDetailParser.parse(
+            text = """
+                隐患描述：燃气灶未配置熄火保护装置
+                隐患等级：一般隐患
+                主要依据：GB 55009-2021 第 6.1.2 条
+                整改建议：立即更换合规灶具
+                隐患编号：ZJYJ-001
+
+                隐患描述：配电箱前堆放杂物
+                隐患等级：重大隐患
+                主要依据：《消防法》第 27 条
+                整改建议：清理配电箱周边杂物
+                隐患编号：ZJYJ-002
+            """.trimIndent(),
+            jpegBytes = byteArrayOf(1),
+        )
+
+        val hazards = parsed.resolvedHazards()
+        assertEquals(2, hazards.size)
+        assertEquals("燃气灶未配置熄火保护装置", hazards[0].description)
+        assertEquals("1", hazards[0].hidLevel)
+        assertEquals("GB 55009-2021 第 6.1.2 条", hazards[0].lawBasis)
+        assertEquals("立即更换合规灶具", hazards[0].advice)
+        assertEquals("ZJYJ-001", hazards[0].hidNum)
+        assertEquals("配电箱前堆放杂物", hazards[1].description)
+        assertEquals("2", hazards[1].hidLevel)
+        assertEquals("《消防法》第 27 条", hazards[1].lawBasis)
+        assertEquals("清理配电箱周边杂物", hazards[1].advice)
+        assertEquals("ZJYJ-002", hazards[1].hidNum)
+
+        val description = parsed.displayDescription()
+        assertTrue(description.contains("隐患1\n隐患描述：燃气灶未配置熄火保护装置"))
+        assertTrue(description.contains("整改建议：立即更换合规灶具"))
+        assertTrue(description.contains("\n\n隐患2\n隐患描述：配电箱前堆放杂物"))
+        assertTrue(description.contains("整改建议：清理配电箱周边杂物"))
+        assertEquals(
+            "基于上述隐患，建议您重点关注以下问题：\n立即更换合规灶具",
+            parsed.displayAdvice(),
+        )
+        assertFalse(parsed.displayAdvice().contains("清理配电箱周边杂物"))
+    }
+
+    @Test
     fun parse_keepsRawTextWhenNoStructuredLabelsFound() {
         val text = "现场存在杂物堆积和电线裸露，建议尽快整改。"
         val parsed = AiArHazardDetailParser.parse(

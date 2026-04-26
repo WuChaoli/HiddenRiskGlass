@@ -194,7 +194,7 @@ static inline bool is_filtered_label(int label)
     case 15: // nozzle              水枪
     case 17: // lpg_cylinder        液化石油气瓶
     case 18: // extinguisher        灭火器
-    case 20: // charcoal_stove      炭炉
+    case 22: // coal_stove          煤炉
     case 24: // flameout_protection 熄火保护装置
     case 25: // gas_range           燃气灶
     case 26: // electric_tricycle   电动三轮车

@@ -17,35 +17,61 @@ object AiArHazardDetailParser {
         require(normalizedText.isNotBlank()) { "在线详情为空" }
 
         val matches = labelRegex.findAll(normalizedText).toList()
-        val fields = linkedMapOf<String, String>()
+        val hazards = mutableListOf<ResolvedHazardItem>()
+        var fields = linkedMapOf<String, String>()
         matches.forEachIndexed { index, match ->
             val label = match.groupValues[1]
             val valueStart = match.range.last + 1
             val valueEnd = matches.getOrNull(index + 1)?.range?.first ?: normalizedText.length
+            if (label == "隐患描述" && fields.isNotEmpty()) {
+                fields.toResolvedHazard(displayTitle)
+                    .takeIf { it.hasStructuredFields() }
+                    ?.let(hazards::add)
+                fields = linkedMapOf()
+            }
             fields[label] = normalizedText.substring(valueStart, valueEnd).trim()
         }
+        fields.toResolvedHazard(displayTitle)
+            .takeIf { it.hasStructuredFields() }
+            ?.let(hazards::add)
 
-        val resolvedHazard = ResolvedHazardItem(
-            displayTitle = displayTitle,
-            description = fields["隐患描述"].orEmpty(),
-            advice = fields["整改建议"].orEmpty(),
-            uploadAdvice = fields["整改建议"].orEmpty(),
-            hidLevel = ResolvedHazardContent.levelCode(fields["隐患等级"].orEmpty()),
-            hidNum = fields["隐患编号"].orEmpty(),
-            lawBasis = fields["主要依据"].orEmpty(),
-        )
+        val primaryHazard = hazards.firstOrNull() ?: emptyResolvedHazard(displayTitle)
         return ResolvedHazardContent(
             source = HazardSource.ONLINE,
-            description = resolvedHazard.description,
-            advice = resolvedHazard.advice,
-            uploadAdvice = resolvedHazard.uploadAdvice,
-            hidLevel = resolvedHazard.hidLevel,
-            hidNum = resolvedHazard.hidNum,
-            lawBasis = resolvedHazard.lawBasis,
+            description = primaryHazard.description,
+            advice = primaryHazard.advice,
+            uploadAdvice = primaryHazard.uploadAdvice,
+            hidLevel = primaryHazard.hidLevel,
+            hidNum = primaryHazard.hidNum,
+            lawBasis = primaryHazard.lawBasis,
             displayTitle = displayTitle,
             jpegBytes = jpegBytes.copyOf(),
             rawDetailText = normalizedText,
-            hazards = if (resolvedHazard.hasStructuredFields()) listOf(resolvedHazard) else emptyList(),
+            hazards = hazards,
+        )
+    }
+
+    private fun Map<String, String>.toResolvedHazard(displayTitle: String): ResolvedHazardItem {
+        return ResolvedHazardItem(
+            displayTitle = displayTitle,
+            description = this["隐患描述"].orEmpty(),
+            advice = this["整改建议"].orEmpty(),
+            uploadAdvice = this["整改建议"].orEmpty(),
+            hidLevel = ResolvedHazardContent.levelCode(this["隐患等级"].orEmpty()),
+            hidNum = this["隐患编号"].orEmpty(),
+            lawBasis = this["主要依据"].orEmpty(),
+        )
+    }
+
+    private fun emptyResolvedHazard(displayTitle: String): ResolvedHazardItem {
+        return ResolvedHazardItem(
+            displayTitle = displayTitle,
+            description = "",
+            advice = "",
+            uploadAdvice = "",
+            hidLevel = "",
+            hidNum = "",
+            lawBasis = "",
         )
     }
 }
