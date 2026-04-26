@@ -6,8 +6,10 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.util.TypedValue
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.input.UnifiedInputSession
@@ -17,11 +19,15 @@ import com.rokid.glesse.R
 class EnterpriseInfoActivity : BaseGlassActivity() {
 
     private lateinit var tvCompanyName: TextView
+    private lateinit var infoTextViews: List<TextView>
     private lateinit var tvRegion: TextView
     private lateinit var tvCategory: TextView
     private lateinit var tvRiskTags: TextView
     private lateinit var tvRiskLevel: TextView
     private lateinit var tvRecentInspectionTime: TextView
+    private lateinit var viewHazardDivider: View
+    private lateinit var tvHazardHistoryTitle: TextView
+    private lateinit var scrollHazardHistory: View
     private lateinit var hazardListContainer: LinearLayout
     private lateinit var statusBar: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
@@ -36,8 +42,19 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         tvRiskTags = findViewById(R.id.tvRiskTags)
         tvRiskLevel = findViewById(R.id.tvRiskLevel)
         tvRecentInspectionTime = findViewById(R.id.tvRecentInspectionTime)
+        infoTextViews = listOf(
+            tvRegion,
+            tvCategory,
+            tvRiskTags,
+            tvRiskLevel,
+            tvRecentInspectionTime,
+        )
+        viewHazardDivider = findViewById(R.id.viewHazardDivider)
+        tvHazardHistoryTitle = findViewById(R.id.tvHazardHistoryTitle)
+        scrollHazardHistory = findViewById(R.id.scrollHazardHistory)
         hazardListContainer = findViewById(R.id.hazardListContainer)
         statusBar = findViewById(R.id.statusBar)
+        applyLayoutMode(DEFAULT_LAYOUT_MODE)
         updateBatteryLevel()
 
         // debug模式：从Intent读取测试数据
@@ -102,6 +119,39 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
             tvHazard.text = hazard
             hazardListContainer.addView(itemView)
         }
+    }
+
+    /**
+     * 根据当前布局模式切换页面显示方案。
+     */
+    private fun applyLayoutMode(layoutMode: EnterpriseInfoLayoutMode) {
+        val showHazardHistory = layoutMode == EnterpriseInfoLayoutMode.LEGACY
+        val companyNameSizeSp = if (layoutMode == EnterpriseInfoLayoutMode.NEW) {
+            COMPANY_NAME_TEXT_SIZE_NEW_SP
+        } else {
+            COMPANY_NAME_TEXT_SIZE_LEGACY_SP
+        }
+        val infoTextSizeSp = if (layoutMode == EnterpriseInfoLayoutMode.NEW) {
+            INFO_TEXT_SIZE_NEW_SP
+        } else {
+            INFO_TEXT_SIZE_LEGACY_SP
+        }
+        val infoLineSpacingExtraDp = if (layoutMode == EnterpriseInfoLayoutMode.NEW) {
+            INFO_LINE_SPACING_EXTRA_NEW_DP
+        } else {
+            INFO_LINE_SPACING_EXTRA_LEGACY_DP
+        }
+
+        tvCompanyName.setTextSize(TypedValue.COMPLEX_UNIT_SP, companyNameSizeSp)
+        infoTextViews.forEach { textView ->
+            textView.setTextSize(TypedValue.COMPLEX_UNIT_SP, infoTextSizeSp)
+            textView.setLineSpacing(dpToPx(infoLineSpacingExtraDp), 1f)
+        }
+
+        val hazardVisibility = if (showHazardHistory) View.VISIBLE else View.GONE
+        viewHazardDivider.visibility = hazardVisibility
+        tvHazardHistoryTitle.visibility = hazardVisibility
+        scrollHazardHistory.visibility = hazardVisibility
     }
 
     override fun onResume() {
@@ -194,9 +244,31 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         }
     }
 
+    /**
+     * dp 转 px，保证运行时行间距在不同密度设备上表现一致。
+     */
+    private fun dpToPx(dp: Float): Float {
+        return dp * resources.displayMetrics.density
+    }
+
     companion object {
         private const val TAG = "EnterpriseInfoActivity"
         private const val MAX_HAZARD_HISTORY_DISPLAY_COUNT = 3
         private const val RECENT_INSPECTION_TIME = "最近巡查时间：2026年1月21日"
+        private const val COMPANY_NAME_TEXT_SIZE_LEGACY_SP = 20f
+        private const val COMPANY_NAME_TEXT_SIZE_NEW_SP = 24f
+        private const val INFO_TEXT_SIZE_LEGACY_SP = 11f
+        private const val INFO_TEXT_SIZE_NEW_SP = 17f
+        private const val INFO_LINE_SPACING_EXTRA_LEGACY_DP = 0f
+        private const val INFO_LINE_SPACING_EXTRA_NEW_DP = 6f
+        private val DEFAULT_LAYOUT_MODE = EnterpriseInfoLayoutMode.NEW
+    }
+
+    /**
+     * 企业详情页布局模式。
+     */
+    private enum class EnterpriseInfoLayoutMode {
+        LEGACY,
+        NEW,
     }
 }
