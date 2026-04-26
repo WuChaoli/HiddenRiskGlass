@@ -15,23 +15,19 @@
         <FrameLayout
             android:id="@+id/scanFrame"
             android:layout_width="220dp"
-            android:layout_height="220dp"
-            android:background="@drawable/glass_scan_frame">
+            android:layout_height="220dp">
 
             <!-- 相机预览 -->
             <com.rokid.glass.component.RokidCameraPreviewView
                 android:id="@+id/cameraPreviewView"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="4dp" />
+                android:layout_height="match_parent" />
 
             <!-- 取景框覆盖层（扫描时显示） -->
             <View
                 android:id="@+id/viewfinder"
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="4dp"
-                android:background="@drawable/lightshot_viewfinder" />
+                android:layout_height="match_parent" />
 
             <!-- 扫描提示（在框内底部） -->
             <TextView

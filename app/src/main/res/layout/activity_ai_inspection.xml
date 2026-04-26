@@ -154,15 +154,12 @@
             android:layout_height="@dimen/inspection_result_thumbnail_card_size"
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="@dimen/inspection_result_thumbnail_margin_top"
-            android:background="@drawable/glass_card_outline"
-            android:padding="4dp"
             android:visibility="gone">
 
             <FrameLayout
                 android:id="@+id/layoutStreamThumbnailPlaceholder"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:background="@drawable/inspection_thumbnail_placeholder_bg"
                 android:visibility="visible">
 
                 <ImageView
@@ -337,8 +334,6 @@
         android:layout_gravity="top|start"
         android:layout_marginStart="@dimen/inspection_preview_card_margin_start"
         android:layout_marginTop="@dimen/inspection_preview_card_margin_top"
-        android:background="@drawable/glass_card_outline"
-        android:padding="4dp"
         android:visibility="invisible">
 
         <com.rokid.glass.component.RokidCameraPreviewView

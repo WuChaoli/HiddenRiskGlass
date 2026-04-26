@@ -81,6 +81,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val GPU_PROFILE_BALANCED_FP16 = 1
         private const val DEFAULT_TARGET_INPUT_SIZE = 640
         private const val ENABLE_HIT_CAPTURE_SAVE = false
+        private const val ENABLE_ONLINE_ADVICE_PAGE = false
         private const val STALE_FRAME_THRESHOLD_MS = 1200L
         private const val ONLINE_JPEG_QUALITY = 97
         private const val ONLINE_SELECT_WINDOW_MS = 240L
@@ -2671,7 +2672,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         if (hazardContent.source == HazardSource.ONLINE) {
+            if (!ENABLE_ONLINE_ADVICE_PAGE) {
+                returnToDetecting()
+                return
+            }
             requestOnlineHazardAdvice(hazardContent)
+            return
+        }
+        if (hazardContent.displayAdvice().isBlank()) {
+            returnToDetecting()
             return
         }
         showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
