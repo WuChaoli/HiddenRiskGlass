@@ -342,6 +342,11 @@ object RokidFrameSource {
         }?.releaseSurface()
     }
 
+    /**
+     * 自动检测主链路使用的统一方形裁剪矩形。
+     * AiInspectionActivity 中本地推理方图与自动在线上传方图都依赖这里，后续若调整取景策略，
+     * 必须同步评估本地与在线两条自动检测链路，避免只改其中一侧。
+     */
     fun calculateSquareCropRect(width: Int, height: Int): Rect {
         if (width <= 0 || height <= 0) {
             return Rect(0, 0, 0, 0)

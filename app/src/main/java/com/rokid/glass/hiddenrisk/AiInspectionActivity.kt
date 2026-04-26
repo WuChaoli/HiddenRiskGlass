@@ -301,6 +301,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var layoutStreamResponse: FrameLayout
     private lateinit var layoutStreamContentContainer: LinearLayout
     private lateinit var layoutStreamThumbnailCard: FrameLayout
+    private lateinit var layoutStreamThumbnailPlaceholder: FrameLayout
     private lateinit var streamTopSpacer: View
     private lateinit var streamBottomSpacer: View
     private lateinit var tvStreamContent: TextView
@@ -531,6 +532,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutStreamResponse = findViewById(R.id.layoutStreamResponse)
         layoutStreamContentContainer = findViewById(R.id.layoutStreamContentContainer)
         layoutStreamThumbnailCard = findViewById(R.id.layoutStreamThumbnailCard)
+        layoutStreamThumbnailPlaceholder = findViewById(R.id.layoutStreamThumbnailPlaceholder)
         streamTopSpacer = findViewById(R.id.streamTopSpacer)
         streamBottomSpacer = findViewById(R.id.streamBottomSpacer)
         tvStreamContent = findViewById(R.id.tvStreamContent)
@@ -1168,6 +1170,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return frame
     }
 
+    /**
+     * 自动检测阶段的统一方图入口。
+     * 本地 NCNN 推理与自动在线判定都必须复用这份方图，避免出现“取帧区域不同”导致的链路分叉。
+     */
     private fun buildSquareFramePayload(frame: RokidFrameSource.Nv21Frame): SquareFramePayload? {
         val cropRect = RokidFrameSource.calculateSquareCropRect(frame.width, frame.height)
         if (cropRect.width() <= 0 || cropRect.height() <= 0) {
@@ -1197,6 +1203,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
+    /**
+     * 将统一方图编码为在线链路使用的 JPEG。
+     * 自动检测阶段这里与本地链路共享同一个 SquareFramePayload，差异仅在编码形式：
+     * 本地使用 NV21 缩放后直接推理，在线使用 JPEG 上传。
+     */
     private fun buildCapturedFramePayload(frame: SquareFramePayload): CapturedFramePayload? {
         val jpegBytes = BitmapUtils.encodeNv21CropRectToJpeg(
             nv21 = frame.nv21,
@@ -1462,8 +1473,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "start left-top live preview pageState=$pageState previewStarted=${viewLivePreview.isPreviewStarted()}",
         )
-        layoutLivePreviewCard.visibility = View.VISIBLE
-        viewLivePreview.visibility = View.VISIBLE
+        applyDetectionPreviewVisibility()
         viewLivePreview.post {
             if (!isActivityResumed || destroyed) {
                 Log.i(
@@ -1487,20 +1497,39 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 if (!success) {
                     Log.w(TAG, "left-top live preview start failed")
                 } else {
+                    applyDetectionPreviewVisibility()
                     Log.i(TAG, "left-top live preview ready pageState=$pageState")
                 }
             }
         }
     }
 
-    private fun stopDetectionPreview() {
+    private fun shouldKeepDetectionPreviewRunning(state: PageState = pageState): Boolean {
+        return state == PageState.DETECTING ||
+            (state == PageState.STREAM_RESPONSE && !isFixedResultPanelMode())
+    }
+
+    private fun shouldShowDetectionPreviewCard(state: PageState = pageState): Boolean {
+        return state == PageState.DETECTING ||
+            (state == PageState.STREAM_RESPONSE && !isFixedResultPanelMode())
+    }
+
+    private fun applyDetectionPreviewVisibility() {
+        val shouldShow = shouldShowDetectionPreviewCard()
+        layoutLivePreviewCard.visibility = if (shouldShow) View.VISIBLE else View.INVISIBLE
+        viewLivePreview.visibility = if (shouldShow) View.VISIBLE else View.INVISIBLE
+    }
+
+    private fun stopDetectionPreview(stopRenderer: Boolean = true) {
         Log.i(
             TAG,
-            "stop left-top live preview pageState=$pageState previewStarted=${viewLivePreview.isPreviewStarted()}",
+            "stop left-top live preview pageState=$pageState stopRenderer=$stopRenderer previewStarted=${viewLivePreview.isPreviewStarted()}",
         )
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
-        viewLivePreview.stopPreview()
+        if (stopRenderer) {
+            viewLivePreview.stopPreview()
+        }
     }
 
     private fun showPage(state: PageState) {
@@ -1526,14 +1555,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         bottomPromptSuccess.visibility = View.GONE
         val shouldShowLivePreview =
             state == PageState.DETECTING || state == PageState.STREAM_RESPONSE
+        val shouldKeepPreviewRunning = shouldKeepDetectionPreviewRunning(state)
         Log.i(
             TAG,
-            "showPage state=$state shouldShowLivePreview=$shouldShowLivePreview resumed=$isActivityResumed workflowActive=$isWorkflowActive",
+            "showPage state=$state shouldShowLivePreview=$shouldShowLivePreview shouldKeepPreviewRunning=$shouldKeepPreviewRunning resumed=$isActivityResumed workflowActive=$isWorkflowActive",
         )
         if (shouldShowLivePreview) {
             startDetectionPreviewIfNeeded()
         } else {
             stopDetectionPreview()
+        }
+        if (shouldShowLivePreview && !shouldKeepPreviewRunning) {
+            stopDetectionPreview(stopRenderer = false)
         }
         if (state != PageState.DETECTING) {
             hideStatusAlertOverlay()
@@ -1786,8 +1819,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun previewBottomOffsetPx(): Int {
-        return resources.getDimensionPixelSize(R.dimen.inspection_preview_card_margin_top) +
-            resources.getDimensionPixelSize(R.dimen.inspection_preview_card_size)
+        if (!isFixedResultPanelMode()) return 0
+        return resources.getDimensionPixelSize(R.dimen.inspection_result_thumbnail_margin_top) +
+            resources.getDimensionPixelSize(R.dimen.inspection_result_thumbnail_card_size) +
+            resources.getDimensionPixelSize(R.dimen.inspection_result_thumbnail_spacing_bottom)
     }
 
     private fun applyDefaultStreamPanelLayout() {
@@ -1819,6 +1854,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun applyCurrentStreamPanelLayout() {
+        applyDetectionPreviewVisibility()
+        layoutStreamThumbnailCard.visibility =
+            if (isFixedResultPanelMode()) View.VISIBLE else View.GONE
+        layoutStreamThumbnailPlaceholder.visibility =
+            if (isFixedResultPanelMode() && ivStreamThumbnail.visibility != View.VISIBLE) View.VISIBLE else View.GONE
         if (isFixedResultPanelMode()) {
             applyFixedResultStreamPanelLayout()
         } else {
@@ -1827,11 +1867,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun clearStreamThumbnailState() {
-        layoutStreamThumbnailCard.visibility = View.GONE
         ivStreamThumbnail.setImageBitmap(null)
         ivStreamThumbnail.visibility = View.GONE
+        layoutStreamThumbnailPlaceholder.visibility =
+            if (isFixedResultPanelMode()) View.VISIBLE else View.GONE
         currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
         currentStreamThumbnail = null
+        layoutStreamThumbnailCard.visibility =
+            if (isFixedResultPanelMode()) View.VISIBLE else View.GONE
     }
 
     private fun clearStreamResponseUiState() {
@@ -2166,6 +2209,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
     }
 
+    /**
+     * 自动检测阶段的在线提交入口。
+     * 这里直接复用当前检测周期的 SquareFramePayload 编 JPEG，不重新抓帧、不重新裁剪。
+     * 因此自动检测里的“本地识别图 vs 在线上传图”应共享同一时间点与同一 cropRect。
+     */
     private fun prepareCapturedPayloadForCycle(cycle: ScanCycle, frame: SquareFramePayload) {
         try {
             imageEncodeExecutor.execute {
@@ -2998,6 +3046,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     /**
      * 请求进入流式分析。
      * 若自动检测正在占用相机，则等待本轮检测完成后重新抓当前最新一帧进入流式。
+     * 注意：这里不是复用自动检测周期里的 SquareFramePayload，而是重新从最新原始帧里选帧。
+     * 因此手动流式分析链路允许与自动检测链路出现“时间点不同”的图像差异。
      */
     private fun requestStreamingAnalysis() {
         if (streamingInProgress || streamCallbackActive) {
@@ -3080,10 +3130,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ) ?: return
         uiHandler.post {
             layoutStreamThumbnailCard.visibility = View.VISIBLE
+            layoutStreamThumbnailPlaceholder.visibility = View.GONE
             ivStreamThumbnail.setImageBitmap(thumbnail)
             ivStreamThumbnail.visibility = View.VISIBLE
             currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
             currentStreamThumbnail = thumbnail
+            applyCurrentStreamPanelLayout()
+            adjustStreamScrollHeight()
         }
     }
 
@@ -3128,7 +3181,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     /**
      * 动态调整流式结果卡片高度：
-     * descrip/advice 固定在预览框下沿向下展开，其他状态维持底部半屏布局。
+     * descrip/advice 固定在结果缩略图下沿向下展开，其他状态维持底部半屏布局。
      */
     private fun adjustStreamScrollHeight() {
         scrollContent.post {
@@ -3168,10 +3221,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         canvas.drawText(getString(R.string.ai_inspection_debug_thumbnail_text), 60f, 65f, paint)
         layoutStreamThumbnailCard.visibility = View.VISIBLE
+        layoutStreamThumbnailPlaceholder.visibility = View.GONE
         ivStreamThumbnail.setImageBitmap(bitmap)
         ivStreamThumbnail.visibility = View.VISIBLE
         currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
         currentStreamThumbnail = bitmap
+        applyCurrentStreamPanelLayout()
+        adjustStreamScrollHeight()
     }
 
     private fun beginStreamingRequest() {
