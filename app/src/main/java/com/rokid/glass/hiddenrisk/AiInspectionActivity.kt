@@ -86,7 +86,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val ONLINE_SELECT_WINDOW_MS = 240L
         private const val ONLINE_SELECT_MAX_FRAMES = 3
         private const val ONLINE_SELECT_POLL_INTERVAL_MS = 80L
-        private val AUTO_INFERENCE_MODE = AutoInferenceMode.BOTH
+        private val AUTO_INFERENCE_MODE = AutoInferenceMode.BOTH // BOTH | ONLINE_ONLY | LOCAL_ONLY
     }
 
     private enum class AutoInferenceMode {
@@ -402,6 +402,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var localSaveSubmitting = false
     private var localHazardAutoSaveTaskKey: String? = null
     private var localHazardAlertTtsPlayed = false
+    private var pendingHazardAlertTtsPlayed = false
     private var localHazardAdviceTtsPlayed = false
     private var streamAutoScrollLocked = false
     private var streamPanelAnchoredBelowPreview = false
@@ -2319,6 +2320,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             ScanCycleOnlineState.NEGATIVE
         }
         cycle.onlineRawText = rawText
+        Log.i(
+            TAG,
+            "online detect result cycleId=${request.cycleId} hasHazard=$hasHazard state=${cycle.onlineState} rawText=${rawText.trim()}",
+        )
         evaluateScanCycle(cycle)
     }
 
@@ -2457,6 +2462,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             detectedAtElapsedMs = detectedAtElapsedMs,
             cycleId = cycle.id,
         )
+        playPendingHazardAlertIfNeeded()
         refreshPendingHazardAlertOverlay()
         schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
         refreshInputActions()
@@ -2471,7 +2477,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun presentResolvedHazardContent(result: ResolvedHazardContent) {
         stopLocalDetectionLoop("present_hazard_result")
-        playHazardAlertIfNeeded()
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         activeStreamRequestId += 1
@@ -2518,6 +2523,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             detectedAtElapsedMs = detectedAtElapsedMs,
             resolved = result,
         )
+        playPendingHazardAlertIfNeeded()
         refreshPendingHazardAlertOverlay()
         schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
         refreshInputActions()
@@ -2570,6 +2576,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 message = getString(R.string.offline_tts_hazard_alert),
             )
         }
+    }
+
+    private fun playPendingHazardAlertIfNeeded() {
+        if (pendingHazardAlertTtsPlayed) {
+            return
+        }
+        pendingHazardAlertTtsPlayed = true
+        playHazardAlertIfNeeded()
     }
 
     private fun handleStreamConfirmAction() {
@@ -2890,6 +2904,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
         localHazardAutoSaveTaskKey = null
+        pendingHazardAlertTtsPlayed = false
         localHazardAlertTtsPlayed = false
         localHazardAdviceTtsPlayed = false
     }
@@ -2907,6 +2922,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun clearPendingAutoHazardPresentation() {
         uiHandler.removeCallbacks(pendingAutoHazardPresentationRunnable)
         pendingAutoHazardPresentation = null
+        pendingHazardAlertTtsPlayed = false
         refreshPendingHazardAlertOverlay()
     }
 

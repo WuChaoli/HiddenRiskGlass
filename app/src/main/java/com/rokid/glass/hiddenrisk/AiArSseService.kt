@@ -87,6 +87,10 @@ class AiArSseService(
             onOpened = { callback.onOpened(handle) },
             onClosed = { fullText ->
                 val hasHazard = parseHasHazard(fullText)
+                Log.i(
+                    TAG,
+                    "detect closed taskId=$taskId hasHazard=$hasHazard fullText=${fullText.trim()}",
+                )
                 callback.onSuccess(handle, hasHazard, fullText)
             },
             onFailure = { message ->
