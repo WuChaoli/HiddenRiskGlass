@@ -83,6 +83,27 @@ data class ResolvedHazardContent(
         return structuredText.ifBlank { rawDetailText.trim() }
     }
 
+    /**
+     * 在线 description 页保留原始文字流，避免流结束后再被结构化文案替换。
+     */
+    fun descriptionPageText(): String {
+        return when (source) {
+            HazardSource.ONLINE -> rawDetailText.trim().ifBlank { displayDescription() }
+            HazardSource.LOCAL -> displayDescription()
+        }
+    }
+
+    /**
+     * 在线结果仅识别出一条且隐患编号为“无”时，视为无隐患，不进入 advice/保存链路。
+     */
+    fun isOnlineNoHazardResult(): Boolean {
+        if (source != HazardSource.ONLINE) {
+            return false
+        }
+        val hazards = resolvedHazards()
+        return hazards.size == 1 && hazards.first().hidNum.trim() == "无"
+    }
+
     fun displayAdvice(): String {
         val adviceText = primaryHazard()?.advice?.trim().orEmpty()
         return when {

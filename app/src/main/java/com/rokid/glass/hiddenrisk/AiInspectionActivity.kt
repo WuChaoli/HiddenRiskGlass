@@ -2499,13 +2499,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (result.jpegBytes.isNotEmpty()) {
             setStreamThumbnail(result.jpegBytes)
         }
-        val descriptionText = result.displayDescription()
+        val descriptionText = result.descriptionPageText()
         setStreamContentAndResetViewport(descriptionText)
         lastAnalysisText = descriptionText
         InspectionWorkflowSession.recordDetection(result.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
-        scheduleBackgroundLocalHazardSaveIfNeeded(result)
+        if (!result.isOnlineNoHazardResult()) {
+            scheduleBackgroundLocalHazardSaveIfNeeded(result)
+        }
         refreshInputActions()
     }
 
@@ -2602,6 +2604,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun advanceToLocalHazardAdvice() {
         val hazardContent = activeHazardContent ?: return
+        if (hazardContent.isOnlineNoHazardResult()) {
+            returnToDetecting()
+            return
+        }
         if (hazardContent.source == HazardSource.ONLINE) {
             requestOnlineHazardAdvice(hazardContent)
             return
@@ -2740,6 +2746,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val requestId = activeStreamRequestId
         localSaveSubmitting = false
         localResultStage = LocalResultStage.ADVICE
+        // 在线 advice 文字流也沿用固定结果布局，避免先半屏再下沉。
+        streamPanelAnchoredBelowPreview = true
         streamingInProgress = true
         streamCallbackActive = true
         pendingStreamStart = false
@@ -3238,13 +3246,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localResultStage = LocalResultStage.DESCRIPTION
         localSaveSubmitting = false
         sessionId = ""
-        val descriptionText = resolved.displayDescription()
+        val descriptionText = resolved.descriptionPageText()
         setStreamContentAndResetViewport(descriptionText)
         lastAnalysisText = descriptionText
         InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
-        scheduleBackgroundLocalHazardSaveIfNeeded(resolved)
+        if (!resolved.isOnlineNoHazardResult()) {
+            scheduleBackgroundLocalHazardSaveIfNeeded(resolved)
+        }
         refreshInputActions()
     }
 
