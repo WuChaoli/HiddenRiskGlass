@@ -198,10 +198,11 @@ class AiArSseService(
                     runCatching {
                         aggregator.append(normalizedData)
                         aggregator.fullText()
-                    }.onSuccess { partialText ->
+                    }.onSuccess { accumulatedText ->
                         mainHandler.post {
                             if (!handle.isCanceled() && !terminalDelivered.get()) {
-                                onChunk(partialText)
+                                // 详情流式阶段统一向上游传递累计全文，避免 UI 层重复拼接。
+                                onChunk(accumulatedText)
                             }
                         }
                     }.onFailure { error ->

@@ -284,7 +284,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         data class Online(
             override val detectedAtElapsedMs: Long,
             val cycleId: Long,
+            val jpegBytes: ByteArray,
             val resolved: ResolvedHazardContent? = null,
+            val streamedText: String = "",
+            val firstChunkReceived: Boolean = false,
+            val streamPageShown: Boolean = false,
         ) : PendingAutoHazardPresentation()
     }
 
@@ -357,6 +361,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     reason: String,
                 ) {
                     handleOnlineDetectionDropped(request, reason)
+                }
+
+                override fun onDetailChunk(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    accumulatedText: String,
+                ) {
+                    handleOnlineDetailChunk(request, accumulatedText)
                 }
 
                 override fun onDetailSuccess(
@@ -1141,8 +1152,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
-        val rawFrame = RokidFrameSource.copyLatestRawFrame() ?: return null
-        val frame = buildSquareFramePayload(rawFrame) ?: return null
+        val frame = RokidFrameSource.copyLatestSquareFrame()
+            ?.toSquareFramePayload()
+            ?: return null
         if (frame.timestamp <= lastConsumedFrameTimestamp) {
             Log.w(TAG, "drop frame reason=duplicate timestamp=${frame.timestamp} last=$lastConsumedFrameTimestamp")
             return null
@@ -1158,14 +1170,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return frame
     }
 
-    private fun copyLatestRawFrameForOnlineOrNull(): RokidFrameSource.Nv21Frame? {
+    private fun copyLatestSquareFrameForOnlineOrNull(): SquareFramePayload? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
-        val frame = RokidFrameSource.copyLatestRawFrame() ?: return null
+        val frame = RokidFrameSource.copyLatestSquareFrame()
+            ?.toSquareFramePayload()
+            ?: return null
         val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
         if (ageMs > STALE_FRAME_THRESHOLD_MS) {
-            Log.w(TAG, "drop online raw frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
+            Log.w(TAG, "drop online square frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
             return null
         }
         return frame
@@ -1204,6 +1218,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
+    private fun RokidFrameSource.SquareNv21Frame.toSquareFramePayload(): SquareFramePayload {
+        return SquareFramePayload(
+            nv21 = data,
+            width = width,
+            height = height,
+            timestamp = timestamp,
+            receivedAtElapsedMs = receivedAtElapsedMs,
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
+            cropRect = Rect(cropRect),
+            sharpnessScore = computeSquareFrameSharpnessScore(data, width, height),
+        )
+    }
+
     /**
      * 将统一方图编码为在线链路使用的 JPEG。
      * 自动检测阶段这里与本地链路共享同一个 SquareFramePayload，差异仅在编码形式：
@@ -1229,18 +1257,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    private fun buildOnlineFramePayload(frame: RokidFrameSource.Nv21Frame): CapturedFramePayload? {
-        val squareFrame = buildSquareFramePayload(frame) ?: return null
-        return buildCapturedFramePayload(squareFrame)
-    }
-
     private fun selectBestOnlineFramePayload(): CapturedFramePayload? {
         val deadline = SystemClock.elapsedRealtime() + ONLINE_SELECT_WINDOW_MS
-        var bestPayload: CapturedFramePayload? = null
+        var bestFrame: SquareFramePayload? = null
         var lastTimestamp = Long.MIN_VALUE
         var sampledFrames = 0
         while (sampledFrames < ONLINE_SELECT_MAX_FRAMES) {
-            val frame = copyLatestRawFrameForOnlineOrNull()
+            val frame = copyLatestSquareFrameForOnlineOrNull()
             if (frame == null || frame.timestamp <= lastTimestamp) {
                 if (SystemClock.elapsedRealtime() >= deadline) {
                     break
@@ -1249,21 +1272,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 continue
             }
             lastTimestamp = frame.timestamp
-            val payload = buildOnlineFramePayload(frame)
-            if (payload != null) {
-                sampledFrames += 1
-                if (bestPayload == null ||
-                    payload.sharpnessScore > bestPayload.sharpnessScore ||
-                    (payload.sharpnessScore == bestPayload.sharpnessScore && payload.timestamp > bestPayload.timestamp)
-                ) {
-                    bestPayload = payload
-                }
+            sampledFrames += 1
+            val currentBest = bestFrame
+            if (currentBest == null ||
+                frame.sharpnessScore > currentBest.sharpnessScore ||
+                (frame.sharpnessScore == currentBest.sharpnessScore && frame.timestamp > currentBest.timestamp)
+            ) {
+                bestFrame = frame
             }
             if (sampledFrames >= ONLINE_SELECT_MAX_FRAMES || SystemClock.elapsedRealtime() >= deadline) {
                 break
             }
             SystemClock.sleep(ONLINE_SELECT_POLL_INTERVAL_MS)
         }
+        val bestPayload = bestFrame?.let(::buildCapturedFramePayload)
         bestPayload?.let { payload ->
             Log.i(
                 TAG,
@@ -2423,9 +2445,34 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pending.cycleId != request.cycleId) {
             return
         }
-        pendingAutoHazardPresentation = pending.copy(resolved = resolved)
+        pendingAutoHazardPresentation = pending.copy(
+            resolved = resolved,
+            streamedText = fullText,
+            firstChunkReceived = pending.firstChunkReceived || fullText.isNotBlank(),
+        )
         schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
         tryPresentPendingAutoHazard()
+        refreshInputActions()
+    }
+
+    private fun handleOnlineDetailChunk(
+        request: OnlineHazardDetectionService.DetailRequest,
+        accumulatedText: String,
+    ) {
+        if (request.epoch != scanCycleEpoch) {
+            return
+        }
+        val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
+        if (pending.cycleId != request.cycleId) {
+            return
+        }
+        val normalizedText = accumulatedText.trim()
+        val updatedPending = pending.copy(
+            streamedText = accumulatedText,
+            firstChunkReceived = pending.firstChunkReceived || normalizedText.isNotEmpty(),
+        )
+        pendingAutoHazardPresentation = updatedPending
+        presentPendingOnlineStreamIfReady(updatedPending)
         refreshInputActions()
     }
 
@@ -2507,10 +2554,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         stopLocalDetectionLoop("accept_online_hazard_result")
         val detectedAtElapsedMs = SystemClock.elapsedRealtime()
+        // JPEG 在生成后按只读数据传递，自动流式展示和详情请求复用同一份数组，避免额外 LOS 拷贝。
+        val sharedJpegBytes = jpegBytes
         pendingAutoHazardPresentation = PendingAutoHazardPresentation.Online(
             detectedAtElapsedMs = detectedAtElapsedMs,
             cycleId = cycle.id,
+            jpegBytes = sharedJpegBytes,
         )
+        streamingInProgress = true
         playPendingHazardAlertIfNeeded()
         refreshPendingHazardAlertOverlay()
         schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
@@ -2519,7 +2570,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             OnlineHazardDetectionService.DetailRequest(
                 epoch = scanCycleEpoch,
                 cycleId = cycle.id,
-                jpegBytes = jpegBytes.copyOf(),
+                jpegBytes = sharedJpegBytes,
             ),
         )
     }
@@ -2593,29 +2644,83 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun tryPresentPendingAutoHazard() {
         val pending = pendingAutoHazardPresentation ?: return
-        val readyResult = when (pending) {
-            is PendingAutoHazardPresentation.Local -> pending.resolved
-            is PendingAutoHazardPresentation.Online -> pending.resolved
+        when (pending) {
+            is PendingAutoHazardPresentation.Local -> {
+                val canPresent = autoHazardPresentationCoordinator.canPresent(
+                    detectedAtElapsedMs = pending.detectedAtElapsedMs,
+                    isReady = true,
+                    nowElapsedMs = SystemClock.elapsedRealtime(),
+                )
+                if (!canPresent) {
+                    Log.i(
+                        TAG,
+                        "pending local hazard waiting delay detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
+                    )
+                    schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
+                    return
+                }
+                Log.i(
+                    TAG,
+                    "present pending hazard now source=${pending.resolved.source} detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
+                )
+                clearPendingAutoHazardPresentation()
+                presentResolvedHazardContent(pending.resolved)
+            }
+
+            is PendingAutoHazardPresentation.Online -> {
+                val remainingDelayMs = autoHazardPresentationCoordinator.remainingDelayMs(
+                    detectedAtElapsedMs = pending.detectedAtElapsedMs,
+                    nowElapsedMs = SystemClock.elapsedRealtime(),
+                )
+                if (remainingDelayMs > 0L) {
+                    Log.i(
+                        TAG,
+                        "pending online hazard waiting delay remainingDelayMs=$remainingDelayMs cycleId=${pending.cycleId}",
+                    )
+                    schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
+                    return
+                }
+                pending.resolved?.let { resolved ->
+                    Log.i(
+                        TAG,
+                        "present pending hazard now source=${resolved.source} detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
+                    )
+                    clearPendingAutoHazardPresentation()
+                    presentResolvedHazardContent(resolved)
+                    return
+                }
+                presentPendingOnlineStreamIfReady(pending)
+            }
         }
-        val canPresent = autoHazardPresentationCoordinator.canPresent(
+    }
+
+    /**
+     * 自动在线链路到达展示窗口后，只要已经收到首个有效 chunk，就先进入 description 页做原文增量渲染。
+     * 最终详情解析成功后，再用标准化 description 页内容覆盖当前流式文本。
+     */
+    private fun presentPendingOnlineStreamIfReady(pending: PendingAutoHazardPresentation.Online) {
+        val remainingDelayMs = autoHazardPresentationCoordinator.remainingDelayMs(
             detectedAtElapsedMs = pending.detectedAtElapsedMs,
-            isReady = readyResult != null,
             nowElapsedMs = SystemClock.elapsedRealtime(),
         )
-        if (!canPresent || readyResult == null) {
-            Log.i(
-                TAG,
-                "pending hazard not ready for presentation canPresent=$canPresent ready=${readyResult != null} detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
-            )
-            schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
+        if (remainingDelayMs > 0L || !pending.firstChunkReceived) {
             return
         }
-        Log.i(
-            TAG,
-            "present pending hazard now source=${readyResult.source} detectedAtElapsedMs=${pending.detectedAtElapsedMs}",
-        )
-        clearPendingAutoHazardPresentation()
-        presentResolvedHazardContent(readyResult)
+        if (pending.streamPageShown) {
+            if (pageState == PageState.STREAM_RESPONSE && pending.streamedText.isNotEmpty()) {
+                updateStreamingText(pending.streamedText)
+            }
+            return
+        }
+        streamPanelAnchoredBelowPreview = true
+        showPage(PageState.STREAM_RESPONSE)
+        clearStreamResponseUiState()
+        setStreamThumbnail(pending.jpegBytes)
+        if (pending.streamedText.isNotEmpty()) {
+            updateStreamingText(pending.streamedText)
+        }
+        hideActionPrompts()
+        pendingAutoHazardPresentation = pending.copy(streamPageShown = true)
     }
 
     private fun playHazardAlertIfNeeded() {

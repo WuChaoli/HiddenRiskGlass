@@ -34,6 +34,7 @@ class OnlineHazardDetectionService(
         fun onDetectionResult(request: DetectionRequest, hasHazard: Boolean, rawText: String)
         fun onDetectionFailure(request: DetectionRequest, message: String)
         fun onDetectionDropped(request: DetectionRequest, reason: String)
+        fun onDetailChunk(request: DetailRequest, accumulatedText: String)
         fun onDetailSuccess(request: DetailRequest, fullText: String)
         fun onDetailFailure(request: DetailRequest, message: String)
     }
@@ -78,6 +79,11 @@ class OnlineHazardDetectionService(
                     }
                     activeDetailHandle = aiArSseService.fetchHazardDetails(
                         base64Image = base64Image,
+                        onChunk = { accumulatedText ->
+                            if (activeDetailRequest == request) {
+                                callback.onDetailChunk(request, accumulatedText)
+                            }
+                        },
                         callback = object : AiArSseService.DetailCallback {
                             override fun onOpened(handle: AiArSseService.RequestHandle) {
                                 Log.i(TAG, "detail opened taskId=${handle.taskId} cycleId=${request.cycleId}")

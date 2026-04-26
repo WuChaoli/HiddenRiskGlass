@@ -225,6 +225,13 @@ object BitmapUtils {
         if (width == targetSize && height == targetSize) {
             return nv21.copyOf()
         }
+        resizeNv21Nearest(
+            nv21 = nv21,
+            width = width,
+            height = height,
+            targetWidth = targetSize,
+            targetHeight = targetSize,
+        )?.let { return it }
 
         val source = nv21ToBitmap(nv21, width, height, jpegQuality = jpegQuality) ?: return null
         val scaled = try {
@@ -250,6 +257,61 @@ object BitmapUtils {
                 source.recycle()
             }
         }
+    }
+
+    /**
+     * 直接缩放 NV21，避免每轮本地推理都走 JPEG 压缩、Bitmap 解码和 ARGB 中转。
+     * 该方法只处理偶数尺寸；异常尺寸保留旧 Bitmap 路径作为兼容回退。
+     */
+    internal fun resizeNv21Nearest(
+        nv21: ByteArray,
+        width: Int,
+        height: Int,
+        targetWidth: Int,
+        targetHeight: Int,
+    ): ByteArray? {
+        if (width <= 0 || height <= 0 || targetWidth <= 0 || targetHeight <= 0) {
+            return null
+        }
+        if ((width and 1) != 0 || (height and 1) != 0 ||
+            (targetWidth and 1) != 0 || (targetHeight and 1) != 0
+        ) {
+            return null
+        }
+        val expectedSize = width * height * 3 / 2
+        if (nv21.size < expectedSize) {
+            Log.e(TAG, "NV21 缩放数据长度不足 actual=${nv21.size} expected=$expectedSize")
+            return null
+        }
+
+        val output = ByteArray(targetWidth * targetHeight * 3 / 2)
+        for (y in 0 until targetHeight) {
+            val srcY = y * height / targetHeight
+            val srcRow = srcY * width
+            val dstRow = y * targetWidth
+            for (x in 0 until targetWidth) {
+                val srcX = x * width / targetWidth
+                output[dstRow + x] = nv21[srcRow + srcX]
+            }
+        }
+
+        val srcUvBase = width * height
+        val dstUvBase = targetWidth * targetHeight
+        val srcUvHeight = height / 2
+        val dstUvHeight = targetHeight / 2
+        for (y in 0 until dstUvHeight) {
+            val srcUvY = y * srcUvHeight / dstUvHeight
+            val srcRow = srcUvBase + srcUvY * width
+            val dstRow = dstUvBase + y * targetWidth
+            var x = 0
+            while (x < targetWidth) {
+                val srcX = (x * width / targetWidth) and -2
+                output[dstRow + x] = nv21[srcRow + srcX]
+                output[dstRow + x + 1] = nv21[srcRow + srcX + 1]
+                x += 2
+            }
+        }
+        return output
     }
 
     /**
