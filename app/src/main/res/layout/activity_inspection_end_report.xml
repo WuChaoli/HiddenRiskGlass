@@ -59,7 +59,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
-                android:text="@string/ai_inspection_end_report_hazard_count_placeholder"
+                android:text="@string/ai_inspection_end_report_confirm_finish_title"
                 android:textColor="@color/green"
                 android:textSize="14sp"
                 android:textStyle="bold" />

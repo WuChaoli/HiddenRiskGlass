@@ -32,6 +32,11 @@ import com.rokid.glesse.R
 
 class InspectionEndReportActivity : BaseGlassActivity() {
 
+    companion object {
+        private const val TAG = "InspectionEndReport"
+        private const val SHOW_END_REPORT_HAZARD_COUNT = false
+    }
+
     private lateinit var scrollSavedHazardThumbs: ScrollView
     private lateinit var gridSavedHazardThumbs: GridLayout
     private lateinit var tvHazardCount: TextView
@@ -63,10 +68,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         bottomPromptEnd = findViewById(R.id.bottomPromptEnd)
         statusBarEnd = findViewById(R.id.statusBarEnd)
         val savedHazardJpegs = InspectionWorkflowSession.buildEndReportThumbnails()
-        tvHazardCount.text = getString(
-            R.string.ai_inspection_end_report_hazard_count,
-            InspectionWorkflowSession.buildEndReportHazardCount(),
-        )
+        bindHazardSummaryText()
         scrollSavedHazardThumbs.post {
             renderSavedHazardThumbnails(savedHazardJpegs)
         }
@@ -181,6 +183,21 @@ class InspectionEndReportActivity : BaseGlassActivity() {
 
     private fun voiceTrigger(@StringRes textRes: Int, pinyin: String): UnifiedInputSession.InputTrigger {
         return UnifiedInputSession.InputTrigger.Voice(getString(textRes), pinyin)
+    }
+
+    /**
+     * 结束页右侧标题支持按开关切换：
+     * 默认显示“确认结束巡检”，如需恢复数量展示可打开常量开关。
+     */
+    private fun bindHazardSummaryText() {
+        tvHazardCount.text = if (SHOW_END_REPORT_HAZARD_COUNT) {
+            getString(
+                R.string.ai_inspection_end_report_hazard_count,
+                InspectionWorkflowSession.buildEndReportHazardCount(),
+            )
+        } else {
+            getString(R.string.ai_inspection_end_report_confirm_finish_title)
+        }
     }
 
     private fun submitFinishInspectionInBackground() {
@@ -340,7 +357,4 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         return (value * resources.displayMetrics.density + 0.5f).toInt()
     }
 
-    companion object {
-        private const val TAG = "InspectionEndReport"
-    }
 }

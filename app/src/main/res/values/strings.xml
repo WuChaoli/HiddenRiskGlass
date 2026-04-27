@@ -139,6 +139,7 @@
     <string name="ai_inspection_operation_guide_confirm_return">说出 确认\n说出 返回\n单击 确认\n双击 返回</string>
     <string name="ai_inspection_end_report_prompt_title">确认提交结束并退出应用?</string>
     <string name="ai_inspection_end_report_prompt_subtitle">返回/双击返回菜单，不提交结束请求</string>
+    <string name="ai_inspection_end_report_confirm_finish_title">确认结束巡检</string>
     <string name="ai_inspection_end_report_hazard_count">分析出%1$d条隐患</string>
     <string name="ai_inspection_end_report_hazard_count_placeholder">分析出0条隐患</string>
     <string name="ai_inspection_loading_error_default">初始化失败</string>
