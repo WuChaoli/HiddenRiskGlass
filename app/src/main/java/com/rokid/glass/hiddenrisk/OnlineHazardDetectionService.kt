@@ -268,7 +268,7 @@ internal class OnlineHazardDetectionService(
 
     companion object {
         private const val TAG = "OnlineHazardDetect"
-        private const val DETECT_TIMEOUT_MS = 2000L
+        private const val DETECT_TIMEOUT_MS = 3000L
         const val REASON_TIMEOUT = "timeout"
         const val REASON_BUSY = "busy"
     }

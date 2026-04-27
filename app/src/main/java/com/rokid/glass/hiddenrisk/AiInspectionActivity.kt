@@ -84,6 +84,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val ENABLE_HIT_CAPTURE_SAVE = false
         private const val ENABLE_ONLINE_ADVICE_PAGE = false
         private const val STALE_FRAME_THRESHOLD_MS = 1200L
+        private const val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS = 1000L
         private const val ONLINE_JPEG_QUALITY = 97
         private const val ONLINE_SELECT_WINDOW_MS = 240L
         private const val ONLINE_SELECT_MAX_FRAMES = 3
@@ -409,6 +410,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var onlineRequestInFlight = false
     private var onlineNextEarliestStartElapsedMs = 0L
     private var onlineActiveRequestId = 0L
+    private var latestSharedInferenceFrame: SquareFramePayload? = null
+    private var lastMotionUnstableElapsedMs: Long? = null
 
     // 手动分析流相关
     private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
@@ -460,6 +463,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         override fun onStabilityChanged(isStable: Boolean, stableSinceMillis: Long?) {
             isMotionStable = isStable
             stableQualifiedAtMillis = stableSinceMillis
+            if (!isStable) {
+                lastMotionUnstableElapsedMs = SystemClock.elapsedRealtime()
+                pruneSharedFrameForMotionIfNeeded()
+            }
             if (isStable) {
                 Log.i(TAG, "motion stable qualified stableSinceMillis=$stableSinceMillis")
                 startAutoInferencePipelinesIfNeeded(reason = "motion_stable", preferImmediate = true)
@@ -1001,6 +1008,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun stopAutoInferencePipelines(reason: String, clearPendingStreamState: Boolean = true) {
+        logAudioPressureSnapshot(
+            stage = "stop_auto_inference_pipelines:start",
+            extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState",
+        )
         Log.i(TAG, "stop auto inference pipelines reason=$reason")
         autoInferenceStartRequested = false
         captureDelayScheduled = false
@@ -1014,6 +1025,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         onlineNextEarliestStartElapsedMs = 0L
         localLastFrameTimestamp = 0L
         onlineLastFrameTimestamp = 0L
+        clearLatestSharedInferenceFrame(reason = "stop_auto_inference:$reason")
+        lastMotionUnstableElapsedMs = null
         autoInferenceEpoch += 1
         clearPendingAutoHazardPresentation()
         uiHandler.removeCallbacks(captureDelayRunnable)
@@ -1024,6 +1037,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (clearPendingStreamState) {
             pendingStreamStart = false
         }
+        logAudioPressureSnapshot(
+            stage = "stop_auto_inference_pipelines:end",
+            extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState",
+        )
     }
 
     private fun shouldRunAutoInferencePipelines(): Boolean {
@@ -1077,6 +1094,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         localLastFrameTimestamp = frame.timestamp
+        updateLatestSharedInferenceFrame(frame)
         val localInput = BitmapUtils.resizeSquareNv21(
             nv21 = frame.nv21,
             width = frame.width,
@@ -1186,9 +1204,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frame: SquareFramePayload,
         snapshot: NativeInferenceStats?,
     ) {
+        logAudioPressureSnapshot(
+            stage = "queue_local_hazard_presentation:enqueue",
+            extra = "matchCount=${localMatches.size} detectionCount=${snapshot?.detectionCount ?: 0} frameTs=${frame.timestamp}",
+        )
         try {
             imageEncodeExecutor.execute {
-                val jpegBytes = buildCapturedFramePayload(frame)?.jpegBytes ?: ByteArray(0)
+                logAudioPressureSnapshot(
+                    stage = "queue_local_hazard_presentation:worker_start",
+                    extra = "matchCount=${localMatches.size} frameTs=${frame.timestamp}",
+                )
+                val payload = buildCapturedFramePayload(frame)
+                val jpegBytes = payload?.jpegBytes ?: ByteArray(0)
                 if (ENABLE_HIT_CAPTURE_SAVE && (snapshot?.detectionCount ?: 0) > 0 && jpegBytes.isNotEmpty()) {
                     ensureHazardCaptureService().saveHazardCapture(jpegBytes, snapshot)
                 }
@@ -1196,6 +1223,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     localMatches = localMatches,
                     jpegBytes = jpegBytes,
                 ) ?: return@execute
+                logAudioPressureSnapshot(
+                    stage = "queue_local_hazard_presentation:worker_ready",
+                    extra = "jpegBytes=${jpegBytes.size} resolvedTitle=${resolved.displayTitle}",
+                )
                 uiHandler.post {
                     if (destroyed || pageState != PageState.DETECTING || pendingAutoHazardPresentation != null) {
                         return@post
@@ -1205,6 +1236,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         detectedAtElapsedMs = detectedAtElapsedMs,
                         resolved = resolved,
                     )
+                    logAudioPressureSnapshot(
+                        stage = "queue_local_hazard_presentation:posted",
+                        extra = "detectedAtElapsedMs=$detectedAtElapsedMs resolvedTitle=${resolved.displayTitle}",
+                    )
                     playPendingHazardAlertIfNeeded()
                     refreshPendingHazardAlertOverlay()
                     schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
@@ -1213,6 +1248,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
         } catch (error: RejectedExecutionException) {
             Log.w(TAG, "local hazard encode rejected", error)
+            logAudioPressureSnapshot(
+                stage = "queue_local_hazard_presentation:rejected",
+                extra = "matchCount=${localMatches.size} message=${error.message}",
+            )
             val resolved = buildLocalResolvedContent(
                 localMatches = localMatches,
                 jpegBytes = ByteArray(0),
@@ -1221,6 +1260,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
                 detectedAtElapsedMs = detectedAtElapsedMs,
                 resolved = resolved,
+            )
+            logAudioPressureSnapshot(
+                stage = "queue_local_hazard_presentation:fallback_posted",
+                extra = "detectedAtElapsedMs=$detectedAtElapsedMs resolvedTitle=${resolved.displayTitle}",
             )
             playPendingHazardAlertIfNeeded()
             refreshPendingHazardAlertOverlay()
@@ -1276,7 +1319,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.notifyConsumerWaitStarted()
         try {
             imageEncodeExecutor.execute {
-                val payload = selectBestOnlineFramePayload(onlineLastFrameTimestamp)
+                val payload = buildOnlineDetectionPayloadOrNull(onlineLastFrameTimestamp)
                 uiHandler.post {
                     onlineFrameSelectionInProgress = false
                     if (!isOnlineLoopActive(epoch)) {
@@ -1305,7 +1348,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         OnlineHazardDetectionService.DetectionRequest(
                             epoch = epoch,
                             requestId = requestId,
-                            jpegBytes = payload.jpegBytes,
+                            jpegBytes = payload.jpegBytes.copyOf(),
                         ),
                     )
                     postOnlineInferenceLoop(delayMs = ONLINE_DETECT_INTERVAL_MS, reason = "online_window_elapsed")
@@ -1327,6 +1370,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         onlineRequestInFlight = false
+        logAudioPressureSnapshot(
+            stage = "handle_online_detection_result",
+            extra = "requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
+        )
         Log.i(
             TAG,
             "online detect result requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
@@ -1408,6 +1455,75 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             request.requestId == onlineActiveRequestId
     }
 
+    /**
+     * 更新最近一次本地推理使用的原始裁切方图。
+     * 该缓存视为只读，供自动在线检测优先复用。
+     */
+    private fun updateLatestSharedInferenceFrame(frame: SquareFramePayload) {
+        latestSharedInferenceFrame = frame
+        lastMotionUnstableElapsedMs?.let { unstableElapsedMs ->
+            if (frame.receivedAtElapsedMs >= unstableElapsedMs) {
+                lastMotionUnstableElapsedMs = null
+            }
+        }
+        Log.i(
+            TAG,
+            "shared frame updated ts=${frame.timestamp} size=${frame.width}x${frame.height} source=${frame.sourceWidth}x${frame.sourceHeight}",
+        )
+    }
+
+    private fun clearLatestSharedInferenceFrame(reason: String) {
+        if (latestSharedInferenceFrame != null) {
+            Log.i(TAG, "shared frame cleared reason=$reason")
+        }
+        latestSharedInferenceFrame = null
+    }
+
+    private fun pruneSharedFrameForMotionIfNeeded(nowElapsedMs: Long = SystemClock.elapsedRealtime()) {
+        val frame = latestSharedInferenceFrame ?: return
+        val decision = SharedInferenceFrameDecider.decide(
+            frameTimestamp = frame.timestamp,
+            frameReceivedAtElapsedMs = frame.receivedAtElapsedMs,
+            lastTimestampExclusive = Long.MIN_VALUE,
+            nowElapsedMs = nowElapsedMs,
+            staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
+            lastMotionUnstableElapsedMs = lastMotionUnstableElapsedMs,
+            motionClearThresholdMs = SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS,
+        )
+        if (decision.shouldClearSharedFrame) {
+            clearLatestSharedInferenceFrame(decision.reason)
+        }
+    }
+
+    private fun copyLatestSharedInferenceFrameForOnline(
+        lastTimestampExclusive: Long,
+        nowElapsedMs: Long = SystemClock.elapsedRealtime(),
+    ): SquareFramePayload? {
+        pruneSharedFrameForMotionIfNeeded(nowElapsedMs)
+        val frame = latestSharedInferenceFrame ?: return null
+        val decision = SharedInferenceFrameDecider.decide(
+            frameTimestamp = frame.timestamp,
+            frameReceivedAtElapsedMs = frame.receivedAtElapsedMs,
+            lastTimestampExclusive = lastTimestampExclusive,
+            nowElapsedMs = nowElapsedMs,
+            staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
+            lastMotionUnstableElapsedMs = lastMotionUnstableElapsedMs,
+            motionClearThresholdMs = SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS,
+        )
+        if (decision.shouldClearSharedFrame) {
+            clearLatestSharedInferenceFrame(decision.reason)
+            return null
+        }
+        if (!decision.canUseSharedFrame) {
+            Log.i(
+                TAG,
+                "shared frame unavailable reason=${decision.reason} ts=${frame.timestamp} last=$lastTimestampExclusive",
+            )
+            return null
+        }
+        return frame
+    }
+
     private fun copyLatestSquareFrameForLocalOrNull(lastTimestampExclusive: Long): SquareFramePayload? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
@@ -1467,14 +1583,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 本地使用 NV21 缩放后直接推理，在线使用 JPEG 上传。
      */
     private fun buildCapturedFramePayload(frame: SquareFramePayload): CapturedFramePayload? {
+        val startElapsedMs = SystemClock.elapsedRealtime()
+        logAudioPressureSnapshot(
+            stage = "build_captured_frame_payload:start",
+            extra = "frameTs=${frame.timestamp} size=${frame.width}x${frame.height} source=${frame.sourceWidth}x${frame.sourceHeight}",
+        )
         val jpegBytes = BitmapUtils.encodeNv21CropRectToJpeg(
             nv21 = frame.nv21,
             width = frame.width,
             height = frame.height,
             cropRect = Rect(0, 0, frame.width, frame.height),
             jpegQuality = ONLINE_JPEG_QUALITY,
-        ) ?: return null
-        return CapturedFramePayload(
+        ) ?: run {
+            logAudioPressureSnapshot(
+                stage = "build_captured_frame_payload:null",
+                extra = "frameTs=${frame.timestamp} elapsedMs=${SystemClock.elapsedRealtime() - startElapsedMs}",
+            )
+            return null
+        }
+        val payload = CapturedFramePayload(
             jpegBytes = jpegBytes,
             width = frame.width,
             height = frame.height,
@@ -1484,6 +1611,45 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             cropRect = Rect(frame.cropRect),
             sharpnessScore = frame.sharpnessScore,
         )
+        logAudioPressureSnapshot(
+            stage = "build_captured_frame_payload:end",
+            extra = "frameTs=${frame.timestamp} jpegBytes=${jpegBytes.size} elapsedMs=${SystemClock.elapsedRealtime() - startElapsedMs}",
+        )
+        return payload
+    }
+
+    /**
+     * 自动在线检测优先复用最近一次本地推理缓存的原始裁切方图。
+     * 若共享缓存不可用或编码失败，再回退到当前独立选帧逻辑。
+     */
+    private fun buildOnlineDetectionPayloadOrNull(lastTimestampExclusive: Long): CapturedFramePayload? {
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        val sharedFrame = copyLatestSharedInferenceFrameForOnline(
+            lastTimestampExclusive = lastTimestampExclusive,
+            nowElapsedMs = nowElapsedMs,
+        )
+        if (sharedFrame != null) {
+            val sharedPayload = buildCapturedFramePayload(sharedFrame)
+            if (sharedPayload != null) {
+                Log.i(
+                    TAG,
+                    "online detect use shared frame ts=${sharedPayload.timestamp} size=${sharedPayload.width}x${sharedPayload.height}",
+                )
+                return sharedPayload
+            }
+            Log.i(TAG, "online detect fallback reason=shared_encode_failed ts=${sharedFrame.timestamp}")
+        } else {
+            Log.i(TAG, "online detect fallback reason=shared_unavailable")
+        }
+
+        val fallbackPayload = selectBestOnlineFramePayload(lastTimestampExclusive)
+        if (fallbackPayload != null) {
+            Log.i(
+                TAG,
+                "online detect fallback reason=fresh_capture ts=${fallbackPayload.timestamp} size=${fallbackPayload.width}x${fallbackPayload.height}",
+            )
+        }
+        return fallbackPayload
     }
 
     private fun selectBestOnlineFramePayload(lastTimestampExclusive: Long): CapturedFramePayload? {
@@ -2335,12 +2501,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localMatches: List<LocalHazardMatch>,
         jpegBytes: ByteArray,
     ): ResolvedHazardContent? {
+        val startElapsedMs = SystemClock.elapsedRealtime()
+        logAudioPressureSnapshot(
+            stage = "build_local_resolved_content:start",
+            extra = "matchCount=${localMatches.size} jpegBytes=${jpegBytes.size}",
+        )
         if (localMatches.isEmpty()) {
+            logAudioPressureSnapshot(
+                stage = "build_local_resolved_content:empty",
+                extra = "elapsedMs=${SystemClock.elapsedRealtime() - startElapsedMs}",
+            )
             return null
         }
         val resolvedHazards = localMatches.map { it.toResolvedItem() }
         val primaryHazard = resolvedHazards.first()
-        return ResolvedHazardContent(
+        val content = ResolvedHazardContent(
             source = HazardSource.LOCAL,
             description = primaryHazard.description,
             advice = primaryHazard.advice,
@@ -2353,6 +2528,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             hazards = resolvedHazards,
             localCooldownLabels = localMatches.map { it.cooldownLabel },
         )
+        logAudioPressureSnapshot(
+            stage = "build_local_resolved_content:end",
+            extra = "title=${content.displayTitle} hazardCount=${resolvedHazards.size} elapsedMs=${SystemClock.elapsedRealtime() - startElapsedMs}",
+        )
+        return content
     }
 
     private fun buildLocalHazardUploadItems(hazardContent: ResolvedHazardContent): List<LocalHazardPushService.HidDangerItem> {
@@ -2440,15 +2620,28 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val jpegBytes = request.jpegBytes
+        val parseStartElapsedMs = SystemClock.elapsedRealtime()
+        logAudioPressureSnapshot(
+            stage = "handle_online_detail_success:start",
+            extra = "requestId=${request.requestId} textLength=${fullText.length} jpegBytes=${jpegBytes.size}",
+        )
         val resolved = runCatching {
             AiArHazardDetailParser.parse(
                 text = fullText,
                 jpegBytes = jpegBytes,
             )
         }.getOrElse { error ->
+            logAudioPressureSnapshot(
+                stage = "handle_online_detail_success:parse_failed",
+                extra = "requestId=${request.requestId} elapsedMs=${SystemClock.elapsedRealtime() - parseStartElapsedMs} message=${error.message}",
+            )
             handleOnlineDetailFailure(request, error.message ?: getString(R.string.ai_inspection_online_detail_parse_failed))
             return
         }
+        logAudioPressureSnapshot(
+            stage = "handle_online_detail_success:parsed",
+            extra = "requestId=${request.requestId} elapsedMs=${SystemClock.elapsedRealtime() - parseStartElapsedMs} title=${resolved.displayTitle}",
+        )
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
         if (pending.requestId != request.requestId) {
             return
@@ -2475,6 +2668,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val normalizedText = accumulatedText.trim()
+        if (!pending.firstChunkReceived && normalizedText.isNotEmpty()) {
+            logAudioPressureSnapshot(
+                stage = "handle_online_detail_chunk:first_chunk",
+                extra = "requestId=${request.requestId} textLength=${accumulatedText.length}",
+            )
+        }
         val updatedPending = pending.copy(
             streamedText = accumulatedText,
             firstChunkReceived = pending.firstChunkReceived || normalizedText.isNotEmpty(),
@@ -2509,9 +2708,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun queueAutoDetectedOnlineHazardPresentation(
         request: OnlineHazardDetectionService.DetectionRequest,
     ) {
+        logAudioPressureSnapshot(
+            stage = "queue_online_hazard_presentation:start",
+            extra = "requestId=${request.requestId} jpegBytes=${request.jpegBytes.size}",
+        )
         val jpegBytes = request.jpegBytes
         if (jpegBytes.isEmpty()) {
             Log.w(TAG, "queueAutoDetectedOnlineHazardPresentation missing jpeg requestId=${request.requestId}")
+            logAudioPressureSnapshot(
+                stage = "queue_online_hazard_presentation:missing_jpeg",
+                extra = "requestId=${request.requestId}",
+            )
             return
         }
         val detectedAtElapsedMs = SystemClock.elapsedRealtime()
@@ -2523,6 +2730,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             jpegBytes = sharedJpegBytes,
         )
         streamingInProgress = true
+        logAudioPressureSnapshot(
+            stage = "queue_online_hazard_presentation:pending_ready",
+            extra = "requestId=${request.requestId} detectedAtElapsedMs=$detectedAtElapsedMs jpegBytes=${sharedJpegBytes.size}",
+        )
         playPendingHazardAlertIfNeeded()
         refreshPendingHazardAlertOverlay()
         schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
@@ -2534,9 +2745,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 jpegBytes = sharedJpegBytes,
             ),
         )
+        logAudioPressureSnapshot(
+            stage = "queue_online_hazard_presentation:details_requested",
+            extra = "requestId=${request.requestId}",
+        )
     }
 
     private fun presentResolvedHazardContent(result: ResolvedHazardContent) {
+        logAudioPressureSnapshot(
+            stage = "present_resolved_hazard_content:start",
+            extra = "source=${result.source} title=${result.displayTitle} jpegBytes=${result.jpegBytes.size}",
+        )
         stopAutoInferencePipelines("present_hazard_result")
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
@@ -2575,6 +2794,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             scheduleBackgroundLocalHazardSaveIfNeeded(result)
         }
         refreshInputActions()
+        logAudioPressureSnapshot(
+            stage = "present_resolved_hazard_content:end",
+            extra = "source=${result.source} title=${result.displayTitle} localResultStage=$localResultStage",
+        )
     }
 
     private fun schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs: Long) {
@@ -2672,6 +2895,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun playHazardAlertIfNeeded() {
+        logAudioPressureSnapshot(
+            stage = "play_hazard_alert_if_needed:enter",
+            extra = "alreadyPlayed=$localHazardAlertTtsPlayed",
+        )
         if (!localHazardAlertTtsPlayed) {
             localHazardAlertTtsPlayed = OfflineTtsPlayer.speak(
                 ownerTag = TAG,
@@ -2681,6 +2908,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun playPendingHazardAlertIfNeeded() {
+        logAudioPressureSnapshot(
+            stage = "play_pending_hazard_alert_if_needed:enter",
+            extra = "alreadyPlayed=$pendingHazardAlertTtsPlayed",
+        )
         if (pendingHazardAlertTtsPlayed) {
             return
         }
@@ -2845,9 +3076,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localSaveSubmitting = false
         localResultStage = LocalResultStage.ADVICE
         if (!localHazardAdviceTtsPlayed) {
+            logAudioPressureSnapshot(
+                stage = "show_local_hazard_advice:before_tts",
+                extra = "title=${hazardContent.displayTitle} showSaveSuccessToast=$showSaveSuccessToast",
+            )
             localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
                 ownerTag = TAG,
                 message = getString(R.string.offline_tts_hazard_advice_intro),
+            )
+            logAudioPressureSnapshot(
+                stage = "show_local_hazard_advice:after_tts",
+                extra = "title=${hazardContent.displayTitle} ttsPlayed=$localHazardAdviceTtsPlayed",
             )
         }
         val descriptionText = hazardContent.displayDescription()
@@ -2869,6 +3108,37 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         renderLocalAdvicePrompt()
         refreshInputActions()
+    }
+
+    /**
+     * 统一输出语音卡顿排查所需的时序与内存快照，避免埋点日志格式分散。
+     */
+    private fun logAudioPressureSnapshot(stage: String, extra: String = "") {
+        val runtime = Runtime.getRuntime()
+        val freeMemory = runtime.freeMemory()
+        val totalMemory = runtime.totalMemory()
+        val maxMemory = runtime.maxMemory()
+        val usedMemory = totalMemory - freeMemory
+        val payload = buildString {
+            append("audio_diag stage=").append(stage)
+            append(" elapsedMs=").append(SystemClock.elapsedRealtime())
+            append(" thread=").append(Thread.currentThread().name)
+            append(" pageState=").append(pageState)
+            append(" captureInProgress=").append(captureInProgress)
+            append(" inferenceRunning=").append(inferenceRunning.get())
+            append(" onlineFrameSelectionInProgress=").append(onlineFrameSelectionInProgress)
+            append(" onlineRequestInFlight=").append(onlineRequestInFlight)
+            append(" streamingInProgress=").append(streamingInProgress)
+            append(" pendingStreamStart=").append(pendingStreamStart)
+            append(" heapUsed=").append(usedMemory)
+            append(" heapFree=").append(freeMemory)
+            append(" heapTotal=").append(totalMemory)
+            append(" heapMax=").append(maxMemory)
+            if (extra.isNotBlank()) {
+                append(" ").append(extra)
+            }
+        }
+        Log.i(TAG, payload)
     }
 
     private fun requestOnlineHazardAdvice(hazardContent: ResolvedHazardContent) {

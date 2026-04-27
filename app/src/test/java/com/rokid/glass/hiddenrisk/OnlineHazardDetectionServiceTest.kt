@@ -25,14 +25,14 @@ class OnlineHazardDetectionServiceTest {
     }
 
     @Test
-    fun submitDetection_timesOutAfterTwoSecondsAndCancelsHandle() {
+    fun submitDetection_timesOutAfterThreeSecondsAndCancelsHandle() {
         val env = TestEnv()
         val service = env.createService()
 
         val request = detectionRequest(requestId = 7L)
         service.submitDetection(request)
 
-        env.advanceTimeBy(1999L)
+        env.advanceTimeBy(2999L)
         assertTrue(env.callbackEvents.isEmpty())
         assertFalse(env.gateway.lastDetectionHandle?.isCanceled() ?: true)
 
