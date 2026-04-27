@@ -1,81 +1,111 @@
 package com.rokid.glass.utils
 
-import android.os.SystemClock
+import android.content.Context
+import android.media.MediaPlayer
 import android.util.Log
-import com.rokid.security.glass3.open.sdk.GlassSdk
+import androidx.annotation.RawRes
 
 /**
- * Rokid 离线 TTS 的轻量封装。
+ * 本地提示音播放器。
+ * 使用 raw 音频资源代替 Rokid 离线 TTS，并在新请求到达时抢占当前播放。
  */
 object OfflineTtsPlayer {
-    fun speak(ownerTag: String, message: String): Boolean {
-        val speakStartElapsedMs = SystemClock.elapsedRealtime()
-        if (message.isBlank()) {
-            Log.w(ownerTag, "skip offline tts: empty message elapsedMs=$speakStartElapsedMs")
-            return false
-        }
+    private const val PLAYER_TAG = "OfflineTtsPlayer"
 
-        Log.i(
-            ownerTag,
-            "offline tts begin elapsedMs=$speakStartElapsedMs thread=${Thread.currentThread().name} messageLength=${message.length}",
-        )
+    private val playerLock = Any()
+    private var currentPlayer: MediaPlayer? = null
+    private var currentOwnerTag: String? = null
 
-        val sdkReadyStartElapsedMs = SystemClock.elapsedRealtime()
-        val sdkReady = runCatching { GlassSdk.isReady() }
-            .onFailure { error ->
-                Log.w(
-                    ownerTag,
-                    "skip offline tts: sdk readiness check failed elapsedMs=${SystemClock.elapsedRealtime() - sdkReadyStartElapsedMs} message=${error.message}",
-                )
+    fun play(context: Context, ownerTag: String, @RawRes audioResId: Int): Boolean {
+        val appContext = context.applicationContext
+        synchronized(playerLock) {
+            releasePlayerLocked(reason = "preempt", ownerTag = ownerTag)
+            val mediaPlayer = runCatching { MediaPlayer.create(appContext, audioResId) }
+                .onFailure { error ->
+                    Log.e(ownerTag, "local audio create failed resId=$audioResId", error)
+                }
+                .getOrNull()
+
+            if (mediaPlayer == null) {
+                Log.w(ownerTag, "skip local audio: player unavailable resId=$audioResId")
+                return false
             }
-            .getOrDefault(false)
-        Log.i(
-            ownerTag,
-            "offline tts sdk ready checked ready=$sdkReady elapsedMs=${SystemClock.elapsedRealtime() - sdkReadyStartElapsedMs}",
-        )
-        if (!sdkReady) {
-            Log.w(
-                ownerTag,
-                "skip offline tts: sdk not ready totalElapsedMs=${SystemClock.elapsedRealtime() - speakStartElapsedMs}",
-            )
-            return false
-        }
 
-        val serviceStartElapsedMs = SystemClock.elapsedRealtime()
-        val ttsService = runCatching { GlassSdk.getGlassOfflineTtsService() }
-            .onFailure { error ->
-                Log.w(
-                    ownerTag,
-                    "skip offline tts: get service failed elapsedMs=${SystemClock.elapsedRealtime() - serviceStartElapsedMs} message=${error.message}",
-                )
+            currentPlayer = mediaPlayer
+            currentOwnerTag = ownerTag
+            mediaPlayer.setOnCompletionListener { completedPlayer ->
+                synchronized(playerLock) {
+                    if (currentPlayer === completedPlayer) {
+                        currentPlayer = null
+                        currentOwnerTag = null
+                    }
+                    runCatching { completedPlayer.release() }
+                    Log.i(ownerTag, "local audio completed resId=$audioResId owner=$ownerTag")
+                }
             }
-            .getOrNull()
-        Log.i(
-            ownerTag,
-            "offline tts service fetched available=${ttsService != null} elapsedMs=${SystemClock.elapsedRealtime() - serviceStartElapsedMs}",
-        )
-        if (ttsService == null) {
-            Log.w(
-                ownerTag,
-                "skip offline tts: service unavailable totalElapsedMs=${SystemClock.elapsedRealtime() - speakStartElapsedMs}",
-            )
-            return false
-        }
+            mediaPlayer.setOnErrorListener { failedPlayer, what, extra ->
+                synchronized(playerLock) {
+                    if (currentPlayer === failedPlayer) {
+                        currentPlayer = null
+                        currentOwnerTag = null
+                    }
+                    runCatching { failedPlayer.release() }
+                    Log.e(ownerTag, "local audio failed resId=$audioResId what=$what extra=$extra owner=$ownerTag")
+                }
+                true
+            }
 
-        val playStartElapsedMs = SystemClock.elapsedRealtime()
-        return runCatching {
-            ttsService.playTtsMsg(message)
-            Log.i(
-                ownerTag,
-                "offline tts spoken playElapsedMs=${SystemClock.elapsedRealtime() - playStartElapsedMs} totalElapsedMs=${SystemClock.elapsedRealtime() - speakStartElapsedMs} message=$message",
-            )
-            true
+            return runCatching {
+                mediaPlayer.start()
+                Log.i(ownerTag, "local audio started resId=$audioResId owner=$ownerTag")
+                true
+            }.onFailure { error ->
+                if (currentPlayer === mediaPlayer) {
+                    currentPlayer = null
+                    currentOwnerTag = null
+                }
+                runCatching { mediaPlayer.release() }
+                Log.e(ownerTag, "local audio start failed resId=$audioResId owner=$ownerTag", error)
+            }.getOrDefault(false)
+        }
+    }
+
+    fun release(ownerTag: String) {
+        synchronized(playerLock) {
+            if (currentPlayer == null) {
+                Log.i(PLAYER_TAG, "local audio release skipped owner=$ownerTag reason=no_active_player")
+                return
+            }
+            if (currentOwnerTag != ownerTag) {
+                Log.i(
+                    PLAYER_TAG,
+                    "local audio release skipped owner=$ownerTag activeOwner=$currentOwnerTag reason=owner_mismatch",
+                )
+                return
+            }
+            releasePlayerLocked(reason = "manual_release", ownerTag = ownerTag)
+        }
+    }
+
+    private fun releasePlayerLocked(reason: String, ownerTag: String) {
+        val player = currentPlayer ?: return
+        val activeOwnerTag = currentOwnerTag
+        currentPlayer = null
+        currentOwnerTag = null
+        runCatching {
+            if (player.isPlaying) {
+                player.stop()
+            }
         }.onFailure { error ->
-            Log.e(
-                ownerTag,
-                "offline tts failed playElapsedMs=${SystemClock.elapsedRealtime() - playStartElapsedMs} totalElapsedMs=${SystemClock.elapsedRealtime() - speakStartElapsedMs} message=${error.message}",
-                error,
-            )
-        }.getOrDefault(false)
+            Log.w(ownerTag, "local audio stop failed reason=$reason", error)
+        }
+        runCatching { player.release() }
+            .onFailure { error ->
+                Log.w(ownerTag, "local audio release failed reason=$reason", error)
+            }
+        Log.i(
+            PLAYER_TAG,
+            "local audio released reason=$reason owner=$ownerTag activeOwner=$activeOwnerTag ownerMatched=${activeOwnerTag == ownerTag}",
+        )
     }
 }

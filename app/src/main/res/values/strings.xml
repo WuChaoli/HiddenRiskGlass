@@ -28,9 +28,6 @@
     <string name="item_take_photo">拍照</string>
     <string name="page_ai_into_tip">你好，我在听</string>
     <string name="offline_tts_start_video_record">Recording finished</string>
-    <string name="offline_tts_hazard_alert">有隐患</string>
-    <string name="offline_tts_hazard_advice_intro">建议关注</string>
-    <string name="offline_tts_inspection_end_report">检查结束</string>
     <string name="page_word_tips_ai_mode">智能模式</string>
     <string name="page_word_toast_tv_change">文本字号修改成功</string>
     <string name="page_word_toast_content_change">文本内容修改成功</string>

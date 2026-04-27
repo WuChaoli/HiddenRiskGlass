@@ -1,6 +1,8 @@
 package com.rokid.glass
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
@@ -66,6 +68,15 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private var debugSnapshotMode = false
     private var destroyed = false
     private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
+    private var batteryReceiver: BroadcastReceiver? = null
+
+    private val statusUpdateRunnable = object : Runnable {
+        override fun run() {
+            if (destroyed) return
+            statusBar.updateTime()
+            mainHandler.postDelayed(this, STATUS_UPDATE_INTERVAL_MS)
+        }
+    }
 
     private val cameraRecoveryController by lazy {
         RokidCameraRecoveryController(
@@ -179,6 +190,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         super.onResume()
         inputSession.attach()
         refreshInputActions()
+        startStatusBarUpdates()
         if (completed) return
         if (debugSnapshotMode) return
         if (skipScanIfEnterpriseQrCached()) return
@@ -190,6 +202,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onPause() {
+        stopStatusBarUpdates()
         inputSession.detach()
         if (debugSnapshotMode) {
             super.onPause()
@@ -207,6 +220,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     override fun onDestroy() {
         destroyed = true
+        stopStatusBarUpdates()
         inputSession.release()
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
@@ -438,13 +452,39 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     /**
+     * 页面可见时持续刷新状态栏时间与电量，保证底部状态栏显示真实系统状态。
+     */
+    private fun startStatusBarUpdates() {
+        statusBar.updateTime()
+        updateBatteryLevel()
+        mainHandler.removeCallbacks(statusUpdateRunnable)
+        mainHandler.post(statusUpdateRunnable)
+        if (batteryReceiver == null) {
+            batteryReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    updateBatteryLevel(intent)
+                }
+            }
+            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }
+    }
+
+    private fun stopStatusBarUpdates() {
+        mainHandler.removeCallbacks(statusUpdateRunnable)
+        batteryReceiver?.let {
+            unregisterReceiver(it)
+            batteryReceiver = null
+        }
+    }
+
+    /**
      * 获取当前电池电量并更新电池图标填充
      */
-    private fun updateBatteryLevel() {
-        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { intent ->
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+    private fun updateBatteryLevel(intent: Intent? = null) {
+        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { batteryIntent ->
+            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level != -1 && scale != -1) {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
                 statusBar.setBatteryPercent(batteryPct)
@@ -566,6 +606,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         private const val REQUEST_CODE_PERMISSIONS = 6001
         private const val SCAN_INTERVAL_MS = 800L
         private const val SCAN_FRAME_TARGET_SIZE = 1080
+        private const val STATUS_UPDATE_INTERVAL_MS = 1000L
         private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
 
         private fun sanitizeQrForLog(rawValue: String): String {

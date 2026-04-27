@@ -48,8 +48,8 @@ import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
-import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.utils.SpriteToastUtil
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.io.InputStreamReader
@@ -74,7 +74,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val AUTO_INFERENCE_RETRY_DELAY_MS = 80L
         private const val ONLINE_DETECT_INTERVAL_MS = 1000L
         private const val AUTO_HAZARD_PRESENT_DELAY_MS = 3000L
-        private const val HAZARD_ALERT_DELAY_MS = 1000L
         private const val LOCAL_LABEL_COOLDOWN_MS = 30_000L
         private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
@@ -528,12 +527,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val pendingAutoHazardPresentationRunnable = Runnable {
         tryPresentPendingAutoHazard()
     }
-    private val delayedHazardAlertRunnable = Runnable {
-        if (destroyed || pageState != PageState.DETECTING || pendingAutoHazardPresentation == null) {
-            return@Runnable
-        }
-        playHazardAlertIfNeeded()
-    }
 
     private val localLoopRunnable = Runnable {
         localRetryPosted = false
@@ -682,7 +675,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.notifyConsumerWaitStopped()
         stopDetectionPreview()
         stopAutoInferencePipelines("onPause")
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -702,7 +694,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         stopAutoInferencePipelines("onStop")
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -715,6 +706,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         phoneSyncHandle?.cancel()
         phoneSyncHandle = null
+        OfflineTtsPlayer.release(TAG)
         inputSession.release()
         ivSyncLoading.clearAnimation()
         if (debugSnapshotState != null) {
@@ -725,7 +717,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         motionStabilityTracker.removeListener(motionStabilityListener)
         motionStabilityTracker.stop()
         stopAutoInferencePipelines("onDestroy")
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         hideStatusAlertOverlay()
         stopDetectionPreview()
         frameStreamInitializing = false
@@ -1811,7 +1802,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ),
             ),
         )
-        scheduleHazardAlertIfNeeded()
+        playHazardAlertIfNeeded()
     }
 
     private fun syncToPhone() {
@@ -3159,27 +3150,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun playHazardAlertIfNeeded() {
         logAudioPressureSnapshot(
             stage = "play_hazard_alert_if_needed:enter",
-            extra = "alreadyPlayed=$localHazardAlertTtsPlayed",
-        )
-        if (!localHazardAlertTtsPlayed) {
-            localHazardAlertTtsPlayed = OfflineTtsPlayer.speak(
-                ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_alert),
-            )
-        }
-    }
-
-    private fun scheduleHazardAlertIfNeeded() {
-        logAudioPressureSnapshot(
-            stage = "schedule_hazard_alert_if_needed:enter",
-            extra = "pendingPlayed=$pendingHazardAlertTtsPlayed localPlayed=$localHazardAlertTtsPlayed delayMs=$HAZARD_ALERT_DELAY_MS",
+            extra = "pendingPlayed=$pendingHazardAlertTtsPlayed alreadyPlayed=$localHazardAlertTtsPlayed",
         )
         if (pendingHazardAlertTtsPlayed || localHazardAlertTtsPlayed) {
             return
         }
         pendingHazardAlertTtsPlayed = true
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
-        uiHandler.postDelayed(delayedHazardAlertRunnable, HAZARD_ALERT_DELAY_MS)
+        if (!localHazardAlertTtsPlayed) {
+            localHazardAlertTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
+                ownerTag = TAG,
+                audioResId = R.raw.hazard_alert,
+            )
+        }
     }
 
     private fun handleStreamConfirmAction() {
@@ -3347,9 +3330,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 stage = "show_local_hazard_advice:before_tts",
                 extra = "title=${hazardContent.displayTitle} showSaveSuccessToast=$showSaveSuccessToast",
             )
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
                 ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_advice_intro),
+                audioResId = R.raw.hazard_advice_intro,
             )
             logAudioPressureSnapshot(
                 stage = "show_local_hazard_advice:after_tts",
@@ -3431,9 +3415,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideActionPrompts()
         refreshInputActions()
         if (!localHazardAdviceTtsPlayed) {
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
                 ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_advice_intro),
+                audioResId = R.raw.hazard_advice_intro,
             )
         }
         currentManualAnalysisHandle = aiArSseService.fetchHazardAdvice(
@@ -3561,7 +3546,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun clearLocalHazardResultState() {
         clearPendingAutoHazardPresentation()
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
