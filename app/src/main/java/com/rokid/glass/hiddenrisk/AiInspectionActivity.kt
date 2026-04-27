@@ -947,7 +947,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localLabelCooldownUntilMs.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
-        InspectionWorkflowSession.clearForNewInspection()
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })

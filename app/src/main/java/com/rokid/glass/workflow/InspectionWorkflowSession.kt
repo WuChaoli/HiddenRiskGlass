@@ -117,11 +117,19 @@ object InspectionWorkflowSession {
 
     fun updateEnterpriseFromQr(qrContent: String): Boolean {
         val payload = parseEnterpriseQrPayload(qrContent) ?: return false
+        val previousPayload = enterpriseQrPayload
+        val identityChanged = previousPayload != null && hasEnterpriseIdentityChanged(previousPayload, payload)
+        if (identityChanged) {
+            // 企业身份切换后，上一轮巡检累计结果不应继续复用。
+            clearInspectionAccumulatedResults()
+            enterpriseInfo = null
+        } else if (previousPayload == null) {
+            enterpriseInfo = null
+        }
         enterpriseQrPayload = payload
-        enterpriseInfo = null
         Log.i(
             TAG,
-            "enterprise qr parsed objectId=${payload.objectId} regionCode=${payload.regionCode} baseUrl=${payload.apiBaseUrl} extraField=${sanitizeQrForLog(payload.extraField)}",
+            "enterprise qr parsed objectId=${payload.objectId} regionCode=${payload.regionCode} baseUrl=${payload.apiBaseUrl} extraField=${sanitizeQrForLog(payload.extraField)} identityChanged=$identityChanged",
         )
         return true
     }
@@ -279,13 +287,18 @@ object InspectionWorkflowSession {
         summary = transform(summary)
     }
 
-    fun clearForNewInspection() {
+    /**
+     * 清空当前巡检累计结果，但保留企业扫码上下文。
+     * 用于确认结束巡检、应用完全退出、或重新扫码切换企业时。
+     */
+    fun clearInspectionAccumulatedResults() {
         latestDetectionTitle = null
         latestDetectionMessage = null
         latestAnalysisText = ""
         latestAnalysisSessionId = ""
         latestHazardRecordSessionId = ""
         latestSyncedSessionId = ""
+        inspectionSessionId = ""
         latestCapturedJpeg = null
         clearPhoneSyncProgress()
         clearFinishSubmitProgress()
@@ -294,8 +307,7 @@ object InspectionWorkflowSession {
     }
 
     fun resetAll() {
-        clearForNewInspection()
-        inspectionSessionId = ""
+        clearInspectionAccumulatedResults()
         workflowMode = WorkflowMode.OFFLINE
     }
 
@@ -307,6 +319,19 @@ object InspectionWorkflowSession {
         enterpriseQrPayload = null
         enterpriseInfo = null
         Log.i(TAG, "enterprise data cleared")
+    }
+
+    private fun hasEnterpriseIdentityChanged(
+        previous: EnterpriseQrPayload,
+        current: EnterpriseQrPayload,
+    ): Boolean {
+        return previous.rightCode != current.rightCode ||
+            previous.objectId != current.objectId ||
+            previous.userId != current.userId ||
+            previous.regionCode != current.regionCode ||
+            previous.apiBaseUrl != current.apiBaseUrl ||
+            previous.authCode != current.authCode ||
+            previous.extraField != current.extraField
     }
 
     private fun parseEnterpriseQrPayload(qrContent: String): EnterpriseQrPayload? {

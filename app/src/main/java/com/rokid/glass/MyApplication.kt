@@ -71,9 +71,10 @@ class MyApplication : Application() {
         override fun onActivityDestroyed(activity: Activity) {
             activityCount--
             if (activityCount <= 0) {
-                // 所有 Activity 均已销毁，应用已退出，清除企业信息
+                // 所有 Activity 均已销毁，应用已退出，清除企业信息和本轮巡检累计结果。
+                InspectionWorkflowSession.clearInspectionAccumulatedResults()
                 InspectionWorkflowSession.clearEnterpriseData()
-                Log.i("MyApplication", "app exited, enterprise data cleared")
+                Log.i("MyApplication", "app exited, enterprise and inspection session cleared")
             }
         }
     }

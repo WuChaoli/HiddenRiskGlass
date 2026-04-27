@@ -220,7 +220,6 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private fun returnToMenuDirectly() {
         if (isFinishing || isDestroyed) return
         finishExitTriggered = false
-        InspectionWorkflowSession.resetAll()
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })

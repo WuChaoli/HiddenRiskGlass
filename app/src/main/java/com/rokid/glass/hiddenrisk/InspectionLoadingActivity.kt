@@ -538,7 +538,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     private fun navigateToInspection() {
-        InspectionWorkflowSession.clearForNewInspection()
         InspectionWorkflowSession.beginInspection(
             InspectionBackendSessionId.create(RokidSdkManager.getSerialNumber(), prefix = "inspection"),
         )
