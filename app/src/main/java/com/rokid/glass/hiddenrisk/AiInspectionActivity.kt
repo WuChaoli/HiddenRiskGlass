@@ -1185,39 +1185,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return frame
     }
 
-    /**
-     * 自动检测阶段的统一方图入口。
-     * 本地 NCNN 推理与自动在线判定都必须复用这份方图，避免出现“取帧区域不同”导致的链路分叉。
-     */
-    private fun buildSquareFramePayload(frame: RokidFrameSource.Nv21Frame): SquareFramePayload? {
-        val cropRect = RokidFrameSource.calculateSquareCropRect(frame.width, frame.height)
-        if (cropRect.width() <= 0 || cropRect.height() <= 0) {
-            Log.w(TAG, "buildSquareFramePayload invalid crop timestamp=${frame.timestamp} crop=$cropRect")
-            return null
-        }
-        val squareNv21 = BitmapUtils.cropNv21Rect(
-            nv21 = frame.data,
-            width = frame.width,
-            height = frame.height,
-            cropRect = cropRect,
-        ) ?: return null
-        return SquareFramePayload(
-            nv21 = squareNv21,
-            width = cropRect.width(),
-            height = cropRect.height(),
-            timestamp = frame.timestamp,
-            receivedAtElapsedMs = frame.receivedAtElapsedMs,
-            sourceWidth = frame.width,
-            sourceHeight = frame.height,
-            cropRect = Rect(cropRect),
-            sharpnessScore = computeSquareFrameSharpnessScore(
-                squareNv21,
-                cropRect.width(),
-                cropRect.height(),
-            ),
-        )
-    }
-
     private fun RokidFrameSource.SquareNv21Frame.toSquareFramePayload(): SquareFramePayload {
         return SquareFramePayload(
             nv21 = data,
