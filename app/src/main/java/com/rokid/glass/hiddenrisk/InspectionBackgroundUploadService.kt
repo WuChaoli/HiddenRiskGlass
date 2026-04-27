@@ -82,10 +82,9 @@ class InspectionBackgroundUploadService : Service() {
             hidDanger = task.hidDanger,
             callback = object : LocalHazardPushService.Callback {
                 override fun onSuccess() {
-                    val recorded = InspectionWorkflowSession.recordSavedHazardCaptureOnce(
-                        taskKey = task.taskKey,
-                        jpegBytes = task.jpegBytes,
-                        hazardCount = task.hidDanger.size,
+                    val recorded = InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                        recordKey = "background_save|${task.taskKey}",
+                        saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
                     )
                     Log.i(
                         TAG,
@@ -95,6 +94,10 @@ class InspectionBackgroundUploadService : Service() {
                 }
 
                 override fun onFailure(message: String) {
+                    InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                        recordKey = "background_save|${task.taskKey}",
+                        saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
+                    )
                     Log.w(
                         TAG,
                         "local hazard background upload failed taskKey=${task.taskKey} message=$message",

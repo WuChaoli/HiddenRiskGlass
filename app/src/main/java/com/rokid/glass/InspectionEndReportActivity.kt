@@ -62,10 +62,10 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         operationGuideEnd = findViewById(R.id.operationGuideEnd)
         bottomPromptEnd = findViewById(R.id.bottomPromptEnd)
         statusBarEnd = findViewById(R.id.statusBarEnd)
-        val savedHazardJpegs = InspectionWorkflowSession.savedHazardJpegs
+        val savedHazardJpegs = InspectionWorkflowSession.buildEndReportThumbnails()
         tvHazardCount.text = getString(
             R.string.ai_inspection_end_report_hazard_count,
-            InspectionWorkflowSession.summary.hasHazardCount,
+            InspectionWorkflowSession.buildEndReportHazardCount(),
         )
         scrollSavedHazardThumbs.post {
             renderSavedHazardThumbnails(savedHazardJpegs)

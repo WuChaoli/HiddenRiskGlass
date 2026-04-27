@@ -1320,6 +1320,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pageState != PageState.STREAM_RESPONSE || streamingInProgress) {
             return
         }
+        val hazardContent = activeHazardContent
+        val savedHazardItems = hazardContent?.let(::buildSavedHazardRecordItems).orEmpty()
+        val phoneSyncRecordKey = hazardContent
+            ?.takeIf { savedHazardItems.isNotEmpty() }
+            ?.let { buildPhoneSyncRecordKey(it) }
+        if (!phoneSyncRecordKey.isNullOrBlank()) {
+            InspectionWorkflowSession.recordSavedHazardAttempt(
+                recordKey = phoneSyncRecordKey,
+                jpegBytes = hazardContent.jpegBytes,
+                hazardItems = savedHazardItems,
+                saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
+            )
+        }
         showSyncing()
         phoneSyncHandle = InspectionSyncService.syncAnalysisToPhone(
             sessionId = sessionId,
@@ -1329,10 +1342,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         if (destroyed) return@post
                         phoneSyncHandle = null
                         InspectionWorkflowSession.recordPhoneSync(sessionId)
-                        InspectionWorkflowSession.recordSavedHazardCapture(activeHazardContent?.jpegBytes)
-                        InspectionWorkflowSession.updateSummary { summary ->
-                            summary.copy(
-                                hasHazardCount = summary.hasHazardCount + (activeHazardContent?.hazardCount() ?: 0),
+                        phoneSyncRecordKey?.let { recordKey ->
+                            InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                                recordKey = recordKey,
+                                saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
                             )
                         }
                         showSyncSuccess()
@@ -1344,6 +1357,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         if (destroyed) return@post
                         phoneSyncHandle = null
                         Log.e(TAG, "sync failed: $message")
+                        phoneSyncRecordKey?.let { recordKey ->
+                            InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                                recordKey = recordKey,
+                                saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
+                            )
+                        }
                         showSyncError(message)
                     }
                 }
@@ -1640,6 +1659,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 label = getString(R.string.ai_inspection_input_label_detecting_finish),
                 triggers = listOf(
                     voiceTrigger(R.string.ai_inspection_voice_finish, "jie shu"),
+                    voiceTrigger(R.string.ai_inspection_voice_finish_accent_alias, "jie su"),
                     voiceTrigger(R.string.ai_inspection_voice_finish_patrol, "jie shu xun cha"),
                     voiceTrigger(R.string.ai_inspection_voice_finish_detect, "jie shu shi huan"),
                 ),
@@ -2137,6 +2157,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun buildLocalHazardUploadItems(hazardContent: ResolvedHazardContent): List<LocalHazardPushService.HidDangerItem> {
         return LocalHazardUploadItemBuilder.build(hazardContent)
+    }
+
+    private fun buildSavedHazardRecordItems(
+        hazardContent: ResolvedHazardContent,
+    ): List<InspectionWorkflowSession.SavedHazardItem> {
+        return buildLocalHazardUploadItems(hazardContent).map { item ->
+            InspectionWorkflowSession.SavedHazardItem(
+                hidNum = item.hidNum,
+                hidLevel = item.hidLevel,
+                description = item.descrip,
+                advice = item.advice,
+            )
+        }
     }
 
     private fun pruneExpiredLocalCooldowns(nowElapsedMs: Long) {
@@ -2755,7 +2788,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             returnToDetecting()
             return
         }
-        showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
+        showLocalHazardAdvice(showSaveSuccessToast = false)
     }
 
     private fun scheduleBackgroundLocalHazardSaveIfNeeded(hazardContent: ResolvedHazardContent) {
@@ -2766,6 +2799,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localHazardAutoSaveTaskKey = taskKey
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         val capturedJpeg = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
+        val uploadItems = buildLocalHazardUploadItems(hazardContent)
         val taskId = when {
             enterprisePayload == null -> {
                 Log.w(TAG, "skip local hazard background upload: missing enterprise payload")
@@ -2797,6 +2831,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 null
             }
 
+            uploadItems.isEmpty() -> {
+                Log.w(TAG, "skip local hazard background upload: no eligible hazard items")
+                null
+            }
+
             else -> {
                 InspectionBackgroundUploadQueue.enqueueLocalHazardSave(
                     taskKey = taskKey,
@@ -2806,13 +2845,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     userId = enterprisePayload.userId,
                     customParam = enterprisePayload.extraField,
                     jpegBytes = capturedJpeg,
-                    hidDanger = buildLocalHazardUploadItems(hazardContent),
+                    hidDanger = uploadItems,
                 )
             }
         }
         if (taskId.isNullOrBlank()) {
             return
         }
+        InspectionWorkflowSession.recordSavedHazardAttempt(
+            recordKey = buildBackgroundSaveRecordKey(taskKey),
+            jpegBytes = capturedJpeg,
+            hazardItems = buildSavedHazardRecordItems(hazardContent),
+            saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
+        )
         InspectionBackgroundUploadService.start(this, taskId)
     }
 
@@ -2837,7 +2882,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ).joinToString(separator = "|")
     }
 
-    private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean, countAsSaved: Boolean) {
+    private fun buildPhoneSyncRecordKey(hazardContent: ResolvedHazardContent): String {
+        val baseKey = sessionId.ifBlank { buildLocalHazardAutoSaveTaskKey(hazardContent) }
+        return "phone_sync|$baseKey"
+    }
+
+    private fun buildBackgroundSaveRecordKey(taskKey: String): String {
+        return "background_save|$taskKey"
+    }
+
+    private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean) {
         val hazardContent = activeHazardContent ?: return
         if (localResultStage != LocalResultStage.DESCRIPTION) return
         localSaveSubmitting = false
@@ -2856,12 +2910,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .distinct()
             .joinToString("\n\n")
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        if (countAsSaved) {
-            InspectionWorkflowSession.recordSavedHazardCapture(hazardContent.jpegBytes)
-            InspectionWorkflowSession.updateSummary { summary ->
-                summary.copy(hasHazardCount = summary.hasHazardCount + hazardContent.hazardCount())
-            }
-        }
         if (showSaveSuccessToast) {
             SpriteToastUtil.showSpriteToastOld(
                 this,
@@ -2880,7 +2928,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val sourceText = hazardContent.rawDetailText.trim()
             .ifBlank { hazardContent.displayDescription().trim() }
         if (sourceText.isBlank()) {
-            showLocalHazardAdvice(showSaveSuccessToast = false, countAsSaved = false)
+            showLocalHazardAdvice(showSaveSuccessToast = false)
             return
         }
         currentManualAnalysisHandle?.cancel()

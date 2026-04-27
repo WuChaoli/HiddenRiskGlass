@@ -2,7 +2,7 @@ package com.rokid.glass.hiddenrisk
 
 /**
  * 组装本地隐患上传项。
- * 同一张图片内按非空隐患编号去重，重复时保留首条，空编号全部保留。
+ * 跳过空隐患编号和重大隐患等级 2，剩余项按隐患编号去重，重复时保留首条。
  */
 object LocalHazardUploadItemBuilder {
 
@@ -12,7 +12,9 @@ object LocalHazardUploadItemBuilder {
         hazardContent.resolvedHazards().forEach { hazard ->
             val normalizedHidNum = hazard.hidNum.trim()
             if (normalizedHidNum.isBlank()) {
-                uploadHazards += hazard
+                return@forEach
+            }
+            if (hazard.hidLevel.trim() == "2") {
                 return@forEach
             }
             if (seenHidNums.add(normalizedHidNum)) {

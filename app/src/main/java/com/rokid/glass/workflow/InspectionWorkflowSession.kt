@@ -54,6 +54,35 @@ object InspectionWorkflowSession {
         val backupDone: Boolean = false,
     )
 
+    enum class SaveOutcome {
+        PENDING,
+        SUCCESS,
+        FAILED,
+        SKIPPED_EXPLICIT,
+    }
+
+    data class SavedHazardItem(
+        val hidNum: String,
+        val hidLevel: String,
+        val description: String,
+        val advice: String,
+    )
+
+    data class SavedHazardRecord(
+        val recordKey: String,
+        val jpegBytes: ByteArray?,
+        val hazardItems: List<SavedHazardItem>,
+        val saveIntent: Boolean,
+        val saveOutcome: SaveOutcome,
+    ) {
+        fun normalizedHidNums(): List<String> {
+            return hazardItems
+                .map { it.hidNum.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+        }
+    }
+
     var workflowMode: WorkflowMode = WorkflowMode.OFFLINE
     var enterpriseInfo: EnterpriseInfo? = null
     var enterpriseQrPayload: EnterpriseQrPayload? = null
@@ -70,10 +99,7 @@ object InspectionWorkflowSession {
         private set
     var finishSubmitProgress: DualSubmitProgress = DualSubmitProgress()
         private set
-    private val savedHazardJpegList = mutableListOf<ByteArray>()
-    private val backgroundSavedHazardKeys = mutableSetOf<String>()
-    val savedHazardJpegs: List<ByteArray>
-        get() = savedHazardJpegList.map { it.copyOf() }
+    private val savedHazardRecordsByKey = linkedMapOf<String, SavedHazardRecord>()
     var summary: InspectionSummary = InspectionSummary()
 
     fun updateMode(connected: Boolean) {
@@ -177,27 +203,76 @@ object InspectionWorkflowSession {
         latestCapturedJpeg = jpegBytes?.copyOf()
     }
 
-    fun recordSavedHazardCapture(jpegBytes: ByteArray?) {
-        if (jpegBytes == null || jpegBytes.isEmpty()) {
-            return
+    fun recordSavedHazardAttempt(
+        recordKey: String,
+        jpegBytes: ByteArray?,
+        hazardItems: List<SavedHazardItem>,
+        saveIntent: Boolean = true,
+        saveOutcome: SaveOutcome = SaveOutcome.PENDING,
+    ): Boolean {
+        if (recordKey.isBlank() || hazardItems.isEmpty()) {
+            return false
         }
-        savedHazardJpegList.add(jpegBytes.copyOf())
+        val normalizedItems = hazardItems
+            .map { item ->
+                item.copy(
+                    hidNum = item.hidNum.trim(),
+                    hidLevel = item.hidLevel.trim(),
+                    description = item.description.trim(),
+                    advice = item.advice.trim(),
+                )
+            }
+            .filter { it.hidNum.isNotBlank() }
+        if (normalizedItems.isEmpty()) {
+            return false
+        }
+        val existing = savedHazardRecordsByKey[recordKey]
+        savedHazardRecordsByKey[recordKey] = SavedHazardRecord(
+            recordKey = recordKey,
+            jpegBytes = jpegBytes
+                ?.takeIf { it.isNotEmpty() }
+                ?.copyOf()
+                ?: existing?.jpegBytes?.copyOf(),
+            hazardItems = normalizedItems,
+            saveIntent = saveIntent,
+            saveOutcome = saveOutcome,
+        )
+        return true
     }
 
-    fun recordSavedHazardCaptureOnce(
-        taskKey: String,
-        jpegBytes: ByteArray?,
-        hazardCount: Int = 1,
+    fun updateSavedHazardAttemptOutcome(
+        recordKey: String,
+        saveOutcome: SaveOutcome,
     ): Boolean {
-        if (taskKey.isBlank() || jpegBytes == null || jpegBytes.isEmpty()) {
-            return false
-        }
-        if (!backgroundSavedHazardKeys.add(taskKey)) {
-            return false
-        }
-        savedHazardJpegList.add(jpegBytes.copyOf())
-        summary = summary.copy(hasHazardCount = summary.hasHazardCount + hazardCount.coerceAtLeast(0))
+        val existing = savedHazardRecordsByKey[recordKey] ?: return false
+        savedHazardRecordsByKey[recordKey] = existing.copy(saveOutcome = saveOutcome)
         return true
+    }
+
+    fun buildEndReportRecords(): List<SavedHazardRecord> {
+        return savedHazardRecordsByKey.values.map { record ->
+            record.copy(
+                jpegBytes = record.jpegBytes?.copyOf(),
+                hazardItems = record.hazardItems.toList(),
+            )
+        }
+    }
+
+    fun buildEndReportHazardCount(): Int {
+        return savedHazardRecordsByKey.values
+            .asSequence()
+            .filter { it.saveIntent && it.saveOutcome != SaveOutcome.SKIPPED_EXPLICIT }
+            .flatMap { it.normalizedHidNums().asSequence() }
+            .toSet()
+            .size
+    }
+
+    fun buildEndReportThumbnails(): List<ByteArray> {
+        return savedHazardRecordsByKey.values
+            .asSequence()
+            .filter { it.saveIntent && it.saveOutcome != SaveOutcome.SKIPPED_EXPLICIT }
+            .mapNotNull { it.jpegBytes?.takeIf { bytes -> bytes.isNotEmpty() }?.copyOf() }
+            .toList()
     }
 
     fun updateSummary(transform: (InspectionSummary) -> InspectionSummary) {
@@ -214,8 +289,7 @@ object InspectionWorkflowSession {
         latestCapturedJpeg = null
         clearPhoneSyncProgress()
         clearFinishSubmitProgress()
-        savedHazardJpegList.clear()
-        backgroundSavedHazardKeys.clear()
+        savedHazardRecordsByKey.clear()
         summary = InspectionSummary()
     }
 

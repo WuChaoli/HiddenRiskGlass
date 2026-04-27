@@ -28,7 +28,7 @@ class LocalHazardUploadItemBuilderTest {
     }
 
     @Test
-    fun build_keepsBlankHidNumItems() {
+    fun build_skipsBlankHidNumItems() {
         val items = LocalHazardUploadItemBuilder.build(
             hazardContent(
                 hazards = listOf(
@@ -39,13 +39,27 @@ class LocalHazardUploadItemBuilderTest {
             ),
         )
 
-        assertEquals(3, items.size)
+        assertEquals(1, items.size)
         assertEquals("1", items[0].indexNum)
-        assertEquals("", items[0].hidNum)
-        assertEquals("2", items[1].indexNum)
-        assertEquals("   ", items[1].hidNum)
-        assertEquals("3", items[2].indexNum)
-        assertEquals("HZ-003", items[2].hidNum)
+        assertEquals("HZ-003", items[0].hidNum)
+    }
+
+    @Test
+    fun build_skipsHidLevelTwoItems() {
+        val items = LocalHazardUploadItemBuilder.build(
+            hazardContent(
+                hazards = listOf(
+                    hazardItem(title = "燃气灶", description = "重大隐患1", hidNum = "HZ-001", hidLevel = "2"),
+                    hazardItem(title = "液化石油气瓶", description = "重大隐患2", hidNum = "HZ-002", hidLevel = " 2 "),
+                    hazardItem(title = "电箱", description = "可上传", hidNum = "HZ-003", hidLevel = "1"),
+                ),
+            ),
+        )
+
+        assertEquals(1, items.size)
+        assertEquals("1", items[0].indexNum)
+        assertEquals("可上传", items[0].descrip)
+        assertEquals("HZ-003", items[0].hidNum)
     }
 
     @Test
@@ -57,14 +71,16 @@ class LocalHazardUploadItemBuilderTest {
                     hazardItem(title = "液化石油气瓶", description = "B", hidNum = ""),
                     hazardItem(title = "电箱", description = "C", hidNum = "HZ-001"),
                     hazardItem(title = "消防通道", description = "D", hidNum = "HZ-004"),
+                    hazardItem(title = "配电房", description = "E", hidNum = "HZ-005", hidLevel = "2"),
+                    hazardItem(title = "仓库", description = "F", hidNum = "HZ-006"),
                 ),
             ),
         )
 
-        assertEquals(listOf("A", "B", "D"), items.map { it.descrip })
-        assertEquals(listOf("整改-A", "整改-B", "整改-D"), items.map { it.advice })
+        assertEquals(listOf("A", "D", "F"), items.map { it.descrip })
+        assertEquals(listOf("整改-A", "整改-D", "整改-F"), items.map { it.advice })
         assertEquals(listOf("1", "2", "3"), items.map { it.indexNum })
-        assertEquals(listOf("HZ-001", "", "HZ-004"), items.map { it.hidNum })
+        assertEquals(listOf("HZ-001", "HZ-004", "HZ-006"), items.map { it.hidNum })
     }
 
     private fun hazardContent(hazards: List<ResolvedHazardItem>): ResolvedHazardContent {
@@ -87,13 +103,14 @@ class LocalHazardUploadItemBuilderTest {
         title: String,
         description: String,
         hidNum: String,
+        hidLevel: String = "1",
     ): ResolvedHazardItem {
         return ResolvedHazardItem(
             displayTitle = title,
             description = description,
             advice = "建议-$description",
             uploadAdvice = "整改-$description",
-            hidLevel = "1",
+            hidLevel = hidLevel,
             hidNum = hidNum,
             lawBasis = "依据-$description",
         )
