@@ -34,7 +34,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
 
     companion object {
         private const val TAG = "InspectionEndReport"
-        private const val SHOW_END_REPORT_HAZARD_COUNT = false
+        private const val SHOW_END_REPORT_HAZARD_COUNT = true
     }
 
     private lateinit var scrollSavedHazardThumbs: ScrollView

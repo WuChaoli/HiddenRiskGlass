@@ -16,7 +16,7 @@ import kotlin.math.abs
 class MotionStabilityTracker(
     context: Context,
     private val stableDurationMs: Long = 500L,
-    private val quietGyroMaxRad: Float = 0.18f,
+    private val quietGyroMaxRad: Float = 0.30f,
 ) : SensorEventListener {
 
     interface Listener {
