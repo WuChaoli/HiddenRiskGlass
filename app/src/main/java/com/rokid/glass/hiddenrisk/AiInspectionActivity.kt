@@ -70,7 +70,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val CAPTURE_WARMUP_MS = 1200L
-        private const val LOCAL_DETECT_INTERVAL_MS = 1000L
+        private const val AUTO_INFERENCE_RETRY_DELAY_MS = 80L
+        private const val ONLINE_DETECT_INTERVAL_MS = 1000L
         private const val AUTO_HAZARD_PRESENT_DELAY_MS = 3000L
         private const val LOCAL_LABEL_COOLDOWN_MS = 30_000L
         private const val STREAM_THUMBNAIL_TARGET_PX = 160
@@ -241,38 +242,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ADVICE,
     }
 
-    private enum class ScanCycleLocalState {
-        DISABLED,
-        PENDING,
-        DISPLAYABLE,
-        NO_RESULT,
-    }
-
-    private enum class ScanCycleOnlineState {
-        DISABLED,
-        PENDING,
-        POSITIVE,
-        NEGATIVE,
-        FAILED,
-    }
-
-    private data class ScanCycle(
-        val id: Long,
-        val epoch: Long,
-        val timestamp: Long,
-        var jpegBytes: ByteArray? = null,
-        var capturePayloadReady: Boolean = false,
-        var capturePayloadFailed: Boolean = false,
-        var localState: ScanCycleLocalState = ScanCycleLocalState.PENDING,
-        var rawLocalMatches: List<LocalHazardMatch> = emptyList(),
-        var localMatches: List<LocalHazardMatch> = emptyList(),
-        var localResult: ResolvedHazardContent? = null,
-        var onlineState: ScanCycleOnlineState = ScanCycleOnlineState.PENDING,
-        var onlineRawText: String = "",
-        var suppressOnlineByCooldown: Boolean = false,
-        var decided: Boolean = false,
-    )
-
     private sealed class PendingAutoHazardPresentation {
         abstract val detectedAtElapsedMs: Long
 
@@ -283,7 +252,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         data class Online(
             override val detectedAtElapsedMs: Long,
-            val cycleId: Long,
+            val requestId: Long,
             val jpegBytes: ByteArray,
             val resolved: ResolvedHazardContent? = null,
             val streamedText: String = "",
@@ -395,13 +364,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var modelLoading = false
     private var modelLoaded = false
     private var captureInProgress = false
-    private var pendingCaptureRequest = false
     private var captureDelayScheduled = false
+    private var autoInferenceStartRequested = false
     private var frameStreamInitializing = false
     private var frameStreamReady = false
     private var frameStreamReadyAtElapsedMs = 0L
     private var sdkReadyAtElapsedMs = 0L
-    private var autoCaptureScheduled = false
     private var pageState = PageState.DETECTING
     private var streamingInProgress = false
     private var streamCallbackActive = false
@@ -427,10 +395,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private var isMotionStable = false
     private var stableQualifiedAtMillis: Long? = null
-    private var lastConsumedFrameTimestamp = 0L
-    private var scanCycleEpoch = 0L
-    private var nextScanCycleId = 0L
-    private val activeScanCycles = linkedMapOf<Long, ScanCycle>()
+    private var autoInferenceEpoch = 0L
+    private var localLoopRunning = false
+    private var localLoopEpoch = 0L
+    private var localLastFrameTimestamp = 0L
+    private var localRetryPosted = false
+    private var onlineLoopRunning = false
+    private var onlineLoopEpoch = 0L
+    private var onlineLastFrameTimestamp = 0L
+    private var onlineQueuedNext = false
+    private var onlineLoopPosted = false
+    private var onlineFrameSelectionInProgress = false
+    private var onlineRequestInFlight = false
+    private var onlineNextEarliestStartElapsedMs = 0L
+    private var onlineActiveRequestId = 0L
 
     // 手动分析流相关
     private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
@@ -449,18 +427,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     frameStreamInitializing = false
                     frameStreamReady = false
                     frameStreamReadyAtElapsedMs = 0L
-                    lastConsumedFrameTimestamp = 0L
                     captureInProgress = false
-                    stopLocalDetectionLoop("camera_recovery", clearPendingStreamState = false)
+                    stopAutoInferencePipelines("camera_recovery", clearPendingStreamState = false)
                 }
 
                 override fun onRecoverySucceeded() {
                     Log.i(TAG, "camera recovery success")
                     frameStreamReady = true
                     frameStreamReadyAtElapsedMs = SystemClock.elapsedRealtime()
-                    lastConsumedFrameTimestamp = 0L
                     if (!destroyed && isActivityResumed && isWorkflowActive && pageState == PageState.DETECTING) {
-                        scheduleDetectionCaptureIfNeeded(reason = "camera_recovery", preferImmediate = true)
+                        startAutoInferencePipelinesIfNeeded(reason = "camera_recovery", preferImmediate = true)
                     }
                 }
 
@@ -486,7 +462,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             stableQualifiedAtMillis = stableSinceMillis
             if (isStable) {
                 Log.i(TAG, "motion stable qualified stableSinceMillis=$stableSinceMillis")
-                scheduleDetectionCaptureIfNeeded(reason = "motion_stable", preferImmediate = true)
+                startAutoInferencePipelinesIfNeeded(reason = "motion_stable", preferImmediate = true)
             }
             refreshDetectionStatus()
         }
@@ -512,22 +488,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val captureDelayRunnable = Runnable {
         captureDelayScheduled = false
-        if (destroyed || !pendingCaptureRequest || captureInProgress) return@Runnable
-        startSampleCaptureIfNeeded()
+        if (destroyed || !autoInferenceStartRequested) return@Runnable
+        startAutoInferencePipelinesIfNeeded(reason = "warmup_elapsed", preferImmediate = true)
     }
 
     private val pendingAutoHazardPresentationRunnable = Runnable {
         tryPresentPendingAutoHazard()
     }
 
-    private val autoCaptureRunnable = Runnable {
-        autoCaptureScheduled = false
-        if (!shouldAutoCaptureNow()) {
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-            return@Runnable
-        }
-        pendingCaptureRequest = true
-        startSampleCaptureIfNeeded()
+    private val localLoopRunnable = Runnable {
+        localRetryPosted = false
+        runLocalInferenceLoop()
+    }
+
+    private val onlineLoopRunnable = Runnable {
+        onlineLoopPosted = false
+        advanceOnlineInferenceLoop(reason = "scheduled")
     }
 
     // ==================== 生命周期 ====================
@@ -611,7 +587,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 立即开始检测（对象已预初始化）
      */
     private fun startDetectionImmediately() {
-        pendingCaptureRequest = false
+        autoInferenceStartRequested = false
         cameraRecoveryController.resetRecoveryAttempts()
         initFrameStreamAndTransition()
     }
@@ -649,7 +625,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         stopDetectionPreview()
-        stopLocalDetectionLoop("onPause")
+        stopAutoInferencePipelines("onPause")
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -657,7 +633,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
-        lastConsumedFrameTimestamp = 0L
         cameraRecoveryController.stop()
         InspectionSession.stopFrameStream()
         super.onPause()
@@ -669,7 +644,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             super.onStop()
             return
         }
-        stopLocalDetectionLoop("onStop")
+        stopAutoInferencePipelines("onStop")
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -691,13 +666,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         motionStabilityTracker.removeListener(motionStabilityListener)
         motionStabilityTracker.stop()
-        stopLocalDetectionLoop("onDestroy")
+        stopAutoInferencePipelines("onDestroy")
         hideStatusAlertOverlay()
         stopDetectionPreview()
         frameStreamInitializing = false
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
-        lastConsumedFrameTimestamp = 0L
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         cameraRecoveryController.stop()
@@ -813,8 +787,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        if (pendingCaptureRequest) {
-            startSampleCaptureIfNeeded()
+        if (autoInferenceStartRequested) {
+            startAutoInferencePipelinesIfNeeded(reason = "workflow_ready", preferImmediate = true)
             return
         }
 
@@ -891,15 +865,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
                 Log.i(
                     TAG,
-                    "frame stream ready pending=$pendingCaptureRequest pageState=$pageState"
+                    "frame stream ready autoStartRequested=$autoInferenceStartRequested pageState=$pageState"
                 )
                 if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
                     startDetectionPreviewIfNeeded()
                 }
-                if (pendingCaptureRequest) {
-                    startSampleCaptureIfNeeded()
+                if (autoInferenceStartRequested) {
+                    startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
                 } else if (pageState == PageState.DETECTING) {
-                    scheduleDetectionCaptureIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
+                    startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
                 }
                 refreshInputActions()
             }
@@ -907,8 +881,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun transitionToDetection() {
-        pendingCaptureRequest = false
-        scheduleDetectionCaptureIfNeeded(reason = "transition_to_detection", preferImmediate = true)
+        autoInferenceStartRequested = false
+        startAutoInferencePipelinesIfNeeded(reason = "transition_to_detection", preferImmediate = true)
         refreshDetectionStatus()
     }
 
@@ -921,7 +895,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamingInProgress = false
         pendingStreamStart = false
         clearPendingAutoHazardPresentation()
-        invalidateActiveScanCycles()
+        stopAutoInferencePipelines("return_to_detecting")
         clearLocalHazardResultState()
         activeStreamRequestId++
         hideStatusAlertOverlay()
@@ -940,10 +914,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamingInProgress = false
         pendingStreamStart = false
         clearPendingAutoHazardPresentation()
-        invalidateActiveScanCycles()
+        stopAutoInferencePipelines("return_home")
         clearLocalHazardResultState()
         activeStreamRequestId++
-        stopLocalDetectionLoop("return_home")
         localLabelCooldownUntilMs.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
@@ -962,9 +935,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamingInProgress = false
         pendingStreamStart = false
         clearPendingAutoHazardPresentation()
-        invalidateActiveScanCycles()
+        stopAutoInferencePipelines("finish_inspection")
         activeStreamRequestId++
-        stopLocalDetectionLoop("finish_inspection")
         localLabelCooldownUntilMs.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
@@ -975,17 +947,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // ==================== 拍照与推理 ====================
 
-    private fun startSampleCaptureIfNeeded() {
-        if (!pendingCaptureRequest || captureInProgress) return
-        if (!isActivityResumed || !isWorkflowActive) return
-        if (pageState != PageState.DETECTING) return
-        if (pendingStreamStart) return
-
+    private fun startAutoInferencePipelinesIfNeeded(reason: String, preferImmediate: Boolean) {
+        if (isAutoHazardPresentationPending()) {
+            return
+        }
+        autoInferenceStartRequested = true
+        if (!shouldRunAutoInferencePipelines()) {
+            return
+        }
         if (frameStreamReady && !RokidFrameSource.isCroppedFrameStreamWarm()) {
             frameStreamReady = false
             frameStreamReadyAtElapsedMs = 0L
         }
-
         if (!frameStreamReady) {
             initFrameStreamAndTransition()
             return
@@ -994,9 +967,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val readyElapsedMs = frameStreamReadyAtElapsedMs.takeIf { it > 0L } ?: sdkReadyAtElapsedMs
         val warmupRemainingMs = when {
             readyElapsedMs <= 0L -> CAPTURE_WARMUP_MS
-            else -> (CAPTURE_WARMUP_MS - (SystemClock.elapsedRealtime() - readyElapsedMs)).coerceAtLeast(
-                0L
-            )
+            else -> (CAPTURE_WARMUP_MS - (SystemClock.elapsedRealtime() - readyElapsedMs)).coerceAtLeast(0L)
         }
         if (warmupRemainingMs > 0L) {
             uiHandler.removeCallbacks(captureDelayRunnable)
@@ -1004,79 +975,108 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             uiHandler.postDelayed(captureDelayRunnable, warmupRemainingMs)
             return
         }
+        startAutoInferencePipelinesNow(reason = reason, preferImmediate = preferImmediate)
+    }
 
-        cameraRecoveryController.notifyConsumerWaitStarted()
-        pendingCaptureRequest = false
-        captureInProgress = true
-        val captureRequestStartMs = SystemClock.elapsedRealtime()
+    private fun startAutoInferencePipelinesNow(reason: String, preferImmediate: Boolean) {
+        if (!shouldRunAutoInferencePipelines()) {
+            return
+        }
+        autoInferenceStartRequested = false
+        val initialDelayMs = if (preferImmediate) 0L else AUTO_INFERENCE_RETRY_DELAY_MS
+        val startDecision = AutoInferenceLoopDecider.decidePipelineStart(
+            localEnabled = isLocalAutoDetectEnabled,
+            onlineEnabled = isOnlineAutoDetectEnabled,
+        )
+        if (startDecision.startLocal && !localLoopRunning) {
+            localLoopRunning = true
+            localLoopEpoch = autoInferenceEpoch
+            postLocalInferenceLoop(delayMs = initialDelayMs, reason = reason)
+        }
+        if (startDecision.startOnline && !onlineLoopRunning) {
+            onlineLoopRunning = true
+            onlineLoopEpoch = autoInferenceEpoch
+            postOnlineInferenceLoop(delayMs = initialDelayMs, reason = reason)
+        }
+    }
 
-        val frame = copyFrameForDetectionOrNull()
-        captureInProgress = false
+    private fun stopAutoInferencePipelines(reason: String, clearPendingStreamState: Boolean = true) {
+        Log.i(TAG, "stop auto inference pipelines reason=$reason")
+        autoInferenceStartRequested = false
+        captureDelayScheduled = false
+        localRetryPosted = false
+        onlineLoopPosted = false
+        localLoopRunning = false
+        onlineLoopRunning = false
+        onlineFrameSelectionInProgress = false
+        onlineRequestInFlight = false
+        onlineQueuedNext = false
+        onlineNextEarliestStartElapsedMs = 0L
+        localLastFrameTimestamp = 0L
+        onlineLastFrameTimestamp = 0L
+        autoInferenceEpoch += 1
+        clearPendingAutoHazardPresentation()
+        uiHandler.removeCallbacks(captureDelayRunnable)
+        uiHandler.removeCallbacks(localLoopRunnable)
+        uiHandler.removeCallbacks(onlineLoopRunnable)
+        cameraRecoveryController.notifyConsumerWaitStopped()
+        onlineHazardDetectionService.cancelAll()
+        if (clearPendingStreamState) {
+            pendingStreamStart = false
+        }
+    }
 
-        if (frame == null) {
-            Log.w(
-                TAG,
-                "copyFrameForDetectionOrNull failed elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isFrameStreamWarm()}",
-            )
+    private fun shouldRunAutoInferencePipelines(): Boolean {
+        if (destroyed || !isActivityResumed || !isWorkflowActive) return false
+        if (isAutoHazardPresentationPending()) return false
+        if (!hasRequiredPermissions()) return false
+        if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return false
+        if (!modelLoaded || modelLoading) return false
+        if (pendingStreamStart || streamingInProgress || streamCallbackActive) return false
+        if (frameStreamInitializing) return false
+        if (pageState != PageState.DETECTING) return false
+        if (!isMotionStable || stableQualifiedAtMillis == null) return false
+        return true
+    }
+
+    private fun postLocalInferenceLoop(delayMs: Long, reason: String) {
+        if (!localLoopRunning || destroyed || localRetryPosted) {
+            return
+        }
+        Log.d(TAG, "post local inference loop delayMs=$delayMs reason=$reason")
+        localRetryPosted = true
+        uiHandler.postDelayed(localLoopRunnable, delayMs.coerceAtLeast(0L))
+    }
+
+    private fun runLocalInferenceLoop() {
+        val epoch = localLoopEpoch
+        if (!isLocalLoopActive(epoch)) {
+            return
+        }
+        val local = hiddenRiskNcnn ?: run {
             if (startPendingStreamAnalysis()) {
                 return
             }
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "native_engine_missing")
             return
         }
 
-        Log.i(
-            TAG,
-            "copyFrameForDetectionOrNull submitted baseline=${frame.width}x${frame.height} source=${frame.sourceWidth}x${frame.sourceHeight} timestamp=${frame.timestamp} elapsed=${SystemClock.elapsedRealtime() - captureRequestStartMs}ms warm=${RokidFrameSource.isFrameStreamWarm()}",
-        )
-        triggerInference(frame)
-    }
-
-    private fun triggerInference(frame: SquareFramePayload) {
-        val cycleId = ++nextScanCycleId
-        val cycle = ScanCycle(
-            id = cycleId,
-            epoch = scanCycleEpoch,
-            timestamp = frame.timestamp,
-            localState = if (isLocalAutoDetectEnabled) {
-                ScanCycleLocalState.PENDING
-            } else {
-                ScanCycleLocalState.DISABLED
-            },
-            onlineState = if (isOnlineAutoDetectEnabled) {
-                ScanCycleOnlineState.PENDING
-            } else {
-                ScanCycleOnlineState.DISABLED
-            },
-        )
-        activeScanCycles[cycleId] = cycle
-        prepareCapturedPayloadForCycle(cycle, frame)
-        if (isOnlineAutoDetectEnabled && !isLocalAutoDetectEnabled) {
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-        }
-        if (!isLocalAutoDetectEnabled) {
-            evaluateScanCycle(cycle)
-            return
-        }
-
-        val local = hiddenRiskNcnn ?: run {
-            handleLocalInferenceCompleted(
-                cycleId = cycleId,
-                success = false,
-                snapshot = null,
-                localMatches = emptyList(),
-            )
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+        cameraRecoveryController.notifyConsumerWaitStarted()
+        captureInProgress = true
+        val frame = copyLatestSquareFrameForLocalOrNull(localLastFrameTimestamp)
+        captureInProgress = false
+        if (frame == null) {
+            if (startPendingStreamAnalysis()) {
+                return
+            }
+            postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "local_frame_unavailable")
             return
         }
         if (!inferenceRunning.compareAndSet(false, true)) {
-            cycle.localState = ScanCycleLocalState.NO_RESULT
-            evaluateScanCycle(cycle)
-            if (!isOnlineAutoDetectEnabled) {
-                scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-            }
+            postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "local_inference_busy")
             return
         }
+        localLastFrameTimestamp = frame.timestamp
         val localInput = BitmapUtils.resizeSquareNv21(
             nv21 = frame.nv21,
             width = frame.width,
@@ -1084,16 +1084,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             targetSize = DEFAULT_TARGET_INPUT_SIZE,
         ) ?: run {
             inferenceRunning.set(false)
-            handleLocalInferenceCompleted(
-                cycleId = cycleId,
-                success = false,
-                snapshot = null,
-                localMatches = emptyList(),
-            )
             if (startPendingStreamAnalysis()) {
                 return
             }
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            postLocalInferenceLoop(delayMs = 0L, reason = "local_resize_failed")
             return
         }
 
@@ -1105,8 +1099,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         DEFAULT_TARGET_INPUT_SIZE,
                         DEFAULT_TARGET_INPUT_SIZE,
                     )
-                }.onFailure { e -> Log.e(TAG, "submitNv21 failed", e) }
-                    .getOrDefault(false)
+                }.onFailure { error ->
+                    Log.e(TAG, "submitNv21 failed", error)
+                }.getOrDefault(false)
                 val snapshot = runCatching { local.getLatestInferenceStats() }.getOrNull()
                 val nativeElapsedMs = SystemClock.elapsedRealtime() - nativeStartElapsedMs
                 val inferenceMs = snapshot?.inferenceTimeMs ?: -1L
@@ -1119,14 +1114,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     inferenceRunning.set(false)
                     Log.d(
                         TAG,
-                        "inference success=$success detectionCount=$detectionCount nativeElapsedMs=$nativeElapsedMs inferenceMs=$inferenceMs"
+                        "local inference success=$success detectionCount=$detectionCount nativeElapsedMs=$nativeElapsedMs inferenceMs=$inferenceMs",
                     )
-                    if (destroyed || cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
-                        activeScanCycles.remove(cycleId)
+                    if (!isLocalLoopActive(epoch)) {
                         return@post
                     }
                     handleLocalInferenceCompleted(
-                        cycleId = cycleId,
+                        epoch = epoch,
+                        frame = frame,
                         success = success,
                         snapshot = snapshot,
                         localMatches = localMatches,
@@ -1134,48 +1129,316 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
             }) {
             inferenceRunning.set(false)
-            handleLocalInferenceCompleted(
-                cycleId = cycleId,
-                success = false,
-                snapshot = null,
-                localMatches = emptyList(),
-            )
             if (startPendingStreamAnalysis()) {
                 return
             }
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
+            postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "local_submit_rejected")
         }
     }
 
-    private fun copyFrameForDetectionOrNull(): SquareFramePayload? {
+    private fun handleLocalInferenceCompleted(
+        epoch: Long,
+        frame: SquareFramePayload,
+        success: Boolean,
+        snapshot: NativeInferenceStats?,
+        localMatches: List<LocalHazardMatch>,
+    ) {
+        if (!isLocalLoopActive(epoch)) {
+            return
+        }
+        val detectionCount = snapshot?.detectionCount ?: 0
+        if (success) {
+            InspectionWorkflowSession.updateSummary { summary ->
+                summary.copy(
+                    analyzedCount = summary.analyzedCount + 1,
+                    noHazardCount = summary.noHazardCount + if (detectionCount == 0) 1 else 0,
+                )
+            }
+        }
+
+        val filteredLocalMatches = if (success && localMatches.isNotEmpty()) {
+            filterLocalMatchesByCooldown(
+                localMatches = localMatches,
+                nowElapsedMs = SystemClock.elapsedRealtime(),
+            )
+        } else {
+            emptyList()
+        }
+        if (filteredLocalMatches.isNotEmpty()) {
+            stopAutoInferencePipelines("accept_local_hazard_result")
+            queueAutoDetectedLocalHazardPresentation(
+                localMatches = filteredLocalMatches,
+                frame = frame,
+                snapshot = snapshot,
+            )
+            return
+        }
+        if (startPendingStreamAnalysis()) {
+            return
+        }
+        if (AutoInferenceLoopDecider.shouldContinueLocalLoop(filteredLocalMatches.isNotEmpty())) {
+            postLocalInferenceLoop(delayMs = 0L, reason = "local_continue")
+        }
+    }
+
+    private fun queueAutoDetectedLocalHazardPresentation(
+        localMatches: List<LocalHazardMatch>,
+        frame: SquareFramePayload,
+        snapshot: NativeInferenceStats?,
+    ) {
+        try {
+            imageEncodeExecutor.execute {
+                val jpegBytes = buildCapturedFramePayload(frame)?.jpegBytes ?: ByteArray(0)
+                if (ENABLE_HIT_CAPTURE_SAVE && (snapshot?.detectionCount ?: 0) > 0 && jpegBytes.isNotEmpty()) {
+                    ensureHazardCaptureService().saveHazardCapture(jpegBytes, snapshot)
+                }
+                val resolved = buildLocalResolvedContent(
+                    localMatches = localMatches,
+                    jpegBytes = jpegBytes,
+                ) ?: return@execute
+                uiHandler.post {
+                    if (destroyed || pageState != PageState.DETECTING || pendingAutoHazardPresentation != null) {
+                        return@post
+                    }
+                    val detectedAtElapsedMs = SystemClock.elapsedRealtime()
+                    pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
+                        detectedAtElapsedMs = detectedAtElapsedMs,
+                        resolved = resolved,
+                    )
+                    playPendingHazardAlertIfNeeded()
+                    refreshPendingHazardAlertOverlay()
+                    schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
+                    refreshInputActions()
+                }
+            }
+        } catch (error: RejectedExecutionException) {
+            Log.w(TAG, "local hazard encode rejected", error)
+            val resolved = buildLocalResolvedContent(
+                localMatches = localMatches,
+                jpegBytes = ByteArray(0),
+            ) ?: return
+            val detectedAtElapsedMs = SystemClock.elapsedRealtime()
+            pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
+                detectedAtElapsedMs = detectedAtElapsedMs,
+                resolved = resolved,
+            )
+            playPendingHazardAlertIfNeeded()
+            refreshPendingHazardAlertOverlay()
+            schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
+            refreshInputActions()
+        }
+    }
+
+    private fun postOnlineInferenceLoop(delayMs: Long, reason: String) {
+        if (!onlineLoopRunning || destroyed || onlineLoopPosted) {
+            return
+        }
+        Log.d(TAG, "post online inference loop delayMs=$delayMs reason=$reason")
+        onlineLoopPosted = true
+        uiHandler.postDelayed(onlineLoopRunnable, delayMs.coerceAtLeast(0L))
+    }
+
+    private fun advanceOnlineInferenceLoop(reason: String) {
+        val epoch = onlineLoopEpoch
+        if (!isOnlineLoopActive(epoch)) {
+            return
+        }
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        val advanceDecision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
+            requestInFlight = onlineRequestInFlight,
+            queuedNext = false,
+            nowElapsedMs = nowElapsedMs,
+            nextEarliestStartElapsedMs = onlineNextEarliestStartElapsedMs,
+            loopAlreadyPosted = onlineLoopPosted,
+        )
+        if (advanceDecision.queueNext) {
+            Log.d(TAG, "online request still active, queue next requestId=$onlineActiveRequestId")
+            onlineQueuedNext = true
+            return
+        }
+        advanceDecision.delayMs?.let { delayMs ->
+            if (onlineRequestInFlight) {
+                postOnlineInferenceLoop(delayMs = delayMs, reason = "online_wait_interval")
+                return
+            }
+        }
+        if (onlineFrameSelectionInProgress) {
+            return
+        }
+        if (nowElapsedMs < onlineNextEarliestStartElapsedMs) {
+            postOnlineInferenceLoop(
+                delayMs = onlineNextEarliestStartElapsedMs - nowElapsedMs,
+                reason = "online_before_interval",
+            )
+            return
+        }
+        onlineFrameSelectionInProgress = true
+        cameraRecoveryController.notifyConsumerWaitStarted()
+        try {
+            imageEncodeExecutor.execute {
+                val payload = selectBestOnlineFramePayload(onlineLastFrameTimestamp)
+                uiHandler.post {
+                    onlineFrameSelectionInProgress = false
+                    if (!isOnlineLoopActive(epoch)) {
+                        return@post
+                    }
+                    if (payload == null) {
+                        if (startPendingStreamAnalysis()) {
+                            return@post
+                        }
+                        postOnlineInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "online_frame_unavailable")
+                        return@post
+                    }
+                    onlineLastFrameTimestamp = payload.timestamp
+                    cameraRecoveryController.reportFrameConsumed(payload.timestamp)
+                    cameraRecoveryController.notifyConsumerWaitStopped()
+                    val requestId = ++onlineActiveRequestId
+                    onlineRequestInFlight = true
+                    onlineQueuedNext = false
+                    val startedAtElapsedMs = SystemClock.elapsedRealtime()
+                    onlineNextEarliestStartElapsedMs = startedAtElapsedMs + ONLINE_DETECT_INTERVAL_MS
+                    Log.i(
+                        TAG,
+                        "start online detect requestId=$requestId reason=$reason nextEarliest=$onlineNextEarliestStartElapsedMs",
+                    )
+                    onlineHazardDetectionService.submitDetection(
+                        OnlineHazardDetectionService.DetectionRequest(
+                            epoch = epoch,
+                            requestId = requestId,
+                            jpegBytes = payload.jpegBytes,
+                        ),
+                    )
+                    postOnlineInferenceLoop(delayMs = ONLINE_DETECT_INTERVAL_MS, reason = "online_window_elapsed")
+                }
+            }
+        } catch (error: RejectedExecutionException) {
+            onlineFrameSelectionInProgress = false
+            Log.w(TAG, "online frame select rejected", error)
+            postOnlineInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "online_select_rejected")
+        }
+    }
+
+    private fun handleOnlineDetectionResult(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        hasHazard: Boolean,
+        rawText: String,
+    ) {
+        if (!isOnlineRequestActive(request)) {
+            return
+        }
+        onlineRequestInFlight = false
+        Log.i(
+            TAG,
+            "online detect result requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
+        )
+        if (hasHazard) {
+            stopAutoInferencePipelines("accept_online_hazard_result")
+            queueAutoDetectedOnlineHazardPresentation(request)
+            return
+        }
+        continueOnlineInferenceAfterCompletion()
+    }
+
+    private fun handleOnlineDetectionFailure(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        message: String,
+    ) {
+        if (!isOnlineRequestActive(request)) {
+            return
+        }
+        onlineRequestInFlight = false
+        Log.w(TAG, "online detect failed requestId=${request.requestId} message=$message")
+        continueOnlineInferenceAfterCompletion()
+    }
+
+    private fun handleOnlineDetectionDropped(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        reason: String,
+    ) {
+        if (!isOnlineRequestActive(request)) {
+            return
+        }
+        onlineRequestInFlight = false
+        Log.i(TAG, "online detect dropped requestId=${request.requestId} reason=$reason")
+        continueOnlineInferenceAfterCompletion()
+    }
+
+    private fun continueOnlineInferenceAfterCompletion() {
+        if (startPendingStreamAnalysis()) {
+            return
+        }
+        if (!onlineLoopRunning || pageState != PageState.DETECTING) {
+            return
+        }
+        val advanceDecision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
+            requestInFlight = false,
+            queuedNext = onlineQueuedNext,
+            nowElapsedMs = SystemClock.elapsedRealtime(),
+            nextEarliestStartElapsedMs = onlineNextEarliestStartElapsedMs,
+            loopAlreadyPosted = onlineLoopPosted,
+        )
+        if (advanceDecision.startNow) {
+            postOnlineInferenceLoop(delayMs = 0L, reason = "online_queued_after_complete")
+            return
+        }
+        advanceDecision.delayMs?.let { delayMs ->
+            postOnlineInferenceLoop(delayMs = delayMs, reason = "online_wait_next_window")
+        }
+    }
+
+    private fun isLocalLoopActive(epoch: Long): Boolean {
+        return !destroyed &&
+            pageState == PageState.DETECTING &&
+            localLoopRunning &&
+            localLoopEpoch == epoch &&
+            autoInferenceEpoch == epoch
+    }
+
+    private fun isOnlineLoopActive(epoch: Long): Boolean {
+        return !destroyed &&
+            pageState == PageState.DETECTING &&
+            onlineLoopRunning &&
+            onlineLoopEpoch == epoch &&
+            autoInferenceEpoch == epoch
+    }
+
+    private fun isOnlineRequestActive(request: OnlineHazardDetectionService.DetectionRequest): Boolean {
+        return isOnlineLoopActive(request.epoch) &&
+            onlineRequestInFlight &&
+            request.requestId == onlineActiveRequestId
+    }
+
+    private fun copyLatestSquareFrameForLocalOrNull(lastTimestampExclusive: Long): SquareFramePayload? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
         val frame = RokidFrameSource.copyLatestSquareFrame()
             ?.toSquareFramePayload()
             ?: return null
-        if (frame.timestamp <= lastConsumedFrameTimestamp) {
-            Log.w(TAG, "drop frame reason=duplicate timestamp=${frame.timestamp} last=$lastConsumedFrameTimestamp")
+        if (frame.timestamp <= lastTimestampExclusive) {
+            Log.w(TAG, "drop local frame reason=duplicate timestamp=${frame.timestamp} last=$lastTimestampExclusive")
             return null
         }
         val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
         if (ageMs > STALE_FRAME_THRESHOLD_MS) {
-            Log.w(TAG, "drop frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
+            Log.w(TAG, "drop local frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
             return null
         }
         cameraRecoveryController.reportFrameConsumed(frame.timestamp)
         cameraRecoveryController.notifyConsumerWaitStopped()
-        lastConsumedFrameTimestamp = frame.timestamp
         return frame
     }
 
-    private fun copyLatestSquareFrameForOnlineOrNull(): SquareFramePayload? {
+    private fun copyLatestSquareFrameForOnlineOrNull(lastTimestampExclusive: Long): SquareFramePayload? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
         val frame = RokidFrameSource.copyLatestSquareFrame()
             ?.toSquareFramePayload()
             ?: return null
+        if (frame.timestamp <= lastTimestampExclusive) {
+            return null
+        }
         val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
         if (ageMs > STALE_FRAME_THRESHOLD_MS) {
             Log.w(TAG, "drop online square frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
@@ -1223,14 +1486,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    private fun selectBestOnlineFramePayload(): CapturedFramePayload? {
+    private fun selectBestOnlineFramePayload(lastTimestampExclusive: Long): CapturedFramePayload? {
         val deadline = SystemClock.elapsedRealtime() + ONLINE_SELECT_WINDOW_MS
         var bestFrame: SquareFramePayload? = null
-        var lastTimestamp = Long.MIN_VALUE
+        var lastTimestamp = lastTimestampExclusive
         var sampledFrames = 0
         while (sampledFrames < ONLINE_SELECT_MAX_FRAMES) {
-            val frame = copyLatestSquareFrameForOnlineOrNull()
-            if (frame == null || frame.timestamp <= lastTimestamp) {
+            val frame = copyLatestSquareFrameForOnlineOrNull(lastTimestamp)
+            if (frame == null) {
                 if (SystemClock.elapsedRealtime() >= deadline) {
                     break
                 }
@@ -1392,68 +1655,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun applyDefaultDetectionStatus() {
         // 检测页不再显示状态监测文案，内部状态仅用于自动抓拍和自动分析调度。
-    }
-
-    // ==================== 自动拍摄调度 ====================
-
-    private fun shouldAutoCaptureNow(): Boolean {
-        if (destroyed || !isActivityResumed || !isWorkflowActive) return false
-        if (isAutoHazardPresentationPending()) return false
-        if (!hasRequiredPermissions()) return false
-        if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return false
-        if (!modelLoaded || modelLoading) return false
-        if (pendingStreamStart || streamingInProgress || streamCallbackActive) return false
-        if (captureInProgress || captureDelayScheduled || frameStreamInitializing || pendingCaptureRequest) return false
-        if (inferenceRunning.get()) return false
-        if (pageState != PageState.DETECTING) return false
-        if (!isMotionStable || stableQualifiedAtMillis == null) return false
-        return true
-    }
-
-    private fun scheduleAutoCaptureIfNeeded(delayMs: Long) {
-        if (autoCaptureScheduled || destroyed || !isActivityResumed || !isWorkflowActive) return
-        if (isAutoHazardPresentationPending()) return
-        if (pendingStreamStart || streamingInProgress || streamCallbackActive) return
-        if (pageState != PageState.DETECTING) return
-        autoCaptureScheduled = true
-        uiHandler.postDelayed(autoCaptureRunnable, delayMs.coerceAtLeast(0L))
-    }
-
-    private fun scheduleDetectionCaptureIfNeeded(reason: String, preferImmediate: Boolean) {
-        if (isAutoHazardPresentationPending()) {
-            return
-        }
-        if (preferImmediate && requestImmediateDetectionCaptureIfPossible(reason)) {
-            return
-        }
-        scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-    }
-
-    private fun requestImmediateDetectionCaptureIfPossible(reason: String): Boolean {
-        if (!shouldAutoCaptureNow()) {
-            return false
-        }
-        Log.i(TAG, "request immediate local detect reason=$reason")
-        autoCaptureScheduled = false
-        uiHandler.removeCallbacks(autoCaptureRunnable)
-        pendingCaptureRequest = true
-        startSampleCaptureIfNeeded()
-        return true
-    }
-
-    private fun stopLocalDetectionLoop(reason: String, clearPendingStreamState: Boolean = true) {
-        Log.i(TAG, "stop local detection loop reason=$reason")
-        pendingCaptureRequest = false
-        captureDelayScheduled = false
-        autoCaptureScheduled = false
-        clearPendingAutoHazardPresentation()
-        uiHandler.removeCallbacks(captureDelayRunnable)
-        uiHandler.removeCallbacks(autoCaptureRunnable)
-        cameraRecoveryController.notifyConsumerWaitStopped()
-        invalidateActiveScanCycles()
-        if (clearPendingStreamState) {
-            pendingStreamStart = false
-        }
     }
 
     private fun refreshDetectionStatus() {
@@ -2231,203 +2432,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
     }
 
-    /**
-     * 自动检测阶段的在线提交入口。
-     * 这里直接复用当前检测周期的 SquareFramePayload 编 JPEG，不重新抓帧、不重新裁剪。
-     * 因此自动检测里的“本地识别图 vs 在线上传图”应共享同一时间点与同一 cropRect。
-     */
-    private fun prepareCapturedPayloadForCycle(cycle: ScanCycle, frame: SquareFramePayload) {
-        try {
-            imageEncodeExecutor.execute {
-                val payload = buildCapturedFramePayload(frame)
-                uiHandler.post {
-                    if (!isScanCycleActive(cycle.id, cycle.epoch)) {
-                        return@post
-                    }
-                    if (payload == null) {
-                        val activeCycle = activeScanCycles[cycle.id] ?: return@post
-                        activeCycle.capturePayloadFailed = true
-                        if (isOnlineAutoDetectEnabled) {
-                            activeCycle.onlineState = ScanCycleOnlineState.FAILED
-                        }
-                        if (activeCycle.localMatches.isNotEmpty() && activeCycle.localResult == null) {
-                            activeCycle.localResult = buildLocalResolvedContent(
-                                localMatches = activeCycle.localMatches,
-                                jpegBytes = ByteArray(0),
-                            )
-                        }
-                        evaluateScanCycle(activeCycle)
-                        return@post
-                    }
-                    cycle.capturePayloadReady = true
-                    cycle.jpegBytes = payload.jpegBytes
-                    if (cycle.localMatches.isNotEmpty() && cycle.localResult == null) {
-                        cycle.localResult = buildLocalResolvedContent(
-                            localMatches = cycle.localMatches,
-                            jpegBytes = payload.jpegBytes,
-                        )
-                    }
-                    if (isOnlineAutoDetectEnabled) {
-                        onlineHazardDetectionService.submitDetection(
-                            OnlineHazardDetectionService.DetectionRequest(
-                                epoch = cycle.epoch,
-                                cycleId = cycle.id,
-                                jpegBytes = payload.jpegBytes,
-                            ),
-                        )
-                    }
-                    evaluateScanCycle(cycle)
-                }
-            }
-        } catch (error: RejectedExecutionException) {
-            Log.w(TAG, "prepareCapturedPayloadForCycle encode rejected cycleId=${cycle.id}", error)
-            cycle.capturePayloadFailed = true
-            if (isOnlineAutoDetectEnabled) {
-                cycle.onlineState = ScanCycleOnlineState.FAILED
-            }
-            if (cycle.localMatches.isNotEmpty() && cycle.localResult == null) {
-                cycle.localResult = buildLocalResolvedContent(
-                    localMatches = cycle.localMatches,
-                    jpegBytes = ByteArray(0),
-                )
-            }
-            evaluateScanCycle(cycle)
-        }
-    }
-
-    private fun handleLocalInferenceCompleted(
-        cycleId: Long,
-        success: Boolean,
-        snapshot: NativeInferenceStats?,
-        localMatches: List<LocalHazardMatch>,
-    ) {
-        val cycle = activeScanCycles[cycleId] ?: run {
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-            return
-        }
-        if (cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
-            activeScanCycles.remove(cycleId)
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-            return
-        }
-
-        val detectionCount = snapshot?.detectionCount ?: 0
-        if (success) {
-            InspectionWorkflowSession.updateSummary { summary ->
-                summary.copy(
-                    analyzedCount = summary.analyzedCount + 1,
-                    noHazardCount = summary.noHazardCount + if (detectionCount == 0) 1 else 0,
-                )
-            }
-        }
-
-        cycle.rawLocalMatches = localMatches
-        if (!success) {
-            cycle.localState = ScanCycleLocalState.NO_RESULT
-            cycle.localMatches = emptyList()
-            cycle.suppressOnlineByCooldown = false
-        } else if (localMatches.isNotEmpty()) {
-            val filteredLocalMatches = filterLocalMatchesByCooldown(
-                localMatches = localMatches,
-                nowElapsedMs = SystemClock.elapsedRealtime(),
-            )
-            cycle.localMatches = filteredLocalMatches
-            cycle.suppressOnlineByCooldown = filteredLocalMatches.isEmpty()
-            cycle.localState = ScanCycleLocalState.DISPLAYABLE
-            cycle.localResult = when {
-                filteredLocalMatches.isEmpty() -> null
-                cycle.capturePayloadReady -> cycle.jpegBytes?.let { jpegBytes ->
-                    buildLocalResolvedContent(
-                        localMatches = filteredLocalMatches,
-                        jpegBytes = jpegBytes,
-                    )
-                }
-
-                cycle.capturePayloadFailed -> buildLocalResolvedContent(
-                    localMatches = filteredLocalMatches,
-                    jpegBytes = ByteArray(0),
-                )
-
-                else -> null
-            }
-            if (filteredLocalMatches.isEmpty()) {
-                cycle.localState = ScanCycleLocalState.NO_RESULT
-            }
-        } else {
-            cycle.localState = ScanCycleLocalState.NO_RESULT
-            cycle.localMatches = emptyList()
-            cycle.suppressOnlineByCooldown = false
-        }
-
-        if (success && ENABLE_HIT_CAPTURE_SAVE && detectionCount > 0) {
-            cycle.jpegBytes?.let { jpegBytes ->
-                ensureHazardCaptureService().saveHazardCapture(jpegBytes, snapshot)
-            }
-        }
-
-        evaluateScanCycle(cycle)
-        if (pageState == PageState.DETECTING &&
-            !cycle.decided &&
-            cycle.localState != ScanCycleLocalState.DISPLAYABLE &&
-            cycle.onlineState != ScanCycleOnlineState.POSITIVE
-        ) {
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-        }
-    }
-
-    private fun handleOnlineDetectionResult(
-        request: OnlineHazardDetectionService.DetectionRequest,
-        hasHazard: Boolean,
-        rawText: String,
-    ) {
-        val cycle = activeScanCycles[request.cycleId] ?: return
-        if (cycle.epoch != request.epoch || cycle.epoch != scanCycleEpoch) {
-            return
-        }
-        cycle.onlineState = if (hasHazard) {
-            ScanCycleOnlineState.POSITIVE
-        } else {
-            ScanCycleOnlineState.NEGATIVE
-        }
-        cycle.onlineRawText = rawText
-        Log.i(
-            TAG,
-            "online detect result cycleId=${request.cycleId} hasHazard=$hasHazard state=${cycle.onlineState} rawText=${rawText.trim()}",
-        )
-        evaluateScanCycle(cycle)
-    }
-
-    private fun handleOnlineDetectionFailure(
-        request: OnlineHazardDetectionService.DetectionRequest,
-        message: String,
-    ) {
-        val cycle = activeScanCycles[request.cycleId] ?: return
-        if (cycle.epoch != request.epoch || cycle.epoch != scanCycleEpoch) {
-            return
-        }
-        Log.w(TAG, "online detect failed cycleId=${request.cycleId} message=$message")
-        cycle.onlineState = ScanCycleOnlineState.FAILED
-        evaluateScanCycle(cycle)
-    }
-
-    private fun handleOnlineDetectionDropped(
-        request: OnlineHazardDetectionService.DetectionRequest,
-        reason: String,
-    ) {
-        val cycle = activeScanCycles[request.cycleId] ?: return
-        if (cycle.epoch != request.epoch || cycle.epoch != scanCycleEpoch) {
-            return
-        }
-        Log.i(TAG, "online detect dropped cycleId=${request.cycleId} reason=$reason")
-        cycle.onlineState = ScanCycleOnlineState.FAILED
-        evaluateScanCycle(cycle)
-    }
-
     private fun handleOnlineDetailSuccess(
         request: OnlineHazardDetectionService.DetailRequest,
         fullText: String,
     ) {
-        if (request.epoch != scanCycleEpoch) {
+        if (request.epoch != autoInferenceEpoch) {
             return
         }
         val jpegBytes = request.jpegBytes
@@ -2441,7 +2450,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
-        if (pending.cycleId != request.cycleId) {
+        if (pending.requestId != request.requestId) {
             return
         }
         pendingAutoHazardPresentation = pending.copy(
@@ -2458,11 +2467,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         request: OnlineHazardDetectionService.DetailRequest,
         accumulatedText: String,
     ) {
-        if (request.epoch != scanCycleEpoch) {
+        if (request.epoch != autoInferenceEpoch) {
             return
         }
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
-        if (pending.cycleId != request.cycleId) {
+        if (pending.requestId != request.requestId) {
             return
         }
         val normalizedText = accumulatedText.trim()
@@ -2479,14 +2488,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         request: OnlineHazardDetectionService.DetailRequest,
         message: String,
     ) {
-        if (request.epoch != scanCycleEpoch) {
+        if (request.epoch != autoInferenceEpoch) {
             return
         }
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
-        if (pending.cycleId != request.cycleId) {
+        if (pending.requestId != request.requestId) {
             return
         }
-        Log.e(TAG, "online detail failed cycleId=${request.cycleId} message=$message")
+        Log.e(TAG, "online detail failed requestId=${request.requestId} message=$message")
         returnToDetecting()
         SpriteToastUtil.showSpriteToastOld(
             this,
@@ -2497,67 +2506,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    private fun evaluateScanCycle(cycle: ScanCycle) {
-        if (cycle.decided || cycle.epoch != scanCycleEpoch || pageState != PageState.DETECTING) {
+    private fun queueAutoDetectedOnlineHazardPresentation(
+        request: OnlineHazardDetectionService.DetectionRequest,
+    ) {
+        val jpegBytes = request.jpegBytes
+        if (jpegBytes.isEmpty()) {
+            Log.w(TAG, "queueAutoDetectedOnlineHazardPresentation missing jpeg requestId=${request.requestId}")
             return
         }
-        if (cycle.localState == ScanCycleLocalState.DISPLAYABLE) {
-            val resolved = cycle.localResult ?: return
-            cycle.decided = true
-            activeScanCycles.remove(cycle.id)
-            queueAutoDetectedLocalHazardPresentation(resolved)
-            return
-        }
-        if (cycle.onlineState == ScanCycleOnlineState.POSITIVE) {
-            if (cycle.suppressOnlineByCooldown) {
-                cycle.decided = true
-                activeScanCycles.remove(cycle.id)
-                return
-            }
-            val jpegBytes = cycle.jpegBytes
-            if (jpegBytes == null || jpegBytes.isEmpty()) {
-                return
-            }
-            cycle.decided = true
-            activeScanCycles.remove(cycle.id)
-            queueAutoDetectedOnlineHazardPresentation(cycle)
-            return
-        }
-
-        val localTerminal = when (cycle.localState) {
-            ScanCycleLocalState.DISABLED,
-            ScanCycleLocalState.NO_RESULT,
-            ScanCycleLocalState.DISPLAYABLE -> true
-
-            ScanCycleLocalState.PENDING -> false
-        }
-        val onlineTerminal = when (cycle.onlineState) {
-            ScanCycleOnlineState.DISABLED,
-            ScanCycleOnlineState.NEGATIVE,
-            ScanCycleOnlineState.FAILED,
-            ScanCycleOnlineState.POSITIVE -> true
-
-            ScanCycleOnlineState.PENDING -> false
-        }
-        if (localTerminal && onlineTerminal) {
-            activeScanCycles.remove(cycle.id)
-        }
-    }
-
-    private fun queueAutoDetectedOnlineHazardPresentation(cycle: ScanCycle) {
-        val jpegBytes = cycle.jpegBytes
-        if (jpegBytes == null || jpegBytes.isEmpty()) {
-            Log.w(TAG, "queueAutoDetectedOnlineHazardPresentation missing jpeg cycleId=${cycle.id}")
-            scheduleAutoCaptureIfNeeded(LOCAL_DETECT_INTERVAL_MS)
-            return
-        }
-        stopLocalDetectionLoop("accept_online_hazard_result")
         val detectedAtElapsedMs = SystemClock.elapsedRealtime()
         // JPEG 在生成后按只读数据传递，自动流式展示和详情请求复用同一份数组，避免额外 LOS 拷贝。
         val sharedJpegBytes = jpegBytes
         pendingAutoHazardPresentation = PendingAutoHazardPresentation.Online(
             detectedAtElapsedMs = detectedAtElapsedMs,
-            cycleId = cycle.id,
+            requestId = request.requestId,
             jpegBytes = sharedJpegBytes,
         )
         streamingInProgress = true
@@ -2567,15 +2529,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshInputActions()
         onlineHazardDetectionService.fetchHazardDetails(
             OnlineHazardDetectionService.DetailRequest(
-                epoch = scanCycleEpoch,
-                cycleId = cycle.id,
+                epoch = autoInferenceEpoch,
+                requestId = request.requestId,
                 jpegBytes = sharedJpegBytes,
             ),
         )
     }
 
     private fun presentResolvedHazardContent(result: ResolvedHazardContent) {
-        stopLocalDetectionLoop("present_hazard_result")
+        stopAutoInferencePipelines("present_hazard_result")
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         activeStreamRequestId += 1
@@ -2612,19 +2574,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!result.isOnlineNoHazardResult()) {
             scheduleBackgroundLocalHazardSaveIfNeeded(result)
         }
-        refreshInputActions()
-    }
-
-    private fun queueAutoDetectedLocalHazardPresentation(result: ResolvedHazardContent) {
-        stopLocalDetectionLoop("accept_local_hazard_result")
-        val detectedAtElapsedMs = SystemClock.elapsedRealtime()
-        pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
-            detectedAtElapsedMs = detectedAtElapsedMs,
-            resolved = result,
-        )
-        playPendingHazardAlertIfNeeded()
-        refreshPendingHazardAlertOverlay()
-        schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
         refreshInputActions()
     }
 
@@ -2674,7 +2623,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 if (remainingDelayMs > 0L) {
                     Log.i(
                         TAG,
-                        "pending online hazard waiting delay remainingDelayMs=$remainingDelayMs cycleId=${pending.cycleId}",
+                        "pending online hazard waiting delay remainingDelayMs=$remainingDelayMs requestId=${pending.requestId}",
                     )
                     schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
                     return
@@ -3085,12 +3034,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localHazardAdviceTtsPlayed = false
     }
 
-    private fun invalidateActiveScanCycles() {
-        scanCycleEpoch += 1
-        activeScanCycles.clear()
-        onlineHazardDetectionService.cancelAll()
-    }
-
     private fun isAutoHazardPresentationPending(): Boolean {
         return pendingAutoHazardPresentation != null
     }
@@ -3100,13 +3043,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         pendingAutoHazardPresentation = null
         pendingHazardAlertTtsPlayed = false
         refreshPendingHazardAlertOverlay()
-    }
-
-    private fun isScanCycleActive(
-        cycleId: Long,
-        epoch: Long,
-    ): Boolean {
-        return epoch == scanCycleEpoch && activeScanCycles[cycleId]?.epoch == epoch
     }
 
     private fun buildLocalHazardInfoByItem(infos: List<LocalHazardInfo>): Map<String, List<LocalHazardInfo>> {
@@ -3157,7 +3093,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         try {
             imageEncodeExecutor.execute {
-                val payload = selectBestOnlineFramePayload()
+                val payload = selectBestOnlineFramePayload(lastTimestampExclusive = Long.MIN_VALUE)
                 if (payload == null) {
                     Log.e(TAG, "当前 SDK 在线选帧失败")
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
@@ -3181,7 +3117,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (streamingInProgress || streamCallbackActive) {
             return
         }
-        invalidateActiveScanCycles()
+        stopAutoInferencePipelines("request_streaming")
         clearLocalHazardResultState()
         pendingStreamStart = true
         refreshDetectionStatus()
@@ -3210,7 +3146,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return false
         }
         pendingStreamStart = false
-        stopLocalDetectionLoop("start_streaming")
+        stopAutoInferencePipelines("start_streaming")
         captureAndSendToSSE()
         return true
     }
