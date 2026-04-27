@@ -15,6 +15,7 @@ import android.util.Size
 import android.view.TextureView
 import android.view.View
 import android.widget.TextView
+import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -462,6 +463,16 @@ class LightshotActivity : BaseGlassActivity() {
     }
 
     private fun startHazardRecordUpload(result: File) {
+        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+            hazardRecordUploadInProgress = false
+            syncPromptVisible = true
+            tvSaveResult.text = "隐患照片已保存，未执行上传"
+            tvSaveResult.visibility = View.VISIBLE
+            tvSyncPrompt.visibility = View.VISIBLE
+            tvHint.text = "当前为本地模式，可继续录入"
+            refreshActions()
+            return
+        }
         hazardRecordUploadInProgress = true
         syncPromptVisible = false
         tvSaveResult.text = "隐患照片同步中..."

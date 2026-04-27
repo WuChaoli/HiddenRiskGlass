@@ -26,6 +26,7 @@ import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
+import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -138,6 +139,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+            navigateDirectlyToInspection()
+            return
+        }
         setContentView(R.layout.activity_enterprise_qr_scan)
 
         debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
@@ -163,6 +168,11 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             applyDebugSnapshotState()
         }
         hideBottomHints()
+    }
+
+    private fun navigateDirectlyToInspection() {
+        startActivity(Intent(this, AiInspectionActivity::class.java))
+        finish()
     }
 
     override fun onResume() {

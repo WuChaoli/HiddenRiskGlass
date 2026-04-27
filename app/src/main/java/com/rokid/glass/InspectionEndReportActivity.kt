@@ -203,6 +203,10 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private fun submitFinishInspectionInBackground() {
         if (finishExitTriggered) return
         finishExitTriggered = true
+        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+            exitAppAfterFinishSubmitted()
+            return
+        }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         if (enterprisePayload == null) {
             android.util.Log.w(TAG, "skip finish background upload: missing enterprise payload")
