@@ -1,6 +1,5 @@
-/build
+build/
 .cxx/
 .gradle/
 build/
 libs/
-src/androidTest/
