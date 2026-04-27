@@ -1,3 +1,16 @@
 androidTest/
 debug/
 test/
+!test/
+test/*
+!test/java/
+test/java/*
+!test/java/com/
+test/java/com/*
+!test/java/com/rokid/
+test/java/com/rokid/*
+!test/java/com/rokid/glass/
+test/java/com/rokid/glass/*
+!test/java/com/rokid/glass/hiddenrisk/
+test/java/com/rokid/glass/hiddenrisk/*
+!test/java/com/rokid/glass/hiddenrisk/InferencePressureMonitorTest.kt

@@ -85,6 +85,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inferenceRunning = AtomicBoolean(false)
+    private lateinit var pressureMonitor: InferencePressureMonitor
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
     private var workflowState = WorkflowState.BINDING_SDK
@@ -192,6 +193,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         targetDebugCompareEnabled = intent?.getBooleanExtra(EXTRA_DEBUG_COMPARE, false) == true
         sampleImagePath = intent?.getStringExtra(EXTRA_SAMPLE_IMAGE_PATH)?.takeIf { it.isNotBlank() }
         setContentView(R.layout.activity_hidden_risk_probe)
+        pressureMonitor = InferencePressureMonitor(applicationContext, TAG)
         rootContainer = findViewById(R.id.rootContainer)
         imageLoadingIndicator = findViewById(R.id.imageLoadingIndicator)
         imageResultIcon = findViewById(R.id.imageResultIcon)
@@ -208,6 +210,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onResume() {
         super.onResume()
         isActivityResumed = true
+        pressureMonitor.startSession()
         logWorkflowCheckpoint("onResume")
         rootContainer.post { adjustRecordingIndicatorPosition() }
         renderCurrentUi()
@@ -224,6 +227,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onPause() {
         logWorkflowCheckpoint("onPause begin")
         isActivityResumed = false
+        pressureMonitor.clearSession()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
         captureDelayScheduled = false
@@ -250,6 +254,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onDestroy() {
         destroyed = true
+        pressureMonitor.clearSession()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(captureTimeoutRunnable)
         uiHandler.removeCallbacks(autoCaptureRunnable)
@@ -726,6 +731,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     TAG,
                     "stats snapshot backend=${snapshot?.backendName ?: "N/A"} inferenceMs=${snapshot?.inferenceTimeMs ?: -1L} detections=${snapshot?.detectionCount ?: -1} preLimitDetections=${snapshot?.preLimitDetectionCount ?: -1} errorStage=${snapshot?.errorStage ?: "N/A"} errorCode=${snapshot?.errorCode ?: -1}",
                 )
+                pressureMonitor.logSnapshot(
+                    workflowState = workflowState.name,
+                    stats = snapshot,
+                    success = success,
+                )
                 val hazardDecision = evaluateHazardDecision(snapshot)
 
                 val capturedPayload = if (hazardDecision == HazardDecision.ABNORMAL) {
@@ -825,6 +835,11 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 Log.i(
                     TAG,
                     "bitmap stats snapshot backend=${snapshot?.backendName ?: "N/A"} inferenceMs=${snapshot?.inferenceTimeMs ?: -1L} detections=${snapshot?.detectionCount ?: -1} preLimitDetections=${snapshot?.preLimitDetectionCount ?: -1} errorStage=${snapshot?.errorStage ?: "N/A"} errorCode=${snapshot?.errorCode ?: -1}",
+                )
+                pressureMonitor.logSnapshot(
+                    workflowState = workflowState.name,
+                    stats = snapshot,
+                    success = success,
                 )
                 val hazardDecision = evaluateHazardDecision(snapshot)
 
