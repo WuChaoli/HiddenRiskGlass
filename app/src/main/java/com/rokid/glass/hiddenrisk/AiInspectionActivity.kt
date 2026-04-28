@@ -74,7 +74,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val AUTO_INFERENCE_RETRY_DELAY_MS = 80L
         private const val ONLINE_DETECT_INTERVAL_MS = 1000L
         private const val AUTO_HAZARD_PRESENT_DELAY_MS = 3000L
-        private const val LOCAL_LABEL_COOLDOWN_MS = 30_000L
+        private const val LOCAL_LABEL_COOLDOWN_MS = 15_000L
         private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
         private const val LOCAL_SAVE_SUCCESS_TOAST_MS = 1500
