@@ -1,0 +1,9 @@
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/CMakeFiles/hiddenriskncnn.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/CMakeFiles/rebuild_cache.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/third_party/ncnn/CMakeFiles/edit_cache.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/third_party/ncnn/CMakeFiles/rebuild_cache.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/third_party/ncnn/src/CMakeFiles/ncnn-generate-spirv.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/third_party/ncnn/src/CMakeFiles/ncnn.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/third_party/ncnn/src/CMakeFiles/edit_cache.dir
+C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a/third_party/ncnn/src/CMakeFiles/rebuild_cache.dir

@@ -1,5 +1,4 @@
 *.iml
-.gradle
 .idea
 local.properties
 local.properties.bak
@@ -19,8 +18,6 @@ debug/
 third_party/
 models/
 assets/
-!app/src/main/assets/
-!app/src/main/assets/info.json
 .codex
 .tmp/
 .tmp_*.png

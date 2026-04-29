@@ -1,0 +1,58 @@
+{
+  "buildFiles": [
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\CMakeLists.txt",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\opencv-mobile-4.13.0-android\\sdk\\native\\jni\\abi-x86_64\\OpenCVConfig.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\opencv-mobile-4.13.0-android\\sdk\\native\\jni\\abi-x86_64\\OpenCVModules-release.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\opencv-mobile-4.13.0-android\\sdk\\native\\jni\\abi-x86_64\\OpenCVModules.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\opencv-mobile-4.13.0-android\\sdk\\native\\jni\\OpenCVConfig-version.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\opencv-mobile-4.13.0-android\\sdk\\native\\jni\\OpenCVConfig.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\third_party\\ncnn\\cmake\\ncnn_add_layer.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\third_party\\ncnn\\cmake\\ncnn_add_shader.cmake",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\third_party\\ncnn\\CMakeLists.txt",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\src\\main\\jni\\third_party\\ncnn\\src\\CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "C:\\Users\\wuchaoli\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+      "-C",
+      "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\.cxx\\RelWithDebInfo\\2g5a673h\\x86_64",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "C:\\Users\\wuchaoli\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
+    "-C",
+    "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\.cxx\\RelWithDebInfo\\2g5a673h\\x86_64",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "hiddenriskncnn::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86_64",
+      "artifactName": "hiddenriskncnn",
+      "output": "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\build\\intermediates\\cxx\\RelWithDebInfo\\2g5a673h\\obj\\x86_64\\libhiddenriskncnn.so",
+      "runtimeFiles": []
+    },
+    "ncnn::@7153314154d5048f6c2a": {
+      "toolchain": "toolchain",
+      "abi": "x86_64",
+      "artifactName": "ncnn",
+      "output": "C:\\Users\\wuchaoli\\Desktop\\codespace\\glassdemo\\app\\.cxx\\RelWithDebInfo\\2g5a673h\\x86_64\\third_party\\ncnn\\src\\libncnn.a"
+    },
+    "ncnn-generate-spirv::@7153314154d5048f6c2a": {
+      "toolchain": "toolchain",
+      "abi": "x86_64",
+      "artifactName": "ncnn-generate-spirv"
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "C:\\Users\\wuchaoli\\AppData\\Local\\Android\\Sdk\\ndk\\29.0.14206865\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang.exe",
+      "cppCompilerExecutable": "C:\\Users\\wuchaoli\\AppData\\Local\\Android\\Sdk\\ndk\\29.0.14206865\\toolchains\\llvm\\prebuilt\\windows-x86_64\\bin\\clang++.exe"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

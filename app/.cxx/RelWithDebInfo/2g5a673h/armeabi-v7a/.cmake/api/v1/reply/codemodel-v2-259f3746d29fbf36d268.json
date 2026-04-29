@@ -1,0 +1,127 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"childIndexes" : 
+					[
+						1
+					],
+					"jsonFile" : "directory-.-RelWithDebInfo-d0094a50bb2071803777.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.10.0"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"build" : "third_party/ncnn",
+					"childIndexes" : 
+					[
+						2
+					],
+					"jsonFile" : "directory-third_party.ncnn-RelWithDebInfo-cb50eae1173948aeaff3.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "2.8.12"
+					},
+					"parentIndex" : 0,
+					"projectIndex" : 1,
+					"source" : "third_party/ncnn"
+				},
+				{
+					"build" : "third_party/ncnn/src",
+					"jsonFile" : "directory-third_party.ncnn.src-RelWithDebInfo-b0ff2d50abd08cd9d493.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "2.8.12"
+					},
+					"parentIndex" : 1,
+					"projectIndex" : 1,
+					"source" : "third_party/ncnn/src",
+					"targetIndexes" : 
+					[
+						1,
+						2
+					]
+				}
+			],
+			"name" : "RelWithDebInfo",
+			"projects" : 
+			[
+				{
+					"childIndexes" : 
+					[
+						1
+					],
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "hiddenriskncnn",
+					"targetIndexes" : 
+					[
+						0
+					]
+				},
+				{
+					"directoryIndexes" : 
+					[
+						1,
+						2
+					],
+					"name" : "ncnn",
+					"parentIndex" : 0,
+					"targetIndexes" : 
+					[
+						1,
+						2
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "hiddenriskncnn::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-hiddenriskncnn-RelWithDebInfo-9df44f23679e214dd442.json",
+					"name" : "hiddenriskncnn",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "ncnn::@7153314154d5048f6c2a",
+					"jsonFile" : "target-ncnn-RelWithDebInfo-151e0d473c8b043a9412.json",
+					"name" : "ncnn",
+					"projectIndex" : 1
+				},
+				{
+					"directoryIndex" : 2,
+					"id" : "ncnn-generate-spirv::@7153314154d5048f6c2a",
+					"jsonFile" : "target-ncnn-generate-spirv-RelWithDebInfo-178a8982f6aa5d60fa1b.json",
+					"name" : "ncnn-generate-spirv",
+					"projectIndex" : 1
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/.cxx/RelWithDebInfo/2g5a673h/armeabi-v7a",
+		"source" : "C:/Users/wuchaoli/Desktop/codespace/glassdemo/app/src/main/jni"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}
