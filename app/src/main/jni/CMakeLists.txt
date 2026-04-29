@@ -1,12 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
 project(hiddenriskncnn)
 
-set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/opencv-mobile-4.13.0-android/sdk/native/jni)
+set(JNI_ROOT_DIR ${CMAKE_CURRENT_LIST_DIR})
+
+set(OpenCV_DIR ${JNI_ROOT_DIR}/opencv-mobile-4.13.0-android/sdk/native/jni)
 find_package(OpenCV REQUIRED core imgproc)
 
-set(NCNN_PREBUILT_ROOT ${CMAKE_SOURCE_DIR}/ncnn-20260113-android-vulkan/${ANDROID_ABI})
-get_filename_component(NCNN_SOURCE_ROOT ${CMAKE_SOURCE_DIR}/ncnn ABSOLUTE)
+set(NCNN_PREBUILT_ROOT ${JNI_ROOT_DIR}/ncnn-20260113-android-vulkan/${ANDROID_ABI})
+get_filename_component(NCNN_SOURCE_ROOT ${JNI_ROOT_DIR}/ncnn ABSOLUTE)
 set(NCNN_BUILD_ROOT ${CMAKE_BINARY_DIR}/ncnn)
+
+if(NOT EXISTS "${NCNN_SOURCE_ROOT}/CMakeLists.txt")
+    message(FATAL_ERROR
+        "Expected ncnn source tree at ${NCNN_SOURCE_ROOT}. "
+        "Restore app/src/main/jni/ncnn before configuring JNI build.")
+endif()
 
 add_library(GenericCodeGen STATIC IMPORTED GLOBAL)
 set_target_properties(GenericCodeGen PROPERTIES
