@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 疑似隐患图标：线性圆框问号 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+
+    <!-- 外圆圈（线性） -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M24,4 A20,20 0 1,0 24,44 A20,20 0 1,0 24,4 Z"
+        android:strokeColor="@color/green"
+        android:strokeWidth="2.5" />
+
+    <!-- 问号上半部分曲线 -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M18,19 C18,15.13 21.13,12 25,12 C28.87,12 32,15.13 32,19 C32,22 30,24 27.5,25.5 C26,26.5 25,27.5 25,30"
+        android:strokeColor="@color/green"
+        android:strokeLineCap="round"
+        android:strokeWidth="2.5" />
+
+    <!-- 问号圆点 -->
+    <path
+        android:fillColor="@color/green"
+        android:pathData="M25,35.5 A1.5,1.5 0 1,0 25,38.5 A1.5,1.5 0 1,0 25,35.5 Z" />
+
+</vector>

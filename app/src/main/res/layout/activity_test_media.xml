@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:background="@color/black"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginLeft="5dp"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/bt_photo_480P"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:layout_marginTop="10dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="P480P"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <TextView
+                    android:id="@+id/bt_photo_720P"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="P720P"
+                    android:textSize="10sp"
+                    app:layout_constraintLeft_toRightOf="@id/bt_photo_480P"
+                    app:layout_constraintTop_toTopOf="@id/bt_photo_480P" />
+
+                <TextView
+                    android:id="@+id/bt_photo_1080P"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="P1080P"
+                    android:textSize="10sp"
+                    app:layout_constraintLeft_toRightOf="@+id/bt_photo_720P"
+                    app:layout_constraintRight_toRightOf="parent"
+                    app:layout_constraintTop_toTopOf="@id/bt_photo_480P" />
+
+                <TextView
+                    android:id="@+id/bt_photo_4K"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:background="@android:color/darker_gray"
+                    android:layout_marginTop="10dp"
+                    android:padding="10dp"
+                    android:text="P4K"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/bt_photo_480P" />
+
+<!--                <TextView-->
+<!--                    android:id="@+id/bt_switch_720P"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:background="@android:color/darker_gray"-->
+<!--                    android:padding="10dp"-->
+<!--                    android:text="V720P"-->
+<!--                    android:textSize="10sp"-->
+<!--                    app:layout_constraintLeft_toRightOf="@id/bt_photo_4K"-->
+<!--                    app:layout_constraintTop_toTopOf="@id/bt_photo_4K" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/bt_switch_1080P"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:background="@android:color/darker_gray"-->
+<!--                    android:padding="10dp"-->
+<!--                    android:text="V1080P"-->
+<!--                    android:textSize="10sp"-->
+<!--                    app:layout_constraintLeft_toRightOf="@id/bt_switch_720P"-->
+<!--                    app:layout_constraintTop_toTopOf="@id/bt_photo_4K" />-->
+
+
+                <TextView
+                    android:id="@+id/bt_startRecord_720P"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="Record_720P"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="@id/bt_photo_480P"
+                    app:layout_constraintTop_toBottomOf="@id/bt_photo_4K" />
+
+                <TextView
+                    android:id="@+id/bt_startRecord_1080P"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="Record_1080P"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toEndOf="@id/bt_startRecord_720P"
+                    app:layout_constraintTop_toTopOf="@id/bt_startRecord_720P" />
+
+                <TextView
+                    android:id="@+id/bt_stopRecord"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="stopRecord"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="@id/bt_photo_480P"
+                    app:layout_constraintTop_toBottomOf="@id/bt_startRecord_720P" />
+
+
+<!--                <TextView-->
+<!--                    android:id="@+id/bt_show_nv21"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:layout_marginStart="5dp"-->
+<!--                    android:background="@android:color/darker_gray"-->
+<!--                    android:padding="10dp"-->
+<!--                    android:text="showNv21"-->
+<!--                    android:textSize="10sp"-->
+<!--                    app:layout_constraintStart_toEndOf="@id/bt_stopRecord"-->
+<!--                    app:layout_constraintTop_toTopOf="@id/bt_stopRecord" />-->
+
+                <TextView
+                    android:id="@+id/bt_close_camera"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="closeCamera"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="@id/bt_photo_480P"
+                    app:layout_constraintTop_toBottomOf="@id/bt_stopRecord" />
+
+
+                <TextView
+                    android:id="@+id/bt_sendVideo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="sendVideo"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toEndOf="@id/bt_close_camera"
+                    app:layout_constraintTop_toTopOf="@id/bt_close_camera" />
+
+                <TextView
+                    android:id="@+id/btn_set_zoom"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="setZoom"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="@id/bt_photo_480P"
+                    app:layout_constraintTop_toBottomOf="@id/bt_close_camera" />
+
+                <TextView
+                    android:id="@+id/bt_stopSendVideo"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="stopSendVideo"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toEndOf="@id/btn_set_zoom"
+                    app:layout_constraintTop_toTopOf="@id/btn_set_zoom" />
+
+
+                <TextView
+                    android:id="@+id/btn_recordAudio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="采集Audio"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/btn_set_zoom" />
+
+                <TextView
+                    android:id="@+id/btn_stopRecordAudio"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginStart="5dp"
+                    android:background="@android:color/darker_gray"
+                    android:padding="10dp"
+                    android:text="停止采集Audio"
+                    android:textSize="10sp"
+                    app:layout_constraintStart_toEndOf="@id/btn_recordAudio"
+                    app:layout_constraintTop_toBottomOf="@id/btn_set_zoom" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+
+
+    </ScrollView>
+
+
+</androidx.constraintlayout.widget.ConstraintLayout>

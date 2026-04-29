@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <ImageView
+        android:id="@+id/ivStatusWifi"
+        android:layout_width="14dp"
+        android:layout_height="12dp"
+        android:layout_marginBottom="2dp"
+        android:scaleType="centerCrop"
+        android:src="@mipmap/status_wifi_4" />
+
+    <TextView
+        android:id="@+id/tvStatusTime"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:text="@string/glass_status_time_mock"
+        android:textColor="@color/green"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <FrameLayout
+        android:layout_width="22dp"
+        android:layout_height="11dp"
+        android:layout_marginStart="6dp"
+        android:layout_marginBottom="1dp">
+
+        <ImageView
+            android:id="@+id/ivStatusBatteryFill"
+            android:layout_width="18dp"
+            android:layout_height="9dp"
+            android:layout_gravity="center|start"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="2dp"
+            android:scaleType="fitXY"
+            android:src="@drawable/ic_battery_fill" />
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="11dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_battery_outline" />
+    </FrameLayout>
+</merge>

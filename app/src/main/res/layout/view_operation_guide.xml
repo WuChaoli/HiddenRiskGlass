@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 标题 -->
+    <TextView
+        android:id="@+id/tvGuideTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/ai_inspection_operation_guide_title"
+        android:textColor="@color/green"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        tools:text="@string/ai_inspection_operation_guide_title" />
+
+    <!-- 提示内容（多行） -->
+    <TextView
+        android:id="@+id/tvGuideContent"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:lineSpacingExtra="2dp"
+        android:text="@string/ai_inspection_operation_guide_confirm_return"
+        android:textColor="@color/green"
+        android:textSize="10sp"
+        tools:text="@string/ai_inspection_operation_guide_confirm_return" />
+</merge>
