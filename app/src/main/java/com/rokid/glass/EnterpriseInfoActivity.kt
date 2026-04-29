@@ -14,6 +14,8 @@ import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.util.TypedValue
+import com.rokid.glass.config.EnterpriseInfoLayoutMode
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.input.UnifiedInputSession
@@ -296,23 +298,32 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
 
     companion object {
         private const val TAG = "EnterpriseInfoActivity"
-        private const val MAX_HAZARD_HISTORY_DISPLAY_COUNT = 3
-        private const val RECENT_INSPECTION_TIME = "最近巡查时间：2026年1月21日"
-        private const val STATUS_UPDATE_INTERVAL_MS = 1000L
-        private const val COMPANY_NAME_TEXT_SIZE_LEGACY_SP = 20f
-        private const val COMPANY_NAME_TEXT_SIZE_NEW_SP = 24f
-        private const val INFO_TEXT_SIZE_LEGACY_SP = 11f
-        private const val INFO_TEXT_SIZE_NEW_SP = 17f
-        private const val INFO_LINE_SPACING_EXTRA_LEGACY_DP = 0f
-        private const val INFO_LINE_SPACING_EXTRA_NEW_DP = 6f
-        private val DEFAULT_LAYOUT_MODE = EnterpriseInfoLayoutMode.NEW
-    }
+        private val MAX_HAZARD_HISTORY_DISPLAY_COUNT: Int
+            get() = InspectionConfigRepository.get().enterpriseInfo.maxHazardHistoryDisplayCount
 
-    /**
-     * 企业详情页布局模式。
-     */
-    private enum class EnterpriseInfoLayoutMode {
-        LEGACY,
-        NEW,
+        private val RECENT_INSPECTION_TIME: String
+            get() = InspectionConfigRepository.get().enterpriseInfo.recentInspectionTimeFallbackText
+
+        private const val STATUS_UPDATE_INTERVAL_MS = 1000L
+        private val COMPANY_NAME_TEXT_SIZE_LEGACY_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.companyNameTextSizeLegacySp
+
+        private val COMPANY_NAME_TEXT_SIZE_NEW_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.companyNameTextSizeNewSp
+
+        private val INFO_TEXT_SIZE_LEGACY_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoTextSizeLegacySp
+
+        private val INFO_TEXT_SIZE_NEW_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoTextSizeNewSp
+
+        private val INFO_LINE_SPACING_EXTRA_LEGACY_DP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoLineSpacingExtraLegacyDp
+
+        private val INFO_LINE_SPACING_EXTRA_NEW_DP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoLineSpacingExtraNewDp
+
+        private val DEFAULT_LAYOUT_MODE: EnterpriseInfoLayoutMode
+            get() = InspectionConfigRepository.get().enterpriseInfo.layoutMode
     }
 }

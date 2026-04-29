@@ -2,9 +2,10 @@ package com.rokid.glass.hiddenrisk
 
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.config.SaveResultApiConfig
 import com.rokid.glass.utils.HttpUtils
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,6 +14,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.util.Base64
 import java.util.concurrent.TimeUnit
 
 /**
@@ -20,10 +22,12 @@ import java.util.concurrent.TimeUnit
  * 主备接口并行发送，两个端点都完成后再统一汇总结果。
  */
 class LocalHazardPushService(
+    private val apiConfig: SaveResultApiConfig =
+        InspectionConfigRepository.get().network.saveResultApi,
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
         .build(),
     private val gson: Gson = Gson(),
 ) {
@@ -247,7 +251,9 @@ class LocalHazardPushService(
 }
 
 internal object LocalHazardPushApiProtocol {
-    internal const val BACKUP_REQUEST_URL = "${HttpUtils.BACKUP_BASE_URL}/hxy/apis/hazardCheckRecord/saveHazard"
+    internal val BACKUP_REQUEST_URL: String
+        get() = "${HttpUtils.BACKUP_BASE_URL.trimEnd('/')}/hxy/apis/hazardCheckRecord/saveHazard"
+
     internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
     private const val IMAGE_DATA_URI_PREFIX = "data:image/jpg;base64,"
 
@@ -283,7 +289,7 @@ internal object LocalHazardPushApiProtocol {
                 objectId = objectId,
                 userId = userId,
                 customParam = customParam,
-                image = IMAGE_DATA_URI_PREFIX + Base64.encodeToString(jpegBytes, Base64.NO_WRAP),
+                image = IMAGE_DATA_URI_PREFIX + Base64.getEncoder().encodeToString(jpegBytes),
                 hidDanger = hidDanger,
             ),
         )

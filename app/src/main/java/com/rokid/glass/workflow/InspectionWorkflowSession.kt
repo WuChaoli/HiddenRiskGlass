@@ -306,6 +306,14 @@ object InspectionWorkflowSession {
         summary = InspectionSummary()
     }
 
+    /**
+     * 兼容旧测试与旧调用入口。
+     * 语义等同于“清空当前巡检累计结果，但保留企业扫码上下文”。
+     */
+    fun clearForNewInspection() {
+        clearInspectionAccumulatedResults()
+    }
+
     fun resetAll() {
         clearInspectionAccumulatedResults()
         workflowMode = WorkflowMode.OFFLINE

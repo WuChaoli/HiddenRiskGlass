@@ -5,6 +5,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.config.EnterpriseObjectApiConfig
+import com.rokid.glass.config.InspectionConfigRepository
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -20,10 +22,12 @@ import java.util.UUID
  * 负责根据二维码中的 baseUrl、authCode、objectId 拉取对象详情与历史隐患。
  */
 class EnterpriseObjectMessageService(
+    private val apiConfig: EnterpriseObjectApiConfig =
+        InspectionConfigRepository.get().network.enterpriseObjectApi,
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
         .build(),
     private val gson: Gson = Gson(),
 ) {

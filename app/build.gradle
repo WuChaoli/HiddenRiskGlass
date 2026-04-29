@@ -30,14 +30,10 @@ android {
     productFlavors {
         standard {
             dimension "edition"
-            buildConfigField "long", "AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS", "1000L"
-            buildConfigField "boolean", "AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD", "false"
         }
         demoOnlineonly {
             dimension "edition"
             versionNameSuffix "-demo-onlineonly"
-            buildConfigField "long", "AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS", "2000L"
-            buildConfigField "boolean", "AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD", "true"
         }
     }
 

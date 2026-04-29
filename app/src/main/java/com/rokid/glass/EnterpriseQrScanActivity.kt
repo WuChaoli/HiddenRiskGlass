@@ -26,6 +26,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
@@ -429,7 +430,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun shouldEnableCameraRecovery(): Boolean {
-        return !debugSnapshotMode && !completed && objectMessageRequest == null
+        return InspectionConfigRepository.get().enterpriseScan.enableCameraRecovery &&
+            !debugSnapshotMode &&
+            !completed &&
+            objectMessageRequest == null
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -604,8 +608,12 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     companion object {
         private const val TAG = "EnterpriseQrScan"
         private const val REQUEST_CODE_PERMISSIONS = 6001
-        private const val SCAN_INTERVAL_MS = 800L
-        private const val SCAN_FRAME_TARGET_SIZE = 1080
+        private val SCAN_INTERVAL_MS: Long
+            get() = InspectionConfigRepository.get().enterpriseScan.scanIntervalMs
+
+        private val SCAN_FRAME_TARGET_SIZE: Int
+            get() = InspectionConfigRepository.get().enterpriseScan.scanFrameTargetSize
+
         private const val STATUS_UPDATE_INTERVAL_MS = 1000L
         private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
 

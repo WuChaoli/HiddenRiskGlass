@@ -37,6 +37,9 @@ import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.config.AutoHazardRoutingMode as ConfigAutoHazardRoutingMode
+import com.rokid.glass.config.AutoInferenceMode as ConfigAutoInferenceMode
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.AlertBehavior
 import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
@@ -51,7 +54,6 @@ import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
-import com.rokid.glesse.BuildConfig
 import com.rokid.glesse.R
 import java.io.InputStreamReader
 import java.util.concurrent.ExecutorService
@@ -71,27 +73,72 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     companion object {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
-        private const val CAPTURE_WARMUP_MS = 1200L
-        private const val AUTO_INFERENCE_RETRY_DELAY_MS = 80L
-        private const val AUTO_HAZARD_PRESENT_DELAY_MS = 3000L
-        private const val LOCAL_LABEL_COOLDOWN_MS = 15_000L
-        private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
-        private const val LOCAL_SAVE_SUCCESS_TOAST_MS = 1500
 
-        private const val BACKEND_GPU = 1
-        private const val GPU_PROFILE_BALANCED_FP16 = 1
-        private const val DEFAULT_TARGET_INPUT_SIZE = 640
-        private const val ENABLE_HIT_CAPTURE_SAVE = false
-        private const val ENABLE_ONLINE_ADVICE_PAGE = false
-        private const val STALE_FRAME_THRESHOLD_MS = 1200L
-        private const val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS = 1000L
-        private const val ONLINE_JPEG_QUALITY = 97
-        private const val ONLINE_SELECT_WINDOW_MS = 240L
-        private const val ONLINE_SELECT_MAX_FRAMES = 3
-        private const val ONLINE_SELECT_POLL_INTERVAL_MS = 80L
-        private val AUTO_INFERENCE_MODE = AutoInferenceMode.BOTH // BOTH | ONLINE_ONLY | LOCAL_ONLY
-        private val AUTO_HAZARD_ROUTING_MODE = AutoHazardRoutingMode.SEPARATED // SEPARATED | ONLINE_ONLY | LOCAL_ONLY
+        private val CAPTURE_WARMUP_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.captureWarmupMs
+
+        private val AUTO_INFERENCE_RETRY_DELAY_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.autoInferenceRetryDelayMs
+
+        private val AUTO_HAZARD_PRESENT_DELAY_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.autoHazardPresentDelayMs
+
+        private val LOCAL_LABEL_COOLDOWN_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.localLabelCooldownMs
+
+        private val STREAM_THUMBNAIL_TARGET_PX: Int
+            get() = InspectionConfigRepository.get().aiInspection.streamThumbnailTargetPx
+
+        private val LOCAL_SAVE_SUCCESS_TOAST_MS: Int
+            get() = InspectionConfigRepository.get().aiInspection.localSaveSuccessToastMs
+
+        private val BACKEND_GPU: Int
+            get() = InspectionConfigRepository.get().aiInspection.backend.code
+
+        private val GPU_PROFILE_BALANCED_FP16: Int
+            get() = InspectionConfigRepository.get().aiInspection.gpuProfile.code
+
+        private val DEFAULT_TARGET_INPUT_SIZE: Int
+            get() = InspectionConfigRepository.get().aiInspection.targetInputSize
+
+        private val ENABLE_HIT_CAPTURE_SAVE: Boolean
+            get() = InspectionConfigRepository.get().aiInspection.enableHitCaptureSave
+
+        private val ENABLE_ONLINE_ADVICE_PAGE: Boolean
+            get() = InspectionConfigRepository.get().aiInspection.enableOnlineAdvicePage
+
+        private val STALE_FRAME_THRESHOLD_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.staleFrameThresholdMs
+
+        private val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.sharedFrameMotionClearThresholdMs
+
+        private val ONLINE_JPEG_QUALITY: Int
+            get() = InspectionConfigRepository.get().aiInspection.onlineJpegQuality
+
+        private val ONLINE_SELECT_WINDOW_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.onlineSelectWindowMs
+
+        private val ONLINE_SELECT_MAX_FRAMES: Int
+            get() = InspectionConfigRepository.get().aiInspection.onlineSelectMaxFrames
+
+        private val ONLINE_SELECT_POLL_INTERVAL_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs
+
+        private val AUTO_INFERENCE_MODE: AutoInferenceMode
+            get() = when (InspectionConfigRepository.get().aiInspection.autoInferenceMode) {
+                ConfigAutoInferenceMode.LOCAL_ONLY -> AutoInferenceMode.LOCAL_ONLY
+                ConfigAutoInferenceMode.ONLINE_ONLY -> AutoInferenceMode.ONLINE_ONLY
+                ConfigAutoInferenceMode.BOTH -> AutoInferenceMode.BOTH
+            }
+
+        private val AUTO_HAZARD_ROUTING_MODE: AutoHazardRoutingMode
+            get() = when (InspectionConfigRepository.get().aiInspection.autoHazardRoutingMode) {
+                ConfigAutoHazardRoutingMode.SEPARATED -> AutoHazardRoutingMode.SEPARATED
+                ConfigAutoHazardRoutingMode.ONLINE_ONLY -> AutoHazardRoutingMode.ONLINE_ONLY
+                ConfigAutoHazardRoutingMode.LOCAL_ONLY -> AutoHazardRoutingMode.LOCAL_ONLY
+            }
     }
 
     private enum class AutoInferenceMode {
@@ -294,10 +341,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.LOCAL_ONLY
 
     private val onlineDetectIntervalMs: Long
-        get() = BuildConfig.AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS
+        get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
 
     private val forceOnlineDetailForLocalHazard: Boolean
-        get() = BuildConfig.AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD
+        get() = InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard
 
     // --- UI ---
     private lateinit var layoutDetection: FrameLayout

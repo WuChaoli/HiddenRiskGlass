@@ -1,6 +1,7 @@
 package com.rokid.glass.utils
 
 import android.util.Log
+import com.rokid.glass.config.InspectionConfigRepository
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -11,18 +12,19 @@ class HttpUtils {
 
     companion object {
         private const val TAG = "HttpUtils"
-        const val PRIMARY_SAVE_RESULT_URL = "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave"
-        const val BACKUP_BASE_URL = "http://183.147.142.133:7443"
-        const val BACKUP_SAVE_RESULT_URL = "$BACKUP_BASE_URL/hxy/apis/hazardCheckRecord/saveHazard"
+        val PRIMARY_SAVE_RESULT_URL: String
+            get() = InspectionConfigRepository.get().network.saveResultApi.primarySaveResultUrl
 
-        private val client = OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+        val BACKUP_BASE_URL: String
+            get() = InspectionConfigRepository.get().network.saveResultApi.backupBaseUrl
+
+        val BACKUP_SAVE_RESULT_URL: String
+            get() = InspectionConfigRepository.get().network.saveResultApi.backupSaveResultUrl
 
         private val gson = com.google.gson.Gson()
     }
+
+    private val client: OkHttpClient by lazy { createClient() }
 
     /**
      * 智能眼镜保存结果上报
@@ -117,5 +119,14 @@ class HttpUtils {
     interface SaveResultCallback {
         fun onSuccess(response: ApiResponse)
         fun onFailure(e: Exception)
+    }
+
+    private fun createClient(): OkHttpClient {
+        val apiConfig = InspectionConfigRepository.get().network.saveResultApi
+        return OkHttpClient.Builder()
+            .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+            .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
+            .build()
     }
 }
