@@ -32,15 +32,12 @@ android {
             dimension "edition"
             buildConfigField "long", "AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS", "1000L"
             buildConfigField "boolean", "AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD", "false"
-            buildConfigField "boolean", "AI_INSPECTION_DEMO_ONLINEONLY", "false"
         }
         demoOnlineonly {
             dimension "edition"
-            applicationIdSuffix ".demoonlineonly"
             versionNameSuffix "-demo-onlineonly"
             buildConfigField "long", "AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS", "2000L"
             buildConfigField "boolean", "AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD", "true"
-            buildConfigField "boolean", "AI_INSPECTION_DEMO_ONLINEONLY", "true"
         }
     }
 
