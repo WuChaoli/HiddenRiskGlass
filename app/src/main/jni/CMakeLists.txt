@@ -5,8 +5,8 @@ set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/opencv-mobile-4.13.0-android/sdk/native/jni)
 find_package(OpenCV REQUIRED core imgproc)
 
 set(NCNN_PREBUILT_ROOT ${CMAKE_SOURCE_DIR}/ncnn-20260113-android-vulkan/${ANDROID_ABI})
-get_filename_component(NCNN_SOURCE_ROOT ${CMAKE_SOURCE_DIR}/third_party/ncnn ABSOLUTE)
-set(NCNN_BUILD_ROOT ${CMAKE_BINARY_DIR}/third_party/ncnn)
+get_filename_component(NCNN_SOURCE_ROOT ${CMAKE_SOURCE_DIR}/ncnn ABSOLUTE)
+set(NCNN_BUILD_ROOT ${CMAKE_BINARY_DIR}/ncnn)
 
 add_library(GenericCodeGen STATIC IMPORTED GLOBAL)
 set_target_properties(GenericCodeGen PROPERTIES
