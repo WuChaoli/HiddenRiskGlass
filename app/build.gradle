@@ -7,6 +7,7 @@ android {
     namespace 'com.rokid.glesse'
     compileSdk 34
     ndkVersion "29.0.14206865"
+    flavorDimensions += "edition"
 
     defaultConfig {
         applicationId "com.rokid.glesse"
@@ -23,6 +24,23 @@ android {
             cmake {
                 arguments "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON"
             }
+        }
+    }
+
+    productFlavors {
+        standard {
+            dimension "edition"
+            buildConfigField "long", "AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS", "1000L"
+            buildConfigField "boolean", "AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD", "false"
+            buildConfigField "boolean", "AI_INSPECTION_DEMO_ONLINEONLY", "false"
+        }
+        demoOnlineonly {
+            dimension "edition"
+            applicationIdSuffix ".demoonlineonly"
+            versionNameSuffix "-demo-onlineonly"
+            buildConfigField "long", "AI_INSPECTION_ONLINE_DETECT_INTERVAL_MS", "2000L"
+            buildConfigField "boolean", "AI_INSPECTION_FORCE_ONLINE_DETAIL_FOR_LOCAL_HAZARD", "true"
+            buildConfigField "boolean", "AI_INSPECTION_DEMO_ONLINEONLY", "true"
         }
     }
 
@@ -46,6 +64,7 @@ android {
         jvmTarget = '1.8'
     }
     buildFeatures {
+        buildConfig true
         compose true
     }
     viewBinding {
@@ -122,4 +141,22 @@ implementation 'com.google.code.gson:gson:2.10.1'
     androidTestImplementation libs.androidx.ui.test.junit4
     debugImplementation libs.androidx.ui.tooling
     debugImplementation libs.androidx.ui.test.manifest
+}
+
+tasks.register("assembleDefaultDebug") {
+    group = "build"
+    description = "Assembles the default standard debug variant."
+    dependsOn("assembleStandardDebug")
+}
+
+tasks.register("assembleDefaultRelease") {
+    group = "build"
+    description = "Assembles the default standard release variant."
+    dependsOn("assembleStandardRelease")
+}
+
+tasks.register("installDefaultDebug") {
+    group = "install"
+    description = "Installs the default standard debug variant."
+    dependsOn("installStandardDebug")
 }
