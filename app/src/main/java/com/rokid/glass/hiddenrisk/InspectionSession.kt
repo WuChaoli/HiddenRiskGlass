@@ -1,6 +1,8 @@
 package com.rokid.glass.hiddenrisk
 
+import android.util.Log
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 
 /**
  * 巡检会话管理单例。
@@ -76,15 +78,27 @@ object InspectionSession {
      * 初始化 SDK NV21 帧流
      */
     fun initFrameStream(callback: (Boolean) -> Unit) {
-        if (isFrameStreamReady && RokidFrameSource.isFrameStreamWarm()) {
+        Log.i(
+            TAG,
+            "initFrameStream start initialized=$isInitialized frameReady=$isFrameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
+        )
+        if (InspectionCameraCoordinator.isFrameStreamReady() && RokidFrameSource.isFrameStreamWarm()) {
+            isFrameStreamReady = true
             callback(true)
             return
         }
-        RokidFrameSource.startFrameStream { success ->
+        InspectionCameraCoordinator.acquire(
+            owner = CameraOwner.LOADING,
+            needPreview = false,
+        ) { success ->
             isFrameStreamReady = success
             if (!success) {
                 errorMessage = "相机帧流初始化失败"
             }
+            Log.i(
+                TAG,
+                "initFrameStream end success=$success frameReady=$isFrameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} error=$errorMessage",
+            )
             callback(success)
         }
     }
@@ -93,8 +107,16 @@ object InspectionSession {
      * 停止 inspection 相关的 SDK 帧源，占用相机的外部页面进入前调用。
      */
     fun stopFrameStream() {
-        RokidFrameSource.releaseAll()
+        Log.i(
+            TAG,
+            "stopFrameStream start initialized=$isInitialized frameReady=$isFrameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
+        )
+        InspectionCameraCoordinator.release(CameraOwner.LOADING, reason = "compat_stop_frame_stream")
         isFrameStreamReady = false
+        Log.i(
+            TAG,
+            "stopFrameStream end initialized=$isInitialized frameReady=$isFrameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
+        )
     }
 
     /**
@@ -137,4 +159,6 @@ object InspectionSession {
         isInitialized = false
         errorMessage = null
     }
+
+    private const val TAG = "InspectionSession"
 }

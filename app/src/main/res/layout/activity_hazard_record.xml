@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <FrameLayout
+        android:id="@+id/layoutIdle"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.rokid.glass.component.FunctionMenuView
+            android:id="@+id/functionMenuIdle"
+            android:layout_width="@dimen/inspection_function_menu_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/inspection_function_menu_margin_top"
+            android:layout_marginEnd="@dimen/inspection_function_menu_margin_end" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="bottom|center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvSuccessToast"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/hazard_record_success_toast_bg"
+                android:gravity="center"
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="6dp"
+                android:text="@string/hazard_record_save_success"
+                android:textColor="@color/green"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvIdleHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/hazard_record_photo_prompt"
+                android:textColor="@color/green"
+                android:textSize="18px"
+                android:textStyle="bold" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarIdle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutCountdown"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <com.rokid.glass.hiddenrisk.HazardRecordFrameOverlay
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp"
+            android:layout_marginTop="30dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:background="@drawable/green_dot" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:text="@string/hazard_record_camera_ready"
+                android:textColor="@color/green"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <com.rokid.glass.component.FunctionMenuView
+            android:id="@+id/functionMenuCountdown"
+            android:layout_width="@dimen/inspection_function_menu_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/inspection_function_menu_margin_top"
+            android:layout_marginEnd="@dimen/inspection_function_menu_margin_end" />
+
+        <TextView
+            android:id="@+id/tvCountdownValue"
+            android:layout_width="78dp"
+            android:layout_height="78dp"
+            android:layout_gravity="center"
+            android:background="@drawable/hazard_record_countdown_circle"
+            android:gravity="center"
+            android:text="3"
+            android:textColor="@color/green"
+            android:textSize="42sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="bottom|center_horizontal"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvCountdownHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:text="@string/hazard_record_countdown_prompt"
+                android:textColor="@color/green"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarCountdown"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutAnalysis"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:id="@+id/layoutThumbnailCard"
+            android:layout_width="@dimen/inspection_result_thumbnail_card_size"
+            android:layout_height="@dimen/inspection_result_thumbnail_card_size"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="@dimen/inspection_result_thumbnail_margin_top"
+            android:background="@drawable/hazard_record_result_card_bg"
+            android:padding="1dp">
+
+            <ImageView
+                android:id="@+id/ivThumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="bottom"
+            android:orientation="vertical">
+
+            <ScrollView
+                android:id="@+id/scrollAnalysis"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginHorizontal="@dimen/inspection_bottom_card_margin_horizontal"
+                android:layout_marginTop="130dp"
+                android:layout_weight="1"
+                android:fillViewport="false"
+                android:scrollbars="none">
+
+                <TextView
+                    android:id="@+id/tvAnalysisContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/hazard_record_result_card_bg"
+                    android:lineSpacingExtra="4dp"
+                    android:padding="12dp"
+                    android:text="@string/hazard_record_analyzing"
+                    android:textColor="@color/green"
+                    android:textSize="13sp" />
+            </ScrollView>
+
+            <TextView
+                android:id="@+id/tvAnalysisHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="@string/hazard_record_confirm_sync_prompt"
+                android:textColor="@color/green"
+                android:textSize="18px"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarAnalysis"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+    </FrameLayout>
+</FrameLayout>

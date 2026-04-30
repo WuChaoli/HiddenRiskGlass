@@ -188,6 +188,7 @@ object InspectionWorkflowSession {
 
     fun recordCapture(jpegBytes: ByteArray?) {
         latestCapturedJpeg = jpegBytes?.copyOf()
+        logSessionMemorySnapshot(reason = "recordCapture")
     }
 
     fun recordSavedHazardAttempt(
@@ -224,6 +225,7 @@ object InspectionWorkflowSession {
             saveIntent = saveIntent,
             saveOutcome = saveOutcome,
         )
+        logSessionMemorySnapshot(reason = "recordSavedHazardAttempt key=$recordKey")
         return true
     }
 
@@ -233,6 +235,7 @@ object InspectionWorkflowSession {
     ): Boolean {
         val existing = savedHazardRecordsByKey[recordKey] ?: return false
         savedHazardRecordsByKey[recordKey] = existing.copy(saveOutcome = saveOutcome)
+        logSessionMemorySnapshot(reason = "updateSavedHazardAttemptOutcome key=$recordKey outcome=$saveOutcome")
         return true
     }
 
@@ -255,6 +258,7 @@ object InspectionWorkflowSession {
     }
 
     fun buildEndReportThumbnails(): List<ByteArray> {
+        logSessionMemorySnapshot(reason = "buildEndReportThumbnails")
         return savedHazardRecordsByKey.values
             .asSequence()
             .filter { it.saveIntent && it.saveOutcome != SaveOutcome.SKIPPED_EXPLICIT }
@@ -281,6 +285,7 @@ object InspectionWorkflowSession {
         clearFinishSubmitProgress()
         savedHazardRecordsByKey.clear()
         summary = InspectionSummary()
+        logSessionMemorySnapshot(reason = "clearInspectionAccumulatedResults")
     }
 
     /**
@@ -317,6 +322,18 @@ object InspectionWorkflowSession {
             previous.apiBaseUrl != current.apiBaseUrl ||
             previous.authCode != current.authCode ||
             previous.extraField != current.extraField
+    }
+
+    private fun logSessionMemorySnapshot(reason: String) {
+        val latestBytes = latestCapturedJpeg?.size ?: 0
+        val savedRecordCount = savedHazardRecordsByKey.size
+        val savedImageCount = savedHazardRecordsByKey.values.count { it.jpegBytes?.isNotEmpty() == true }
+        val savedImageBytes = savedHazardRecordsByKey.values.sumOf { it.jpegBytes?.size?.toLong() ?: 0L }
+        val totalBytes = latestBytes.toLong() + savedImageBytes
+        Log.i(
+            TAG,
+            "sessionMemory reason=$reason latestCapturedBytes=$latestBytes savedRecordCount=$savedRecordCount savedImageCount=$savedImageCount savedImageBytes=$savedImageBytes totalTrackedBytes=$totalBytes totalTrackedMiB=${"%.2f".format(totalBytes / BYTES_PER_MEBIBYTE)}",
+        )
     }
 
     private fun parseEnterpriseQrPayload(qrContent: String): EnterpriseQrPayload? {
@@ -522,6 +539,7 @@ object InspectionWorkflowSession {
     private const val ENTERPRISE_QR_MIN_FIELD_COUNT = 6
     private const val LEGACY_ENTERPRISE_QR_MIN_TAIL_FIELD_COUNT = 5
     private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
+    private const val BYTES_PER_MEBIBYTE = 1024.0 * 1024.0
     private const val TAG = "InspectionWorkflow"
     private val gson = Gson()
 }

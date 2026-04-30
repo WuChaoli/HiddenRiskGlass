@@ -28,6 +28,7 @@ import androidx.core.content.ContextCompat
 import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.EnterpriseQrScanActivity
 import com.rokid.glass.WifiQrScanActivity
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -85,6 +86,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var cameraInitStarted = false
     private var initializationCompleted = false
     private var completionUiCommitted = false
+    private var cameraSessionGeneration = 0L
     private var debugSnapshotMode = false
     private var debugAnimateMode = false
     private var subtitleBaseText = ""
@@ -219,6 +221,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         super.onDestroy()
         stopLoadingUi()
         RokidSdkManager.removeListener(this)
+        InspectionCameraCoordinator.release(CameraOwner.LOADING, reason = "loading_on_destroy")
 
         // 如果初始化未完成且出现错误，清理资源
         if (loadingStage == LoadingStage.ERROR) {
@@ -420,16 +423,30 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         animateProgressTo(90)
         refreshInputActions()
 
-        InspectionSession.initFrameStream { success ->
+        var requestGeneration = 0L
+        requestGeneration = InspectionCameraCoordinator.acquire(
+            owner = CameraOwner.LOADING,
+            needPreview = false,
+        ) { success ->
+            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
+                Log.i(
+                    TAG,
+                    "ignore stale loading acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
+                )
+                return@acquire
+            }
             uiHandler.post {
                 if (activityDestroyed) return@post
+                cameraSessionGeneration = requestGeneration
                 if (success) {
+                    InspectionSession.markInitialized()
                     onInitializationComplete()
                 } else {
                     showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_frame_stream))
                 }
             }
         }
+        cameraSessionGeneration = requestGeneration
     }
 
     private fun onInitializationComplete() {
@@ -584,5 +601,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         uiHandler.removeCallbacks(startCameraInitRunnable)
         uiHandler.removeCallbacks(finishNavigationRunnable)
         progressRunnablePosted = false
+        cameraSessionGeneration = 0L
     }
 }

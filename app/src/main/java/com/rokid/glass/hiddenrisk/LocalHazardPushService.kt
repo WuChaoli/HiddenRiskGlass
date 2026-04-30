@@ -14,6 +14,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.util.Base64
 import java.util.concurrent.TimeUnit
 
@@ -96,6 +98,17 @@ class LocalHazardPushService(
             jpegBytes = jpegBytes,
             hidDanger = hidDanger,
         )
+        val requestContext = RequestContext(
+            primaryUrl = primaryUrl,
+            backupUrl = LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
+            jpegBytesSize = jpegBytes.size,
+            hazardCount = hidDanger.size,
+            requestBodyBytes = requestBodyJson.toByteArray(Charsets.UTF_8).size,
+        )
+        Log.i(
+            TAG,
+            "pushLocalHazard start objectId=$objectId jpegBytes=${requestContext.jpegBytesSize} hazardCount=${requestContext.hazardCount} requestBodyBytes=${requestContext.requestBodyBytes} primaryUrl=${requestContext.primaryUrl} backupUrl=${requestContext.backupUrl}",
+        )
         val coordinator = DualEndpointSubmitCoordinator(
             labels = listOf("primary", "backup"),
         ) { outcomes ->
@@ -106,7 +119,7 @@ class LocalHazardPushService(
             } else {
                 Log.w(
                     TAG,
-                    "pushLocalHazard final failed primarySuccess=${primaryOutcome.success} backupSuccess=${backupOutcome.success}",
+                    "pushLocalHazard final failed primarySuccess=${primaryOutcome.success} primaryAttempt=${primaryOutcome.attemptCount} primaryMessage=${primaryOutcome.message} backupSuccess=${backupOutcome.success} backupAttempt=${backupOutcome.attemptCount} backupMessage=${backupOutcome.message}",
                 )
                 deliverFailure(
                     callback,
@@ -132,6 +145,7 @@ class LocalHazardPushService(
                 requestUrl = primaryUrl,
                 requestBodyJson = requestBodyJson,
                 handle = handle,
+                requestContext = requestContext,
             ) { outcome ->
                 if (outcome.success) {
                     Log.i(TAG, "pushLocalHazard primary success attempts=${outcome.attemptCount}")
@@ -144,6 +158,7 @@ class LocalHazardPushService(
             requestUrl = LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
             requestBodyJson = requestBodyJson,
             handle = handle,
+            requestContext = requestContext,
         ) { outcome ->
             if (outcome.success) {
                 Log.i(TAG, "pushLocalHazard backup success attempts=${outcome.attemptCount}")
@@ -158,12 +173,17 @@ class LocalHazardPushService(
         requestUrl: String,
         requestBodyJson: String,
         handle: RetryRequestHandle,
+        requestContext: RequestContext,
         onComplete: (RetryOutcome) -> Unit,
     ) {
         InspectionRetryExecutor.execute(
             label = "local-hazard-$label",
             handle = handle,
             attemptBlock = { attempt, completion ->
+                Log.i(
+                    TAG,
+                    "pushLocalHazard attemptStart endpoint=$label attempt=$attempt requestBodyBytes=${requestContext.requestBodyBytes} jpegBytes=${requestContext.jpegBytesSize} hazardCount=${requestContext.hazardCount} canceled=${handle.isCanceled()} url=$requestUrl",
+                )
                 val request = Request.Builder()
                     .url(requestUrl)
                     .header("Content-Type", "application/json")
@@ -172,11 +192,16 @@ class LocalHazardPushService(
                 val call = client.newCall(request)
                 call.enqueue(object : okhttp3.Callback {
                     override fun onFailure(call: Call, e: IOException) {
-                        Log.e(TAG, "pushLocalHazard failed endpoint=$label attempt=$attempt url=$requestUrl", e)
+                        val failureType = classifyFailure(e, call.isCanceled(), handle.isCanceled())
+                        Log.e(
+                            TAG,
+                            "pushLocalHazard failed endpoint=$label attempt=$attempt callCanceled=${call.isCanceled()} handleCanceled=${handle.isCanceled()} failureType=$failureType requestBodyBytes=${requestContext.requestBodyBytes} jpegBytes=${requestContext.jpegBytesSize} url=$requestUrl",
+                            e,
+                        )
                         completion(
                             RetryAttemptResult(
                                 success = false,
-                                message = DEFAULT_FAILURE_MESSAGE,
+                                message = "$DEFAULT_FAILURE_MESSAGE[$failureType]",
                             ),
                         )
                     }
@@ -186,7 +211,7 @@ class LocalHazardPushService(
                             if (!response.isSuccessful) {
                                 Log.w(
                                     TAG,
-                                    "pushLocalHazard httpFailed endpoint=$label attempt=$attempt code=${response.code} message=${response.message} url=$requestUrl",
+                                    "pushLocalHazard httpFailed endpoint=$label attempt=$attempt code=${response.code} message=${response.message} callCanceled=${call.isCanceled()} requestBodyBytes=${requestContext.requestBodyBytes} url=$requestUrl",
                                 )
                                 completion(
                                     RetryAttemptResult(
@@ -199,7 +224,7 @@ class LocalHazardPushService(
                             val body = response.body?.string().orEmpty()
                             Log.i(
                                 TAG,
-                                "pushLocalHazard response endpoint=$label attempt=$attempt code=${response.code} body=$body",
+                                "pushLocalHazard response endpoint=$label attempt=$attempt code=${response.code} bodyLength=${body.length} body=$body",
                             )
                             val parseResult = LocalHazardPushApiProtocol.parseResponseBody(
                                 body = body,
@@ -247,6 +272,35 @@ class LocalHazardPushService(
     companion object {
         private const val TAG = "LocalHazardPushApi"
         private const val DEFAULT_FAILURE_MESSAGE = "本地隐患保存失败，请重试"
+    }
+
+    private data class RequestContext(
+        val primaryUrl: String?,
+        val backupUrl: String,
+        val jpegBytesSize: Int,
+        val hazardCount: Int,
+        val requestBodyBytes: Int,
+    )
+
+    private fun classifyFailure(
+        error: IOException,
+        callCanceled: Boolean,
+        handleCanceled: Boolean,
+    ): String {
+        if (callCanceled || handleCanceled) {
+            return "client_canceled"
+        }
+        return when (error) {
+            is SocketTimeoutException -> "socket_timeout"
+            is SocketException -> {
+                if (error.message?.contains("Socket closed", ignoreCase = true) == true) {
+                    "socket_closed"
+                } else {
+                    "socket_exception"
+                }
+            }
+            else -> error.javaClass.simpleName.ifBlank { "io_exception" }
+        }
     }
 }
 

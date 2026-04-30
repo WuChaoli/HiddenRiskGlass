@@ -235,7 +235,17 @@
     <string name="glass_status_time_mock">9:41</string>
     <string name="glass_status_battery_mock">85</string>
     <string name="hazard_record_title">隐患录入</string>
+    <string name="hazard_record_function_menu_content">实时分析\n设备指引\n结束任务</string>
     <string name="hazard_record_idle_hint">说出“拍照”或单击开始 3 秒倒计时</string>
+    <string name="hazard_record_photo_prompt">请说出“拍照”，记录现场隐患</string>
+    <string name="hazard_record_camera_ready">相机就绪</string>
+    <string name="hazard_record_countdown_prompt">准备拍照\n请保持眼镜稳定</string>
+    <string name="hazard_record_analyzing">正在分析隐患...</string>
+    <string name="hazard_record_confirm_sync_prompt">请确认是否同步至手机端？</string>
+    <string name="hazard_record_save_success">隐患保存成功</string>
+    <string name="hazard_record_capture_failed">当前画面获取失败，请重试</string>
+    <string name="hazard_record_frame_stream_failed">相机帧流初始化失败，请重试</string>
+    <string name="hazard_record_stream_failed">隐患分析失败，请重试</string>
     <string name="hazard_record_countdown_title">准备拍照</string>
     <string name="hazard_record_countdown_subtitle">请保持设备稳定</string>
     <string name="hazard_record_sync_success">隐患照片已同步</string>

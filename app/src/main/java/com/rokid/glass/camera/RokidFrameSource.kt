@@ -66,6 +66,8 @@ object RokidFrameSource {
     private val frameReadyCallbacks = mutableListOf<(Boolean) -> Unit>()
 
     private var nv21Helper: CameraShareHelper? = null
+    private var helperGenerationCounter = 0L
+    private var activeHelperGeneration = 0L
 
     @Volatile
     private var frameStreamOpened = false
@@ -110,9 +112,18 @@ object RokidFrameSource {
             Log.i(TAG, "startFrameStream create helper")
             frameReadyCallbacks += onReady
             latestFrame = null
+            val helperGeneration = ++helperGenerationCounter
+            activeHelperGeneration = helperGeneration
             nv21Helper = CameraShareHelper().apply {
                 initNv21Export(enableMix = false, callback = object : CameraShareHelper.Nv21Callback {
                     override fun onCameraOpened(width: Int, height: Int) {
+                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                            Log.i(
+                                TAG,
+                                "ignore stale onCameraOpened callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
+                            )
+                            return
+                        }
                         frameStreamOpened = true
                         frameSize = Size(width, height)
                         enforceSharedPreviewZoom(applyImmediately = true)
@@ -120,6 +131,9 @@ object RokidFrameSource {
                     }
 
                     override fun onNv21Frame(nv21: ByteArray, width: Int, height: Int, timestamp: Long) {
+                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                            return
+                        }
                         synchronized(lock) {
                             val buffer = latestFrameBuffer
                                 ?.takeIf { it.size == nv21.size }
@@ -136,16 +150,31 @@ object RokidFrameSource {
                     }
 
                     override fun onCameraClosed() {
+                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                            Log.i(
+                                TAG,
+                                "ignore stale onCameraClosed callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
+                            )
+                            return
+                        }
                         synchronized(lock) {
                             frameStreamOpened = false
                             frameSize = null
                             latestFrame = null
                             latestFrameBuffer = null
                             nv21Helper = null
+                            activeHelperGeneration = 0L
                         }
                     }
 
                     override fun onError(code: Int, msg: String) {
+                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                            Log.i(
+                                TAG,
+                                "ignore stale onError callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration code=$code",
+                            )
+                            return
+                        }
                         Log.e(TAG, "frame stream error code=$code msg=$msg")
                         synchronized(lock) {
                             frameStreamOpened = false
@@ -153,6 +182,7 @@ object RokidFrameSource {
                             latestFrame = null
                             latestFrameBuffer = null
                             nv21Helper = null
+                            activeHelperGeneration = 0L
                         }
                         notifyFrameReady(false)
                     }
@@ -169,6 +199,7 @@ object RokidFrameSource {
             frameSize = null
             latestFrame = null
             latestFrameBuffer = null
+            activeHelperGeneration = 0L
             nv21Helper.also { nv21Helper = null }
         }
         helper?.releaseNv21Export()
@@ -442,6 +473,10 @@ object RokidFrameSource {
             zoomRatio < 2.5f -> 2
             else -> 3
         }
+    }
+
+    internal fun isHelperCallbackStale(activeGeneration: Long, callbackGeneration: Long): Boolean {
+        return activeGeneration != callbackGeneration
     }
 
     private fun zoomLevelFor(zoomRatio: Float): Int = sdkZoomLevelFor(zoomRatio)

@@ -14,6 +14,7 @@ class RokidCameraRecoveryController(
     private val callback: Callback,
     private val previewView: RokidCameraPreviewView? = null,
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
+    private val restartHandler: ((RecoveryIssue, (Boolean) -> Unit) -> Unit)? = null,
 ) : RokidCameraPreviewView.PreviewHealthListener {
 
     enum class RecoveryMode {
@@ -110,7 +111,6 @@ class RokidCameraRecoveryController(
         previewView?.setPreviewHealthMonitoringEnabled(false)
         previewView?.setPreviewHealthListener(null)
         previewView?.stopPreview()
-        RokidFrameSource.stopFrameStream()
     }
 
     fun setRecoveryEnabled(enabled: Boolean) {
@@ -189,7 +189,10 @@ class RokidCameraRecoveryController(
         previewView?.stopPreview()
         Log.i(TAG, "recovery start issue=$issue attempt=$autoRecoveryAttempts/$MAX_AUTO_RECOVERY_ATTEMPTS")
 
-        RokidFrameSource.restartFrameStream { success ->
+        val restartBlock = restartHandler ?: { _: RecoveryIssue, onReady: (Boolean) -> Unit ->
+            RokidFrameSource.restartFrameStream(onReady = onReady)
+        }
+        restartBlock(issue) { success ->
             mainHandler.post {
                 if (!started) {
                     recoveryInProgress = false

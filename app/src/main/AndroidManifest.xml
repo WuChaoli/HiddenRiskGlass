@@ -181,6 +181,10 @@
             android:exported="true"
             android:theme="@style/Theme.Glessedemo" />
         <activity
+            android:name="com.rokid.glass.hiddenrisk.HazardRecordActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
             android:name="com.rokid.glass.hiddenrisk.LightshotActivity"
             android:exported="true"
             android:theme="@style/Theme.Glessedemo" />

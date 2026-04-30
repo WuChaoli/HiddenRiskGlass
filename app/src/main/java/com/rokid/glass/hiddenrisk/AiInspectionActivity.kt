@@ -8,7 +8,6 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.graphics.Rect
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -44,6 +43,9 @@ import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
+import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.CapturedFramePayload
+import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.SquareFramePayload
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SpriteToastUtil
@@ -156,29 +158,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         DETECTING,        // 自动取景识别中
         STREAM_RESPONSE,  // 深度识别隐患，流式回答 + 保存确认
     }
-
-    private data class CapturedFramePayload(
-        val jpegBytes: ByteArray,
-        val width: Int,
-        val height: Int,
-        val timestamp: Long,
-        val sourceWidth: Int,
-        val sourceHeight: Int,
-        val cropRect: Rect,
-        val sharpnessScore: Double,
-    )
-
-    private data class SquareFramePayload(
-        val nv21: ByteArray,
-        val width: Int,
-        val height: Int,
-        val timestamp: Long,
-        val receivedAtElapsedMs: Long,
-        val sourceWidth: Int,
-        val sourceHeight: Int,
-        val cropRect: Rect,
-        val sharpnessScore: Double,
-    )
 
     private data class LocalHazardInfo(
         val item: List<String> = emptyList(),
@@ -357,6 +336,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val imageEncodeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val frameCaptureService by lazy {
+        InspectionFrameCaptureService(
+            staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
+            selectWindowMs = ONLINE_SELECT_WINDOW_MS,
+            selectMaxFrames = ONLINE_SELECT_MAX_FRAMES,
+            selectPollIntervalMs = ONLINE_SELECT_POLL_INTERVAL_MS,
+            jpegQuality = ONLINE_JPEG_QUALITY,
+            logger = ::logAudioPressureSnapshot,
+        )
+    }
     private val autoHazardPresentationCoordinator = AutoHazardPresentationCoordinator(
         delayMs = AUTO_HAZARD_PRESENT_DELAY_MS,
     )
@@ -426,6 +415,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var frameStreamInitializing = false
     private var frameStreamReady = false
     private var frameStreamReadyAtElapsedMs = 0L
+    private var cameraSessionGeneration = 0L
     private var sdkReadyAtElapsedMs = 0L
     private var pendingDetectionStart = false
     private var pageState = PageState.DETECTING
@@ -508,6 +498,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     Log.e(TAG, "camera recovery abandoned issue=$issue")
                     failWorkflow("相机帧流连续超时，请检查设备")
                 }
+            },
+            restartHandler = { issue, onReady ->
+                cameraSessionGeneration = InspectionCameraCoordinator.restart(
+                    owner = CameraOwner.AI_INSPECTION,
+                    reason = issue.name,
+                    needPreview = shouldKeepDetectionPreviewRunning(),
+                    previewView = viewLivePreview,
+                    onReady = onReady,
+                )
             },
         )
     }
@@ -625,7 +624,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         // 从 InspectionSession 获取已初始化的相机帧流；NCNN 模型只在本地备用链路按需加载。
         hiddenRiskNcnn = InspectionSession.hiddenRiskNcnn
-        frameStreamReady = InspectionSession.isFrameStreamReady
+        frameStreamReady = InspectionCameraCoordinator.isFrameStreamReady()
         if (frameStreamReady) {
             frameStreamReadyAtElapsedMs = SystemClock.elapsedRealtime()
         }
@@ -672,7 +671,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         motionStabilityTracker.start()
         refreshInputActions()
-        if (pageState == PageState.DETECTING) {
+        if (pageState == PageState.DETECTING || shouldKeepDetectionPreviewRunning(pageState)) {
             cameraRecoveryController.setRecoveryEnabled(true)
             if (pendingDetectionStart) {
                 startDetectionImmediately()
@@ -712,8 +711,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
+        cameraSessionGeneration = 0L
         cameraRecoveryController.stop()
-        InspectionSession.stopFrameStream()
+        InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_on_pause")
         super.onPause()
     }
 
@@ -752,9 +752,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
+        cameraSessionGeneration = 0L
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         cameraRecoveryController.stop()
+        InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_on_destroy")
         RokidSdkManager.removeListener(this)
         // 注意：不单独释放 RokidFrameSource 和 hiddenRiskNcnn，由 InspectionSession 管理生命周期
         nativeExecutor.shutdown()
@@ -929,64 +931,62 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
             return
         }
-        if (frameStreamReady && !RokidFrameSource.isCroppedFrameStreamWarm()) {
-            frameStreamReady = false
-            frameStreamReadyAtElapsedMs = 0L
-        }
-        if (frameStreamReady) {
-            if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
-                Log.i(
-                    TAG,
-                    "reuse warm frame stream and start preview pageState=$pageState frameOpen=${RokidFrameSource.isFrameStreamOpen()} warm=${RokidFrameSource.isCroppedFrameStreamWarm()}",
-                )
-                startDetectionPreviewIfNeeded()
-            }
-            transitionToDetection()
-            return
-        }
         if (frameStreamInitializing) return
 
         frameStreamInitializing = true
-        cameraRecoveryController.startOrReuse { success ->
-            uiHandler.post {
-                frameStreamInitializing = false
-                frameStreamReady = success
-                frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
-                if (destroyed) {
-                    cameraRecoveryController.stop()
-                    InspectionSession.stopFrameStream()
-                    return@post
-                }
-                if (!isActivityResumed || !isWorkflowActive) {
-                    frameStreamReady = false
-                    frameStreamReadyAtElapsedMs = 0L
-                    cameraRecoveryController.stop()
-                    InspectionSession.stopFrameStream()
-                    Log.i(
-                        TAG,
-                        "stop frame stream after late callback resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState",
-                    )
-                    return@post
-                }
-                if (!success) {
-                    failWorkflow("相机帧流初始化失败")
-                    return@post
-                }
+        val needPreview = shouldKeepDetectionPreviewRunning(pageState)
+        var requestGeneration = 0L
+        requestGeneration = InspectionCameraCoordinator.acquire(
+            owner = CameraOwner.AI_INSPECTION,
+            needPreview = needPreview,
+            previewView = viewLivePreview,
+            enableRecovery = pageState == PageState.DETECTING,
+        ) { success ->
+            frameStreamInitializing = false
+            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
                 Log.i(
                     TAG,
-                    "frame stream ready autoStartRequested=$autoInferenceStartRequested pageState=$pageState"
+                    "ignore stale ai acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
                 )
-                if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
-                    startDetectionPreviewIfNeeded()
-                }
-                if (autoInferenceStartRequested) {
-                    startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
-                } else if (pageState == PageState.DETECTING) {
-                    startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
-                }
-                refreshInputActions()
+                return@acquire
             }
+            cameraSessionGeneration = requestGeneration
+            frameStreamReady = success
+            frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
+            if (destroyed) {
+                InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_destroyed_after_ready")
+                return@acquire
+            }
+            if (!isActivityResumed || !isWorkflowActive) {
+                frameStreamReady = false
+                frameStreamReadyAtElapsedMs = 0L
+                InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_inactive_after_ready")
+                Log.i(
+                    TAG,
+                    "release frame stream after late callback resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState",
+                )
+                return@acquire
+            }
+            if (!success) {
+                failWorkflow("相机帧流初始化失败")
+                return@acquire
+            }
+            Log.i(
+                TAG,
+                "frame stream ready generation=$requestGeneration autoStartRequested=$autoInferenceStartRequested pageState=$pageState state=${InspectionCameraCoordinator.getState()}",
+            )
+            if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
+                startDetectionPreviewIfNeeded()
+            }
+            if (autoInferenceStartRequested) {
+                startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
+            } else if (pageState == PageState.DETECTING) {
+                startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
+            }
+            transitionToDetection()
+            refreshInputActions()
         }
+        cameraSessionGeneration = requestGeneration
     }
 
     private fun transitionToDetection() {
@@ -1263,6 +1263,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(localLoopRunnable)
         uiHandler.removeCallbacks(onlineLoopRunnable)
         uiHandler.removeCallbacks(localNetworkProbeRunnable)
+        InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         onlineHazardDetectionService.cancelAll()
         if (clearPendingStreamState) {
@@ -1310,6 +1311,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
+        InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = true)
         cameraRecoveryController.notifyConsumerWaitStarted()
         captureInProgress = true
         val frame = copyLatestSquareFrameForLocalOrNull(localLastFrameTimestamp)
@@ -1539,6 +1541,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         onlineFrameSelectionInProgress = true
+        InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = true)
         cameraRecoveryController.notifyConsumerWaitStarted()
         try {
             imageEncodeExecutor.execute {
@@ -1556,6 +1559,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         return@post
                     }
                     onlineLastFrameTimestamp = payload.timestamp
+                    InspectionCameraCoordinator.reportFrameConsumed(CameraOwner.AI_INSPECTION, payload.timestamp)
+                    InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = false)
                     cameraRecoveryController.reportFrameConsumed(payload.timestamp)
                     cameraRecoveryController.notifyConsumerWaitStopped()
                     val requestId = ++onlineActiveRequestId
@@ -1778,53 +1783,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
-        val frame = RokidFrameSource.copyLatestSquareFrame()
-            ?.toSquareFramePayload()
-            ?: return null
-        if (frame.timestamp <= lastTimestampExclusive) {
-            Log.w(TAG, "drop local frame reason=duplicate timestamp=${frame.timestamp} last=$lastTimestampExclusive")
-            return null
-        }
-        val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
-        if (ageMs > STALE_FRAME_THRESHOLD_MS) {
-            Log.w(TAG, "drop local frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
-            return null
-        }
+        val frame = frameCaptureService.copyLatestSquareFrameOrNull(lastTimestampExclusive) ?: return null
+        InspectionCameraCoordinator.reportFrameConsumed(CameraOwner.AI_INSPECTION, frame.timestamp)
+        InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = false)
         cameraRecoveryController.reportFrameConsumed(frame.timestamp)
         cameraRecoveryController.notifyConsumerWaitStopped()
         return frame
-    }
-
-    private fun copyLatestSquareFrameForOnlineOrNull(lastTimestampExclusive: Long): SquareFramePayload? {
-        if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
-            return null
-        }
-        val frame = RokidFrameSource.copyLatestSquareFrame()
-            ?.toSquareFramePayload()
-            ?: return null
-        if (frame.timestamp <= lastTimestampExclusive) {
-            return null
-        }
-        val ageMs = SystemClock.elapsedRealtime() - frame.receivedAtElapsedMs
-        if (ageMs > STALE_FRAME_THRESHOLD_MS) {
-            Log.w(TAG, "drop online square frame reason=stale timestamp=${frame.timestamp} ageMs=$ageMs")
-            return null
-        }
-        return frame
-    }
-
-    private fun RokidFrameSource.SquareNv21Frame.toSquareFramePayload(): SquareFramePayload {
-        return SquareFramePayload(
-            nv21 = data,
-            width = width,
-            height = height,
-            timestamp = timestamp,
-            receivedAtElapsedMs = receivedAtElapsedMs,
-            sourceWidth = sourceWidth,
-            sourceHeight = sourceHeight,
-            cropRect = Rect(cropRect),
-            sharpnessScore = computeSquareFrameSharpnessScore(data, width, height),
-        )
     }
 
     /**
@@ -1833,39 +1797,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 本地使用 NV21 缩放后直接推理，在线使用 JPEG 上传。
      */
     private fun buildCapturedFramePayload(frame: SquareFramePayload): CapturedFramePayload? {
-        val startElapsedMs = SystemClock.elapsedRealtime()
-        logAudioPressureSnapshot(
-            stage = "build_captured_frame_payload:start",
-            extra = "frameTs=${frame.timestamp} size=${frame.width}x${frame.height} source=${frame.sourceWidth}x${frame.sourceHeight}",
-        )
-        val jpegBytes = BitmapUtils.encodeNv21CropRectToJpeg(
-            nv21 = frame.nv21,
-            width = frame.width,
-            height = frame.height,
-            cropRect = Rect(0, 0, frame.width, frame.height),
-            jpegQuality = ONLINE_JPEG_QUALITY,
-        ) ?: run {
-            logAudioPressureSnapshot(
-                stage = "build_captured_frame_payload:null",
-                extra = "frameTs=${frame.timestamp} elapsedMs=${SystemClock.elapsedRealtime() - startElapsedMs}",
-            )
-            return null
-        }
-        val payload = CapturedFramePayload(
-            jpegBytes = jpegBytes,
-            width = frame.width,
-            height = frame.height,
-            timestamp = frame.timestamp,
-            sourceWidth = frame.sourceWidth,
-            sourceHeight = frame.sourceHeight,
-            cropRect = Rect(frame.cropRect),
-            sharpnessScore = frame.sharpnessScore,
-        )
-        logAudioPressureSnapshot(
-            stage = "build_captured_frame_payload:end",
-            extra = "frameTs=${frame.timestamp} jpegBytes=${jpegBytes.size} elapsedMs=${SystemClock.elapsedRealtime() - startElapsedMs}",
-        )
-        return payload
+        return frameCaptureService.buildCapturedFramePayload(frame)
     }
 
     /**
@@ -1903,34 +1835,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun selectBestOnlineFramePayload(lastTimestampExclusive: Long): CapturedFramePayload? {
-        val deadline = SystemClock.elapsedRealtime() + ONLINE_SELECT_WINDOW_MS
-        var bestFrame: SquareFramePayload? = null
-        var lastTimestamp = lastTimestampExclusive
-        var sampledFrames = 0
-        while (sampledFrames < ONLINE_SELECT_MAX_FRAMES) {
-            val frame = copyLatestSquareFrameForOnlineOrNull(lastTimestamp)
-            if (frame == null) {
-                if (SystemClock.elapsedRealtime() >= deadline) {
-                    break
-                }
-                SystemClock.sleep(ONLINE_SELECT_POLL_INTERVAL_MS)
-                continue
-            }
-            lastTimestamp = frame.timestamp
-            sampledFrames += 1
-            val currentBest = bestFrame
-            if (currentBest == null ||
-                frame.sharpnessScore > currentBest.sharpnessScore ||
-                (frame.sharpnessScore == currentBest.sharpnessScore && frame.timestamp > currentBest.timestamp)
-            ) {
-                bestFrame = frame
-            }
-            if (sampledFrames >= ONLINE_SELECT_MAX_FRAMES || SystemClock.elapsedRealtime() >= deadline) {
-                break
-            }
-            SystemClock.sleep(ONLINE_SELECT_POLL_INTERVAL_MS)
-        }
-        val bestPayload = bestFrame?.let(::buildCapturedFramePayload)
+        val bestPayload = frameCaptureService.selectBestFramePayload(lastTimestampExclusive)
         bestPayload?.let { payload ->
             Log.i(
                 TAG,
@@ -1938,36 +1843,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
         }
         return bestPayload
-    }
-
-    private fun computeSquareFrameSharpnessScore(
-        nv21: ByteArray,
-        width: Int,
-        height: Int,
-    ): Double {
-        if (width <= 2 || height <= 2) {
-            return 0.0
-        }
-        val stride = 4
-        var score = 0.0
-        var samples = 0
-        var y = stride
-        while (y < height - stride) {
-            var x = stride
-            while (x < width - stride) {
-                val center = nv21[y * width + x].toInt() and 0xFF
-                val leftPx = nv21[y * width + (x - stride)].toInt() and 0xFF
-                val rightPx = nv21[y * width + (x + stride)].toInt() and 0xFF
-                val topPx = nv21[(y - stride) * width + x].toInt() and 0xFF
-                val bottomPx = nv21[(y + stride) * width + x].toInt() and 0xFF
-                val laplacian = kotlin.math.abs(leftPx + rightPx + topPx + bottomPx - 4 * center)
-                score += laplacian.toDouble()
-                samples += 1
-                x += stride
-            }
-            y += stride
-        }
-        return if (samples == 0) 0.0 else score / samples
     }
 
     // ==================== 隐患处理流程 ====================
@@ -2033,36 +1908,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         Log.i(
             TAG,
-            "start left-top live preview pageState=$pageState previewStarted=${viewLivePreview.isPreviewStarted()}",
+            "request left-top live preview pageState=$pageState previewStarted=${viewLivePreview.isPreviewStarted()} generation=${InspectionCameraCoordinator.getGeneration()}",
         )
         applyDetectionPreviewVisibility()
-        viewLivePreview.post {
-            if (!isActivityResumed || destroyed) {
-                Log.i(
-                    TAG,
-                    "skip posted left-top live preview resumed=$isActivityResumed destroyed=$destroyed pageState=$pageState",
-                )
-                return@post
+        InspectionCameraCoordinator.updatePreview(
+            owner = CameraOwner.AI_INSPECTION,
+            needPreview = shouldKeepDetectionPreviewRunning(),
+            previewView = viewLivePreview,
+        ) { success ->
+            if (!success) {
+                Log.w(TAG, "left-top live preview start failed")
+                return@updatePreview
             }
-            if (pageState != PageState.DETECTING && pageState != PageState.STREAM_RESPONSE) {
-                Log.i(TAG, "skip posted left-top live preview pageState=$pageState")
-                return@post
-            }
-            if (!frameStreamReady || !RokidFrameSource.isFrameStreamOpen()) {
-                Log.i(
-                    TAG,
-                    "skip posted left-top live preview frameStreamReady=$frameStreamReady frameStreamOpen=${RokidFrameSource.isFrameStreamOpen()} pageState=$pageState",
-                )
-                return@post
-            }
-            viewLivePreview.startPreview { success ->
-                if (!success) {
-                    Log.w(TAG, "left-top live preview start failed")
-                } else {
-                    applyDetectionPreviewVisibility()
-                    Log.i(TAG, "left-top live preview ready pageState=$pageState")
-                }
-            }
+            applyDetectionPreviewVisibility()
+            Log.i(
+                TAG,
+                "left-top live preview ready pageState=$pageState generation=${InspectionCameraCoordinator.getGeneration()}",
+            )
         }
     }
 
@@ -2089,9 +1951,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
-        if (stopRenderer) {
-            viewLivePreview.stopPreview()
-        }
+        InspectionCameraCoordinator.updatePreview(
+            owner = CameraOwner.AI_INSPECTION,
+            needPreview = false,
+            previewView = null,
+        )
     }
 
     private fun showPage(state: PageState) {
@@ -2124,8 +1988,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         } else {
             stopDetectionPreview()
         }
-        if (shouldShowLivePreview && !shouldKeepPreviewRunning) {
-            stopDetectionPreview(stopRenderer = false)
+        if (debugSnapshotState == null && isActivityResumed && isWorkflowActive) {
+            InspectionCameraCoordinator.updatePreview(
+                owner = CameraOwner.AI_INSPECTION,
+                needPreview = shouldKeepPreviewRunning,
+                previewView = if (shouldKeepPreviewRunning) viewLivePreview else null,
+            )
         }
         if (state != PageState.DETECTING) {
             hideStatusAlertOverlay()
@@ -2208,6 +2076,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
             ) {
                 finishInspectionWithReport()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_detecting_hazard_record"),
+                label = getString(R.string.ai_entry_menu_record),
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
+                enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
+            ) {
+                Log.i(
+                    TAG,
+                    "navigateToHazardRecord pageState=$pageState resumed=$isActivityResumed active=$isWorkflowActive frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} previewStarted=${viewLivePreview.isPreviewStarted()}",
+                )
+                startActivity(Intent(this, HazardRecordActivity::class.java))
+                finish()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
