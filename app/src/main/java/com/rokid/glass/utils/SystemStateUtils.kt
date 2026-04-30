@@ -47,6 +47,25 @@ object SystemStateUtils {
     }
 
     /**
+     * 判断系统当前网络是否可用于远程识别。
+     * 优先使用系统验证过的网络能力，部分眼镜固件拿不到 VALIDATED 时回退到 Wi-Fi 连接状态。
+     */
+    @JvmStatic
+    fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+        val capabilities = connectivityManager
+            ?.getNetworkCapabilities(connectivityManager.activeNetwork)
+            ?: return getCurrentWifiSsid(context) != null
+
+        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        val hasKnownTransport = capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        return (hasInternet && (validated || hasKnownTransport)) || getCurrentWifiSsid(context) != null
+    }
+
+    /**
      * 获取当前 Wi-Fi 状态对应的图标资源。
      */
     @JvmStatic

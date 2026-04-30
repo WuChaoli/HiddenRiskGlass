@@ -191,6 +191,10 @@ object InspectionConfigRepository {
                 override?.onlineSelectPollIntervalMs ?: base.onlineSelectPollIntervalMs,
             onlineDetectIntervalMs =
                 override?.onlineDetectIntervalMs ?: base.onlineDetectIntervalMs,
+            remoteFailureFallbackThreshold =
+                override?.remoteFailureFallbackThreshold ?: base.remoteFailureFallbackThreshold,
+            localNetworkProbeIntervalMs =
+                override?.localNetworkProbeIntervalMs ?: base.localNetworkProbeIntervalMs,
             forceOnlineDetailForLocalHazard =
                 override?.forceOnlineDetailForLocalHazard ?: base.forceOnlineDetailForLocalHazard,
         )

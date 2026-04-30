@@ -1,22 +1,16 @@
 package com.rokid.glass.hiddenrisk
 
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
 import com.blankj.utilcode.util.ThreadUtils.runOnUiThread
 import com.google.gson.Gson
 import com.rokid.glass.data.YXData
-import com.rokid.glass.utils.HttpUtils
 import com.rokid.glass.utils.SSEUtil
 import okhttp3.Response
 import okhttp3.sse.EventSource
-import java.io.ByteArrayOutputStream
-import java.util.Date
 
 /**
  * 隐患分析流式接口服务
- * 使用 SSE 进行流式数据传输，使用 HttpUtils 进行上报保存结果
+ * 使用 SSE 进行流式数据传输。
  */
 object HazardStreamService {
 
@@ -86,48 +80,4 @@ object HazardStreamService {
         )
     }
 
-    interface SyncCallback {
-        fun onSuccess()
-        fun onError(message: String)
-    }
-
-    /**
-     * 将隐患记录同步到后端/手机端
-     * @param analysisText 流式分析的完整文本
-     * @param sessionId 本次拍照上传时生成的会话 ID，用于定位后端对应图片
-     * @param callback 同步结果回调，在主线程调用
-     */
-    fun syncToPhone(analysisText: String, sessionId: String, callback: SyncCallback) {
-        val httpUtils = HttpUtils()
-        httpUtils.reportSaveResult(
-            snCode = RokidSdkManager.getSerialNumber(),
-            authorization = "eyJhbGciOiJIUzI1NiIsInppcCI6IkdaSVAifQ.H4sIAAAAAAAAAFWMMQqAMAxF75K5HVIb03ibtLaggwhWEMS7G3DyDW_48P4Nx5lhAhRJBhvgYNEOEzJTSMQSHGy5_Ye1L1a1VLUhiY9jZlMir_MgXrGRRipcdLS7eu1fPXBACc8LKuQZRnUAAAA.ExvZFAtVR-0XMoheQ0UKoLAV5liwtnZI4Wbk_O7bEs0",
-            isSave = "1", // 1-保存，0-不保存
-            sessionId = sessionId,
-            callback = object : HttpUtils.SaveResultCallback {
-                override fun onSuccess(response: HttpUtils.ApiResponse) {
-                    runOnUiThread {
-                        Log.d("SaveResult", "上报成功: code=${response.code}, msg=${response.msg}")
-                        // 处理成功逻辑
-                        if (response.isSuccess()) {
-                            // 上报成功
-                            callback.onSuccess()
-                        } else {
-                            // 业务逻辑错误
-                            Log.e("SaveResult", "业务错误: ${response.msg}")
-                        }
-                    }
-                }
-
-                override fun onFailure(e: Exception) {
-                    runOnUiThread {
-                        Log.e("SaveResult", "上报失败", e)
-                        // 处理失败逻辑
-                        // 即使上报失败，也可以继续流程
-                        callback.onSuccess()
-                    }
-                }
-            }
-        )
-    }
 }

@@ -19,9 +19,6 @@ import android.util.Base64
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.Animation
-import android.view.animation.LinearInterpolator
-import android.view.animation.RotateAnimation
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -38,14 +35,12 @@ import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.config.AutoHazardRoutingMode as ConfigAutoHazardRoutingMode
-import com.rokid.glass.config.AutoInferenceMode as ConfigAutoInferenceMode
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.AlertBehavior
 import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
-import com.rokid.glass.component.BottomPromptView
+import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
-import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
@@ -53,6 +48,7 @@ import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glass.utils.OfflineTtsPlayer
+import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.io.InputStreamReader
@@ -74,6 +70,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
+        private const val ADVICE_CARD_FLOAT_ANIMATION_MS = 260L
+        private const val UPLOAD_SUCCESS_TOAST_VISIBLE_MS = 2000L
+        private const val UPLOAD_SUCCESS_TOAST_FADE_MS = 300L
 
         private val CAPTURE_WARMUP_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.captureWarmupMs
@@ -126,25 +125,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private val ONLINE_SELECT_POLL_INTERVAL_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs
 
-        private val AUTO_INFERENCE_MODE: AutoInferenceMode
-            get() = when (InspectionConfigRepository.get().aiInspection.autoInferenceMode) {
-                ConfigAutoInferenceMode.LOCAL_ONLY -> AutoInferenceMode.LOCAL_ONLY
-                ConfigAutoInferenceMode.ONLINE_ONLY -> AutoInferenceMode.ONLINE_ONLY
-                ConfigAutoInferenceMode.BOTH -> AutoInferenceMode.BOTH
-            }
-
         private val AUTO_HAZARD_ROUTING_MODE: AutoHazardRoutingMode
             get() = when (InspectionConfigRepository.get().aiInspection.autoHazardRoutingMode) {
                 ConfigAutoHazardRoutingMode.SEPARATED -> AutoHazardRoutingMode.SEPARATED
                 ConfigAutoHazardRoutingMode.ONLINE_ONLY -> AutoHazardRoutingMode.ONLINE_ONLY
                 ConfigAutoHazardRoutingMode.LOCAL_ONLY -> AutoHazardRoutingMode.LOCAL_ONLY
             }
-    }
-
-    private enum class AutoInferenceMode {
-        LOCAL_ONLY,
-        ONLINE_ONLY,
-        BOTH,
     }
 
     private enum class AutoHazardRoutingMode {
@@ -169,8 +155,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private enum class PageState {
         DETECTING,        // 自动取景识别中
         STREAM_RESPONSE,  // 深度识别隐患，流式回答 + 保存确认
-        SYNCING,          // 正在同步手机端
-        SYNC_SUCCESS,     // 保存成功
     }
 
     private data class CapturedFramePayload(
@@ -328,12 +312,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ) : PendingAutoHazardPresentation()
     }
 
-    private val isLocalAutoDetectEnabled: Boolean
-        get() = AUTO_INFERENCE_MODE != AutoInferenceMode.ONLINE_ONLY
-
-    private val isOnlineAutoDetectEnabled: Boolean
-        get() = AUTO_INFERENCE_MODE != AutoInferenceMode.LOCAL_ONLY
-
     private val onlineOnlyRouteEnabled: Boolean
         get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.ONLINE_ONLY
 
@@ -343,6 +321,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val onlineDetectIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
 
+    private val remoteFailureFallbackThreshold: Int
+        get() = InspectionConfigRepository.get().aiInspection.remoteFailureFallbackThreshold
+
+    private val localNetworkProbeIntervalMs: Long
+        get() = InspectionConfigRepository.get().aiInspection.localNetworkProbeIntervalMs
+
     private val forceOnlineDetailForLocalHazard: Boolean
         get() = InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard
 
@@ -351,6 +335,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var layoutLivePreviewCard: FrameLayout
     private lateinit var viewLivePreview: RokidCameraPreviewView
     private lateinit var statusAlertOverlay: StatusAlertOverlayView
+    private lateinit var tvDetectingBottomHint: TextView
     private lateinit var layoutStreamResponse: FrameLayout
     private lateinit var layoutStreamContentContainer: LinearLayout
     private lateinit var layoutStreamThumbnailCard: FrameLayout
@@ -360,21 +345,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var tvStreamContent: TextView
     private lateinit var scrollContent: ScrollView
     private lateinit var ivStreamThumbnail: ImageView
-    private lateinit var bottomPromptSync: BottomPromptView
-    private lateinit var operationGuideDetecting: OperationGuideView
-    private lateinit var operationGuideStream: OperationGuideView
+    private lateinit var tvStreamBottomHint: TextView
+    private lateinit var tvUploadSuccessToast: TextView
+    private lateinit var operationGuideDetecting: FunctionMenuView
+    private lateinit var operationGuideStream: FunctionMenuView
     private var currentStreamThumbnail: Bitmap? = null
-    private lateinit var layoutSyncSuccess: FrameLayout
-    private lateinit var ivSyncLoading: ImageView
-    private lateinit var ivSyncSuccessIcon: ImageView
-    private lateinit var tvSyncStatusTitle: TextView
-    private lateinit var tvSyncStatusDetail: TextView
-    private lateinit var bottomPromptSuccess: BottomPromptView
     // 检测状态UI
     private lateinit var statusBarDetecting: GlassStatusBar
     private lateinit var statusBarStream: GlassStatusBar
-    private lateinit var statusBarSyncSuccess: GlassStatusBar
-    private lateinit var operationGuideSync: OperationGuideView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
@@ -455,18 +433,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var streamCallbackActive = false
     private var pendingStreamStart = false
     private var activeStreamRequestId = 0L
-    private var phoneSyncHandle: RetryRequestHandle? = null
+    private val localHazardPushService by lazy { LocalHazardPushService() }
+    private var localHazardUploadHandle: RetryRequestHandle? = null
     private var lastAnalysisText = ""
     private var hazardCaptureService: HazardCaptureService? = null
     private var activeHazardContent: ResolvedHazardContent? = null
     private var localResultStage = LocalResultStage.NONE
     private var localSaveSubmitting = false
-    private var localHazardAutoSaveTaskKey: String? = null
     private var localHazardAlertTtsPlayed = false
     private var pendingHazardAlertTtsPlayed = false
     private var localHazardAdviceTtsPlayed = false
     private var streamAutoScrollLocked = false
     private var streamPanelAnchoredBelowPreview = false
+    private var adviceCardAnimating = false
+    private var pendingUploadSuccessToast = false
     private var pendingAutoHazardPresentation: PendingAutoHazardPresentation? = null
     private val localLabelCooldownUntilMs = linkedMapOf<String, Long>()
     private val localHazardInfoByItem: Map<String, List<LocalHazardInfo>> by lazy {
@@ -491,6 +471,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var onlineActiveRequestId = 0L
     private var latestSharedInferenceFrame: SquareFramePayload? = null
     private var lastMotionUnstableElapsedMs: Long? = null
+    private var autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY
+    private var remoteFailureCount = 0
 
     // 手动分析流相关
     private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
@@ -557,21 +539,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // 本次拍照上传的会话 ID，用于与 save 接口保持一致的指纹
     private var sessionId = ""
 
-    private val mayHazardLoadingRotateAnimation: RotateAnimation by lazy {
-        RotateAnimation(
-            0f,
-            360f,
-            Animation.RELATIVE_TO_SELF,
-            0.5f,
-            Animation.RELATIVE_TO_SELF,
-            0.5f,
-        ).apply {
-            duration = 900L
-            repeatCount = Animation.INFINITE
-            interpolator = LinearInterpolator()
-        }
-    }
-
     private val captureDelayRunnable = Runnable {
         captureDelayScheduled = false
         if (destroyed || !autoInferenceStartRequested) return@Runnable
@@ -592,6 +559,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         advanceOnlineInferenceLoop(reason = "scheduled")
     }
 
+    private val localNetworkProbeRunnable = object : Runnable {
+        override fun run() {
+            localNetworkProbePosted = false
+            probeNetworkForRemoteRecovery()
+        }
+    }
+    private var localNetworkProbePosted = false
+
+    private val hideUploadSuccessToastRunnable = Runnable {
+        tvUploadSuccessToast.animate()
+            .alpha(0f)
+            .setDuration(UPLOAD_SUCCESS_TOAST_FADE_MS)
+            .withEndAction {
+                tvUploadSuccessToast.visibility = View.GONE
+                tvUploadSuccessToast.alpha = 1f
+            }
+            .start()
+    }
+
     // ==================== 生命周期 ====================
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -603,6 +589,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutLivePreviewCard = findViewById(R.id.layoutLivePreviewCard)
         viewLivePreview = findViewById(R.id.viewLivePreview)
         statusAlertOverlay = findViewById(R.id.statusAlertOverlay)
+        tvDetectingBottomHint = findViewById(R.id.tvDetectingBottomHint)
         layoutStreamResponse = findViewById(R.id.layoutStreamResponse)
         layoutStreamContentContainer = findViewById(R.id.layoutStreamContentContainer)
         layoutStreamThumbnailCard = findViewById(R.id.layoutStreamThumbnailCard)
@@ -612,26 +599,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvStreamContent = findViewById(R.id.tvStreamContent)
         scrollContent = findViewById(R.id.scrollContent)
         ivStreamThumbnail = findViewById(R.id.ivStreamThumbnail)
-        bottomPromptSync = findViewById(R.id.bottomPromptSync)
+        tvStreamBottomHint = findViewById(R.id.tvStreamBottomHint)
+        tvUploadSuccessToast = findViewById(R.id.tvUploadSuccessToast)
         operationGuideDetecting = findViewById(R.id.operationGuideDetecting)
         operationGuideStream = findViewById(R.id.operationGuideStream)
         // 流式结果卡片高度限制在 onMessage / applyDebugSnapshotState 中动态处理
-        layoutSyncSuccess = findViewById(R.id.layoutSyncSuccess)
-        ivSyncLoading = findViewById(R.id.ivSyncLoading)
-        ivSyncSuccessIcon = findViewById(R.id.ivSyncSuccessIcon)
-        tvSyncStatusTitle = findViewById(R.id.tvSyncStatusTitle)
-        tvSyncStatusDetail = findViewById(R.id.tvSyncStatusDetail)
-        bottomPromptSuccess = findViewById(R.id.bottomPromptSuccess)
         // 检测状态 UI 初始化
         statusBarDetecting = findViewById(R.id.statusBarDetecting)
         statusBarStream = findViewById(R.id.statusBarStream)
-        statusBarSyncSuccess = findViewById(R.id.statusBarSyncSuccess)
-        operationGuideSync = findViewById(R.id.operationGuideSync)
 
-        // 设置检测页操作指引内容
-        operationGuideDetecting.setGuide(
-            content = getString(R.string.ai_inspection_operation_guide_detecting),
-        )
+        setupFunctionMenus()
         hideActionPrompts()
 
         updateConfirmationHints()
@@ -646,7 +623,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        // 从 InspectionSession 获取已初始化的对象
+        // 从 InspectionSession 获取已初始化的相机帧流；NCNN 模型只在本地备用链路按需加载。
         hiddenRiskNcnn = InspectionSession.hiddenRiskNcnn
         frameStreamReady = InspectionSession.isFrameStreamReady
         if (frameStreamReady) {
@@ -657,19 +634,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         RokidSdkManager.addListener(this)
 
         // 检查初始化状态，如果未初始化则返回
-        if (!InspectionSession.isInitialized || hiddenRiskNcnn == null) {
+        if (!InspectionSession.isInitialized) {
             Log.e(TAG, "InspectionSession 未初始化，返回加载页面")
             startActivity(Intent(this, InspectionLoadingActivity::class.java))
             finish()
             return
         }
 
-        // 直接使用已初始化的对象开始检测
-        modelLoaded = true
+        modelLoaded = InspectionSession.isModelLoaded
         pendingDetectionStart = true
         Log.i(
             TAG,
-            "defer detection start until active lifecycle resumed=$isActivityResumed active=$isWorkflowActive frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()}",
+            "defer detection start until active lifecycle resumed=$isActivityResumed active=$isWorkflowActive frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} modelLoaded=$modelLoaded",
         )
     }
 
@@ -758,11 +734,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onDestroy() {
         destroyed = true
         streamCallbackActive = false
-        phoneSyncHandle?.cancel()
-        phoneSyncHandle = null
+        localHazardUploadHandle?.cancel()
+        localHazardUploadHandle = null
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
-        ivSyncLoading.clearAnimation()
         if (debugSnapshotState != null) {
             stopTimeAndBatteryUpdate()
             super.onDestroy()
@@ -881,16 +857,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             else -> return
         }
 
-        val local = ensureNativeEngine() ?: run {
-            failWorkflow("原生引擎不可用")
-            return
-        }
-
-        if (!modelLoaded) {
-            startModelLoadIfNeeded(local)
-            return
-        }
-
         if (autoInferenceStartRequested) {
             startAutoInferencePipelinesIfNeeded(reason = "workflow_ready", preferImmediate = true)
             return
@@ -901,10 +867,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun startModelLoadIfNeeded(local: HiddenRiskNcnn) {
+    private fun startLocalFallbackModelLoadIfNeeded(reason: String) {
+        if (modelLoaded) {
+            autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK
+            startAutoInferencePipelinesIfNeeded(reason = "$reason:model_ready", preferImmediate = true)
+            return
+        }
         if (modelLoading) return
 
+        val local = ensureNativeEngine() ?: run {
+            Log.e(TAG, "HiddenRiskNcnn unavailable for local fallback reason=$reason")
+            return
+        }
+
         modelLoading = true
+        autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK_LOADING
+        stopOnlinePipelineForFallback(reason)
 
         if (!submitNativeTask {
                 local.setDebugCompareEnabled(false)
@@ -921,16 +899,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 uiHandler.post {
                     modelLoading = false
                     if (destroyed) return@post
-                    if (success) {
-                        modelLoaded = true
-                        initFrameStreamAndTransition()
-                    } else {
-                        failWorkflow("模型加载失败")
+                    val decision = AutoHazardPipelineDecider.decideAfterLocalModelLoaded(success)
+                    autoPipelineMode = decision.mode
+                    if (!success) {
+                        Log.e(TAG, "local fallback model load failed reason=$reason")
+                        scheduleLocalNetworkProbe()
+                        return@post
                     }
+                    modelLoaded = true
+                    startAutoInferencePipelinesIfNeeded(reason = "$reason:model_loaded", preferImmediate = true)
+                    scheduleLocalNetworkProbe()
                 }
             }) {
             modelLoading = false
-            failWorkflow("模型任务提交失败")
+            Log.e(TAG, "local fallback model task submit failed reason=$reason")
+            scheduleLocalNetworkProbe()
         }
     }
 
@@ -1017,8 +1000,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun returnToDetecting() {
-        phoneSyncHandle?.cancel()
-        phoneSyncHandle = null
+        localHazardUploadHandle?.cancel()
+        localHazardUploadHandle = null
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         streamCallbackActive = false
@@ -1036,8 +1020,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun returnDirectlyToHome() {
-        phoneSyncHandle?.cancel()
-        phoneSyncHandle = null
+        localHazardUploadHandle?.cancel()
+        localHazardUploadHandle = null
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         streamCallbackActive = false
@@ -1057,8 +1042,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun finishInspectionWithReport() {
-        phoneSyncHandle?.cancel()
-        phoneSyncHandle = null
+        localHazardUploadHandle?.cancel()
+        localHazardUploadHandle = null
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         streamCallbackActive = false
@@ -1114,20 +1100,140 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         autoInferenceStartRequested = false
         val initialDelayMs = if (preferImmediate) 0L else AUTO_INFERENCE_RETRY_DELAY_MS
+        if (!ensureAutoPipelineModeForStart(reason)) {
+            return
+        }
         val startDecision = AutoInferenceLoopDecider.decidePipelineStart(
-            localEnabled = isLocalAutoDetectEnabled,
-            onlineEnabled = isOnlineAutoDetectEnabled,
+            localEnabled = autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK,
+            onlineEnabled = autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY,
         )
         if (startDecision.startLocal && !localLoopRunning) {
             localLoopRunning = true
             localLoopEpoch = autoInferenceEpoch
             postLocalInferenceLoop(delayMs = initialDelayMs, reason = reason)
+            scheduleLocalNetworkProbe()
         }
         if (startDecision.startOnline && !onlineLoopRunning) {
             onlineLoopRunning = true
             onlineLoopEpoch = autoInferenceEpoch
             postOnlineInferenceLoop(delayMs = initialDelayMs, reason = reason)
         }
+    }
+
+    private fun ensureAutoPipelineModeForStart(reason: String): Boolean {
+        return when (autoPipelineMode) {
+            AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY -> {
+                if (SystemStateUtils.isNetworkAvailable(this)) {
+                    true
+                } else {
+                    val decision = AutoHazardPipelineDecider.decideStart(networkAvailable = false)
+                    applyAutoPipelineDecision(decision, reason = "$reason:network_unavailable")
+                    false
+                }
+            }
+            AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK_LOADING -> false
+            AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK -> {
+                if (modelLoaded && !modelLoading) {
+                    true
+                } else {
+                    startLocalFallbackModelLoadIfNeeded(reason = "$reason:local_not_ready")
+                    false
+                }
+            }
+        }
+    }
+
+    private fun applyAutoPipelineDecision(
+        decision: AutoHazardPipelineDecider.PipelineDecision,
+        reason: String,
+    ) {
+        Log.i(
+            TAG,
+            "auto pipeline decision reason=$reason mode=${decision.mode} startRemote=${decision.startRemote} startLocal=${decision.startLocal} loadLocal=${decision.loadLocalModel}",
+        )
+        if (decision.resetRemoteFailures) {
+            remoteFailureCount = 0
+        }
+        when (decision.mode) {
+            AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY -> switchToRemotePrimary(reason)
+            AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK_LOADING -> {
+                autoPipelineMode = decision.mode
+                if (decision.loadLocalModel) {
+                    startLocalFallbackModelLoadIfNeeded(reason)
+                }
+            }
+            AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK -> {
+                autoPipelineMode = decision.mode
+                scheduleLocalNetworkProbe()
+                if (decision.startLocal) {
+                    startAutoInferencePipelinesIfNeeded(reason = reason, preferImmediate = true)
+                }
+            }
+        }
+    }
+
+    private fun switchToRemotePrimary(reason: String) {
+        if (autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY &&
+            onlineLoopRunning &&
+            !localLoopRunning
+        ) {
+            return
+        }
+        Log.i(TAG, "switch to remote primary reason=$reason")
+        uiHandler.removeCallbacks(localNetworkProbeRunnable)
+        localNetworkProbePosted = false
+        localLoopRunning = false
+        localRetryPosted = false
+        inferenceRunning.set(false)
+        uiHandler.removeCallbacks(localLoopRunnable)
+        autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY
+        remoteFailureCount = 0
+        if (pageState == PageState.DETECTING) {
+            startAutoInferencePipelinesIfNeeded(reason = "$reason:remote_primary", preferImmediate = true)
+        }
+    }
+
+    private fun stopOnlinePipelineForFallback(reason: String) {
+        Log.i(TAG, "stop online pipeline for local fallback reason=$reason")
+        onlineLoopRunning = false
+        onlineLoopPosted = false
+        onlineFrameSelectionInProgress = false
+        onlineRequestInFlight = false
+        onlineQueuedNext = false
+        onlineNextEarliestStartElapsedMs = 0L
+        uiHandler.removeCallbacks(onlineLoopRunnable)
+        onlineHazardDetectionService.cancelActiveDetection()
+    }
+
+    private fun scheduleLocalNetworkProbe() {
+        if (destroyed ||
+            autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY ||
+            localNetworkProbePosted
+        ) {
+            return
+        }
+        localNetworkProbePosted = true
+        uiHandler.postDelayed(
+            localNetworkProbeRunnable,
+            localNetworkProbeIntervalMs.coerceAtLeast(AUTO_INFERENCE_RETRY_DELAY_MS),
+        )
+    }
+
+    private fun probeNetworkForRemoteRecovery() {
+        if (destroyed ||
+            pageState != PageState.DETECTING ||
+            autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY
+        ) {
+            return
+        }
+        val decision = AutoHazardPipelineDecider.decideLocalNetworkProbe(
+            networkAvailable = SystemStateUtils.isNetworkAvailable(this),
+        )
+        if (decision.mode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY) {
+            applyAutoPipelineDecision(decision, reason = "local_network_probe")
+            return
+        }
+        scheduleLocalNetworkProbe()
     }
 
     private fun stopAutoInferencePipelines(reason: String, clearPendingStreamState: Boolean = true) {
@@ -1146,6 +1252,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         onlineRequestInFlight = false
         onlineQueuedNext = false
         onlineNextEarliestStartElapsedMs = 0L
+        localNetworkProbePosted = false
         localLastFrameTimestamp = 0L
         onlineLastFrameTimestamp = 0L
         clearLatestSharedInferenceFrame(reason = "stop_auto_inference:$reason")
@@ -1155,6 +1262,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(localLoopRunnable)
         uiHandler.removeCallbacks(onlineLoopRunnable)
+        uiHandler.removeCallbacks(localNetworkProbeRunnable)
         cameraRecoveryController.notifyConsumerWaitStopped()
         onlineHazardDetectionService.cancelAll()
         if (clearPendingStreamState) {
@@ -1171,7 +1279,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (isAutoHazardPresentationPending()) return false
         if (!hasRequiredPermissions()) return false
         if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return false
-        if (!modelLoaded || modelLoading) return false
+        if (autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK_LOADING) return false
+        if (autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK && (!modelLoaded || modelLoading)) return false
         if (pendingStreamStart || streamingInProgress || streamCallbackActive) return false
         if (frameStreamInitializing) return false
         if (pageState != PageState.DETECTING) return false
@@ -1492,6 +1601,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "online detect result requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
         )
+        remoteFailureCount = 0
         if (hasHazard) {
             stopAutoInferencePipelines("accept_online_hazard_result")
             handleAutoDetectedOnlineHazardResult(request)
@@ -1509,6 +1619,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         onlineRequestInFlight = false
         Log.w(TAG, "online detect failed requestId=${request.requestId} message=$message")
+        if (handleRemoteDetectionFailureForFallback(reason = "failure:$message")) {
+            return
+        }
         continueOnlineInferenceAfterCompletion()
     }
 
@@ -1521,7 +1634,30 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         onlineRequestInFlight = false
         Log.i(TAG, "online detect dropped requestId=${request.requestId} reason=$reason")
+        if (handleRemoteDetectionFailureForFallback(reason = "dropped:$reason")) {
+            return
+        }
         continueOnlineInferenceAfterCompletion()
+    }
+
+    private fun handleRemoteDetectionFailureForFallback(reason: String): Boolean {
+        if (autoPipelineMode != AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY) {
+            return false
+        }
+        remoteFailureCount += 1
+        val decision = AutoHazardPipelineDecider.decideAfterRemoteFailure(
+            currentFailureCount = remoteFailureCount,
+            threshold = remoteFailureFallbackThreshold,
+        )
+        Log.w(
+            TAG,
+            "remote detect failure count=$remoteFailureCount threshold=$remoteFailureFallbackThreshold reason=$reason decision=${decision.mode}",
+        )
+        if (decision.mode != AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK_LOADING) {
+            return false
+        }
+        applyAutoPipelineDecision(decision, reason = "remote_$reason")
+        return true
     }
 
     private fun continueOnlineInferenceAfterCompletion() {
@@ -1843,8 +1979,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun refreshPendingHazardAlertOverlay() {
         if (pageState != PageState.DETECTING || pendingAutoHazardPresentation == null) {
             hideStatusAlertOverlay()
+            updateDetectingBottomHintVisibility()
             return
         }
+        updateDetectingBottomHintVisibility()
         statusAlertOverlay.render(
             StatusAlertModel(
                 status = AlertStatus.WARNING,
@@ -1859,79 +1997,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         playHazardAlertIfNeeded()
     }
 
-    private fun syncToPhone() {
-        if (pageState != PageState.STREAM_RESPONSE || streamingInProgress) {
-            return
-        }
-        val hazardContent = activeHazardContent
-        val savedHazardItems = hazardContent?.let(::buildSavedHazardRecordItems).orEmpty()
-        val phoneSyncRecordKey = hazardContent
-            ?.takeIf { savedHazardItems.isNotEmpty() }
-            ?.let { buildPhoneSyncRecordKey(it) }
-        if (!phoneSyncRecordKey.isNullOrBlank()) {
-            InspectionWorkflowSession.recordSavedHazardAttempt(
-                recordKey = phoneSyncRecordKey,
-                jpegBytes = hazardContent.jpegBytes,
-                hazardItems = savedHazardItems,
-                saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
-            )
-        }
-        showSyncing()
-        phoneSyncHandle = InspectionSyncService.syncAnalysisToPhone(
-            sessionId = sessionId,
-            callback = object : InspectionSyncService.Callback {
-                override fun onSuccess() {
-                    uiHandler.post {
-                        if (destroyed) return@post
-                        phoneSyncHandle = null
-                        InspectionWorkflowSession.recordPhoneSync(sessionId)
-                        phoneSyncRecordKey?.let { recordKey ->
-                            InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
-                                recordKey = recordKey,
-                                saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
-                            )
-                        }
-                        showSyncSuccess()
-                    }
-                }
-
-                override fun onError(message: String) {
-                    uiHandler.post {
-                        if (destroyed) return@post
-                        phoneSyncHandle = null
-                        Log.e(TAG, "sync failed: $message")
-                        phoneSyncRecordKey?.let { recordKey ->
-                            InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
-                                recordKey = recordKey,
-                                saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
-                            )
-                        }
-                        showSyncError(message)
-                    }
-                }
-            },
-        )
-    }
-
-    private fun showSyncing() {
-        showPage(PageState.SYNCING)
-    }
-
-    private fun showSyncSuccess() {
-        showPage(PageState.SYNC_SUCCESS)
-    }
-
-    private fun showSyncError(message: String) {
-        showPage(PageState.STREAM_RESPONSE)
-        bottomPromptSync.setPrompt(
-            title = getString(R.string.ai_inspection_sync_failed),
-            subtitle = syncPromptSubtitle(),
-        )
-        bottomPromptSync.visibility = View.GONE
-        if (message.isNotBlank()) {
-            Log.w(TAG, "sync error prompt message=$message")
-        }
-        hideActionPrompts()
+    private fun updateDetectingBottomHintVisibility() {
+        tvDetectingBottomHint.visibility =
+            if (pageState == PageState.DETECTING && pendingAutoHazardPresentation == null) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
     }
 
     private fun applyDefaultDetectionStatus() {
@@ -2040,9 +2112,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutDetection.visibility = if (state == PageState.DETECTING) View.VISIBLE else View.GONE
         layoutStreamResponse.visibility =
             if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
-        layoutSyncSuccess.visibility =
-            if (state == PageState.SYNCING || state == PageState.SYNC_SUCCESS) View.VISIBLE else View.GONE
-        bottomPromptSuccess.visibility = View.GONE
         val shouldShowLivePreview =
             state == PageState.DETECTING || state == PageState.STREAM_RESPONSE
         val shouldKeepPreviewRunning = shouldKeepDetectionPreviewRunning(state)
@@ -2066,15 +2135,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             refreshDetectionStatus()
             refreshPendingHazardAlertOverlay()
         }
-        if (state == PageState.SYNCING || state == PageState.SYNC_SUCCESS) {
-            renderSyncStatusUi(state)
-        } else {
-            ivSyncLoading.clearAnimation()
-            ivSyncLoading.visibility = View.GONE
-            ivSyncSuccessIcon.visibility = View.VISIBLE
-            operationGuideSync.visibility = View.GONE
-        }
         hideActionPrompts()
+        updateFunctionMenuVisibility()
         refreshInputActions()
     }
 
@@ -2095,11 +2157,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 showDebugThumbnail()
             }
             "sync" -> {
-                showPage(PageState.SYNC_SUCCESS)
-                bottomPromptSuccess.setPrompt(
-                    title = getString(R.string.ai_inspection_continue_prompt)
-                )
-                hideActionPrompts()
+                showPage(PageState.STREAM_RESPONSE)
+                localResultStage = LocalResultStage.ADVICE
+                setStreamContentAndResetViewport(getString(R.string.ai_inspection_debug_result_text))
+                renderLocalAdvicePrompt()
             }
             else -> {
                 showPage(PageState.DETECTING)
@@ -2159,7 +2220,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         localResultStage == LocalResultStage.NONE
                 },
             ) {
-                handleStreamConfirmAction()
+                returnToDetecting()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
@@ -2225,22 +2286,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             ) {
                 returnToDetecting()
             },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Confirm,
-                label = getString(R.string.ai_inspection_input_label_confirm),
-                triggers = buildConfirmTriggers(),
-                enabled = { pageState == PageState.SYNC_SUCCESS },
-            ) {
-                returnToDetecting()
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Cancel,
-                label = getString(R.string.ai_inspection_input_label_return),
-                triggers = buildReturnTriggers(),
-                enabled = { pageState == PageState.SYNC_SUCCESS },
-            ) {
-                finishInspectionWithReport()
-            },
         )
     }
 
@@ -2271,34 +2316,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun updateConfirmationHints() {
-        val streamGuide = getString(R.string.ai_inspection_operation_guide_confirm_return)
-        operationGuideStream.setContent(streamGuide)
-        operationGuideSync.setGuide(content = streamGuide)
-        bottomPromptSync.setPrompt(
-            title = getString(R.string.ai_inspection_sync_prompt),
-            subtitle = syncPromptSubtitle(),
-        )
-        bottomPromptSuccess.setPrompt(
-            title = getString(R.string.ai_inspection_continue_prompt),
-            subtitle = continuePromptSubtitle(),
-        )
+        tvStreamBottomHint.setText(R.string.ai_inspection_description_bottom_hint)
         hideActionPrompts()
-    }
-
-    private fun syncPromptSubtitle(): String {
-        return getString(R.string.ai_inspection_sync_hint)
-    }
-
-    private fun localDescriptionPromptSubtitle(): String {
-        return getString(R.string.ai_inspection_local_save_hint)
-    }
-
-    private fun localContinuePromptSubtitle(): String {
-        return getString(R.string.ai_inspection_local_continue_hint)
-    }
-
-    private fun continuePromptSubtitle(): String {
-        return getString(R.string.ai_inspection_continue_hint)
     }
 
     private fun isFixedResultPanelMode(): Boolean {
@@ -2310,7 +2329,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun previewBottomOffsetPx(): Int {
-        if (!isFixedResultPanelMode()) return 0
+        if (!isFixedResultPanelMode() || localResultStage == LocalResultStage.ADVICE) return 0
         return resources.getDimensionPixelSize(R.dimen.inspection_result_thumbnail_margin_top) +
             resources.getDimensionPixelSize(R.dimen.inspection_result_thumbnail_card_size) +
             resources.getDimensionPixelSize(R.dimen.inspection_result_thumbnail_spacing_bottom)
@@ -2332,24 +2351,32 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun applyFixedResultStreamPanelLayout() {
         val topParams = streamTopSpacer.layoutParams as LinearLayout.LayoutParams
-        topParams.height = previewBottomOffsetPx()
-        topParams.weight = 0f
+        if (localResultStage == LocalResultStage.ADVICE) {
+            topParams.height = 0
+            topParams.weight = 1f
+        } else {
+            topParams.height = previewBottomOffsetPx()
+            topParams.weight = 0f
+        }
         streamTopSpacer.layoutParams = topParams
         streamTopSpacer.visibility = View.VISIBLE
 
         val bottomParams = streamBottomSpacer.layoutParams as LinearLayout.LayoutParams
         bottomParams.height = 0
-        bottomParams.weight = 1f
+        bottomParams.weight = if (localResultStage == LocalResultStage.ADVICE) 0f else 1f
         streamBottomSpacer.layoutParams = bottomParams
-        streamBottomSpacer.visibility = View.VISIBLE
+        streamBottomSpacer.visibility = if (localResultStage == LocalResultStage.ADVICE) View.GONE else View.VISIBLE
     }
 
     private fun applyCurrentStreamPanelLayout() {
         applyDetectionPreviewVisibility()
+        val shouldShowThumbnail = isFixedResultPanelMode() && localResultStage == LocalResultStage.DESCRIPTION
         layoutStreamThumbnailCard.visibility =
-            if (isFixedResultPanelMode()) View.VISIBLE else View.GONE
+            if (shouldShowThumbnail) View.VISIBLE else View.GONE
         layoutStreamThumbnailPlaceholder.visibility =
-            if (isFixedResultPanelMode() && ivStreamThumbnail.visibility != View.VISIBLE) View.VISIBLE else View.GONE
+            if (shouldShowThumbnail && ivStreamThumbnail.visibility != View.VISIBLE) View.VISIBLE else View.GONE
+        tvStreamBottomHint.visibility =
+            if (isFixedResultPanelMode() && localResultStage == LocalResultStage.DESCRIPTION) View.VISIBLE else View.GONE
         if (isFixedResultPanelMode()) {
             applyFixedResultStreamPanelLayout()
         } else {
@@ -2361,23 +2388,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ivStreamThumbnail.setImageBitmap(null)
         ivStreamThumbnail.visibility = View.GONE
         layoutStreamThumbnailPlaceholder.visibility =
-            if (isFixedResultPanelMode()) View.VISIBLE else View.GONE
+            if (isFixedResultPanelMode() && localResultStage == LocalResultStage.DESCRIPTION) View.VISIBLE else View.GONE
         currentStreamThumbnail?.takeIf { !it.isRecycled }?.recycle()
         currentStreamThumbnail = null
         layoutStreamThumbnailCard.visibility =
-            if (isFixedResultPanelMode()) View.VISIBLE else View.GONE
+            if (isFixedResultPanelMode() && localResultStage == LocalResultStage.DESCRIPTION) View.VISIBLE else View.GONE
     }
 
     private fun clearStreamResponseUiState() {
         clearStreamThumbnailState()
+        hideUploadSuccessToast(immediate = true)
+        scrollContent.animate().cancel()
+        scrollContent.translationY = 0f
+        scrollContent.alpha = 1f
+        adviceCardAnimating = false
+        pendingUploadSuccessToast = false
         streamAutoScrollLocked = false
         tvStreamContent.text = ""
         applyDefaultStreamPanelLayout()
-        bottomPromptSync.visibility = View.GONE
-        bottomPromptSync.setPrompt(
-            title = getString(R.string.ai_inspection_sync_prompt),
-            subtitle = syncPromptSubtitle(),
-        )
+        tvStreamBottomHint.visibility = View.GONE
+        tvStreamBottomHint.setText(R.string.ai_inspection_description_bottom_hint)
         scrollContent.layoutParams = scrollContent.layoutParams.apply {
             height = ViewGroup.LayoutParams.WRAP_CONTENT
         }
@@ -2443,38 +2473,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return true
     }
 
-    private fun renderSyncStatusUi(state: PageState) {
-        layoutSyncSuccess.alpha = 1f
-        bottomPromptSuccess.alpha = 1f
-        when (state) {
-            PageState.SYNCING -> {
-                ivSyncLoading.visibility = View.VISIBLE
-                ivSyncLoading.startAnimation(mayHazardLoadingRotateAnimation)
-                ivSyncSuccessIcon.visibility = View.GONE
-                tvSyncStatusTitle.setText(R.string.ai_inspection_syncing)
-                tvSyncStatusDetail.setText(R.string.ai_inspection_syncing_detail)
-                operationGuideSync.visibility = View.GONE
-            }
-
-            PageState.SYNC_SUCCESS -> {
-                ivSyncLoading.clearAnimation()
-                ivSyncLoading.visibility = View.GONE
-                ivSyncSuccessIcon.visibility = View.VISIBLE
-                tvSyncStatusTitle.setText(R.string.ai_inspection_synced)
-                tvSyncStatusDetail.setText(R.string.ai_inspection_synced_detail)
-                operationGuideSync.visibility = View.GONE
-            }
-
-            else -> {
-                ivSyncLoading.clearAnimation()
-                ivSyncLoading.visibility = View.GONE
-                ivSyncSuccessIcon.visibility = View.GONE
-                operationGuideSync.visibility = View.GONE
-            }
-        }
-        hideActionPrompts()
-    }
-
     private fun failWorkflow(message: String) {
         Log.e(TAG, "workflow failed: $message")
         // 简化错误处理，仅记录日志，不显示错误页面
@@ -2517,7 +2515,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun updateCurrentTime() {
         statusBarDetecting.updateTime()
         statusBarStream.updateTime()
-        statusBarSyncSuccess.updateTime()
     }
 
     /**
@@ -2531,7 +2528,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
                 statusBarDetecting.setBatteryPercent(batteryPct)
                 statusBarStream.setBatteryPercent(batteryPct)
-                statusBarSyncSuccess.setBatteryPercent(batteryPct)
             }
         }
     }
@@ -3137,9 +3133,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         InspectionWorkflowSession.recordDetection(result.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
-        if (!result.isOnlineNoHazardResult()) {
-            scheduleBackgroundLocalHazardSaveIfNeeded(result)
-        }
         refreshInputActions()
         logAudioPressureSnapshot(
             stage = "present_resolved_hazard_content:end",
@@ -3269,7 +3262,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     returnToDetecting()
                     return
                 }
-                advanceToLocalHazardAdvice()
+                submitLocalHazardAndShowAdvice()
             }
             LocalResultStage.ADVICE -> {
                 if (advanceStreamViewportByPage()) {
@@ -3277,7 +3270,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
                 returnToDetecting()
             }
-            LocalResultStage.NONE -> syncToPhone()
+            LocalResultStage.NONE -> returnToDetecting()
         }
     }
 
@@ -3287,6 +3280,73 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             LocalResultStage.ADVICE -> returnToDetecting()
             LocalResultStage.NONE -> returnToDetecting()
         }
+    }
+
+    private fun submitLocalHazardAndShowAdvice() {
+        if (localSaveSubmitting) return
+        val hazardContent = activeHazardContent ?: return
+        val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
+        val jpegBytes = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
+        val uploadItems = buildLocalHazardUploadItems(hazardContent)
+        val failureMessage = when {
+            !InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled() -> "企业巡检链路未启用"
+            enterprisePayload == null -> "缺少企业巡检信息"
+            enterprisePayload.apiBaseUrl.isBlank() -> "缺少上传地址"
+            enterprisePayload.authCode.isBlank() -> "缺少授权信息"
+            enterprisePayload.objectId.isBlank() -> "缺少对象信息"
+            enterprisePayload.userId.isBlank() -> "缺少用户信息"
+            jpegBytes == null -> "隐患图片缺失"
+            uploadItems.isEmpty() -> "隐患信息缺失"
+            else -> null
+        }
+        if (failureMessage != null) {
+            showLocalSaveError(failureMessage)
+            return
+        }
+
+        val recordKey = buildLocalHazardAutoSaveTaskKey(hazardContent)
+        InspectionWorkflowSession.recordSavedHazardAttempt(
+            recordKey = recordKey,
+            jpegBytes = jpegBytes,
+            hazardItems = buildSavedHazardRecordItems(hazardContent),
+            saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
+        )
+        localSaveSubmitting = true
+        refreshInputActions()
+        localHazardUploadHandle?.cancel()
+        localHazardUploadHandle = localHazardPushService.pushLocalHazard(
+            baseUrl = enterprisePayload!!.apiBaseUrl,
+            authCode = enterprisePayload.authCode,
+            objectId = enterprisePayload.objectId,
+            userId = enterprisePayload.userId,
+            customParam = enterprisePayload.extraField,
+            jpegBytes = jpegBytes!!,
+            hidDanger = uploadItems,
+            callback = object : LocalHazardPushService.Callback {
+                override fun onSuccess() {
+                    if (destroyed) return
+                    localHazardUploadHandle = null
+                    localSaveSubmitting = false
+                    InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                        recordKey = recordKey,
+                        saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
+                    )
+                    pendingUploadSuccessToast = true
+                    advanceToLocalHazardAdvice()
+                    refreshInputActions()
+                }
+
+                override fun onFailure(message: String) {
+                    if (destroyed) return
+                    localHazardUploadHandle = null
+                    InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                        recordKey = recordKey,
+                        saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
+                    )
+                    showLocalSaveError(message)
+                }
+            },
+        )
     }
 
     private fun advanceToLocalHazardAdvice() {
@@ -3310,80 +3370,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         showLocalHazardAdvice(showSaveSuccessToast = false)
     }
 
-    private fun scheduleBackgroundLocalHazardSaveIfNeeded(hazardContent: ResolvedHazardContent) {
-        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            Log.i(TAG, "skip local hazard background upload: enterprise inspection flow disabled")
-            return
-        }
-        val taskKey = buildLocalHazardAutoSaveTaskKey(hazardContent)
-        if (localHazardAutoSaveTaskKey == taskKey) {
-            return
-        }
-        localHazardAutoSaveTaskKey = taskKey
-        val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
-        val capturedJpeg = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
-        val uploadItems = buildLocalHazardUploadItems(hazardContent)
-        val taskId = when {
-            enterprisePayload == null -> {
-                Log.w(TAG, "skip local hazard background upload: missing enterprise payload")
-                null
-            }
-
-            enterprisePayload.apiBaseUrl.isBlank() -> {
-                Log.w(TAG, "skip local hazard background upload: blank api base url")
-                null
-            }
-
-            enterprisePayload.authCode.isBlank() -> {
-                Log.w(TAG, "skip local hazard background upload: blank auth code")
-                null
-            }
-
-            enterprisePayload.objectId.isBlank() -> {
-                Log.w(TAG, "skip local hazard background upload: blank object id")
-                null
-            }
-
-            enterprisePayload.userId.isBlank() -> {
-                Log.w(TAG, "skip local hazard background upload: blank user id")
-                null
-            }
-
-            capturedJpeg == null -> {
-                Log.w(TAG, "skip local hazard background upload: missing jpeg")
-                null
-            }
-
-            uploadItems.isEmpty() -> {
-                Log.w(TAG, "skip local hazard background upload: no eligible hazard items")
-                null
-            }
-
-            else -> {
-                InspectionBackgroundUploadQueue.enqueueLocalHazardSave(
-                    taskKey = taskKey,
-                    baseUrl = enterprisePayload.apiBaseUrl,
-                    authCode = enterprisePayload.authCode,
-                    objectId = enterprisePayload.objectId,
-                    userId = enterprisePayload.userId,
-                    customParam = enterprisePayload.extraField,
-                    jpegBytes = capturedJpeg,
-                    hidDanger = uploadItems,
-                )
-            }
-        }
-        if (taskId.isNullOrBlank()) {
-            return
-        }
-        InspectionWorkflowSession.recordSavedHazardAttempt(
-            recordKey = buildBackgroundSaveRecordKey(taskKey),
-            jpegBytes = capturedJpeg,
-            hazardItems = buildSavedHazardRecordItems(hazardContent),
-            saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
-        )
-        InspectionBackgroundUploadService.start(this, taskId)
-    }
-
     private fun buildLocalHazardAutoSaveTaskKey(hazardContent: ResolvedHazardContent): String {
         val hazardKey = hazardContent.resolvedHazards()
             .joinToString(separator = "||") { hazard ->
@@ -3403,15 +3389,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             hazardKey,
             hazardContent.jpegBytes.contentHashCode().toString(),
         ).joinToString(separator = "|")
-    }
-
-    private fun buildPhoneSyncRecordKey(hazardContent: ResolvedHazardContent): String {
-        val baseKey = sessionId.ifBlank { buildLocalHazardAutoSaveTaskKey(hazardContent) }
-        return "phone_sync|$baseKey"
-    }
-
-    private fun buildBackgroundSaveRecordKey(taskKey: String): String {
-        return "background_save|$taskKey"
     }
 
     private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean) {
@@ -3442,15 +3419,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .distinct()
             .joinToString("\n\n")
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        if (showSaveSuccessToast) {
-            SpriteToastUtil.showSpriteToastOld(
-                this,
-                getString(R.string.ai_inspection_local_save_success),
-                R.drawable.ic_check_circle,
-                LOCAL_SAVE_SUCCESS_TOAST_MS,
-                false,
-            )
-        }
+        pendingUploadSuccessToast = pendingUploadSuccessToast || showSaveSuccessToast
         renderLocalAdvicePrompt()
         refreshInputActions()
     }
@@ -3506,7 +3475,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = true
         pendingStreamStart = false
         setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_fetching_advice))
+        renderLocalAdvicePrompt()
         hideActionPrompts()
+        updateFunctionMenuVisibility()
         refreshInputActions()
         if (!localHazardAdviceTtsPlayed) {
             localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
@@ -3573,7 +3544,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .distinct()
             .joinToString("\n\n")
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        renderLocalAdvicePrompt()
+        applyCurrentStreamPanelLayout()
+        updateFunctionMenuVisibility()
         refreshInputActions()
     }
 
@@ -3601,41 +3573,87 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localSaveSubmitting = false
         Log.e(TAG, "local save failed: $message")
         renderLocalDescriptionPrompt()
-        bottomPromptSync.setPrompt(
-            title = message.ifBlank { getString(R.string.ai_inspection_local_save_failed) },
-            subtitle = null,
-        )
-        bottomPromptSync.visibility = View.GONE
         hideActionPrompts()
+        tvStreamBottomHint.text = message.ifBlank { getString(R.string.ai_inspection_local_save_failed) }
+        tvStreamBottomHint.visibility = View.VISIBLE
+        updateFunctionMenuVisibility()
         refreshInputActions()
     }
 
     private fun renderLocalDescriptionGuide() {
-        operationGuideStream.setGuide(
-            content = localDescriptionPromptSubtitle(),
-        )
-        operationGuideStream.visibility = View.GONE
+        updateFunctionMenuVisibility()
     }
 
     private fun renderLocalDescriptionPrompt() {
         renderLocalDescriptionGuide()
-        bottomPromptSync.visibility = View.GONE
+        tvStreamBottomHint.setText(R.string.ai_inspection_description_bottom_hint)
+        tvStreamBottomHint.visibility = View.VISIBLE
+        applyCurrentStreamPanelLayout()
     }
 
     private fun renderLocalAdvicePrompt() {
-        operationGuideStream.setGuide(
-            content = localContinuePromptSubtitle(),
-        )
+        tvStreamBottomHint.visibility = View.GONE
+        applyCurrentStreamPanelLayout()
+        startAdviceCardAnimation()
+        updateFunctionMenuVisibility()
+    }
+
+    private fun setupFunctionMenus() {
+        val menuContent = getString(R.string.inspection_function_menu_content)
+        operationGuideDetecting.setMenu(content = menuContent)
+        operationGuideStream.setMenu(content = menuContent)
+    }
+
+    private fun updateFunctionMenuVisibility() {
+        operationGuideDetecting.visibility =
+            if (pageState == PageState.DETECTING) View.VISIBLE else View.GONE
         operationGuideStream.visibility = View.GONE
-        bottomPromptSync.visibility = View.GONE
+    }
+
+    private fun startAdviceCardAnimation() {
+        if (localResultStage != LocalResultStage.ADVICE) return
+        scrollContent.animate().cancel()
+        adviceCardAnimating = true
+        hideUploadSuccessToast(immediate = true)
+        scrollContent.translationY = resources.getDimensionPixelSize(R.dimen.inspection_advice_card_float_offset).toFloat()
+        scrollContent.alpha = 0f
+        scrollContent.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(ADVICE_CARD_FLOAT_ANIMATION_MS)
+            .withEndAction {
+                adviceCardAnimating = false
+                if (pendingUploadSuccessToast) {
+                    pendingUploadSuccessToast = false
+                    showUploadSuccessToast()
+                }
+            }
+            .start()
+    }
+
+    private fun showUploadSuccessToast() {
+        if (adviceCardAnimating) {
+            pendingUploadSuccessToast = true
+            return
+        }
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
+        tvUploadSuccessToast.animate().cancel()
+        tvUploadSuccessToast.alpha = 1f
+        tvUploadSuccessToast.visibility = View.VISIBLE
+        uiHandler.postDelayed(hideUploadSuccessToastRunnable, UPLOAD_SUCCESS_TOAST_VISIBLE_MS)
+    }
+
+    private fun hideUploadSuccessToast(immediate: Boolean) {
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
+        tvUploadSuccessToast.animate().cancel()
+        if (immediate) {
+            tvUploadSuccessToast.visibility = View.GONE
+            tvUploadSuccessToast.alpha = 1f
+        }
     }
 
     private fun hideActionPrompts() {
-        operationGuideDetecting.visibility = View.GONE
-        operationGuideStream.visibility = View.GONE
-        operationGuideSync.visibility = View.GONE
-        bottomPromptSync.visibility = View.GONE
-        bottomPromptSuccess.visibility = View.GONE
+        tvStreamBottomHint.visibility = View.GONE
     }
 
     private fun clearLocalHazardResultState() {
@@ -3644,7 +3662,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
-        localHazardAutoSaveTaskKey = null
+        pendingUploadSuccessToast = false
         pendingHazardAlertTtsPlayed = false
         localHazardAlertTtsPlayed = false
         localHazardAdviceTtsPlayed = false
@@ -3875,7 +3893,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val statusHeight = statusBarStream.height
                     .takeIf { it > 0 }
                     ?: statusBarStream.measuredHeight
-                (containerHeight - previewBottomOffsetPx() - statusHeight).coerceAtLeast(0)
+                if (localResultStage == LocalResultStage.ADVICE) {
+                    resources.getDimensionPixelSize(R.dimen.inspection_advice_card_max_height)
+                } else {
+                    val bottomHintHeight = tvStreamBottomHint.height
+                        .takeIf { it > 0 }
+                        ?: tvStreamBottomHint.measuredHeight
+                    (containerHeight - previewBottomOffsetPx() - bottomHintHeight - statusHeight).coerceAtLeast(0)
+                }
             } else {
                 resources.displayMetrics.heightPixels / 2
             }
@@ -3923,7 +3948,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         applyCurrentStreamPanelLayout()
         streamingInProgress = true
         streamCallbackActive = true
-        bottomPromptSync.visibility = View.GONE
+        tvStreamBottomHint.visibility = View.GONE
         hideActionPrompts()
         refreshInputActions()
     }
@@ -4004,9 +4029,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
         renderLocalDescriptionPrompt()
-        if (!resolved.isOnlineNoHazardResult()) {
-            scheduleBackgroundLocalHazardSaveIfNeeded(resolved)
-        }
         refreshInputActions()
     }
 

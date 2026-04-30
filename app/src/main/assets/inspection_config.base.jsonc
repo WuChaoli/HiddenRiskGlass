@@ -1,0 +1,145 @@
+{
+  /* 巡检全局功能开关。
+   * 修改这些字段会影响页面跳转主链路。
+   */
+  "featureFlags": {
+    // 是否启用企业巡检链路。false 时扫码页/企业信息页会被跳过，直接进入 AI 巡检。
+    "enableEnterpriseInspectionFlow": true
+  },
+
+  /* 企业扫码页参数。
+   * 影响 EnterpriseQrScanActivity 的扫码节流、取帧尺寸与相机恢复。
+   */
+  "enterpriseScan": {
+    // 扫码轮询间隔，单位 ms。过小会增加 CPU/相机压力，过大可能降低识别响应速度。
+    "scanIntervalMs": 800,
+    // 扫码取帧目标尺寸，单位 px。过大增加处理成本，过小可能降低二维码识别率。
+    "scanFrameTargetSize": 1080,
+    // 是否启用扫码页相机恢复。关闭后相机异常时不会自动尝试恢复。
+    "enableCameraRecovery": true
+  },
+
+  /* 企业信息页参数。
+   * 影响 EnterpriseInfoActivity 的布局、字号与历史隐患展示。
+   */
+  "enterpriseInfo": {
+    // 布局模式。可选值：NEW | LEGACY。
+    "layoutMode": "NEW",
+    // 最多展示多少条历史隐患。单位：条。
+    "maxHazardHistoryDisplayCount": 3,
+    // 最近巡查时间兜底文案。当前会话没有真实巡查时间时使用该文本。
+    "recentInspectionTimeFallbackText": "最近巡查时间：2026年1月21日",
+    // LEGACY 布局下企业名称字号，单位 sp。
+    "companyNameTextSizeLegacySp": 20.0,
+    // NEW 布局下企业名称字号，单位 sp。
+    "companyNameTextSizeNewSp": 24.0,
+    // LEGACY 布局下基础信息字号，单位 sp。
+    "infoTextSizeLegacySp": 11.0,
+    // NEW 布局下基础信息字号，单位 sp。
+    "infoTextSizeNewSp": 17.0,
+    // LEGACY 布局下基础信息额外行间距，单位 dp。
+    "infoLineSpacingExtraLegacyDp": 0.0,
+    // NEW 布局下基础信息额外行间距，单位 dp。
+    "infoLineSpacingExtraNewDp": 6.0
+  },
+
+  /* AI 隐患识别页参数。
+   * 影响 AiInspectionActivity 的推理模式、取帧阈值、保存策略与在线识别行为。
+   */
+  "aiInspection": {
+    // 自动识别模式。可选值：BOTH | ONLINE_ONLY | LOCAL_ONLY。
+    "autoInferenceMode": "BOTH",
+    // 隐患路由模式。可选值：SEPARATED | ONLINE_ONLY | LOCAL_ONLY。
+    "autoHazardRoutingMode": "SEPARATED",
+    // 抓拍预热时长，单位 ms。过短可能拿到不稳定帧。
+    "captureWarmupMs": 1200,
+    // 自动识别失败后的重试等待，单位 ms。
+    "autoInferenceRetryDelayMs": 80,
+    // 自动弹出隐患详情前的等待时长，单位 ms。
+    "autoHazardPresentDelayMs": 3000,
+    // 同一标签的本地识别冷却时间，单位 ms。过短会重复报同一隐患。
+    "localLabelCooldownMs": 15000,
+    // 流式结果缩略图目标尺寸，单位 px。
+    "streamThumbnailTargetPx": 160,
+    // 本地保存成功 toast 展示时长，单位 ms。
+    "localSaveSuccessToastMs": 1500,
+    // 本地 NCNN 推理后端。可选值：CPU | GPU | TURNIP。
+    "backend": "GPU",
+    // GPU profile。可选值：SAFE_FP32 | BALANCED_FP16 | NO_PACKING_FP32。
+    "gpuProfile": "BALANCED_FP16",
+    // 模型输入尺寸，单位 px。修改会直接影响推理耗时与显存。
+    "targetInputSize": 640,
+    // 是否在命中隐患时额外保存抓拍图片。开启后会增加存储与 I/O。
+    "enableHitCaptureSave": false,
+    // 是否启用在线建议页。关闭时详情展示保持当前默认行为。
+    "enableOnlineAdvicePage": true,
+    // 陈旧帧阈值，单位 ms。超过该阈值的共享帧会被视为不可用。
+    "staleFrameThresholdMs": 1200,
+    // 运动清空阈值，单位 ms。超过该时间会清理共享帧运动状态。
+    "sharedFrameMotionClearThresholdMs": 1000,
+    // 在线识别 JPEG 压缩质量，范围 0-100。过高会增加上传体积。
+    "onlineJpegQuality": 97,
+    // 在线取样窗口时长，单位 ms。
+    "onlineSelectWindowMs": 240,
+    // 在线取样窗口内最多采样帧数，单位：帧。
+    "onlineSelectMaxFrames": 3,
+    // 在线取样轮询间隔，单位 ms。
+    "onlineSelectPollIntervalMs": 80,
+    // 在线检测最小触发间隔，单位 ms。standard 默认 1000，demo overlay 会覆盖。
+    "onlineDetectIntervalMs": 1000,
+    // 远程 ctype=1 连续失败达到该次数后，降级到本地 NCNN 备用链路。
+    "remoteFailureFallbackThreshold": 3,
+    // 本地备用链路运行时，系统网络恢复探测间隔，单位 ms。
+    "localNetworkProbeIntervalMs": 3000,
+    // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
+    "forceOnlineDetailForLocalHazard": false
+  },
+
+  /* 网络参数。
+   * 统一管理地址与超时；单位均为 ms。
+   */
+  "network": {
+    "enterpriseObjectApi": {
+      // 企业对象信息接口 connect timeout，单位 ms。
+      "connectTimeoutMs": 15000,
+      // 企业对象信息接口 read timeout，单位 ms。
+      "readTimeoutMs": 30000,
+      // 企业对象信息接口 write timeout，单位 ms。
+      "writeTimeoutMs": 30000
+    },
+    "aiArApi": {
+      // AI AR SSE 接口地址。
+      "url": "http://183.147.142.133:50016/ai/ar",
+      // AI AR SSE connect timeout，单位 ms。
+      "connectTimeoutMs": 15000,
+      // AI AR SSE read timeout，单位 ms。流式接口一般需要更长读取时间。
+      "readTimeoutMs": 45000,
+      // AI AR SSE write timeout，单位 ms。
+      "writeTimeoutMs": 30000,
+      // 在线检测阶段的业务超时，单位 ms。超时后会主动丢弃请求。
+      "detectTimeoutMs": 3000
+    },
+    "saveResultApi": {
+      // 手机端同步主接口地址。
+      "primarySaveResultUrl": "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave",
+      // 备份接口基础域名。LocalHazardPush / Finish / Sync 都会基于它拼接备份地址。
+      "backupBaseUrl": "http://183.147.142.133:7443",
+      // 保存类接口 connect timeout，单位 ms。
+      "connectTimeoutMs": 30000,
+      // 保存类接口 read timeout，单位 ms。
+      "readTimeoutMs": 30000,
+      // 保存类接口 write timeout，单位 ms。
+      "writeTimeoutMs": 30000
+    },
+    "mayHazardVerifyApi": {
+      // MayHazard 深度校验地址。
+      "answerUrl": "http://183.147.142.133:8006/has_hazard_answer",
+      // MayHazard connect timeout，单位 ms。
+      "connectTimeoutMs": 15000,
+      // MayHazard read timeout，单位 ms。
+      "readTimeoutMs": 30000,
+      // MayHazard write timeout，单位 ms。
+      "writeTimeoutMs": 30000
+    }
+  }
+}

@@ -47,7 +47,7 @@ data class AiInspectionConfig(
     val gpuProfile: GpuProfile = GpuProfile.BALANCED_FP16,
     val targetInputSize: Int = 640,
     val enableHitCaptureSave: Boolean = false,
-    val enableOnlineAdvicePage: Boolean = false,
+    val enableOnlineAdvicePage: Boolean = true,
     val staleFrameThresholdMs: Long = 1200L,
     val sharedFrameMotionClearThresholdMs: Long = 1000L,
     val onlineJpegQuality: Int = 97,
@@ -55,6 +55,8 @@ data class AiInspectionConfig(
     val onlineSelectMaxFrames: Int = 3,
     val onlineSelectPollIntervalMs: Long = 80L,
     val onlineDetectIntervalMs: Long = 1000L,
+    val remoteFailureFallbackThreshold: Int = 3,
+    val localNetworkProbeIntervalMs: Long = 3000L,
     val forceOnlineDetailForLocalHazard: Boolean = false,
 )
 
@@ -181,6 +183,8 @@ data class AiInspectionConfigOverride(
     val onlineSelectMaxFrames: Int? = null,
     val onlineSelectPollIntervalMs: Long? = null,
     val onlineDetectIntervalMs: Long? = null,
+    val remoteFailureFallbackThreshold: Int? = null,
+    val localNetworkProbeIntervalMs: Long? = null,
     val forceOnlineDetailForLocalHazard: Boolean? = null,
 )
 

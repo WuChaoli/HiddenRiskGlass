@@ -15,6 +15,10 @@ object InspectionSession {
     var isFrameStreamReady: Boolean = false
         private set
 
+    // NCNN 模型是否已完成加载
+    var isModelLoaded: Boolean = false
+        private set
+
     // 初始化是否完成
     var isInitialized: Boolean = false
         private set
@@ -53,15 +57,16 @@ object InspectionSession {
         val ncnn = hiddenRiskNcnn ?: return false
         return try {
             ncnn.setDebugCompareEnabled(false)
-            ncnn.loadModel(
+            isModelLoaded = ncnn.loadModel(
                 assets,
                 backendGpu,
                 gpuProfile,
                 targetInputSize
             )
             errorMessage = null
-            true
+            isModelLoaded
         } catch (e: Exception) {
+            isModelLoaded = false
             errorMessage = "模型加载失败: ${e.message}"
             false
         }
@@ -114,6 +119,7 @@ object InspectionSession {
     fun reset() {
         hiddenRiskNcnn?.clearFrameState()
         hiddenRiskNcnn = null
+        isModelLoaded = false
         stopFrameStream()
         isInitialized = false
         errorMessage = null
@@ -126,6 +132,7 @@ object InspectionSession {
     fun release() {
         hiddenRiskNcnn?.clearFrameState()
         hiddenRiskNcnn = null
+        isModelLoaded = false
         stopFrameStream()
         isInitialized = false
         errorMessage = null

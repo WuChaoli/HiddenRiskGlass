@@ -36,7 +36,7 @@ import kotlin.math.max
 
 /**
  * 巡检加载页面。
- * 执行实际的 SDK 初始化、模型加载、相机预热，完成后直接执行 Wi-Fi 判定分流。
+ * 执行实际的 SDK 初始化、相机预热，完成后直接执行 Wi-Fi 判定分流。
  */
 class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -53,7 +53,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private enum class LoadingStage {
         IDLE,           // 初始状态
         SDK_INIT,       // SDK 初始化
-        MODEL_LOAD,     // 模型加载
         CAMERA_INIT,    // 相机初始化
         COMPLETE,       // 加载完成，立即分流
         ERROR           // 错误状态
@@ -83,7 +82,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var loadingStage = LoadingStage.IDLE
     private var mediaPermissionRequested = false
     private var activityDestroyed = false
-    private var modelLoadStarted = false
     private var cameraInitStarted = false
     private var initializationCompleted = false
     private var completionUiCommitted = false
@@ -137,8 +135,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         }
     }
 
-    private val startModelLoadRunnable = Runnable {
-        startModelLoading()
+    private val startCameraInitRunnable = Runnable {
+        startCameraInit()
     }
 
     private val finishNavigationRunnable = Runnable {
@@ -256,8 +254,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                     setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
                     animateProgressTo(30)
                     // 延迟一下确保 SDK 完全就绪
-                    uiHandler.removeCallbacks(startModelLoadRunnable)
-                    uiHandler.postDelayed(startModelLoadRunnable, 200)
+                    uiHandler.removeCallbacks(startCameraInitRunnable)
+                    uiHandler.postDelayed(startCameraInitRunnable, 200)
                 }
                 RokidSdkManager.SdkState.FAILED -> {
                     showError(RokidSdkManager.lastErrorMessage ?: getString(R.string.ai_inspection_loading_error_sdk_init))
@@ -399,49 +397,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         refreshInputActions()
 
         // SDK 初始化由 RokidSdkManager 处理，等待回调
-        // 如果 SDK 已经就绪，直接开始模型加载
+        // 如果 SDK 已经就绪，直接开始相机预热。
         if (RokidSdkManager.state == RokidSdkManager.SdkState.READY) {
             setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
             animateProgressTo(30)
-            startModelLoading()
+            startCameraInit()
         }
-    }
-
-    private fun startModelLoading() {
-        if (activityDestroyed || modelLoadStarted || initializationCompleted || loadingStage == LoadingStage.ERROR) {
-            Log.i(
-                TAG,
-                "skip startModelLoading destroyed=$activityDestroyed modelLoadStarted=$modelLoadStarted complete=$initializationCompleted stage=$loadingStage"
-            )
-            return
-        }
-
-        modelLoadStarted = true
-        loadingStage = LoadingStage.MODEL_LOAD
-        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_model_loading), animated = true)
-        animateProgressTo(50)
-        refreshInputActions()
-
-        // 创建 NCNN 实例
-        if (!InspectionSession.createNcnnInstance()) {
-            showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_ncnn_init))
-            return
-        }
-
-        // 在后台线程加载模型
-        Thread {
-            val success = InspectionSession.loadModel(assets)
-            uiHandler.post {
-                if (activityDestroyed) return@post
-                if (success) {
-                    setSubtitle(getString(R.string.ai_inspection_loading_subtitle_model_ready), animated = true)
-                    animateProgressTo(70)
-                    startCameraInit()
-                } else {
-                    showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_model_load))
-                }
-            }
-        }.start()
     }
 
     private fun startCameraInit() {
@@ -511,7 +472,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         currentProgress = 0
         targetProgress = 0
         progressRunnablePosted = false
-        modelLoadStarted = false
         cameraInitStarted = false
         initializationCompleted = false
         completionUiCommitted = false
@@ -621,7 +581,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         stopSpinner()
         stopSubtitleAnimation()
         uiHandler.removeCallbacks(progressRunnable)
-        uiHandler.removeCallbacks(startModelLoadRunnable)
+        uiHandler.removeCallbacks(startCameraInitRunnable)
         uiHandler.removeCallbacks(finishNavigationRunnable)
         progressRunnablePosted = false
     }
