@@ -670,6 +670,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         motionStabilityTracker.start()
+        cameraRecoveryController.start()
         refreshInputActions()
         if (pageState == PageState.DETECTING || shouldKeepDetectionPreviewRunning(pageState)) {
             cameraRecoveryController.setRecoveryEnabled(true)
@@ -1623,7 +1624,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         onlineRequestInFlight = false
-        Log.w(TAG, "online detect failed requestId=${request.requestId} message=$message")
+        Log.w(
+            TAG,
+            "online detect failed requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} autoMode=$autoPipelineMode message=$message",
+        )
         if (handleRemoteDetectionFailureForFallback(reason = "failure:$message")) {
             return
         }

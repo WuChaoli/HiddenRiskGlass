@@ -14,6 +14,7 @@ object InspectionCameraCoordinator {
 
     enum class CameraOwner {
         LOADING,
+        ENTERPRISE_QR_SCAN,
         AI_INSPECTION,
         HAZARD_RECORD,
     }

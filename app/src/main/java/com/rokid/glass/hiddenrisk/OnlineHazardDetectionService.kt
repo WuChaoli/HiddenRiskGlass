@@ -85,9 +85,17 @@ internal class OnlineHazardDetectionService(
     fun submitDetection(request: DetectionRequest) {
         scheduler.post {
             if (activeDetectionRequest != null) {
+                Log.w(
+                    TAG,
+                    "submitDetection droppedBusy requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+                )
                 callback.onDetectionDropped(request, REASON_BUSY)
                 return@post
             }
+            Log.i(
+                TAG,
+                "submitDetection accepted requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+            )
             startDetection(request)
         }
     }
@@ -173,18 +181,33 @@ internal class OnlineHazardDetectionService(
         activeDetectionRequest = request
         activeDetectionStartedElapsedMs = elapsedRealtimeProvider()
         scheduleDetectionTimeout()
+        Log.i(
+            TAG,
+            "startDetection encodeStart requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs",
+        )
         encodeExecutor.execute {
             val base64Image = base64Encoder(request.jpegBytes)
             scheduler.post detectPost@{
                 if (activeDetectionRequest != request) {
+                    Log.i(
+                        TAG,
+                        "startDetection encodeDiscarded requestId=${request.requestId} epoch=${request.epoch}",
+                    )
                     return@detectPost
                 }
+                Log.i(
+                    TAG,
+                    "startDetection encoded requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                )
                 activeDetectionHandle = requestGateway.detectHasHazard(
                     request = request,
                     base64Image = base64Image,
                     callback = object : AiArSseService.DetectCallback {
                         override fun onOpened(handle: AiArSseService.RequestHandle) {
-                            Log.i(TAG, "detect opened taskId=${handle.taskId} requestId=${request.requestId}")
+                            Log.i(
+                                TAG,
+                                "detect opened taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                            )
                         }
 
                         override fun onSuccess(
@@ -196,6 +219,10 @@ internal class OnlineHazardDetectionService(
                                 return
                             }
                             clearActiveDetection()
+                            Log.i(
+                                TAG,
+                                "detect success taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                            )
                             callback.onDetectionResult(request, hasHazard, fullText)
                         }
 
@@ -207,6 +234,10 @@ internal class OnlineHazardDetectionService(
                                 return
                             }
                             clearActiveDetection()
+                            Log.w(
+                                TAG,
+                                "detect failure taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs} message=$message",
+                            )
                             callback.onDetectionFailure(request, message)
                         }
                     },

@@ -167,13 +167,20 @@ class AiArSseService(
             .header("Accept", "text/event-stream")
             .post(requestBody)
             .build()
-        Log.i(TAG, "openStream ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url}")
+        Log.i(
+            TAG,
+            "openStream requestStart ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} imageChars=${payload.image?.length ?: 0} textLength=${payload.text?.length ?: 0}",
+        )
         val eventSource = eventSourceFactory.newEventSource(
             request,
             object : EventSourceListener() {
                 private val terminalDelivered = AtomicBoolean(false)
 
                 override fun onOpen(eventSource: EventSource, response: Response) {
+                    Log.i(
+                        TAG,
+                        "openStream opened ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} requestUrl=${response.request.url} httpCode=${response.code} httpMessage=${response.message} contentType=${response.header("Content-Type")}",
+                    )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
                             onOpened()
@@ -253,10 +260,21 @@ class AiArSseService(
                     if (handle.isCanceled()) {
                         return
                     }
-                    val message = t?.message
-                        ?: response?.message
-                        ?: "在线识别失败"
-                    Log.e(TAG, "openStream failed ctype=${payload.ctype} taskId=${payload.task_id}", t)
+                    val responseCode = response?.code
+                    val responseMessage = response?.message
+                    val responseContentType = response?.header("Content-Type")
+                    val responseBodySnippet = extractResponseBodySnippet(response)
+                    val message = buildFailureMessage(
+                        throwable = t,
+                        responseCode = responseCode,
+                        responseMessage = responseMessage,
+                        responseBodySnippet = responseBodySnippet,
+                    )
+                    Log.e(
+                        TAG,
+                        "openStream failed ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} requestUrl=${eventSource.request().url} throwable=${t?.javaClass?.simpleName} httpCode=$responseCode httpMessage=$responseMessage contentType=$responseContentType bodySnippet=$responseBodySnippet",
+                        t,
+                    )
                     deliverFailure(
                         handle = handle,
                         onFailure = onFailure,
@@ -294,12 +312,45 @@ class AiArSseService(
         }
     }
 
+    private fun buildFailureMessage(
+        throwable: Throwable?,
+        responseCode: Int?,
+        responseMessage: String?,
+        responseBodySnippet: String?,
+    ): String {
+        val parts = mutableListOf<String>()
+        if (responseCode != null) {
+            parts += "HTTP $responseCode"
+        }
+        if (!responseMessage.isNullOrBlank()) {
+            parts += responseMessage.trim()
+        }
+        if (!throwable?.message.isNullOrBlank()) {
+            parts += throwable!!.message!!.trim()
+        }
+        if (!responseBodySnippet.isNullOrBlank()) {
+            parts += "body=$responseBodySnippet"
+        }
+        return parts.joinToString(separator = " | ").ifBlank { "在线识别失败" }
+    }
+
+    private fun extractResponseBodySnippet(response: Response?): String? {
+        val body = runCatching { response?.peekBody(MAX_ERROR_BODY_LOG_BYTES)?.string().orEmpty() }
+            .getOrDefault("")
+        if (body.isBlank()) {
+            return null
+        }
+        return body.replace(Regex("\\s+"), " ").trim().take(MAX_ERROR_BODY_LOG_CHARS)
+    }
+
     companion object {
         private const val TAG = "AiArSseService"
         private const val DONE_SENTINEL = "[DONE]"
         private const val CTYPE_DETAIL = 0
         private const val CTYPE_HAS_HAZARD = 1
         private const val CTYPE_ADVICE = 2
+        private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
+        private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
     }
 }

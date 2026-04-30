@@ -31,6 +31,8 @@ import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -68,6 +70,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private var completed = false
     private var debugSnapshotMode = false
     private var destroyed = false
+    private var cameraSessionGeneration = 0L
     private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
     private var batteryReceiver: BroadcastReceiver? = null
 
@@ -113,6 +116,15 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                     mainHandler.removeCallbacks(scanRunnable)
                     showScanState(getString(R.string.enterprise_qr_camera_recovery_failed))
                 }
+            },
+            restartHandler = { issue, onReady ->
+                cameraSessionGeneration = InspectionCameraCoordinator.restart(
+                    owner = CameraOwner.ENTERPRISE_QR_SCAN,
+                    reason = issue.name,
+                    needPreview = true,
+                    previewView = cameraPreviewView,
+                    onReady = onReady,
+                )
             },
         )
     }
@@ -195,6 +207,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         if (completed) return
         if (debugSnapshotMode) return
         if (skipScanIfEnterpriseQrCached()) return
+        cameraRecoveryController.start()
         if (hasRequiredPermissions()) {
             startCameraPipeline(resetRecoveryAttempts = true)
         } else {
@@ -209,13 +222,11 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             super.onPause()
             return
         }
-        objectMessageRequest?.cancel()
-        objectMessageRequest = null
         if (completed) {
             completed = false
             showScanState(getString(R.string.enterprise_qr_waiting))
         }
-        stopCameraPipeline()
+        stopCameraPipeline(reason = "on_pause")
         super.onPause()
     }
 
@@ -225,12 +236,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         inputSession.release()
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
-            objectMessageRequest?.cancel()
-            objectMessageRequest = null
             if (scannerDelegate.isInitialized()) {
                 scanner.close()
             }
-            stopCameraPipeline()
+            stopCameraPipeline(reason = "on_destroy")
         }
         super.onDestroy()
     }
@@ -273,37 +282,70 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         if (resetRecoveryAttempts) {
             cameraRecoveryController.resetRecoveryAttempts()
         }
-        Log.i(TAG, "startCameraPipeline begin completed=$completed status=$statusMessage")
+        cameraRecoveryController.start()
         showScanState(statusMessage)
         refreshInputActions()
         isFrameStreamReady = false
         isProcessingFrame = false
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
-        cameraRecoveryController.startOrReuse { success ->
-            runOnUiThread {
-                isFrameStreamReady = success
-                Log.i(TAG, "startCameraPipeline frameStreamReady=$success")
-                if (!success) {
-                    tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
-                    return@runOnUiThread
-                }
-                tvStatus.text = statusMessage
-                startScanLoop()
+        var requestGeneration = 0L
+        Log.i(
+            TAG,
+            "startCameraPipeline requestGeneration=pending completed=$completed status=$statusMessage recovery=${shouldEnableCameraRecovery()}",
+        )
+        requestGeneration = InspectionCameraCoordinator.acquire(
+            owner = CameraOwner.ENTERPRISE_QR_SCAN,
+            needPreview = true,
+            previewView = cameraPreviewView,
+            enableRecovery = shouldEnableCameraRecovery(),
+        ) { success ->
+            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
+                Log.i(
+                    TAG,
+                    "ignore stale enterprise acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
+                )
+                return@acquire
             }
+            cameraSessionGeneration = requestGeneration
+            isFrameStreamReady = success
+            Log.i(
+                TAG,
+                "camera acquire result success=$success generation=$requestGeneration owner=${InspectionCameraCoordinator.getOwner()} state=${InspectionCameraCoordinator.getState()}",
+            )
+            if (!success) {
+                tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
+                return@acquire
+            }
+            tvStatus.text = statusMessage
+            startScanLoop()
         }
+        cameraSessionGeneration = requestGeneration
+        Log.i(TAG, "startCameraPipeline requestGeneration=$requestGeneration owner=${InspectionCameraCoordinator.getOwner()}")
     }
 
-    private fun stopCameraPipeline() {
+    private fun stopCameraPipeline(reason: String = "unspecified") {
+        Log.i(
+            TAG,
+            "stopCameraPipeline reason=$reason owner=${CameraOwner.ENTERPRISE_QR_SCAN} generation=$cameraSessionGeneration completed=$completed frameReady=$isFrameStreamReady processing=$isProcessingFrame",
+        )
         mainHandler.removeCallbacks(scanRunnable)
+        objectMessageRequest?.cancel()
+        objectMessageRequest = null
         cameraRecoveryController.stop()
         isFrameStreamReady = false
         isProcessingFrame = false
+        cameraSessionGeneration = 0L
+        InspectionCameraCoordinator.release(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
     }
 
     private fun startScanLoop() {
         if (completed) {
             return
         }
+        Log.i(
+            TAG,
+            "scanLoop start completed=$completed frameReady=$isFrameStreamReady generation=$cameraSessionGeneration",
+        )
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.post(scanRunnable)
     }
@@ -388,7 +430,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun navigateToEnterpriseInfo() {
-        stopCameraPipeline()
+        stopCameraPipeline(reason = "navigate_to_enterprise_info")
         startActivity(Intent(this, EnterpriseInfoActivity::class.java))
         finish()
     }
@@ -592,10 +634,8 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun exitAppDirectly() {
-        objectMessageRequest?.cancel()
-        objectMessageRequest = null
         mainHandler.removeCallbacks(scanRunnable)
-        stopCameraPipeline()
+        stopCameraPipeline(reason = "exit_app_directly")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAffinity()
             finishAndRemoveTask()

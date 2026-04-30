@@ -66,14 +66,20 @@ class RokidCameraRecoveryController(
 
     private val consumerTimeoutRunnable = Runnable { handleConsumerTimeoutTick() }
 
-    fun startOrReuse(onReady: (Boolean) -> Unit = {}) {
+    fun start() {
         started = true
         previewView?.setPreviewHealthListener(this)
         if (mode == RecoveryMode.PREVIEW_HEALTH) {
             previewView?.setPreviewHealthMonitoringEnabled(false)
-            previewView?.stopPreview()
         }
         clearConsumerWaitState()
+    }
+
+    fun startOrReuse(onReady: (Boolean) -> Unit = {}) {
+        start()
+        if (mode == RecoveryMode.PREVIEW_HEALTH) {
+            previewView?.stopPreview()
+        }
         RokidFrameSource.startFrameStream { success ->
             mainHandler.post {
                 if (!started) {
