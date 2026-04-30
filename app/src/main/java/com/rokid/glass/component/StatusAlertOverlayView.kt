@@ -166,7 +166,7 @@ class StatusAlertOverlayView @JvmOverloads constructor(
             messageView.gravity = defaultMessageGravity
             messageView.textAlignment = View.TEXT_ALIGNMENT_VIEW_START
         } else {
-            messageView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
+            messageView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
             messageView.gravity = Gravity.CENTER
             messageView.textAlignment = View.TEXT_ALIGNMENT_CENTER
         }
