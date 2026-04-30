@@ -23,15 +23,8 @@ data class EnterpriseScanConfig(
 )
 
 data class EnterpriseInfoConfig(
-    val layoutMode: EnterpriseInfoLayoutMode = EnterpriseInfoLayoutMode.NEW,
     val maxHazardHistoryDisplayCount: Int = 3,
     val recentInspectionTimeFallbackText: String = "最近巡查时间：2026年1月21日",
-    val companyNameTextSizeLegacySp: Float = 20f,
-    val companyNameTextSizeNewSp: Float = 24f,
-    val infoTextSizeLegacySp: Float = 11f,
-    val infoTextSizeNewSp: Float = 17f,
-    val infoLineSpacingExtraLegacyDp: Float = 0f,
-    val infoLineSpacingExtraNewDp: Float = 6f,
 )
 
 data class AiInspectionConfig(
@@ -99,11 +92,6 @@ data class MayHazardVerifyApiConfig(
     val writeTimeoutMs: Long = 30_000L,
 )
 
-enum class EnterpriseInfoLayoutMode {
-    LEGACY,
-    NEW,
-}
-
 enum class AutoInferenceMode {
     LOCAL_ONLY,
     ONLINE_ONLY,
@@ -151,15 +139,8 @@ data class EnterpriseScanConfigOverride(
 )
 
 data class EnterpriseInfoConfigOverride(
-    val layoutMode: EnterpriseInfoLayoutMode? = null,
     val maxHazardHistoryDisplayCount: Int? = null,
     val recentInspectionTimeFallbackText: String? = null,
-    val companyNameTextSizeLegacySp: Float? = null,
-    val companyNameTextSizeNewSp: Float? = null,
-    val infoTextSizeLegacySp: Float? = null,
-    val infoTextSizeNewSp: Float? = null,
-    val infoLineSpacingExtraLegacyDp: Float? = null,
-    val infoLineSpacingExtraNewDp: Float? = null,
 )
 
 data class AiInspectionConfigOverride(

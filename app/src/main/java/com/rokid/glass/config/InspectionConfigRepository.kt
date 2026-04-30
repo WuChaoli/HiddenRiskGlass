@@ -138,23 +138,10 @@ object InspectionConfigRepository {
         override: EnterpriseInfoConfigOverride?,
     ): EnterpriseInfoConfig {
         return EnterpriseInfoConfig(
-            layoutMode = override?.layoutMode ?: base.layoutMode,
             maxHazardHistoryDisplayCount =
                 override?.maxHazardHistoryDisplayCount ?: base.maxHazardHistoryDisplayCount,
             recentInspectionTimeFallbackText =
                 override?.recentInspectionTimeFallbackText ?: base.recentInspectionTimeFallbackText,
-            companyNameTextSizeLegacySp =
-                override?.companyNameTextSizeLegacySp ?: base.companyNameTextSizeLegacySp,
-            companyNameTextSizeNewSp =
-                override?.companyNameTextSizeNewSp ?: base.companyNameTextSizeNewSp,
-            infoTextSizeLegacySp =
-                override?.infoTextSizeLegacySp ?: base.infoTextSizeLegacySp,
-            infoTextSizeNewSp =
-                override?.infoTextSizeNewSp ?: base.infoTextSizeNewSp,
-            infoLineSpacingExtraLegacyDp =
-                override?.infoLineSpacingExtraLegacyDp ?: base.infoLineSpacingExtraLegacyDp,
-            infoLineSpacingExtraNewDp =
-                override?.infoLineSpacingExtraNewDp ?: base.infoLineSpacingExtraNewDp,
         )
     }
 

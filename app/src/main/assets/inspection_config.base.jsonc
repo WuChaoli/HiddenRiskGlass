@@ -20,27 +20,13 @@
   },
 
   /* 企业信息页参数。
-   * 影响 EnterpriseInfoActivity 的布局、字号与历史隐患展示。
+   * 影响 EnterpriseInfoActivity 的历史隐患展示。
    */
   "enterpriseInfo": {
-    // 布局模式。可选值：NEW | LEGACY。
-    "layoutMode": "NEW",
     // 最多展示多少条历史隐患。单位：条。
     "maxHazardHistoryDisplayCount": 3,
     // 最近巡查时间兜底文案。当前会话没有真实巡查时间时使用该文本。
-    "recentInspectionTimeFallbackText": "最近巡查时间：2026年1月21日",
-    // LEGACY 布局下企业名称字号，单位 sp。
-    "companyNameTextSizeLegacySp": 20.0,
-    // NEW 布局下企业名称字号，单位 sp。
-    "companyNameTextSizeNewSp": 24.0,
-    // LEGACY 布局下基础信息字号，单位 sp。
-    "infoTextSizeLegacySp": 11.0,
-    // NEW 布局下基础信息字号，单位 sp。
-    "infoTextSizeNewSp": 17.0,
-    // LEGACY 布局下基础信息额外行间距，单位 dp。
-    "infoLineSpacingExtraLegacyDp": 0.0,
-    // NEW 布局下基础信息额外行间距，单位 dp。
-    "infoLineSpacingExtraNewDp": 6.0
+    "recentInspectionTimeFallbackText": "最近巡查时间：2026年1月21日"
   },
 
   /* AI 隐患识别页参数。
