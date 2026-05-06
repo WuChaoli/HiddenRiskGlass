@@ -197,6 +197,32 @@ com.rokid.glass/
 
 - `docs/UnifiedInput_设计与接入.md`
 
+## OpenSpec 产品规格导航
+
+当前产品行为基线、正式主链页面跳转与功能规格，统一收敛到：
+
+- `openspec/specs/project-doc-index/spec.md`
+  - 项目规格索引、正式功能入口与附录页导航
+- `openspec/specs/ui-navigation-overview/spec.md`
+  - 正式巡检主链页面跳转、分流条件、返回路径与会话依赖
+- `openspec/specs/wifi-qr-scan/spec.md`
+  - Wi-Fi 扫码、系统配网、连接验证与成功后跳转
+- `openspec/specs/ai-inspection-menu/spec.md`
+  - AI 巡检菜单项、触控翻页、语音直达与设备指引占位入口
+- `openspec/specs/hazard-analysis/spec.md`
+  - `InspectionLoadingActivity` + `AiInspectionActivity` 的识别主流程、状态与控制逻辑
+- `openspec/specs/device-guide/spec.md`
+  - 设备指引当前占位能力与入口边界
+- `openspec/specs/hazard-record/spec.md`
+  - 隐患录入页的拍照、实时分析、保存与结束任务流程
+- `openspec/changes/document-current-product-spec/design.md`
+  - 当前正式主链的总架构文档，覆盖页面层、会话层、输入层与识别链路
+
+说明：
+
+- `openspec/` 文档用于描述“当前产品规格基线”
+- `docs/` 文档用于描述“专题经验、验证方法与接入说明”
+
 ### 当前已验证可运行的 GPU 组合
 
 - HiddenRisk 当前在眼镜端已验证可运行的组合为：
