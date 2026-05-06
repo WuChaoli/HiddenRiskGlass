@@ -35,6 +35,16 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     companion object {
         private const val TAG = "InspectionEndReport"
         private const val SHOW_END_REPORT_HAZARD_COUNT = true
+        const val EXTRA_RETURN_DESTINATION = "inspection_end_return_destination"
+
+        fun createIntent(
+            context: Context,
+            destination: InspectionEndReportReturnDestination,
+        ): Intent {
+            return Intent(context, InspectionEndReportActivity::class.java).apply {
+                putExtra(EXTRA_RETURN_DESTINATION, destination.intentValue)
+            }
+        }
     }
 
     private lateinit var scrollSavedHazardThumbs: ScrollView
@@ -45,6 +55,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private lateinit var statusBarEnd: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val thumbnailBitmaps = mutableListOf<Bitmap>()
+    private lateinit var returnDestination: InspectionEndReportReturnDestination
     private var finishExitTriggered = false
     private var endReportTtsPlayed = false
 
@@ -67,6 +78,9 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         operationGuideEnd = findViewById(R.id.operationGuideEnd)
         bottomPromptEnd = findViewById(R.id.bottomPromptEnd)
         statusBarEnd = findViewById(R.id.statusBarEnd)
+        returnDestination = InspectionEndReportReturnDestination.fromIntentValue(
+            intent.getStringExtra(EXTRA_RETURN_DESTINATION),
+        )
         val savedHazardJpegs = InspectionWorkflowSession.buildEndReportThumbnails()
         bindHazardSummaryText()
         scrollSavedHazardThumbs.post {
@@ -78,7 +92,10 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         )
         bottomPromptEnd.setPrompt(
             title = getString(R.string.ai_inspection_end_report_prompt_title),
-            subtitle = getString(R.string.ai_inspection_end_report_prompt_subtitle),
+            subtitle = getString(
+                R.string.ai_inspection_end_report_prompt_subtitle,
+                getReturnDestinationLabel(returnDestination),
+            ),
         )
         hideActionPrompts()
 
@@ -243,10 +260,21 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private fun returnToMenuDirectly() {
         if (isFinishing || isDestroyed) return
         finishExitTriggered = false
-        startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
+        startActivity(Intent(this, returnDestination.targetActivityClass).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })
         finish()
+    }
+
+    private fun getReturnDestinationLabel(destination: InspectionEndReportReturnDestination): String {
+        return when (destination) {
+            InspectionEndReportReturnDestination.HAZARD_ANALYSIS_HOME ->
+                getString(R.string.ai_inspection_end_report_return_label_analysis)
+            InspectionEndReportReturnDestination.DEVICE_GUIDE_HOME ->
+                getString(R.string.ai_inspection_end_report_return_label_device_guide)
+            InspectionEndReportReturnDestination.HAZARD_RECORD_HOME ->
+                getString(R.string.ai_inspection_end_report_return_label_hazard_record)
+        }
     }
 
     private fun exitAppAfterFinishSubmitted() {

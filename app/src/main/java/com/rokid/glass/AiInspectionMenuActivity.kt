@@ -9,6 +9,7 @@ import android.widget.TextView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
+import com.rokid.glass.hiddenrisk.DeviceGuideActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HazardRecordActivity
 import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
@@ -125,7 +126,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private fun onItemConfirmed(index: Int) {
         when (index) {
             0 -> startHazardAnalysis()
-            1 -> tvBottomHint.text = getString(R.string.common_feature_in_development)
+            1 -> startDeviceGuide()
             2 -> startActivity(Intent(this, HazardRecordActivity::class.java))
             else -> Unit
         }
@@ -138,6 +139,21 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             InspectionLoadingActivity::class.java
         }
         startActivity(Intent(this, targetActivity))
+    }
+
+    private fun startDeviceGuide() {
+        val targetActivity = if (InspectionSession.isInitialized) {
+            DeviceGuideActivity::class.java
+        } else {
+            InspectionLoadingActivity::class.java
+        }
+        startActivity(
+            Intent(this, targetActivity).apply {
+                if (targetActivity == InspectionLoadingActivity::class.java) {
+                    putExtra(InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY, DeviceGuideActivity::class.java.name)
+                }
+            },
+        )
     }
 
     /**

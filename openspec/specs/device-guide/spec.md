@@ -1,39 +1,72 @@
 ## Purpose
 
-记录“设备指引”在当前代码中的真实状态：它是一个被保留的占位能力，存在入口但尚未形成独立页面和业务闭环。
+描述 `DeviceGuideActivity` 当前已接入的正式设备指引能力，包括入口、远端检测、检查重点确认、跨功能跳转和结束巡检返回边界。
 
 ## Requirements
 
-### Requirement: Keep device-guide as an explicit placeholder capability
-系统 MUST 把“设备指引”记录为当前未完成能力，而不是误写成已经存在的正式功能页面。
+### Requirement: Device guide is a standalone page in the formal chain
+系统 MUST 将设备指引实现为独立 `Activity`，而不是菜单占位提示。
 
-#### Scenario: Menu page exposes placeholder entry
-- **WHEN** 用户在 `AiInspectionMenuActivity` 触发“设备指引”
-- **THEN** 页面只应更新底部提示为 `common_feature_in_development`
-- **AND** 不应发生页面跳转
+#### Scenario: Menu can enter device guide
+- **WHEN** 用户在 `AiInspectionMenuActivity` 选择“设备指引”
+- **THEN** 若 `InspectionSession.isInitialized` 为 true，应进入 `DeviceGuideActivity`
+- **AND** 否则应先进入 `InspectionLoadingActivity`
 
-#### Scenario: Hazard record page exposes placeholder voice entry
-- **WHEN** 用户在 `HazardRecordActivity` 触发语音“设备指引”
-- **THEN** 页面只应更新提示为 `common_feature_in_development`
-- **AND** 不应启动新页面或分析链路
+#### Scenario: Hazard analysis and hazard record can branch to device guide
+- **WHEN** 用户在 `AiInspectionActivity` 或 `HazardRecordActivity` 触发语音“设备指引”
+- **THEN** 页面应跳转到 `DeviceGuideActivity`
+- **AND** 跳转后只进入设备指引首页，不恢复来源页中间态
 
-### Requirement: Describe current control boundary
-设备指引规格 MUST 说明当前只有入口和提示，没有独立交互闭环。
+### Requirement: Device guide runs remote detection in detecting state
+设备指引页在检测态 MUST 持续运行远端检查品判定链路。
 
-#### Scenario: Controls are limited to existing host pages
-- **WHEN** 文档描述控制逻辑
-- **THEN** 应说明“设备指引”没有自己的 Activity 或独立输入映射
-- **AND** 当前控制逻辑仅依赖宿主页面已有触控或语音入口
+#### Scenario: Detecting state shows dedicated menu
+- **WHEN** `DeviceGuideActivity` 处于检测态
+- **THEN** 右上角功能菜单应显示 `实时分析\n隐患录入\n结束任务`
+- **AND** 结果态不应继续显示该菜单
 
-#### Scenario: Head gesture is not separately defined
-- **WHEN** 文档描述陀螺仪/头部动作
-- **THEN** 必须说明设备指引能力没有单独声明头部动作触发器
-- **AND** 当前也不应被视为启用头部动作的功能
+#### Scenario: Remote detect uses temporary ctype=1 fallback
+- **WHEN** 设备指引页执行检查品判定
+- **THEN** 当前实现应使用 `network.deviceGuideDetectApi`
+- **AND** 当前接口仍临时复用 `/ai/ar`
+- **AND** 判定阶段当前临时复用 `ctype=1`
 
-### Requirement: Mark the capability as non-closed-loop
-规格 MUST 把设备指引标为未闭环功能，帮助后续实现时正确识别范围。
+### Requirement: Positive detection requires user confirmation before detail fetch
+设备指引页 MUST 在判定命中后先请求用户确认，再拉取检查重点详情。
 
-#### Scenario: Capability remains out of completed product chain
-- **WHEN** 开发者查看设备指引规格
-- **THEN** 应明确知道该能力尚未形成页面跳转闭环
-- **AND** 它只能作为菜单占位与未来扩展保留位
+#### Scenario: Positive detect opens confirmation prompt
+- **WHEN** 远端判定返回“是”
+- **THEN** 页面应切换到结果态
+- **AND** 展示底部确认提醒
+- **AND** 提醒文案必须为 `识别到此处有检查品，是否要提供检查重点？`
+
+#### Scenario: Confirm fetches temporary detail stream
+- **WHEN** 用户在确认节点执行单击、或语音“确认”“确定”“继续”
+- **THEN** 页面应调用详情接口获取检查重点
+- **AND** 当前详情链路临时复用 `/ai/ar` `ctype=0`
+
+#### Scenario: Detail content uses card-only result presentation
+- **WHEN** 详情流返回文本
+- **THEN** 页面应在底部卡片展示检查重点内容
+- **AND** 展示样式应接近 advice 结果卡片
+- **AND** 不应显示底部确认/返回提示文案
+
+### Requirement: Device guide input mapping follows unified input semantics
+设备指引页 MUST 通过 `UnifiedInputSession` 注册当前正式输入映射。
+
+#### Scenario: Confirm and cancel mapping
+- **WHEN** 文档描述设备指引页输入动作
+- **THEN** “确认”“确定”“继续”必须承接确认操作
+- **AND** “取消”“返回”必须承接返回菜单操作
+- **AND** 触控 `CLICK` 对应确认
+- **AND** 触控 `BACK` 与 `DOUBLE_CLICK` 对应取消/返回
+
+#### Scenario: Cross-feature voice routing is available
+- **WHEN** 用户在设备指引页说出“实时分析”或“隐患录入”
+- **THEN** 页面应分别跳转到 `AiInspectionActivity` 与 `HazardRecordActivity`
+- **AND** 跳转后只进入目标功能首页
+
+#### Scenario: Finish command enters shared end report
+- **WHEN** 用户在设备指引页说出“结束”或“结束任务”
+- **THEN** 页面应进入 `InspectionEndReportActivity`
+- **AND** 返回来源应标记为 `DEVICE_GUIDE_HOME`

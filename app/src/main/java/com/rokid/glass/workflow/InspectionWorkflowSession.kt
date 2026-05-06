@@ -94,6 +94,8 @@ object InspectionWorkflowSession {
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
     var latestCapturedJpeg: ByteArray? = null
+    var phoneSyncProgress: DualSubmitProgress = DualSubmitProgress()
+        private set
     var finishSubmitProgress: DualSubmitProgress = DualSubmitProgress()
         private set
     private val savedHazardRecordsByKey = linkedMapOf<String, SavedHazardRecord>()
@@ -173,8 +175,20 @@ object InspectionWorkflowSession {
         finishSubmitProgress = finishSubmitProgress.copy(backupDone = true)
     }
 
+    fun markPhoneSyncPrimaryDone() {
+        phoneSyncProgress = phoneSyncProgress.copy(primaryDone = true)
+    }
+
+    fun markPhoneSyncBackupDone() {
+        phoneSyncProgress = phoneSyncProgress.copy(backupDone = true)
+    }
+
     fun clearFinishSubmitProgress() {
         finishSubmitProgress = DualSubmitProgress()
+    }
+
+    fun clearPhoneSyncProgress() {
+        phoneSyncProgress = DualSubmitProgress()
     }
 
     fun resolveFinishSessionId(): String? {
@@ -282,6 +296,7 @@ object InspectionWorkflowSession {
         latestHazardRecordSessionId = ""
         inspectionSessionId = ""
         latestCapturedJpeg = null
+        clearPhoneSyncProgress()
         clearFinishSubmitProgress()
         savedHazardRecordsByKey.clear()
         summary = InspectionSummary()

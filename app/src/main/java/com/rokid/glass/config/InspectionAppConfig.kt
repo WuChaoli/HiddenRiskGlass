@@ -25,7 +25,12 @@ data class EnterpriseScanConfig(
 data class EnterpriseInfoConfig(
     val maxHazardHistoryDisplayCount: Int = 3,
     val recentInspectionTimeFallbackText: String = "最近巡查时间：2026年1月21日",
+    val layoutMode: EnterpriseInfoLayoutMode = EnterpriseInfoLayoutMode.NEW,
 )
+
+enum class EnterpriseInfoLayoutMode {
+    NEW,
+}
 
 data class AiInspectionConfig(
     val autoInferenceMode: AutoInferenceMode = AutoInferenceMode.BOTH,
@@ -56,6 +61,7 @@ data class AiInspectionConfig(
 data class NetworkConfig(
     val enterpriseObjectApi: EnterpriseObjectApiConfig = EnterpriseObjectApiConfig(),
     val aiArApi: AiArApiConfig = AiArApiConfig(),
+    val deviceGuideDetectApi: AiArApiConfig = AiArApiConfig(),
     val saveResultApi: SaveResultApiConfig = SaveResultApiConfig(),
     val mayHazardVerifyApi: MayHazardVerifyApiConfig = MayHazardVerifyApiConfig(),
 )
@@ -141,6 +147,7 @@ data class EnterpriseScanConfigOverride(
 data class EnterpriseInfoConfigOverride(
     val maxHazardHistoryDisplayCount: Int? = null,
     val recentInspectionTimeFallbackText: String? = null,
+    val layoutMode: EnterpriseInfoLayoutMode? = null,
 )
 
 data class AiInspectionConfigOverride(
@@ -172,6 +179,7 @@ data class AiInspectionConfigOverride(
 data class NetworkConfigOverride(
     val enterpriseObjectApi: EnterpriseObjectApiConfigOverride? = null,
     val aiArApi: AiArApiConfigOverride? = null,
+    val deviceGuideDetectApi: AiArApiConfigOverride? = null,
     val saveResultApi: SaveResultApiConfigOverride? = null,
     val mayHazardVerifyApi: MayHazardVerifyApiConfigOverride? = null,
 )

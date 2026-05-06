@@ -142,6 +142,7 @@ object InspectionConfigRepository {
                 override?.maxHazardHistoryDisplayCount ?: base.maxHazardHistoryDisplayCount,
             recentInspectionTimeFallbackText =
                 override?.recentInspectionTimeFallbackText ?: base.recentInspectionTimeFallbackText,
+            layoutMode = override?.layoutMode ?: base.layoutMode,
         )
     }
 
@@ -194,6 +195,7 @@ object InspectionConfigRepository {
         return NetworkConfig(
             enterpriseObjectApi = merge(base.enterpriseObjectApi, override?.enterpriseObjectApi),
             aiArApi = merge(base.aiArApi, override?.aiArApi),
+            deviceGuideDetectApi = merge(base.deviceGuideDetectApi, override?.deviceGuideDetectApi),
             saveResultApi = merge(base.saveResultApi, override?.saveResultApi),
             mayHazardVerifyApi = merge(base.mayHazardVerifyApi, override?.mayHazardVerifyApi),
         )

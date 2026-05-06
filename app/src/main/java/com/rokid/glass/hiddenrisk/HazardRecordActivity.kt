@@ -23,6 +23,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.rokid.glass.InspectionEndReportReturnDestination
 import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.RokidFrameSource
@@ -239,7 +240,8 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("设备指引", "she bei zhi yin")),
                 enabled = { pageState == PageState.IDLE },
             ) {
-                tvIdleHint.text = getString(R.string.common_feature_in_development)
+                startActivity(Intent(this, DeviceGuideActivity::class.java))
+                finish()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("hazard_record_finish_task"),
@@ -250,7 +252,12 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ),
                 enabled = { pageState == PageState.IDLE },
             ) {
-                startActivity(Intent(this, InspectionEndReportActivity::class.java))
+                startActivity(
+                    InspectionEndReportActivity.createIntent(
+                        this,
+                        InspectionEndReportReturnDestination.HAZARD_RECORD_HOME,
+                    ),
+                )
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,

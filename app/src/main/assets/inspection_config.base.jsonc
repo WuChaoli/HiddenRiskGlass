@@ -105,6 +105,18 @@
       // 在线检测阶段的业务超时，单位 ms。超时后会主动丢弃请求。
       "detectTimeoutMs": 3000
     },
+    "deviceGuideDetectApi": {
+      // 设备指引检测接口地址。当前先复用 /ai/ar，后续可替换为独立服务。
+      "url": "http://183.147.142.133:50016/ai/ar",
+      // 设备指引检测 connect timeout，单位 ms。
+      "connectTimeoutMs": 15000,
+      // 设备指引检测 read timeout，单位 ms。
+      "readTimeoutMs": 45000,
+      // 设备指引检测 write timeout，单位 ms。
+      "writeTimeoutMs": 30000,
+      // 设备指引检测阶段业务超时，单位 ms。
+      "detectTimeoutMs": 3000
+    },
     "saveResultApi": {
       // 手机端同步主接口地址。
       "primarySaveResultUrl": "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave",

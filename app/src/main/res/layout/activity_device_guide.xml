@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <FrameLayout
+        android:id="@+id/layoutDetection"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvDetectingBottomHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/device_guide_detecting_bottom_hint"
+                android:textColor="@color/green"
+                android:textSize="18px"
+                android:textStyle="bold" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarDetecting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+
+        <com.rokid.glass.component.FunctionMenuView
+            android:id="@+id/operationGuideDetecting"
+            android:layout_width="@dimen/inspection_function_menu_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/inspection_function_menu_margin_top"
+            android:layout_marginEnd="@dimen/inspection_function_menu_margin_end" />
+    </FrameLayout>
+
+    <com.rokid.glass.component.StatusAlertOverlayView
+        android:id="@+id/statusAlertOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/layoutResult"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:id="@+id/layoutResultThumbnailCard"
+            android:layout_width="@dimen/inspection_result_thumbnail_card_size"
+            android:layout_height="@dimen/inspection_result_thumbnail_card_size"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="@dimen/inspection_result_thumbnail_margin_top"
+            android:visibility="gone">
+
+            <FrameLayout
+                android:id="@+id/layoutResultThumbnailPlaceholder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:alpha="0.7"
+                    android:src="@drawable/ic_question_circle" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/ivResultThumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <com.rokid.glass.component.FunctionMenuView
+            android:id="@+id/operationGuideResult"
+            android:layout_width="@dimen/inspection_function_menu_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/inspection_function_menu_margin_top"
+            android:layout_marginEnd="@dimen/inspection_function_menu_margin_end"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutResultContentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <View
+                android:id="@+id/resultTopSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp" />
+
+            <ScrollView
+                android:id="@+id/scrollContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/inspection_bottom_card_margin_horizontal"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/glass_card_outline"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvResultContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="12dp"
+                        android:textColor="@color/green"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </ScrollView>
+
+            <View
+                android:id="@+id/resultBottomSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvResultBottomHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textColor="@color/green"
+                android:textSize="18px"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutLivePreviewCard"
+        android:layout_width="@dimen/inspection_preview_card_size"
+        android:layout_height="@dimen/inspection_preview_card_size"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="@dimen/inspection_preview_card_margin_start"
+        android:layout_marginTop="@dimen/inspection_preview_card_margin_top">
+
+        <com.rokid.glass.component.RokidCameraPreviewView
+            android:id="@+id/viewLivePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+</FrameLayout>

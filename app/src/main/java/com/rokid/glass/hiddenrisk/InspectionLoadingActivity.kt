@@ -48,6 +48,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         private const val SUBTITLE_FRAME_DELAY_MS = 320L
         private const val COMPLETE_HOLD_DELAY_MS = 400L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
+        const val EXTRA_NEXT_HOME_ACTIVITY = "next_home_activity"
     }
 
     // 加载阶段枚举
@@ -521,8 +522,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         )
         val wifiConnected = SystemStateUtils.getCurrentWifiSsid(this) != null
         InspectionWorkflowSession.updateMode(wifiConnected)
+        val nextHomeClassName = intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)
+        val nextHomeActivityClass = runCatching {
+            nextHomeClassName?.takeIf { it.isNotBlank() }?.let { Class.forName(it) }
+        }.getOrNull()
         val targetIntent = if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            Intent(this, AiInspectionActivity::class.java)
+            Intent(this, nextHomeActivityClass ?: AiInspectionActivity::class.java)
         } else if (wifiConnected) {
             Intent(this, EnterpriseQrScanActivity::class.java)
         } else {

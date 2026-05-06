@@ -1,6 +1,6 @@
 ## Purpose
 
-描述 `InspectionLoadingActivity` 与 `AiInspectionActivity` 共同组成的 AI 隐患识别正式能力，包括初始化分流、页面状态、输入控制和失败边界。
+描述 `InspectionLoadingActivity` 与 `AiInspectionActivity` 共同组成的 AI 隐患识别正式能力，包括初始化分流、页面状态、输入控制、跨功能跳转与结束页来源边界。
 
 ## Requirements
 
@@ -13,12 +13,17 @@
 - **AND** 初始化成功后应调用 `InspectionWorkflowSession.beginInspection(...)`
 - **AND** 应依据企业流程开关和 Wi-Fi 连接状态分流到下一页
 
+#### Scenario: Loading can continue to an alternate home page
+- **WHEN** `InspectionLoadingActivity` 携带首页目标参数完成初始化
+- **THEN** 在企业巡检开关关闭时，应跳转到指定首页
+- **AND** 当前至少支持 `AiInspectionActivity` 与 `DeviceGuideActivity`
+
 #### Scenario: Direct analysis entry requires initialized inspection session
 - **WHEN** `AiInspectionActivity` 被创建
 - **THEN** 若 `InspectionSession.isInitialized` 为 false，应返回 `InspectionLoadingActivity`
 - **AND** 不能继续当前分析页逻辑
 
-### Requirement: Maintain two primary page states in AI inspection
+### Requirement: Maintain current page-state model in AI inspection
 `AiInspectionActivity` MUST 维护检测态与流式结果态两类主要页面状态。
 
 #### Scenario: Detecting state is the default active state
@@ -36,7 +41,7 @@
 - **WHEN** 页面处于 `PageState.STREAM_RESPONSE`
 - **THEN** `updateFunctionMenuVisibility()` 应隐藏巡检功能菜单
 
-### Requirement: Support current detecting-state controls
+### Requirement: Support current detecting-state controls and branching
 分析页在检测态 MUST 支持当前代码定义的触控与语音动作。
 
 #### Scenario: Detecting state manual analysis
@@ -49,15 +54,17 @@
 - **THEN** 触控 `BACK` 与 `DOUBLE_CLICK` 应返回菜单
 - **AND** 语音“返回”“取消”应返回菜单
 
-#### Scenario: Detecting state finish inspection
+#### Scenario: Detecting state can branch to sibling functions
+- **WHEN** 页面处于 `PageState.DETECTING`
+- **THEN** 语音“设备指引”应进入 `DeviceGuideActivity`
+- **AND** 语音“隐患录入”应进入 `HazardRecordActivity`
+- **AND** 这些跳转都只进入目标功能首页
+
+#### Scenario: Detecting state finish inspection enters shared end page
 - **WHEN** 页面处于 `PageState.DETECTING`
 - **THEN** 语音“结束”“结束巡查”“结束识患”等结束指令应触发结束巡检
 - **AND** 页面应进入 `InspectionEndReportActivity`
-
-#### Scenario: Detecting state can branch to hazard record
-- **WHEN** 页面处于 `PageState.DETECTING`
-- **THEN** 页面可以进入 `HazardRecordActivity`
-- **AND** 该跳转属于正式链路中的补充分支
+- **AND** 返回来源应标记为 `HAZARD_ANALYSIS_HOME`
 
 ### Requirement: Support current stream-response controls
 分析页在结果态 MUST 支持当前代码定义的保存、确认和返回控制。
@@ -68,15 +75,7 @@
 - **AND** 返回触发器应由 `BACK`、`DOUBLE_CLICK`、语音“返回”“取消”构成
 - **AND** 这些动作应根据当前本地描述页、建议页或在线流式结果页状态执行保存、继续或返回检测等逻辑
 
-### Requirement: Document current head-gesture boundary
-分析页规格 MUST 明确记录头部动作当前在正式页面中未启用。
-
-#### Scenario: Head gesture remains documented but inactive
-- **WHEN** 文档描述控制逻辑
-- **THEN** 必须说明 `UnifiedInputSession` 仍保留头部动作触发器设计入口
-- **AND** 由于 `HEAD_GESTURE_LISTENING_ENABLED = false`，正式分析页当前仅启用触控与语音控制
-
-### Requirement: Capture failure and fallback boundaries
+### Requirement: Capture failure boundaries
 分析页规格 MUST 记录关键异常和降级边界，避免把理想流程误当作必达路径。
 
 #### Scenario: Loading failure stays on loading page

@@ -29,8 +29,9 @@ import androidx.core.content.ContextCompat
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.rokid.glass.AiInspectionMenuActivity
-import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.InspectionEndReportActivity
+import com.rokid.glass.InspectionEndReportReturnDestination
+import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.config.AutoHazardRoutingMode as ConfigAutoHazardRoutingMode
@@ -1058,7 +1059,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
-        startActivity(Intent(this, InspectionEndReportActivity::class.java))
+        startActivity(
+            InspectionEndReportActivity.createIntent(
+                this,
+                InspectionEndReportReturnDestination.HAZARD_ANALYSIS_HOME,
+            ),
+        )
         finish()
     }
 
@@ -2080,6 +2086,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
             ) {
                 finishInspectionWithReport()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_detecting_device_guide"),
+                label = getString(R.string.ai_entry_menu_guide),
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("设备指引", "she bei zhi yin")),
+                enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
+            ) {
+                startActivity(Intent(this, DeviceGuideActivity::class.java))
+                finish()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_detecting_hazard_record"),
