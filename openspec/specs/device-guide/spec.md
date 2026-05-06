@@ -25,11 +25,11 @@
 - **THEN** 右上角功能菜单应显示 `实时分析\n隐患录入\n结束任务`
 - **AND** 结果态不应继续显示该菜单
 
-#### Scenario: Remote detect uses temporary ctype=1 fallback
+#### Scenario: Remote detect uses temporary identify-item-hazard fallback
 - **WHEN** 设备指引页执行检查品判定
 - **THEN** 当前实现应使用 `network.deviceGuideDetectApi`
 - **AND** 当前接口仍临时复用 `/ai/ar`
-- **AND** 判定阶段当前临时复用 `ctype=1`
+- **AND** 判定阶段当前临时复用“识别物品隐患”能力，即 `ctype=1`
 
 ### Requirement: Positive detection requires user confirmation before detail fetch
 设备指引页 MUST 在判定命中后先请求用户确认，再拉取检查重点详情。
@@ -43,7 +43,7 @@
 #### Scenario: Confirm fetches temporary detail stream
 - **WHEN** 用户在确认节点执行单击、或语音“确认”“确定”“继续”
 - **THEN** 页面应调用详情接口获取检查重点
-- **AND** 当前详情链路临时复用 `/ai/ar` `ctype=0`
+- **AND** 当前详情链路临时复用 `/ai/ar` “深度分析”能力，即 `ctype=0`
 
 #### Scenario: Detail content uses card-only result presentation
 - **WHEN** 详情流返回文本
