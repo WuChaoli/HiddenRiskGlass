@@ -1,7 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 /**
- * 解析 /ai/ar ctype=0 返回的结构化文本。
+ * 解析 /ai/ar ctype=0 深度分析返回的结构化文本。
  */
 object AiArHazardDetailParser {
     private val labelRegex = Regex(

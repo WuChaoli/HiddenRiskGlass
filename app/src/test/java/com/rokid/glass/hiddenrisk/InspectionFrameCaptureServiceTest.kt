@@ -59,13 +59,16 @@ class InspectionFrameCaptureServiceTest {
         assertEquals(2L, payload?.timestamp)
         assertEquals(640, payload?.width)
         assertEquals(960, payload?.sourceWidth)
-        assertEquals(Rect(10, 20, 650, 660), payload?.cropRect)
+        assertEquals(10, payload?.cropRect?.left)
+        assertEquals(20, payload?.cropRect?.top)
+        assertEquals(650, payload?.cropRect?.right)
+        assertEquals(660, payload?.cropRect?.bottom)
         assertTrue((payload?.sharpnessScore ?: 0.0) > 0.0)
         assertEquals(1, payload?.jpegBytes?.size)
     }
 
     @Test
-    fun requestPayload_forRecordDetailIncludesCtypeZeroAndImage() {
+    fun requestPayload_forDeepAnalysisIncludesCtypeZeroAndImage() {
         val json = com.google.gson.Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "record-1",
@@ -76,6 +79,34 @@ class InspectionFrameCaptureServiceTest {
 
         assertTrue(json.contains("\"ctype\":0"))
         assertTrue(json.contains("\"image\":\"base64-image\""))
+    }
+
+    @Test
+    fun requestPayload_forIdentifyItemHazardIncludesCtypeOneAndImage() {
+        val json = com.google.gson.Gson().toJson(
+            AiArSseService.RequestPayload(
+                task_id = "record-2",
+                ctype = 1,
+                image = "base64-image",
+            ),
+        )
+
+        assertTrue(json.contains("\"ctype\":1"))
+        assertTrue(json.contains("\"image\":\"base64-image\""))
+    }
+
+    @Test
+    fun requestPayload_forInspectionGuideIncludesCtypeThreeAndText() {
+        val json = com.google.gson.Gson().toJson(
+            AiArSseService.RequestPayload(
+                task_id = "record-3",
+                ctype = 3,
+                text = "guide-text",
+            ),
+        )
+
+        assertTrue(json.contains("\"ctype\":3"))
+        assertTrue(json.contains("\"text\":\"guide-text\""))
     }
 
     private fun newService(
@@ -104,6 +135,7 @@ class InspectionFrameCaptureServiceTest {
             clockElapsedMs = clock,
             sleepMs = sleep,
             logger = { _, _ -> },
+            warningLogger = { _ -> },
         )
     }
 
@@ -118,7 +150,12 @@ class InspectionFrameCaptureServiceTest {
             height = 640,
             sourceWidth = 960,
             sourceHeight = 720,
-            cropRect = Rect(10, 20, 650, 660),
+            cropRect = Rect().apply {
+                left = 10
+                top = 20
+                right = 650
+                bottom = 660
+            },
             timestamp = timestamp,
             receivedAtElapsedMs = receivedAtElapsedMs,
         )

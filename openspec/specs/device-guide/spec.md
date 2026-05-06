@@ -28,7 +28,7 @@
 #### Scenario: Remote detect uses temporary identify-item-hazard fallback
 - **WHEN** 设备指引页执行检查品判定
 - **THEN** 当前实现应使用 `network.deviceGuideDetectApi`
-- **AND** 当前接口仍临时复用 `/ai/ar`
+- **AND** 当前接口统一走 `http://183.147.142.133:50011/ai/ar`
 - **AND** 判定阶段当前临时复用“识别物品隐患”能力，即 `ctype=1`
 
 ### Requirement: Positive detection requires user confirmation before detail fetch
@@ -43,7 +43,12 @@
 #### Scenario: Confirm fetches temporary detail stream
 - **WHEN** 用户在确认节点执行单击、或语音“确认”“确定”“继续”
 - **THEN** 页面应调用详情接口获取检查重点
-- **AND** 当前详情链路临时复用 `/ai/ar` “深度分析”能力，即 `ctype=0`
+- **AND** 当前详情链路统一走 `http://183.147.142.133:50011/ai/ar` “深度分析”能力，即 `ctype=0`
+
+#### Scenario: Manual inspection guide request uses shared ai/ar endpoint
+- **WHEN** 用户在隐患识别页主动触发“检查指引”
+- **THEN** 当前请求应统一走 `http://183.147.142.133:50011/ai/ar`
+- **AND** 获取检查指引能力必须使用 `ctype=3`
 
 #### Scenario: Detail content uses card-only result presentation
 - **WHEN** 详情流返回文本

@@ -77,16 +77,16 @@ class AiArSseService(
 
     private val eventSourceFactory = EventSources.createFactory(client)
 
-    fun detectHasHazard(
+    fun identifyItemHazard(
         base64Image: String,
         callback: DetectCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_HAS_HAZARD)
+        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_IDENTIFY_ITEM_HAZARD)
         val aggregator = AiArEventAggregator(gson)
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, ctype = CTYPE_HAS_HAZARD, image = base64Image),
+            payload = RequestPayload(task_id = taskId, ctype = CTYPE_IDENTIFY_ITEM_HAZARD, image = base64Image),
             onOpened = { callback.onOpened(handle) },
             onClosed = { fullText ->
                 val hasHazard = parseHasHazard(fullText)
@@ -104,17 +104,17 @@ class AiArSseService(
         return handle
     }
 
-    fun fetchHazardDetails(
+    fun requestDeepAnalysis(
         base64Image: String,
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_DETAIL)
+        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_DEEP_ANALYSIS)
         val aggregator = AiArEventAggregator(gson)
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, ctype = CTYPE_DETAIL, image = base64Image),
+            payload = RequestPayload(task_id = taskId, ctype = CTYPE_DEEP_ANALYSIS, image = base64Image),
             onOpened = { callback.onOpened(handle) },
             onChunk = onChunk,
             onClosed = { fullText ->
@@ -128,17 +128,17 @@ class AiArSseService(
         return handle
     }
 
-    fun fetchHazardAdvice(
+    fun fetchInspectionGuide(
         text: String,
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_ADVICE)
+        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_FETCH_INSPECTION_GUIDE)
         val aggregator = AiArEventAggregator(gson)
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, ctype = CTYPE_ADVICE, text = text),
+            payload = RequestPayload(task_id = taskId, ctype = CTYPE_FETCH_INSPECTION_GUIDE, text = text),
             onOpened = { callback.onOpened(handle) },
             onChunk = onChunk,
             onClosed = { fullText ->
@@ -346,9 +346,9 @@ class AiArSseService(
     companion object {
         private const val TAG = "AiArSseService"
         private const val DONE_SENTINEL = "[DONE]"
-        private const val CTYPE_DETAIL = 0
-        private const val CTYPE_HAS_HAZARD = 1
-        private const val CTYPE_ADVICE = 2
+        private const val CTYPE_DEEP_ANALYSIS = 0
+        private const val CTYPE_IDENTIFY_ITEM_HAZARD = 1
+        private const val CTYPE_FETCH_INSPECTION_GUIDE = 3
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()

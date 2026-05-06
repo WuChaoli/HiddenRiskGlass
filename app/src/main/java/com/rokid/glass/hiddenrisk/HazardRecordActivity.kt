@@ -469,7 +469,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamingInProgress = true
         refreshInputActions()
         activeAnalysisHandle?.cancel()
-        activeAnalysisHandle = aiArSseService.fetchHazardDetails(
+        activeAnalysisHandle = aiArSseService.requestDeepAnalysis(
             base64Image = base64Image,
             onChunk = { partialText ->
                 uiHandler.post {

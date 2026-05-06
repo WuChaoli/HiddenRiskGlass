@@ -117,17 +117,17 @@ class OnlineHazardDetectionServiceTest {
                         callbackEvents += "drop:${request.requestId}:$reason"
                     }
 
-                    override fun onDetailChunk(
+                    override fun onDeepAnalysisChunk(
                         request: OnlineHazardDetectionService.DetailRequest,
                         accumulatedText: String,
                     ) = Unit
 
-                    override fun onDetailSuccess(
+                    override fun onDeepAnalysisSuccess(
                         request: OnlineHazardDetectionService.DetailRequest,
                         fullText: String,
                     ) = Unit
 
-                    override fun onDetailFailure(
+                    override fun onDeepAnalysisFailure(
                         request: OnlineHazardDetectionService.DetailRequest,
                         message: String,
                     ) = Unit
@@ -137,6 +137,8 @@ class OnlineHazardDetectionServiceTest {
                 elapsedRealtimeProvider = { nowElapsedMs },
                 base64Encoder = { "encoded" },
                 encodeExecutor = ImmediateExecutorService(),
+                infoLogger = { _ -> },
+                warningLogger = { _ -> },
             )
         }
 
@@ -190,7 +192,7 @@ class OnlineHazardDetectionServiceTest {
         var detailCallback: AiArSseService.DetailCallback? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
 
-        override fun detectHasHazard(
+        override fun identifyItemHazard(
             request: OnlineHazardDetectionService.DetectionRequest,
             base64Image: String,
             callback: AiArSseService.DetectCallback,
@@ -206,7 +208,7 @@ class OnlineHazardDetectionServiceTest {
             return handle
         }
 
-        override fun fetchHazardDetails(
+        override fun requestDeepAnalysis(
             request: OnlineHazardDetectionService.DetailRequest,
             base64Image: String,
             onChunk: (String) -> Unit,

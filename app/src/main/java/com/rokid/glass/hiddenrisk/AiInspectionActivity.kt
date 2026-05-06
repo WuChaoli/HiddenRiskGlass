@@ -379,21 +379,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     handleOnlineDetectionDropped(request, reason)
                 }
 
-                override fun onDetailChunk(
+                override fun onDeepAnalysisChunk(
                     request: OnlineHazardDetectionService.DetailRequest,
                     accumulatedText: String,
                 ) {
                     handleOnlineDetailChunk(request, accumulatedText)
                 }
 
-                override fun onDetailSuccess(
+                override fun onDeepAnalysisSuccess(
                     request: OnlineHazardDetectionService.DetailRequest,
                     fullText: String,
                 ) {
                     handleOnlineDetailSuccess(request, fullText)
                 }
 
-                override fun onDetailFailure(
+                override fun onDeepAnalysisFailure(
                     request: OnlineHazardDetectionService.DetailRequest,
                     message: String,
                 ) {
@@ -2949,7 +2949,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshPendingHazardAlertOverlay()
         schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
         refreshInputActions()
-        onlineHazardDetectionService.fetchHazardDetails(
+        onlineHazardDetectionService.requestDeepAnalysis(
             OnlineHazardDetectionService.DetailRequest(
                 epoch = autoInferenceEpoch,
                 requestId = request.requestId,
@@ -2975,7 +2975,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val requestId = ++onlineActiveRequestId
         val sharedJpegBytes = resolved.jpegBytes.copyOf()
         streamingInProgress = true
-        onlineHazardDetectionService.fetchHazardDetails(
+        onlineHazardDetectionService.requestDeepAnalysis(
             OnlineHazardDetectionService.DetailRequest(
                 epoch = autoInferenceEpoch,
                 requestId = requestId,
@@ -3386,10 +3386,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 audioResId = R.raw.hazard_advice_intro,
             )
         }
-        currentManualAnalysisHandle = aiArSseService.fetchHazardAdvice(
+        currentManualAnalysisHandle = aiArSseService.fetchInspectionGuide(
             text = sourceText,
             onChunk = { partialText ->
-                Log.d(TAG, "online advice chunk length=${partialText.length}")
+                Log.d(TAG, "inspection guide chunk length=${partialText.length}")
                 uiHandler.post {
                     if (!shouldDeliverStreamRequest(requestId)) {
                         return@post
@@ -3399,11 +3399,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             },
             callback = object : AiArSseService.DetailCallback {
                 override fun onOpened(handle: AiArSseService.RequestHandle) {
-                    Log.d(TAG, "online advice opened taskId=${handle.taskId}")
+                    Log.d(TAG, "inspection guide opened taskId=${handle.taskId}")
                 }
 
                 override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
-                    Log.d(TAG, "online advice closed taskId=${handle.taskId}")
+                    Log.d(TAG, "inspection guide closed taskId=${handle.taskId}")
                     uiHandler.post {
                         if (currentManualAnalysisHandle != handle || requestId != activeStreamRequestId) {
                             return@post
@@ -3417,7 +3417,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
 
                 override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
-                    Log.e(TAG, "online advice failed taskId=${handle.taskId} message=$message")
+                    Log.e(TAG, "inspection guide failed taskId=${handle.taskId} message=$message")
                     uiHandler.post {
                         if (currentManualAnalysisHandle == handle) {
                             currentManualAnalysisHandle = null
@@ -3868,7 +3868,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      */
     private fun sendImageToAiAr(base64Image: String) {
         currentManualAnalysisHandle?.cancel()
-        currentManualAnalysisHandle = aiArSseService.fetchHazardDetails(
+        currentManualAnalysisHandle = aiArSseService.requestDeepAnalysis(
             base64Image = base64Image,
             onChunk = { partialText ->
                 Log.d(TAG, "manual ai/ar chunk length=${partialText.length}")

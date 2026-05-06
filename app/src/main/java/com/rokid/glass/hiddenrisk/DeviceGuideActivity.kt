@@ -43,7 +43,7 @@ import java.util.concurrent.RejectedExecutionException
 
 /**
  * 设备指引独立页。
- * 当前仅依赖远端 ctype=1 识别“是否有检查品”，再通过 ctype=0 拉取检查重点文本。
+ * 当前仅依赖远端 ctype=1 识别物品隐患，再通过 ctype=0 深度分析拉取检查重点文本。
  */
 class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -374,7 +374,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     detectInFlight = true
                     currentPayload = payload
                     activeDetectHandle?.cancel()
-                    activeDetectHandle = detectSseService.detectHasHazard(
+                    activeDetectHandle = detectSseService.identifyItemHazard(
                         base64Image = base64Image,
                         callback = object : AiArSseService.DetectCallback {
                             override fun onOpened(handle: AiArSseService.RequestHandle) = Unit
@@ -443,7 +443,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvResultContent.text = getString(R.string.device_guide_fetching_detail)
         val base64Image = Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
         activeDetailHandle?.cancel()
-        activeDetailHandle = detailSseService.fetchHazardDetails(
+        activeDetailHandle = detailSseService.requestDeepAnalysis(
             base64Image = base64Image,
             onChunk = { partialText ->
                 uiHandler.post {

@@ -22,6 +22,7 @@ class InspectionFrameCaptureService(
     private val logger: (stage: String, extra: String) -> Unit = { stage, extra ->
         Log.i(TAG, "$stage $extra")
     },
+    private val warningLogger: (String) -> Unit = { message -> Log.w(TAG, message) },
 ) {
     fun copyLatestSquareFrameOrNull(lastTimestampExclusive: Long): SquareFramePayload? {
         val sourceFrame = frameProvider.copyLatestSquareFrame() ?: return null
@@ -30,7 +31,7 @@ class InspectionFrameCaptureService(
         }
         val ageMs = clockElapsedMs() - sourceFrame.receivedAtElapsedMs
         if (ageMs > staleFrameThresholdMs) {
-            Log.w(TAG, "drop square frame reason=stale timestamp=${sourceFrame.timestamp} ageMs=$ageMs")
+            warningLogger("drop square frame reason=stale timestamp=${sourceFrame.timestamp} ageMs=$ageMs")
             return null
         }
         return sourceFrame.toPayload()
@@ -46,7 +47,7 @@ class InspectionFrameCaptureService(
             nv21 = frame.nv21,
             width = frame.width,
             height = frame.height,
-            cropRect = Rect(0, 0, frame.width, frame.height),
+            cropRect = createRect(0, 0, frame.width, frame.height),
             jpegQuality = jpegQuality,
         ) ?: run {
             logger(
@@ -62,7 +63,7 @@ class InspectionFrameCaptureService(
             timestamp = frame.timestamp,
             sourceWidth = frame.sourceWidth,
             sourceHeight = frame.sourceHeight,
-            cropRect = Rect(frame.cropRect),
+            cropRect = copyRect(frame.cropRect),
             sharpnessScore = frame.sharpnessScore,
         )
         logger(
@@ -112,7 +113,7 @@ class InspectionFrameCaptureService(
             receivedAtElapsedMs = receivedAtElapsedMs,
             sourceWidth = sourceWidth,
             sourceHeight = sourceHeight,
-            cropRect = Rect(cropRect),
+            cropRect = copyRect(cropRect),
             sharpnessScore = computeSquareFrameSharpnessScore(data, width, height),
         )
     }
@@ -168,6 +169,19 @@ class InspectionFrameCaptureService(
     companion object {
         private const val TAG = "InspectionFrameCapture"
 
+        private fun copyRect(source: Rect): Rect {
+            return createRect(source.left, source.top, source.right, source.bottom)
+        }
+
+        private fun createRect(left: Int, top: Int, right: Int, bottom: Int): Rect {
+            return Rect().apply {
+                this.left = left
+                this.top = top
+                this.right = right
+                this.bottom = bottom
+            }
+        }
+
         fun computeSquareFrameSharpnessScore(
             nv21: ByteArray,
             width: Int,
@@ -209,7 +223,12 @@ object RokidSquareFrameProvider : InspectionFrameCaptureService.FrameProvider {
             height = frame.height,
             sourceWidth = frame.sourceWidth,
             sourceHeight = frame.sourceHeight,
-            cropRect = Rect(frame.cropRect),
+            cropRect = Rect().apply {
+                left = frame.cropRect.left
+                top = frame.cropRect.top
+                right = frame.cropRect.right
+                bottom = frame.cropRect.bottom
+            },
             timestamp = frame.timestamp,
             receivedAtElapsedMs = frame.receivedAtElapsedMs,
         )

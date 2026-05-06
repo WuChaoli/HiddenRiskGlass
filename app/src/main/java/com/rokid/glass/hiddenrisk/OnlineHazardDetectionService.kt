@@ -11,8 +11,8 @@ import java.util.concurrent.Executors
 
 /**
  * 在线隐患识别调度服务。
- * ctype=1 检测阶段仅允许单飞，并对单次请求施加超时控制；
- * ctype=0 详情阶段按需单次拉取。
+ * ctype=1 识别物品隐患阶段仅允许单飞，并对单次请求施加超时控制；
+ * ctype=0 深度分析阶段按需单次拉取。
  */
 internal class OnlineHazardDetectionService(
     private val callback: Callback,
@@ -22,6 +22,8 @@ internal class OnlineHazardDetectionService(
     private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
     private val encodeExecutor: ExecutorService = Executors.newSingleThreadExecutor(),
     private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiArApi.detectTimeoutMs,
+    private val infoLogger: (String) -> Unit = { message -> Log.i(TAG, message) },
+    private val warningLogger: (String) -> Unit = { message -> Log.w(TAG, message) },
 ) {
     data class DetectionRequest(
         val epoch: Long,
@@ -39,19 +41,19 @@ internal class OnlineHazardDetectionService(
         fun onDetectionResult(request: DetectionRequest, hasHazard: Boolean, rawText: String)
         fun onDetectionFailure(request: DetectionRequest, message: String)
         fun onDetectionDropped(request: DetectionRequest, reason: String)
-        fun onDetailChunk(request: DetailRequest, accumulatedText: String)
-        fun onDetailSuccess(request: DetailRequest, fullText: String)
-        fun onDetailFailure(request: DetailRequest, message: String)
+        fun onDeepAnalysisChunk(request: DetailRequest, accumulatedText: String)
+        fun onDeepAnalysisSuccess(request: DetailRequest, fullText: String)
+        fun onDeepAnalysisFailure(request: DetailRequest, message: String)
     }
 
     internal interface RequestGateway {
-        fun detectHasHazard(
+        fun identifyItemHazard(
             request: DetectionRequest,
             base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle
 
-        fun fetchHazardDetails(
+        fun requestDeepAnalysis(
             request: DetailRequest,
             base64Image: String,
             onChunk: (String) -> Unit,
@@ -76,7 +78,7 @@ internal class OnlineHazardDetectionService(
         if (elapsedRealtimeProvider() - activeDetectionStartedElapsedMs < detectTimeoutMs) {
             return@Runnable
         }
-        runCatching { Log.w(TAG, "detect timeout requestId=${request.requestId}") }
+        runCatching { warningLogger("detect timeout requestId=${request.requestId}") }
         activeDetectionHandle?.cancel()
         clearActiveDetection()
         callback.onDetectionDropped(request, REASON_TIMEOUT)
@@ -85,15 +87,13 @@ internal class OnlineHazardDetectionService(
     fun submitDetection(request: DetectionRequest) {
         scheduler.post {
             if (activeDetectionRequest != null) {
-                Log.w(
-                    TAG,
+                warningLogger(
                     "submitDetection droppedBusy requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
                 )
                 callback.onDetectionDropped(request, REASON_BUSY)
                 return@post
             }
-            Log.i(
-                TAG,
+            infoLogger(
                 "submitDetection accepted requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
             )
             startDetection(request)
@@ -107,7 +107,7 @@ internal class OnlineHazardDetectionService(
         }
     }
 
-    fun fetchHazardDetails(request: DetailRequest) {
+    fun requestDeepAnalysis(request: DetailRequest) {
         scheduler.post {
             activeDetailHandle?.cancel()
             activeDetailHandle = null
@@ -118,17 +118,17 @@ internal class OnlineHazardDetectionService(
                     if (activeDetailRequest != request) {
                         return@detailPost
                     }
-                    activeDetailHandle = requestGateway.fetchHazardDetails(
+                    activeDetailHandle = requestGateway.requestDeepAnalysis(
                         request = request,
                         base64Image = base64Image,
                         onChunk = { accumulatedText ->
                             if (activeDetailRequest == request) {
-                                callback.onDetailChunk(request, accumulatedText)
+                                callback.onDeepAnalysisChunk(request, accumulatedText)
                             }
                         },
                         callback = object : AiArSseService.DetailCallback {
                             override fun onOpened(handle: AiArSseService.RequestHandle) {
-                                Log.i(TAG, "detail opened taskId=${handle.taskId} requestId=${request.requestId}")
+                                infoLogger("detail opened taskId=${handle.taskId} requestId=${request.requestId}")
                             }
 
                             override fun onSuccess(
@@ -140,7 +140,7 @@ internal class OnlineHazardDetectionService(
                                 }
                                 activeDetailRequest = null
                                 activeDetailHandle = null
-                                callback.onDetailSuccess(request, fullText)
+                                callback.onDeepAnalysisSuccess(request, fullText)
                             }
 
                             override fun onFailure(
@@ -152,7 +152,7 @@ internal class OnlineHazardDetectionService(
                                 }
                                 activeDetailRequest = null
                                 activeDetailHandle = null
-                                callback.onDetailFailure(request, message)
+                                callback.onDeepAnalysisFailure(request, message)
                             }
                         },
                     )
@@ -181,31 +181,27 @@ internal class OnlineHazardDetectionService(
         activeDetectionRequest = request
         activeDetectionStartedElapsedMs = elapsedRealtimeProvider()
         scheduleDetectionTimeout()
-        Log.i(
-            TAG,
+        infoLogger(
             "startDetection encodeStart requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs",
         )
         encodeExecutor.execute {
             val base64Image = base64Encoder(request.jpegBytes)
             scheduler.post detectPost@{
                 if (activeDetectionRequest != request) {
-                    Log.i(
-                        TAG,
+                    infoLogger(
                         "startDetection encodeDiscarded requestId=${request.requestId} epoch=${request.epoch}",
                     )
                     return@detectPost
                 }
-                Log.i(
-                    TAG,
+                infoLogger(
                     "startDetection encoded requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                 )
-                activeDetectionHandle = requestGateway.detectHasHazard(
+                activeDetectionHandle = requestGateway.identifyItemHazard(
                     request = request,
                     base64Image = base64Image,
                     callback = object : AiArSseService.DetectCallback {
                         override fun onOpened(handle: AiArSseService.RequestHandle) {
-                            Log.i(
-                                TAG,
+                            infoLogger(
                                 "detect opened taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                             )
                         }
@@ -219,8 +215,7 @@ internal class OnlineHazardDetectionService(
                                 return
                             }
                             clearActiveDetection()
-                            Log.i(
-                                TAG,
+                            infoLogger(
                                 "detect success taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                             )
                             callback.onDetectionResult(request, hasHazard, fullText)
@@ -234,8 +229,7 @@ internal class OnlineHazardDetectionService(
                                 return
                             }
                             clearActiveDetection()
-                            Log.w(
-                                TAG,
+                            warningLogger(
                                 "detect failure taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs} message=$message",
                             )
                             callback.onDetectionFailure(request, message)
@@ -261,21 +255,21 @@ internal class OnlineHazardDetectionService(
     private class SseRequestGateway(
         private val aiArSseService: AiArSseService,
     ) : RequestGateway {
-        override fun detectHasHazard(
+        override fun identifyItemHazard(
             request: DetectionRequest,
             base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle {
-            return aiArSseService.detectHasHazard(base64Image, callback)
+            return aiArSseService.identifyItemHazard(base64Image, callback)
         }
 
-        override fun fetchHazardDetails(
+        override fun requestDeepAnalysis(
             request: DetailRequest,
             base64Image: String,
             onChunk: (String) -> Unit,
             callback: AiArSseService.DetailCallback,
         ): AiArSseService.RequestHandle {
-            return aiArSseService.fetchHazardDetails(
+            return aiArSseService.requestDeepAnalysis(
                 base64Image = base64Image,
                 onChunk = onChunk,
                 callback = callback,
