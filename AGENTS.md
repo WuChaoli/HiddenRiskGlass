@@ -183,45 +183,46 @@ com.rokid.glass/
 
 详细验证方法、准确率基线、历史根因与探针页排障经验，统一收敛到：
 
-- `docs/HiddenRisk_验证与排障.md`
+- `docs/公共能力/隐患识别验证与排障.md`
 
 ## HeadGesture 经验
 
 头部动作识别当前基线参数、验证方法与调参经验，统一收敛到：
 
-- `docs/HeadGesture_调参与验证.md`
+- `docs/公共能力/头部动作调参与验证.md`
 
 ## UnifiedInput 经验
 
 统一输入注册层、调试页接入方式与后续业务页迁移顺序，统一收敛到：
 
-- `docs/UnifiedInput_设计与接入.md`
+- `docs/公共能力/统一输入设计与接入.md`
 
-## OpenSpec 产品规格导航
+## 产品规格文档导航
 
-当前产品行为基线、正式主链页面跳转与功能规格，统一收敛到：
+当前产品行为基线、正式主链页面跳转与功能规格，统一收敛到 `docs/`：
 
-- `openspec/specs/project-doc-index/spec.md`
-  - 项目规格索引、正式功能入口与附录页导航
-- `openspec/specs/ui-navigation-overview/spec.md`
-  - 正式巡检主链页面跳转、分流条件、返回路径与会话依赖
-- `openspec/specs/wifi-qr-scan/spec.md`
-  - Wi-Fi 扫码、系统配网、连接验证与成功后跳转
-- `openspec/specs/ai-inspection-menu/spec.md`
-  - AI 巡检菜单项、触控翻页、语音直达与设备指引占位入口
-- `openspec/specs/hazard-analysis/spec.md`
+- `docs/README.md`
+  - 新文档体系总导航
+- `docs/总体旅程图/总体旅程图.md`
+  - 正式巡检主链全景
+- `docs/公共能力/架构总览.md`
+  - 页面层、会话层、输入层与识别链路的总览
+- `docs/WiFi连接/`
+  - Wi-Fi 扫码、配网、连接验证与成功跳转
+- `docs/任务关联/`
+  - 企业扫码、企业信息页与菜单前置上下文
+- `docs/主菜单/`
+  - AI 巡检菜单项、触控翻页与语音直达
+- `docs/隐患识别/`
   - `InspectionLoadingActivity` + `AiInspectionActivity` 的识别主流程、状态与控制逻辑
-- `openspec/specs/device-guide/spec.md`
-  - 设备指引当前占位能力与入口边界
-- `openspec/specs/hazard-record/spec.md`
-  - 隐患录入页的拍照、实时分析、保存与结束任务流程
-- `openspec/changes/document-current-product-spec/design.md`
-  - 当前正式主链的总架构文档，覆盖页面层、会话层、输入层与识别链路
-
-说明：
-
-- `openspec/` 文档用于描述“当前产品规格基线”
-- `docs/` 文档用于描述“专题经验、验证方法与接入说明”
+- `docs/设备指引/`
+  - 设备指引能力、判定确认与详情展示
+- `docs/隐患录入/`
+  - 拍照、实时分析、保存与结束任务流程
+- `docs/结束巡查/`
+  - 统一结束页、来源返回与结束上报
+- `docs/输入/`
+  - 业务接入层的统一输入规则
 
 ### 当前已验证可运行的 GPU 组合
 

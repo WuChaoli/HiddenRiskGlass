@@ -139,4 +139,4 @@ JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`
 
 GPU 稳定性排查顺序：检查 `TARGET_INPUT_SIZE=640` → `GPU_PROFILE=Balanced FP16` → `lightmode/local_pool_allocator` 设置 → 区分是 ncnn 推理失败还是 UI/探针页自身崩溃。
 
-详细验证与排障文档：`docs/HiddenRisk_验证与排障.md`
+详细验证与排障文档：`docs/公共能力/隐患识别验证与排障.md`
