@@ -184,11 +184,30 @@ class RokidCameraPreviewView @JvmOverloads constructor(
     }
 
     fun stopPreview() {
+        stopPreviewInternal(releaseSharedSurface = true)
+    }
+
+    /**
+     * 页面 View 脱附时只清理本地渲染资源，避免旧页面越权释放当前 owner 的共享 preview。
+     */
+    fun detachPreview() {
+        stopPreviewInternal(releaseSharedSurface = false)
+    }
+
+    fun isPreviewStarted(): Boolean = previewStarted
+
+    override fun onDetachedFromWindow() {
+        detachPreview()
+        healthExecutor.shutdownNow()
+        super.onDetachedFromWindow()
+    }
+
+    private fun stopPreviewInternal(releaseSharedSurface: Boolean) {
         if (!previewStarted) {
-            runRendererStopAndWait()
+            runRendererStopAndWait(releaseSharedSurface)
             return
         }
-        Log.i(TAG, "stopPreview requested")
+        Log.i(TAG, "stopPreview requested releaseSharedSurface=$releaseSharedSurface")
         previewStarted = false
         healthCheckTask?.cancel(true)
         healthCheckTask = null
@@ -196,24 +215,16 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             previewStartedAtElapsedMs = 0L
             resetHealthStateLocked()
         }
-        runRendererStopAndWait()
+        runRendererStopAndWait(releaseSharedSurface)
         renderMode = RENDERMODE_WHEN_DIRTY
         onPause()
     }
 
-    fun isPreviewStarted(): Boolean = previewStarted
-
-    override fun onDetachedFromWindow() {
-        stopPreview()
-        healthExecutor.shutdownNow()
-        super.onDetachedFromWindow()
-    }
-
-    private fun runRendererStopAndWait() {
+    private fun runRendererStopAndWait(releaseSharedSurface: Boolean) {
         val releaseLatch = CountDownLatch(1)
         queueEvent {
             try {
-                renderer.stopSurfacePreview()
+                renderer.stopSurfacePreview(releaseSharedSurface)
             } finally {
                 releaseLatch.countDown()
             }
@@ -440,7 +451,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         }
 
         fun startSurfacePreview(onReady: (Boolean) -> Unit) {
-            stopSurfacePreview()
+            stopSurfacePreview(releaseSharedSurface = true)
             surfaceActive = true
             firstFrameLogged = false
             firstDrawLogged = false
@@ -503,7 +514,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             }
         }
 
-        fun stopSurfacePreview() {
+        fun stopSurfacePreview(releaseSharedSurface: Boolean) {
             pendingStartCallback = null
             surfaceActive = false
             framePending = false
@@ -517,7 +528,9 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             cropRect[1] = 0f
             cropRect[2] = 1f
             cropRect[3] = 1f
-            RokidFrameSource.stopSurfacePreview()
+            if (releaseSharedSurface) {
+                RokidFrameSource.stopSurfacePreview()
+            }
         }
 
         private fun isGlSurfaceReady(): Boolean {

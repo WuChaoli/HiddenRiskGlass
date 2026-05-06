@@ -16,6 +16,7 @@ object InspectionCameraCoordinator {
         LOADING,
         ENTERPRISE_QR_SCAN,
         AI_INSPECTION,
+        DEVICE_GUIDE,
         HAZARD_RECORD,
     }
 
@@ -274,7 +275,7 @@ object InspectionCameraCoordinator {
     ): Long {
         val readyNow = isFrameStreamReady()
         val snapshot = synchronized(lock) {
-            stateMachine.beginPreviewUpdate(owner, readyNow = readyNow)?.also { next ->
+            stateMachine.beginPreviewUpdate(owner, readyNow = readyNow)?.also {
                 activeNeedPreview = needPreview
                 if (needPreview) {
                     boundPreviewView = previewView
@@ -489,12 +490,13 @@ object InspectionCameraCoordinator {
                 boundPreviewView = previewView
                 previous?.takeIf { it !== previewView }
             } else {
-                previous?.takeIf { false }
+                null
             }
         }
         previewToStop?.let {
             Log.i(TAG, "previewUnbind owner=$owner generation=$generation")
-            it.stopPreview()
+            it.detachPreview()
+            RokidFrameSource.stopSurfacePreview()
         }
         if (!needPreview || previewView == null) {
             synchronized(lock) {
