@@ -207,6 +207,14 @@ com.rokid.glass/
   - 正式巡检主链全景
 - `docs/公共能力/架构总览.md`
   - 页面层、会话层、输入层与识别链路的总览
+- `docs/公共能力/README.md`
+  - 公共能力目录总入口
+- `docs/公共能力/会话与生命周期.md`
+  - 会话、生命周期、初始化状态边界
+- `docs/公共能力/隐患识别链路.md`
+  - 隐患识别链路、远端主链、本地 fallback 的跨文档真相源
+- `docs/公共能力/页面导航分层.md`
+  - 正式主链与附录 / 调试页边界
 - `docs/功能模块/WiFi连接.md`
   - Wi-Fi 扫码、配网、连接验证与成功跳转
 - `docs/功能模块/任务关联.md`
@@ -214,7 +222,7 @@ com.rokid.glass/
 - `docs/功能模块/主菜单.md`
   - AI 巡检菜单项、触控翻页与语音直达
 - `docs/功能模块/隐患识别.md`
-  - `InspectionLoadingActivity` + `AiInspectionActivity` 的识别主流程、状态与控制逻辑
+  - `InspectionLoadingActivity` + `AiInspectionActivity` 的页面流程、自动在线识别、结果态和接口链路
 - `docs/功能模块/设备指引.md`
   - 设备指引能力、判定确认与详情展示
 - `docs/功能模块/隐患录入.md`
