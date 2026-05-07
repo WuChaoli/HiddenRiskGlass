@@ -252,7 +252,17 @@ object InspectionCameraCoordinator {
             Log.i(TAG, "previewUnbind owner=$owner generation=${snapshot.generation}")
             it.stopPreview()
         }
-        RokidFrameSource.stopFrameStream()
+        // 安全交接：若 release 执行期间 generation 已变更，说明新 owner 已抢占，
+        // 不应停止当前全局帧流，避免误停新 owner 的帧源。
+        val currentGeneration = getGeneration()
+        if (currentGeneration != snapshot.generation) {
+            Log.i(
+                TAG,
+                "release skip stopFrameStream generation changed from ${snapshot.generation} to $currentGeneration owner=$owner",
+            )
+        } else {
+            RokidFrameSource.stopFrameStream()
+        }
         synchronized(lock) {
             stateMachine.finishRelease(snapshot.generation)
         }

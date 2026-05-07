@@ -106,7 +106,8 @@
             <View
                 android:id="@+id/resultTopSpacer"
                 android:layout_width="match_parent"
-                android:layout_height="0dp" />
+                android:layout_height="0dp"
+                android:layout_weight="1" />
 
             <ScrollView
                 android:id="@+id/scrollContent"
@@ -135,8 +136,7 @@
             <View
                 android:id="@+id/resultBottomSpacer"
                 android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1" />
+                android:layout_height="0dp" />
 
             <TextView
                 android:id="@+id/tvResultBottomHint"

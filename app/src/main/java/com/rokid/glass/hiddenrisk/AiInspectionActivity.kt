@@ -47,6 +47,7 @@ import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.CapturedFramePayload
 import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.SquareFramePayload
+import com.rokid.glass.input.HeadMotionStabilityTracker
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SpriteToastUtil
@@ -373,7 +374,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     )
     private val inferenceRunning = AtomicBoolean(false)
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
-    private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
+    private val motionStabilityTracker by lazy { HeadMotionStabilityTracker(this) }
     private val aiArSseService by lazy { AiArSseService() }
     private val onlineHazardDetectionService by lazy {
         createOnlineHazardDetectionService()
@@ -493,7 +494,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
     private var batteryReceiver: BroadcastReceiver? = null
-    private val motionStabilityListener = object : MotionStabilityTracker.Listener {
+    private val motionStabilityListener = object : HeadMotionStabilityTracker.Listener {
         override fun onStabilityChanged(isStable: Boolean, stableSinceMillis: Long?) {
             isMotionStable = isStable
             stableQualifiedAtMillis = stableSinceMillis
@@ -3288,21 +3289,30 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun handleStreamConfirmAction() {
+        Log.i(
+            TAG,
+            "stream confirm stage=$localResultStage pageState=$pageState streaming=$streamingInProgress submitting=$localSaveSubmitting hasContent=${activeHazardContent != null} scrollY=${scrollContent.scrollY} maxScrollY=${maxStreamScrollY()}",
+        )
         when (localResultStage) {
             LocalResultStage.DESCRIPTION -> {
                 if (advanceStreamViewportByPage()) {
+                    Log.i(TAG, "stream confirm consumed by description viewport advance")
                     return
                 }
                 if (activeHazardContent == null) {
+                    Log.w(TAG, "stream confirm description without active content, return detecting")
                     returnToDetecting()
                     return
                 }
+                Log.i(TAG, "stream confirm description submit local hazard")
                 submitLocalHazardAndShowAdvice()
             }
             LocalResultStage.ADVICE -> {
                 if (advanceStreamViewportByPage()) {
+                    Log.i(TAG, "stream confirm consumed by advice viewport advance")
                     return
                 }
+                Log.i(TAG, "stream confirm advice completed, return detecting")
                 returnToDetecting()
             }
             LocalResultStage.NONE -> returnToDetecting()
@@ -3318,8 +3328,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun submitLocalHazardAndShowAdvice() {
-        if (localSaveSubmitting) return
-        val hazardContent = activeHazardContent ?: return
+        if (localSaveSubmitting) {
+            Log.i(TAG, "local hazard submit ignored because already submitting")
+            return
+        }
+        val hazardContent = activeHazardContent ?: run {
+            Log.w(TAG, "local hazard submit skipped because active content is null")
+            return
+        }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         val jpegBytes = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
         val uploadItems = buildLocalHazardUploadItems(hazardContent)
@@ -3334,6 +3350,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             uploadItems.isEmpty() -> "隐患信息缺失"
             else -> null
         }
+        Log.i(
+            TAG,
+            "local hazard submit prepare source=${hazardContent.source} title=${hazardContent.displayTitle} jpegBytes=${jpegBytes?.size ?: 0} uploadItems=${uploadItems.size} failure=${failureMessage ?: "none"}",
+        )
         if (failureMessage != null) {
             showLocalSaveError(failureMessage)
             return
@@ -3360,6 +3380,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             callback = object : LocalHazardPushService.Callback {
                 override fun onSuccess() {
                     if (destroyed) return
+                    Log.i(
+                        TAG,
+                        "local hazard submit success source=${hazardContent.source} stage=$localResultStage title=${hazardContent.displayTitle}",
+                    )
                     localHazardUploadHandle = null
                     localSaveSubmitting = false
                     InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
@@ -3373,6 +3397,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
                 override fun onFailure(message: String) {
                     if (destroyed) return
+                    Log.e(TAG, "local hazard submit failure message=$message")
                     localHazardUploadHandle = null
                     InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
                         recordKey = recordKey,
@@ -3385,23 +3410,35 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun advanceToLocalHazardAdvice() {
-        val hazardContent = activeHazardContent ?: return
+        val hazardContent = activeHazardContent ?: run {
+            Log.w(TAG, "advance advice skipped because active content is null")
+            return
+        }
+        Log.i(
+            TAG,
+            "advance advice start source=${hazardContent.source} stage=$localResultStage onlineAdviceEnabled=$ENABLE_ONLINE_ADVICE_PAGE noHazard=${hazardContent.isOnlineNoHazardResult()} displayAdviceBlank=${hazardContent.displayAdvice().isBlank()}",
+        )
         if (hazardContent.isOnlineNoHazardResult()) {
+            Log.i(TAG, "advance advice returning detecting because online result is no hazard")
             returnToDetecting()
             return
         }
         if (hazardContent.source == HazardSource.ONLINE) {
             if (!ENABLE_ONLINE_ADVICE_PAGE) {
+                Log.i(TAG, "advance advice returning detecting because online advice page disabled")
                 returnToDetecting()
                 return
             }
+            Log.i(TAG, "advance advice requesting online inspection guide")
             requestOnlineHazardAdvice(hazardContent)
             return
         }
         if (hazardContent.displayAdvice().isBlank()) {
+            Log.i(TAG, "advance advice returning detecting because local display advice is blank")
             returnToDetecting()
             return
         }
+        Log.i(TAG, "advance advice showing local advice")
         showLocalHazardAdvice(showSaveSuccessToast = false)
     }
 
@@ -3493,10 +3530,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun requestOnlineHazardAdvice(hazardContent: ResolvedHazardContent) {
-        if (localResultStage != LocalResultStage.DESCRIPTION) return
+        if (localResultStage != LocalResultStage.DESCRIPTION) {
+            Log.w(TAG, "online advice request skipped because stage=$localResultStage")
+            return
+        }
         val sourceText = hazardContent.rawDetailText.trim()
             .ifBlank { hazardContent.displayDescription().trim() }
         if (sourceText.isBlank()) {
+            Log.w(TAG, "online advice request skipped because source text is blank")
             showLocalHazardAdvice(showSaveSuccessToast = false)
             return
         }
@@ -3504,6 +3545,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentManualAnalysisHandle = null
         activeStreamRequestId += 1
         val requestId = activeStreamRequestId
+        Log.i(
+            TAG,
+            "online advice request start requestId=$requestId source=${hazardContent.source} title=${hazardContent.displayTitle} sourceTextLength=${sourceText.length}",
+        )
         localSaveSubmitting = false
         localResultStage = LocalResultStage.ADVICE
         // 在线 advice 文字流也沿用固定结果布局，避免先半屏再下沉。
@@ -3540,9 +3585,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
 
                 override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
-                    Log.d(TAG, "inspection guide closed taskId=${handle.taskId}")
+                    Log.i(TAG, "online advice request success requestId=$requestId taskId=${handle.taskId} fullTextLength=${fullText.length}")
                     uiHandler.post {
                         if (currentManualAnalysisHandle != handle || requestId != activeStreamRequestId) {
+                            Log.w(
+                                TAG,
+                                "online advice success ignored requestId=$requestId activeRequestId=$activeStreamRequestId currentHandleMatches=${currentManualAnalysisHandle == handle}",
+                            )
                             return@post
                         }
                         currentManualAnalysisHandle = null
@@ -3554,7 +3603,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
 
                 override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
-                    Log.e(TAG, "inspection guide failed taskId=${handle.taskId} message=$message")
+                    Log.e(TAG, "online advice request failed requestId=$requestId taskId=${handle.taskId} message=$message")
                     uiHandler.post {
                         if (currentManualAnalysisHandle == handle) {
                             currentManualAnalysisHandle = null

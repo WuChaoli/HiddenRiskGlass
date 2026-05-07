@@ -98,6 +98,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var lastStreamText = ""
     private var currentThumbnail: Bitmap? = null
     private var batteryReceiver: BroadcastReceiver? = null
+    private var navigatingToDeviceGuide = false
 
     private val hideSuccessToastRunnable = Runnable {
         tvSuccessToast.visibility = View.GONE
@@ -142,7 +143,11 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
+        if (!navigatingToDeviceGuide) {
+            InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
+        } else {
+            Log.i(TAG, "onPause skip release, navigating to device guide")
+        }
         stopStatusBarUpdates()
         inputSession.detach()
         super.onPause()
@@ -154,7 +159,11 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "onDestroy pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
         )
         cancelActiveWork()
-        InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
+        if (!navigatingToDeviceGuide) {
+            InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
+        } else {
+            Log.i(TAG, "onDestroy skip release, navigating to device guide")
+        }
         uiHandler.removeCallbacksAndMessages(null)
         inputSession.release()
         RokidSdkManager.removeListener(this)
@@ -240,8 +249,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("设备指引", "she bei zhi yin")),
                 enabled = { pageState == PageState.IDLE },
             ) {
-                startActivity(Intent(this, DeviceGuideActivity::class.java))
-                finish()
+                navigateToDeviceGuide()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("hazard_record_finish_task"),
@@ -787,6 +795,16 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "startRealtimeAnalysis target=${targetActivity.simpleName} frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
         )
         startActivity(Intent(this, targetActivity))
+        finish()
+    }
+
+    private fun navigateToDeviceGuide() {
+        Log.i(
+            TAG,
+            "navigateToDeviceGuide frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
+        )
+        navigatingToDeviceGuide = true
+        startActivity(Intent(this, DeviceGuideActivity::class.java))
         finish()
     }
 

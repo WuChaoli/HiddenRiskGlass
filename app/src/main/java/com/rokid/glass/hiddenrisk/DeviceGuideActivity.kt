@@ -6,8 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
@@ -49,12 +47,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private enum class PageState {
         DETECTING,
-        RESULT,
-    }
-
-    private enum class ResultStage {
-        NONE,
-        PROMPT,
+        PROMPT_PENDING,
         DETAIL,
     }
 
@@ -94,13 +87,11 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private var pageState = PageState.DETECTING
-    private var resultStage = ResultStage.NONE
     private var isActivityResumed = false
     private var frameStreamReady = false
     private var frameStreamInitializing = false
     private var mediaPermissionRequested = false
     private var currentPayload: InspectionFrameCaptureService.CapturedFramePayload? = null
-    private var currentThumbnail: Bitmap? = null
     private var detectInFlight = false
     private var detailInFlight = false
     private var activeDetectHandle: AiArSseService.RequestHandle? = null
@@ -116,6 +107,12 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val nextDetectRunnable = Runnable {
         runDetectionLoop()
+    }
+
+    private val promptTimeoutRunnable = Runnable {
+        if (pageState == PageState.PROMPT_PENDING) {
+            returnToDetecting()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -143,6 +140,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         stopStatusBarUpdates()
         cancelActiveRequests()
         uiHandler.removeCallbacks(nextDetectRunnable)
+        uiHandler.removeCallbacks(promptTimeoutRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
         InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
@@ -157,8 +155,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         RokidSdkManager.removeListener(this)
         InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
-        currentThumbnail?.takeIf { !it.isRecycled }?.recycle()
-        currentThumbnail = null
         super.onDestroy()
     }
 
@@ -253,16 +249,24 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Confirm,
                 label = "确认",
                 triggers = buildConfirmTriggers(),
-                enabled = { pageState == PageState.RESULT && resultStage == ResultStage.PROMPT && !detailInFlight },
+                enabled = { pageState == PageState.PROMPT_PENDING || pageState == PageState.DETAIL },
             ) {
-                requestGuideDetails()
+                when (pageState) {
+                    PageState.PROMPT_PENDING -> requestGuideDetails()
+                    PageState.DETAIL -> returnToDetecting()
+                    PageState.DETECTING -> Unit
+                }
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Cancel,
                 label = "返回",
                 triggers = buildReturnTriggers(),
             ) {
-                returnToMenuHome()
+                if (pageState == PageState.DETECTING) {
+                    returnToMenuHome()
+                } else {
+                    returnToDetecting()
+                }
             },
         )
     }
@@ -388,7 +392,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                 activeDetectHandle = null
                                 detectInFlight = false
                                 if (hasHazard) {
-                                    showPromptState(payload)
+                                    showPromptPending(payload)
                                 } else {
                                     scheduleNextDetection(immediate = false)
                                 }
@@ -414,40 +418,58 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun showPromptState(payload: InspectionFrameCaptureService.CapturedFramePayload) {
-        pageState = PageState.RESULT
-        resultStage = ResultStage.PROMPT
-        layoutDetection.visibility = View.GONE
-        layoutResult.visibility = View.VISIBLE
-        setThumbnail(payload.jpegBytes)
+    private fun showPromptPending(payload: InspectionFrameCaptureService.CapturedFramePayload) {
+        uiHandler.removeCallbacks(nextDetectRunnable)
+        uiHandler.removeCallbacks(promptTimeoutRunnable)
+        pageState = PageState.PROMPT_PENDING
+        currentPayload = payload
+        layoutDetection.visibility = View.VISIBLE
+        layoutResult.visibility = View.GONE
+        layoutLivePreviewCard.visibility = View.VISIBLE
+        viewLivePreview.visibility = View.VISIBLE
         tvResultContent.text = ""
+        scrollContent.visibility = View.GONE
         tvResultBottomHint.visibility = View.GONE
+        tvDetectingBottomHint.visibility = View.GONE
         statusAlertOverlay.render(
             StatusAlertModel(
                 status = AlertStatus.WARNING,
                 titleText = "",
                 messageText = getString(R.string.device_guide_prompt_message),
-                behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
+                behavior = AlertBehavior(autoDismissMs = PROMPT_TIMEOUT_MS, showCountdownBar = false),
                 style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
             ),
         )
         refreshFunctionMenuVisibility()
         refreshInputActions()
+        uiHandler.postDelayed(promptTimeoutRunnable, PROMPT_TIMEOUT_MS)
     }
 
     private fun requestGuideDetails() {
         val payload = currentPayload ?: return
+        uiHandler.removeCallbacks(promptTimeoutRunnable)
         detailInFlight = true
-        resultStage = ResultStage.DETAIL
+        pageState = PageState.DETAIL
         statusAlertOverlay.reset()
+        layoutDetection.visibility = View.GONE
+        layoutResult.visibility = View.VISIBLE
+        layoutLivePreviewCard.visibility = View.GONE
+        viewLivePreview.visibility = View.GONE
+        InspectionCameraCoordinator.updatePreview(
+            owner = CameraOwner.DEVICE_GUIDE,
+            needPreview = false,
+        )
+        clearResultUi()
+        scrollContent.visibility = View.VISIBLE
         tvResultContent.text = getString(R.string.device_guide_fetching_detail)
+        refreshFunctionMenuVisibility()
         val base64Image = Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
         activeDetailHandle?.cancel()
         activeDetailHandle = detailSseService.requestDeepAnalysis(
             base64Image = base64Image,
             onChunk = { partialText ->
                 uiHandler.post {
-                    if (pageState != PageState.RESULT || resultStage != ResultStage.DETAIL) return@post
+                    if (pageState != PageState.DETAIL) return@post
                     tvResultContent.text = partialText.trim()
                 }
             },
@@ -502,14 +524,23 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun returnToDetecting(message: String? = null) {
+        uiHandler.removeCallbacks(promptTimeoutRunnable)
         cancelActiveRequests()
         pageState = PageState.DETECTING
-        resultStage = ResultStage.NONE
+        // 检测态重新显示预览并恢复检测循环
+        layoutLivePreviewCard.visibility = View.VISIBLE
+        viewLivePreview.visibility = View.VISIBLE
+        InspectionCameraCoordinator.updatePreview(
+            owner = CameraOwner.DEVICE_GUIDE,
+            needPreview = true,
+            previewView = viewLivePreview,
+        )
         layoutDetection.visibility = View.VISIBLE
         layoutResult.visibility = View.GONE
         statusAlertOverlay.reset()
         clearResultUi()
         tvDetectingBottomHint.text = message ?: getString(R.string.device_guide_detecting_bottom_hint)
+        tvDetectingBottomHint.visibility = View.VISIBLE
         refreshFunctionMenuVisibility()
         refreshInputActions()
         scheduleNextDetection(immediate = false)
@@ -528,6 +559,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun cancelActiveRequests() {
+        uiHandler.removeCallbacks(promptTimeoutRunnable)
         detectInFlight = false
         detailInFlight = false
         activeDetectHandle?.cancel()
@@ -538,59 +570,21 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun clearResultUi() {
         tvResultContent.text = ""
+        scrollContent.visibility = View.GONE
         tvResultBottomHint.visibility = View.GONE
         ivResultThumbnail.setImageBitmap(null)
         ivResultThumbnail.visibility = View.GONE
         layoutResultThumbnailCard.visibility = View.GONE
         layoutResultThumbnailPlaceholder.visibility = View.VISIBLE
-        currentThumbnail?.takeIf { !it.isRecycled }?.recycle()
-        currentThumbnail = null
-    }
-
-    private fun setThumbnail(jpegBytes: ByteArray) {
-        val thumbnail = decodeSampledBitmap(jpegBytes, STREAM_THUMBNAIL_TARGET_PX, STREAM_THUMBNAIL_TARGET_PX) ?: return
-        currentThumbnail?.takeIf { !it.isRecycled }?.recycle()
-        currentThumbnail = thumbnail
-        layoutResultThumbnailCard.visibility = View.VISIBLE
-        layoutResultThumbnailPlaceholder.visibility = View.GONE
-        ivResultThumbnail.setImageBitmap(thumbnail)
-        ivResultThumbnail.visibility = View.VISIBLE
-    }
-
-    private fun decodeSampledBitmap(
-        jpegBytes: ByteArray,
-        targetWidth: Int,
-        targetHeight: Int,
-    ): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, bounds)
-        val options = BitmapFactory.Options().apply {
-            inPreferredConfig = Bitmap.Config.RGB_565
-            inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, targetWidth, targetHeight)
-        }
-        return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size, options)
-    }
-
-    private fun calculateInSampleSize(
-        sourceWidth: Int,
-        sourceHeight: Int,
-        targetWidth: Int,
-        targetHeight: Int,
-    ): Int {
-        var sampleSize = 1
-        if (sourceWidth <= 0 || sourceHeight <= 0) {
-            return sampleSize
-        }
-        while (sourceWidth / (sampleSize * 2) >= targetWidth &&
-            sourceHeight / (sampleSize * 2) >= targetHeight
-        ) {
-            sampleSize *= 2
-        }
-        return sampleSize
     }
 
     private fun refreshFunctionMenuVisibility() {
-        operationGuideDetecting.visibility = if (pageState == PageState.DETECTING) View.VISIBLE else View.GONE
+        operationGuideDetecting.visibility =
+            if (pageState == PageState.DETECTING || pageState == PageState.PROMPT_PENDING) {
+                View.VISIBLE
+            } else {
+                View.GONE
+            }
         operationGuideResult.visibility = View.GONE
     }
 
@@ -643,8 +637,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val SELECT_MAX_FRAMES = 3
         private const val SELECT_POLL_INTERVAL_MS = 80L
         private const val JPEG_QUALITY = 97
-        private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val DETECT_INTERVAL_MS = 1000L
+        private const val PROMPT_TIMEOUT_MS = 3000L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
     }
 }
