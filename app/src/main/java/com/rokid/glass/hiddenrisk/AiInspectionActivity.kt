@@ -1989,30 +1989,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     /**
-     * 在线检测 lane 总是直接独立选取最新画面，不等待本地共享缓存。
+     * 在线检测 lane 直接取最新画面并立即编码，不再等待窗口选帧。
      */
     private fun buildOnlineDetectionPayloadOrNull(
         lane: OnlineHazardDetectionService.DetectionLane,
         lastTimestampExclusive: Long,
     ): CapturedFramePayload? {
-        return selectBestOnlineFramePayload(
-            lane = lane,
-            lastTimestampExclusive = lastTimestampExclusive,
-        )
-    }
-
-    private fun selectBestOnlineFramePayload(
-        lane: OnlineHazardDetectionService.DetectionLane,
-        lastTimestampExclusive: Long,
-    ): CapturedFramePayload? {
-        val bestPayload = frameCaptureService.selectBestFramePayload(lastTimestampExclusive)
-        bestPayload?.let { payload ->
+        val frame = frameCaptureService.copyLatestSquareFrameOrNull(lastTimestampExclusive) ?: return null
+        val payload = buildCapturedFramePayload(frame)
+        payload?.let {
             Log.i(
                 TAG,
-                "selected online frame lane=${lane.logName} ts=${payload.timestamp} sharpness=${"%.2f".format(payload.sharpnessScore)} crop=${payload.cropRect} output=${payload.width}x${payload.height} bytes=${payload.jpegBytes.size}",
+                "selected online frame lane=${lane.logName} strategy=latest ts=${it.timestamp} sharpness=${"%.2f".format(it.sharpnessScore)} crop=${it.cropRect} output=${it.width}x${it.height} bytes=${it.jpegBytes.size}",
             )
         }
-        return bestPayload
+        return payload
     }
 
     // ==================== 隐患处理流程 ====================
@@ -3838,7 +3829,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         try {
             imageEncodeExecutor.execute {
-                val payload = selectBestOnlineFramePayload(
+                val payload = buildOnlineDetectionPayloadOrNull(
                     lane = OnlineHazardDetectionService.DetectionLane.ITEM,
                     lastTimestampExclusive = Long.MIN_VALUE,
                 )

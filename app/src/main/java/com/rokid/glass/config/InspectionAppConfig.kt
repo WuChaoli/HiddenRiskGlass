@@ -49,7 +49,7 @@ data class AiInspectionConfig(
     val staleFrameThresholdMs: Long = 1200L,
     val sharedFrameMotionClearThresholdMs: Long = 1000L,
     val enableHeadMotionStabilityGate: Boolean = false,
-    val onlineJpegQuality: Int = 97,
+    val onlineJpegQuality: Int = 85,
     val onlineSelectWindowMs: Long = 240L,
     val onlineSelectMaxFrames: Int = 3,
     val onlineSelectPollIntervalMs: Long = 80L,

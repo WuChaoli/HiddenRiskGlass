@@ -175,23 +175,28 @@ class AiArSseService(
         aggregator: AiArEventAggregator,
     ) {
         val requestStartedElapsedMs = SystemClock.elapsedRealtime()
+        val jsonBuildStartedElapsedMs = requestStartedElapsedMs
         val rawRequestBody = gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE)
+        val jsonBuildFinishedElapsedMs = SystemClock.elapsedRealtime()
         val requestBody = TimingRequestBody(
             delegate = rawRequestBody,
             taskId = payload.task_id,
             ctype = payload.ctype,
             requestStartedElapsedMs = requestStartedElapsedMs,
         )
+        val requestBuildStartedElapsedMs = SystemClock.elapsedRealtime()
         val request = Request.Builder()
             .url(apiConfig.url)
             .header("Accept", "text/event-stream")
             .tag(RequestTimingTag::class.java, RequestTimingTag(payload.task_id, payload.ctype, requestStartedElapsedMs))
             .post(requestBody)
             .build()
+        val requestBuildFinishedElapsedMs = SystemClock.elapsedRealtime()
         Log.i(
             TAG,
-            "openStream requestStart ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} imageChars=${payload.image?.length ?: 0} textLength=${payload.text?.length ?: 0}",
+            "openStream requestStart ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} imageChars=${payload.image?.length ?: 0} textLength=${payload.text?.length ?: 0} jsonBuildMs=${jsonBuildFinishedElapsedMs - jsonBuildStartedElapsedMs} requestBuildMs=${requestBuildFinishedElapsedMs - requestBuildStartedElapsedMs}",
         )
+        val newEventSourceStartedElapsedMs = SystemClock.elapsedRealtime()
         val eventSource = eventSourceFactory.newEventSource(
             request,
             object : EventSourceListener() {
@@ -324,6 +329,11 @@ class AiArSseService(
                     )
                 }
             },
+        )
+        val newEventSourceFinishedElapsedMs = SystemClock.elapsedRealtime()
+        Log.i(
+            TAG,
+            "openStream newEventSourceReturned ctype=${payload.ctype} taskId=${payload.task_id} requestStartToReturnMs=${newEventSourceFinishedElapsedMs - requestStartedElapsedMs} newEventSourceMs=${newEventSourceFinishedElapsedMs - newEventSourceStartedElapsedMs}",
         )
         handle.bind(eventSource)
     }
