@@ -1,5 +1,9 @@
 # WiFi连接旅程图
 
+关联总架构：[architecture.md](../architecture.md)
+
+关联模块：[功能模块/WiFi连接.md](../功能模块/WiFi连接.md)
+
 ```mermaid
 flowchart TD
     A["进入 WifiQrScanActivity"] --> B["扫描 Wi-Fi 二维码"]

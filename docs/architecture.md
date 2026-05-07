@@ -1,5 +1,13 @@
 # Architecture
 
+## Related Docs
+
+- [docs/README.md](./README.md)
+- [docs/总体旅程图/README.md](./总体旅程图/README.md)
+- [docs/公共能力/README.md](./公共能力/README.md)
+- [docs/功能模块/隐患识别.md](./功能模块/隐患识别.md)
+- [docs/功能模块/结束巡查.md](./功能模块/结束巡查.md)
+
 ## Summary
 
 `app/src/main` 是一个面向 Rokid Glass 的 Android 应用主模块，核心不是单一功能，而是把多条眼镜端业务链路放在同一进程里运行。

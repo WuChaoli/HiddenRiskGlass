@@ -1,5 +1,7 @@
 # 公共能力
 
+总父文档先看 [architecture.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\architecture.md)。本目录负责把总架构里提到的跨功能能力拆成可复用真相源。
+
 本目录收敛跨功能复用的底层能力与全局规则，是各功能目录引用的公共真相源。
 
 ## 当前文档

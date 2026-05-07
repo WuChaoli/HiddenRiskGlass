@@ -1,5 +1,7 @@
 # 总体旅程图
 
+总父文档先看 [architecture.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\architecture.md)。本目录只展开主链页面时序与跨页面跳转。
+
 本目录存放正式主链全景旅程图和按功能拆分的旅程图入口。
 
 ## 文档列表
