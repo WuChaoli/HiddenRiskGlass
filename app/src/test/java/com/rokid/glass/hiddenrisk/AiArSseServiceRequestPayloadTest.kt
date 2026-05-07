@@ -1,6 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 import com.google.gson.Gson
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -50,5 +51,36 @@ class AiArSseServiceRequestPayloadTest {
         assertTrue(json.contains("\"ctype\":3"))
         assertTrue(json.contains("\"text\":\"隐患描述：测试隐患\\n整改建议：测试建议\""))
         assertFalse(json.contains("\"image\""))
+    }
+
+    @Test
+    fun isDoneEvent_acceptsPlainDoneSentinel() {
+        assertTrue(AiArSseService.isDoneEvent(type = null, normalizedData = "[DONE]"))
+    }
+
+    @Test
+    fun isDoneEvent_acceptsDoneEventWithJsonArrayPayload() {
+        assertTrue(AiArSseService.isDoneEvent(type = "done", normalizedData = "[\"DONE\"]"))
+    }
+
+    @Test
+    fun isDoneEvent_acceptsDoneEventWithEmptyPayload() {
+        assertTrue(AiArSseService.isDoneEvent(type = "done", normalizedData = ""))
+    }
+
+    @Test
+    fun isDoneEvent_doesNotMatchNormalMessagePayload() {
+        val data = "{\"task_id\":\"task-1\",\"content\":\"否\"}"
+
+        assertFalse(AiArSseService.isDoneEvent(type = "message", normalizedData = data))
+
+        val aggregator = AiArEventAggregator()
+        aggregator.append(data)
+        assertEquals("否", aggregator.fullText())
+    }
+
+    @Test
+    fun isDoneEvent_doesNotHideUnexpectedJsonArrayPayload() {
+        assertFalse(AiArSseService.isDoneEvent(type = "message", normalizedData = "[\"unexpected\"]"))
     }
 }

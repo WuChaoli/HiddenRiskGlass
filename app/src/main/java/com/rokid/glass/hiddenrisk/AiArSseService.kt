@@ -221,11 +221,19 @@ class AiArSseService(
                         return
                     }
                     val normalizedData = data.trim()
-                    if (normalizedData.isEmpty()) {
+                    if (payload.ctype == CTYPE_IDENTIFY_ITEM_HAZARD ||
+                        payload.ctype == CTYPE_IDENTIFY_SCENE_HAZARD
+                    ) {
+                        Log.i(
+                            TAG,
+                            "openStream raw event ctype=${payload.ctype} taskId=${payload.task_id} id=${id ?: "(none)"} type=${type ?: "(none)"} data=$normalizedData",
+                        )
+                    }
+                    if (isDoneEvent(type, normalizedData)) {
+                        Log.i(TAG, "openStream received done sentinel ctype=${payload.ctype} taskId=${payload.task_id}")
                         return
                     }
-                    if (normalizedData == DONE_SENTINEL) {
-                        Log.i(TAG, "openStream received done sentinel ctype=${payload.ctype} taskId=${payload.task_id}")
+                    if (normalizedData.isEmpty()) {
                         return
                     }
                     runCatching {
@@ -369,6 +377,8 @@ class AiArSseService(
     companion object {
         private const val TAG = "AiArSseService"
         private const val DONE_SENTINEL = "[DONE]"
+        private const val DONE_SENTINEL_JSON_ARRAY = "[\"DONE\"]"
+        private const val DONE_EVENT_TYPE = "done"
         private const val CTYPE_DEEP_ANALYSIS = 0
         private const val CTYPE_IDENTIFY_ITEM_HAZARD = 1
         private const val CTYPE_IDENTIFY_SCENE_HAZARD = 2
@@ -376,5 +386,12 @@ class AiArSseService(
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
+        internal fun isDoneEvent(type: String?, normalizedData: String): Boolean {
+            if (type.equals(DONE_EVENT_TYPE, ignoreCase = true)) {
+                return true
+            }
+            return normalizedData == DONE_SENTINEL || normalizedData == DONE_SENTINEL_JSON_ARRAY
+        }
     }
 }
