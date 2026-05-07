@@ -12,10 +12,9 @@
 - [隐患录入旅程图.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\总体旅程图\隐患录入旅程图.md)
 - [设备指引旅程图.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\总体旅程图\设备指引旅程图.md)
 - [结束巡查旅程图.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\总体旅程图\结束巡查旅程图.md)
-- [输入旅程图.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\总体旅程图\输入旅程图.md)
 
 ## 使用边界
 
 - 本目录偏“旅程图”和“跨功能串联”
-- 单个功能内的文字版旅程说明，优先写在各功能目录的 `用户旅程.md`
-- 页面职责和跳转细节，优先写在各功能目录的 `页面说明.md` 与 `页面跳转.md`
+- 单个功能内的文字版旅程、状态、后端链路，优先写在 `docs/功能模块/` 下的模块主文档
+- 统一输入不再作为独立业务旅程，而是公共能力真相源

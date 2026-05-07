@@ -11,4 +11,4 @@ flowchart TD
     G --> B
 ```
 
-对应功能正文见 [WiFi连接/用户旅程.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\WiFi连接\用户旅程.md)。
+对应功能正文见 [功能模块/WiFi连接.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\功能模块\WiFi连接.md)。
