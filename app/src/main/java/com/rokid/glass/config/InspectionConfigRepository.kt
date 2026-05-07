@@ -172,6 +172,8 @@ object InspectionConfigRepository {
                 override?.staleFrameThresholdMs ?: base.staleFrameThresholdMs,
             sharedFrameMotionClearThresholdMs =
                 override?.sharedFrameMotionClearThresholdMs ?: base.sharedFrameMotionClearThresholdMs,
+            enableHeadMotionStabilityGate =
+                override?.enableHeadMotionStabilityGate ?: base.enableHeadMotionStabilityGate,
             onlineJpegQuality = override?.onlineJpegQuality ?: base.onlineJpegQuality,
             onlineSelectWindowMs = override?.onlineSelectWindowMs ?: base.onlineSelectWindowMs,
             onlineSelectMaxFrames = override?.onlineSelectMaxFrames ?: base.onlineSelectMaxFrames,

@@ -117,6 +117,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.sharedFrameMotionClearThresholdMs
 
+        private val ENABLE_HEAD_MOTION_STABILITY_GATE: Boolean
+            get() = InspectionConfigRepository.get().aiInspection.enableHeadMotionStabilityGate
+
         private val ONLINE_JPEG_QUALITY: Int
             get() = InspectionConfigRepository.get().aiInspection.onlineJpegQuality
 
@@ -704,7 +707,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideActionPrompts()
 
         updateConfirmationHints()
-        motionStabilityTracker.addListener(motionStabilityListener)
+        if (ENABLE_HEAD_MOTION_STABILITY_GATE) {
+            motionStabilityTracker.addListener(motionStabilityListener)
+        }
 
         showPage(PageState.DETECTING)
         applyDefaultDetectionStatus()
@@ -762,7 +767,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             refreshInputActions()
             return
         }
-        motionStabilityTracker.start()
+        if (ENABLE_HEAD_MOTION_STABILITY_GATE) {
+            motionStabilityTracker.start()
+        } else {
+            markHeadMotionStabilityGateSatisfied()
+        }
         cameraRecoveryController.start()
         refreshInputActions()
         if (pageState == PageState.DETECTING || shouldKeepDetectionPreviewRunning(pageState)) {
@@ -793,7 +802,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             super.onPause()
             return
         }
-        motionStabilityTracker.stop()
+        if (ENABLE_HEAD_MOTION_STABILITY_GATE) {
+            motionStabilityTracker.stop()
+        }
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         stopDetectionPreview()
@@ -838,8 +849,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             super.onDestroy()
             return
         }
-        motionStabilityTracker.removeListener(motionStabilityListener)
-        motionStabilityTracker.stop()
+        if (ENABLE_HEAD_MOTION_STABILITY_GATE) {
+            motionStabilityTracker.removeListener(motionStabilityListener)
+            motionStabilityTracker.stop()
+        }
         stopAutoInferencePipelines("onDestroy")
         hideStatusAlertOverlay()
         stopDetectionPreview()
@@ -1388,8 +1401,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pendingStreamStart || streamingInProgress || streamCallbackActive) return false
         if (frameStreamInitializing) return false
         if (pageState != PageState.DETECTING) return false
-        if (!isMotionStable || stableQualifiedAtMillis == null) return false
+        if (ENABLE_HEAD_MOTION_STABILITY_GATE && (!isMotionStable || stableQualifiedAtMillis == null)) return false
         return true
+    }
+
+    private fun markHeadMotionStabilityGateSatisfied() {
+        isMotionStable = true
+        stableQualifiedAtMillis = System.currentTimeMillis()
+        lastMotionUnstableElapsedMs = null
     }
 
     private fun postLocalInferenceLoop(delayMs: Long, reason: String) {
