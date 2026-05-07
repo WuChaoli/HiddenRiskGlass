@@ -63,7 +63,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * AI 巡检页面。
- * 流程：加载初始化 -> 周期抓拍 -> 本地 NCNN + 在线 /ai/ar 并行识别 -> 结果确认/保存。
+ * 流程：加载初始化 -> 周期抓拍 -> 远端双在线竞争识别 / 本地备用链路 -> 结果确认/保存。
  */
 class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -292,6 +292,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ) : PendingAutoHazardPresentation()
     }
 
+    private data class OnlineDetectionLaneRuntime(
+        var loopRunning: Boolean = false,
+        var loopEpoch: Long = 0L,
+        var lastFrameTimestamp: Long = 0L,
+        var queuedNext: Boolean = false,
+        var loopPosted: Boolean = false,
+        var frameSelectionInProgress: Boolean = false,
+        var requestInFlight: Boolean = false,
+        var nextEarliestStartElapsedMs: Long = 0L,
+        var activeRequestId: Long = 0L,
+    )
+
     private val onlineOnlyRouteEnabled: Boolean
         get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.ONLINE_ONLY
 
@@ -301,8 +313,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val onlineDetectIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
 
+    private val onlineSceneDetectIntervalMs: Long
+        get() = InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs
+
     private val remoteFailureFallbackThreshold: Int
         get() = InspectionConfigRepository.get().aiInspection.remoteFailureFallbackThreshold
+
+    private val enableLocalFallbackLoading: Boolean
+        get() = InspectionConfigRepository.get().aiInspection.enableLocalFallbackLoading
 
     private val localNetworkProbeIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.localNetworkProbeIntervalMs
@@ -355,52 +373,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val motionStabilityTracker by lazy { MotionStabilityTracker(this) }
     private val aiArSseService by lazy { AiArSseService() }
     private val onlineHazardDetectionService by lazy {
-        OnlineHazardDetectionService(
-            callback = object : OnlineHazardDetectionService.Callback {
-                override fun onDetectionResult(
-                    request: OnlineHazardDetectionService.DetectionRequest,
-                    hasHazard: Boolean,
-                    rawText: String,
-                ) {
-                    handleOnlineDetectionResult(request, hasHazard, rawText)
-                }
-
-                override fun onDetectionFailure(
-                    request: OnlineHazardDetectionService.DetectionRequest,
-                    message: String,
-                ) {
-                    handleOnlineDetectionFailure(request, message)
-                }
-
-                override fun onDetectionDropped(
-                    request: OnlineHazardDetectionService.DetectionRequest,
-                    reason: String,
-                ) {
-                    handleOnlineDetectionDropped(request, reason)
-                }
-
-                override fun onDeepAnalysisChunk(
-                    request: OnlineHazardDetectionService.DetailRequest,
-                    accumulatedText: String,
-                ) {
-                    handleOnlineDetailChunk(request, accumulatedText)
-                }
-
-                override fun onDeepAnalysisSuccess(
-                    request: OnlineHazardDetectionService.DetailRequest,
-                    fullText: String,
-                ) {
-                    handleOnlineDetailSuccess(request, fullText)
-                }
-
-                override fun onDeepAnalysisFailure(
-                    request: OnlineHazardDetectionService.DetailRequest,
-                    message: String,
-                ) {
-                    handleOnlineDetailFailure(request, message)
-                }
-            },
-        )
+        createOnlineHazardDetectionService()
+    }
+    private val sceneOnlineHazardDetectionService by lazy {
+        createOnlineHazardDetectionService()
     }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
@@ -451,15 +427,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var localLoopEpoch = 0L
     private var localLastFrameTimestamp = 0L
     private var localRetryPosted = false
-    private var onlineLoopRunning = false
-    private var onlineLoopEpoch = 0L
-    private var onlineLastFrameTimestamp = 0L
-    private var onlineQueuedNext = false
-    private var onlineLoopPosted = false
-    private var onlineFrameSelectionInProgress = false
-    private var onlineRequestInFlight = false
-    private var onlineNextEarliestStartElapsedMs = 0L
-    private var onlineActiveRequestId = 0L
+    private val itemOnlineLaneRuntime = OnlineDetectionLaneRuntime()
+    private val sceneOnlineLaneRuntime = OnlineDetectionLaneRuntime()
+    private var onlineRequestIdSequence = 0L
     private var latestSharedInferenceFrame: SquareFramePayload? = null
     private var lastMotionUnstableElapsedMs: Long? = null
     private var autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY
@@ -555,8 +525,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private val onlineLoopRunnable = Runnable {
-        onlineLoopPosted = false
-        advanceOnlineInferenceLoop(reason = "scheduled")
+        itemOnlineLaneRuntime.loopPosted = false
+        advanceOnlineInferenceLoop(
+            lane = OnlineHazardDetectionService.DetectionLane.ITEM,
+            reason = "scheduled",
+        )
+    }
+
+    private val sceneOnlineLoopRunnable = Runnable {
+        sceneOnlineLaneRuntime.loopPosted = false
+        advanceOnlineInferenceLoop(
+            lane = OnlineHazardDetectionService.DetectionLane.SCENE,
+            reason = "scheduled",
+        )
     }
 
     private val localNetworkProbeRunnable = object : Runnable {
@@ -566,6 +547,112 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
     private var localNetworkProbePosted = false
+
+    private fun createOnlineHazardDetectionService(): OnlineHazardDetectionService {
+        return OnlineHazardDetectionService(
+            callback = object : OnlineHazardDetectionService.Callback {
+                override fun onDetectionResult(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    hasHazard: Boolean,
+                    rawText: String,
+                ) {
+                    handleOnlineDetectionResult(request, hasHazard, rawText)
+                }
+
+                override fun onDetectionFailure(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    message: String,
+                ) {
+                    handleOnlineDetectionFailure(request, message)
+                }
+
+                override fun onDetectionDropped(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    reason: String,
+                ) {
+                    handleOnlineDetectionDropped(request, reason)
+                }
+
+                override fun onDeepAnalysisChunk(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    accumulatedText: String,
+                ) {
+                    handleOnlineDetailChunk(request, accumulatedText)
+                }
+
+                override fun onDeepAnalysisSuccess(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    fullText: String,
+                ) {
+                    handleOnlineDetailSuccess(request, fullText)
+                }
+
+                override fun onDeepAnalysisFailure(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    message: String,
+                ) {
+                    handleOnlineDetailFailure(request, message)
+                }
+            },
+        )
+    }
+
+    private fun onlineLaneRuntime(
+        lane: OnlineHazardDetectionService.DetectionLane,
+    ): OnlineDetectionLaneRuntime {
+        return when (lane) {
+            OnlineHazardDetectionService.DetectionLane.ITEM -> itemOnlineLaneRuntime
+            OnlineHazardDetectionService.DetectionLane.SCENE -> sceneOnlineLaneRuntime
+        }
+    }
+
+    private fun onlineLaneService(
+        lane: OnlineHazardDetectionService.DetectionLane,
+    ): OnlineHazardDetectionService {
+        return when (lane) {
+            OnlineHazardDetectionService.DetectionLane.ITEM -> onlineHazardDetectionService
+            OnlineHazardDetectionService.DetectionLane.SCENE -> sceneOnlineHazardDetectionService
+        }
+    }
+
+    private fun onlineLaneRunnable(
+        lane: OnlineHazardDetectionService.DetectionLane,
+    ): Runnable {
+        return when (lane) {
+            OnlineHazardDetectionService.DetectionLane.ITEM -> onlineLoopRunnable
+            OnlineHazardDetectionService.DetectionLane.SCENE -> sceneOnlineLoopRunnable
+        }
+    }
+
+    private fun onlineDetectIntervalMs(
+        lane: OnlineHazardDetectionService.DetectionLane,
+    ): Long {
+        return when (lane) {
+            OnlineHazardDetectionService.DetectionLane.ITEM -> onlineDetectIntervalMs
+            OnlineHazardDetectionService.DetectionLane.SCENE -> onlineSceneDetectIntervalMs
+        }
+    }
+
+    private fun nextOnlineRequestId(): Long {
+        onlineRequestIdSequence += 1L
+        return onlineRequestIdSequence
+    }
+
+    private fun areAllOnlineLanesRunning(): Boolean {
+        return itemOnlineLaneRuntime.loopRunning && sceneOnlineLaneRuntime.loopRunning
+    }
+
+    private fun resetOnlineLaneRuntime(runtime: OnlineDetectionLaneRuntime) {
+        runtime.loopRunning = false
+        runtime.loopEpoch = 0L
+        runtime.lastFrameTimestamp = 0L
+        runtime.queuedNext = false
+        runtime.loopPosted = false
+        runtime.frameSelectionInProgress = false
+        runtime.requestInFlight = false
+        runtime.nextEarliestStartElapsedMs = 0L
+        runtime.activeRequestId = 0L
+    }
 
     private val hideUploadSuccessToastRunnable = Runnable {
         tvUploadSuccessToast.animate()
@@ -1120,10 +1207,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             postLocalInferenceLoop(delayMs = initialDelayMs, reason = reason)
             scheduleLocalNetworkProbe()
         }
-        if (startDecision.startOnline && !onlineLoopRunning) {
-            onlineLoopRunning = true
-            onlineLoopEpoch = autoInferenceEpoch
-            postOnlineInferenceLoop(delayMs = initialDelayMs, reason = reason)
+        if (startDecision.startOnline) {
+            startOnlineDetectionLaneIfNeeded(
+                lane = OnlineHazardDetectionService.DetectionLane.ITEM,
+                delayMs = initialDelayMs,
+                reason = reason,
+            )
+            startOnlineDetectionLaneIfNeeded(
+                lane = OnlineHazardDetectionService.DetectionLane.SCENE,
+                delayMs = initialDelayMs,
+                reason = reason,
+            )
         }
     }
 
@@ -1181,7 +1275,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun switchToRemotePrimary(reason: String) {
         if (autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY &&
-            onlineLoopRunning &&
+            areAllOnlineLanesRunning() &&
             !localLoopRunning
         ) {
             return
@@ -1202,14 +1296,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun stopOnlinePipelineForFallback(reason: String) {
         Log.i(TAG, "stop online pipeline for local fallback reason=$reason")
-        onlineLoopRunning = false
-        onlineLoopPosted = false
-        onlineFrameSelectionInProgress = false
-        onlineRequestInFlight = false
-        onlineQueuedNext = false
-        onlineNextEarliestStartElapsedMs = 0L
+        resetOnlineLaneRuntime(itemOnlineLaneRuntime)
+        resetOnlineLaneRuntime(sceneOnlineLaneRuntime)
         uiHandler.removeCallbacks(onlineLoopRunnable)
+        uiHandler.removeCallbacks(sceneOnlineLoopRunnable)
         onlineHazardDetectionService.cancelActiveDetection()
+        sceneOnlineHazardDetectionService.cancelActiveDetection()
     }
 
     private fun scheduleLocalNetworkProbe() {
@@ -1252,16 +1344,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         autoInferenceStartRequested = false
         captureDelayScheduled = false
         localRetryPosted = false
-        onlineLoopPosted = false
         localLoopRunning = false
-        onlineLoopRunning = false
-        onlineFrameSelectionInProgress = false
-        onlineRequestInFlight = false
-        onlineQueuedNext = false
-        onlineNextEarliestStartElapsedMs = 0L
+        resetOnlineLaneRuntime(itemOnlineLaneRuntime)
+        resetOnlineLaneRuntime(sceneOnlineLaneRuntime)
         localNetworkProbePosted = false
         localLastFrameTimestamp = 0L
-        onlineLastFrameTimestamp = 0L
         clearLatestSharedInferenceFrame(reason = "stop_auto_inference:$reason")
         lastMotionUnstableElapsedMs = null
         autoInferenceEpoch += 1
@@ -1269,10 +1356,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(localLoopRunnable)
         uiHandler.removeCallbacks(onlineLoopRunnable)
+        uiHandler.removeCallbacks(sceneOnlineLoopRunnable)
         uiHandler.removeCallbacks(localNetworkProbeRunnable)
         InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         onlineHazardDetectionService.cancelAll()
+        sceneOnlineHazardDetectionService.cancelAll()
         if (clearPendingStreamState) {
             pendingStreamStart = false
         }
@@ -1504,95 +1593,137 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshInputActions()
     }
 
-    private fun postOnlineInferenceLoop(delayMs: Long, reason: String) {
-        if (!onlineLoopRunning || destroyed || onlineLoopPosted) {
+    private fun startOnlineDetectionLaneIfNeeded(
+        lane: OnlineHazardDetectionService.DetectionLane,
+        delayMs: Long,
+        reason: String,
+    ) {
+        val runtime = onlineLaneRuntime(lane)
+        if (runtime.loopRunning) {
             return
         }
-        Log.d(TAG, "post online inference loop delayMs=$delayMs reason=$reason")
-        onlineLoopPosted = true
-        uiHandler.postDelayed(onlineLoopRunnable, delayMs.coerceAtLeast(0L))
+        runtime.loopRunning = true
+        runtime.loopEpoch = autoInferenceEpoch
+        postOnlineInferenceLoop(lane = lane, delayMs = delayMs, reason = reason)
     }
 
-    private fun advanceOnlineInferenceLoop(reason: String) {
-        val epoch = onlineLoopEpoch
-        if (!isOnlineLoopActive(epoch)) {
+    private fun postOnlineInferenceLoop(
+        lane: OnlineHazardDetectionService.DetectionLane,
+        delayMs: Long,
+        reason: String,
+    ) {
+        val runtime = onlineLaneRuntime(lane)
+        if (!runtime.loopRunning || destroyed || runtime.loopPosted) {
+            return
+        }
+        Log.d(TAG, "post online inference loop lane=${lane.logName} delayMs=$delayMs reason=$reason")
+        runtime.loopPosted = true
+        uiHandler.postDelayed(onlineLaneRunnable(lane), delayMs.coerceAtLeast(0L))
+    }
+
+    private fun advanceOnlineInferenceLoop(
+        lane: OnlineHazardDetectionService.DetectionLane,
+        reason: String,
+    ) {
+        val runtime = onlineLaneRuntime(lane)
+        val epoch = runtime.loopEpoch
+        if (!isOnlineLoopActive(lane, epoch)) {
             return
         }
         val nowElapsedMs = SystemClock.elapsedRealtime()
         val advanceDecision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
-            requestInFlight = onlineRequestInFlight,
+            requestInFlight = runtime.requestInFlight,
             queuedNext = false,
             nowElapsedMs = nowElapsedMs,
-            nextEarliestStartElapsedMs = onlineNextEarliestStartElapsedMs,
-            loopAlreadyPosted = onlineLoopPosted,
+            nextEarliestStartElapsedMs = runtime.nextEarliestStartElapsedMs,
+            loopAlreadyPosted = runtime.loopPosted,
         )
         if (advanceDecision.queueNext) {
-            Log.d(TAG, "online request still active, queue next requestId=$onlineActiveRequestId")
-            onlineQueuedNext = true
+            Log.d(TAG, "online request still active, lane=${lane.logName} queue next requestId=${runtime.activeRequestId}")
+            runtime.queuedNext = true
             return
         }
         advanceDecision.delayMs?.let { delayMs ->
-            if (onlineRequestInFlight) {
-                postOnlineInferenceLoop(delayMs = delayMs, reason = "online_wait_interval")
+            if (runtime.requestInFlight) {
+                postOnlineInferenceLoop(lane = lane, delayMs = delayMs, reason = "online_wait_interval")
                 return
             }
         }
-        if (onlineFrameSelectionInProgress) {
+        if (runtime.frameSelectionInProgress) {
             return
         }
-        if (nowElapsedMs < onlineNextEarliestStartElapsedMs) {
+        if (nowElapsedMs < runtime.nextEarliestStartElapsedMs) {
             postOnlineInferenceLoop(
-                delayMs = onlineNextEarliestStartElapsedMs - nowElapsedMs,
+                lane = lane,
+                delayMs = runtime.nextEarliestStartElapsedMs - nowElapsedMs,
                 reason = "online_before_interval",
             )
             return
         }
-        onlineFrameSelectionInProgress = true
+        runtime.frameSelectionInProgress = true
         InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = true)
         cameraRecoveryController.notifyConsumerWaitStarted()
         try {
             imageEncodeExecutor.execute {
-                val payload = buildOnlineDetectionPayloadOrNull(onlineLastFrameTimestamp)
+                val payload = buildOnlineDetectionPayloadOrNull(
+                    lane = lane,
+                    lastTimestampExclusive = runtime.lastFrameTimestamp,
+                )
                 uiHandler.post {
-                    onlineFrameSelectionInProgress = false
-                    if (!isOnlineLoopActive(epoch)) {
+                    runtime.frameSelectionInProgress = false
+                    if (!isOnlineLoopActive(lane, epoch)) {
                         return@post
                     }
                     if (payload == null) {
                         if (startPendingStreamAnalysis()) {
                             return@post
                         }
-                        postOnlineInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "online_frame_unavailable")
+                        postOnlineInferenceLoop(
+                            lane = lane,
+                            delayMs = AUTO_INFERENCE_RETRY_DELAY_MS,
+                            reason = "online_frame_unavailable",
+                        )
                         return@post
                     }
-                    onlineLastFrameTimestamp = payload.timestamp
+                    runtime.lastFrameTimestamp = payload.timestamp
                     InspectionCameraCoordinator.reportFrameConsumed(CameraOwner.AI_INSPECTION, payload.timestamp)
                     InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = false)
                     cameraRecoveryController.reportFrameConsumed(payload.timestamp)
                     cameraRecoveryController.notifyConsumerWaitStopped()
-                    val requestId = ++onlineActiveRequestId
-                    onlineRequestInFlight = true
-                    onlineQueuedNext = false
+                    val requestId = nextOnlineRequestId()
+                    runtime.activeRequestId = requestId
+                    runtime.requestInFlight = true
+                    runtime.queuedNext = false
                     val startedAtElapsedMs = SystemClock.elapsedRealtime()
-                    onlineNextEarliestStartElapsedMs = startedAtElapsedMs + onlineDetectIntervalMs
+                    val detectIntervalMs = onlineDetectIntervalMs(lane)
+                    runtime.nextEarliestStartElapsedMs = startedAtElapsedMs + detectIntervalMs
                     Log.i(
                         TAG,
-                        "start online detect requestId=$requestId reason=$reason nextEarliest=$onlineNextEarliestStartElapsedMs",
+                        "start online detect lane=${lane.logName} requestId=$requestId reason=$reason nextEarliest=${runtime.nextEarliestStartElapsedMs}",
                     )
-                    onlineHazardDetectionService.submitDetection(
+                    onlineLaneService(lane).submitDetection(
                         OnlineHazardDetectionService.DetectionRequest(
                             epoch = epoch,
                             requestId = requestId,
                             jpegBytes = payload.jpegBytes.copyOf(),
+                            lane = lane,
                         ),
                     )
-                    postOnlineInferenceLoop(delayMs = onlineDetectIntervalMs, reason = "online_window_elapsed")
+                    postOnlineInferenceLoop(
+                        lane = lane,
+                        delayMs = detectIntervalMs,
+                        reason = "online_window_elapsed",
+                    )
                 }
             }
         } catch (error: RejectedExecutionException) {
-            onlineFrameSelectionInProgress = false
-            Log.w(TAG, "online frame select rejected", error)
-            postOnlineInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "online_select_rejected")
+            runtime.frameSelectionInProgress = false
+            Log.w(TAG, "online frame select rejected lane=${lane.logName}", error)
+            postOnlineInferenceLoop(
+                lane = lane,
+                delayMs = AUTO_INFERENCE_RETRY_DELAY_MS,
+                reason = "online_select_rejected",
+            )
         }
     }
 
@@ -1601,62 +1732,101 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hasHazard: Boolean,
         rawText: String,
     ) {
-        if (!isOnlineRequestActive(request)) {
+        val runtime = onlineLaneRuntime(request.lane)
+        val decision = OnlineHazardCompetitionDecider.decide(
+            requestId = request.requestId,
+            activeRequestId = runtime.activeRequestId,
+            requestInFlight = runtime.requestInFlight,
+            outcome = if (hasHazard) {
+                OnlineHazardCompetitionDecider.Outcome.POSITIVE
+            } else {
+                OnlineHazardCompetitionDecider.Outcome.NEGATIVE
+            },
+        )
+        if (decision.shouldIgnore) {
             return
         }
-        onlineRequestInFlight = false
+        runtime.requestInFlight = false
         logAudioPressureSnapshot(
             stage = "handle_online_detection_result",
-            extra = "requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
+            extra = "lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
         )
         Log.i(
             TAG,
-            "online detect result requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
+            "online detect result lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
         )
         remoteFailureCount = 0
-        if (hasHazard) {
+        if (decision.shouldStopAllLanes) {
             stopAutoInferencePipelines("accept_online_hazard_result")
             handleAutoDetectedOnlineHazardResult(request)
             return
         }
-        continueOnlineInferenceAfterCompletion()
+        if (decision.shouldContinueCurrentLane) {
+            continueOnlineInferenceAfterCompletion(request.lane)
+        }
     }
 
     private fun handleOnlineDetectionFailure(
         request: OnlineHazardDetectionService.DetectionRequest,
         message: String,
     ) {
-        if (!isOnlineRequestActive(request)) {
+        val runtime = onlineLaneRuntime(request.lane)
+        val decision = OnlineHazardCompetitionDecider.decide(
+            requestId = request.requestId,
+            activeRequestId = runtime.activeRequestId,
+            requestInFlight = runtime.requestInFlight,
+            outcome = OnlineHazardCompetitionDecider.Outcome.FAILURE,
+        )
+        if (decision.shouldIgnore) {
             return
         }
-        onlineRequestInFlight = false
+        runtime.requestInFlight = false
         Log.w(
             TAG,
-            "online detect failed requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} autoMode=$autoPipelineMode message=$message",
+            "online detect failed lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} autoMode=$autoPipelineMode message=$message",
         )
-        if (handleRemoteDetectionFailureForFallback(reason = "failure:$message")) {
+        if (decision.shouldCountRemoteFailure &&
+            handleRemoteDetectionFailureForFallback(reason = "${request.lane.logName}_failure:$message")
+        ) {
             return
         }
-        continueOnlineInferenceAfterCompletion()
+        if (decision.shouldContinueCurrentLane) {
+            continueOnlineInferenceAfterCompletion(request.lane)
+        }
     }
 
     private fun handleOnlineDetectionDropped(
         request: OnlineHazardDetectionService.DetectionRequest,
         reason: String,
     ) {
-        if (!isOnlineRequestActive(request)) {
+        val runtime = onlineLaneRuntime(request.lane)
+        val decision = OnlineHazardCompetitionDecider.decide(
+            requestId = request.requestId,
+            activeRequestId = runtime.activeRequestId,
+            requestInFlight = runtime.requestInFlight,
+            outcome = OnlineHazardCompetitionDecider.Outcome.FAILURE,
+        )
+        if (decision.shouldIgnore) {
             return
         }
-        onlineRequestInFlight = false
-        Log.i(TAG, "online detect dropped requestId=${request.requestId} reason=$reason")
-        if (handleRemoteDetectionFailureForFallback(reason = "dropped:$reason")) {
+        runtime.requestInFlight = false
+        Log.i(TAG, "online detect dropped lane=${request.lane.logName} requestId=${request.requestId} reason=$reason")
+        if (decision.shouldCountRemoteFailure &&
+            handleRemoteDetectionFailureForFallback(reason = "${request.lane.logName}_dropped:$reason")
+        ) {
             return
         }
-        continueOnlineInferenceAfterCompletion()
+        if (decision.shouldContinueCurrentLane) {
+            continueOnlineInferenceAfterCompletion(request.lane)
+        }
     }
 
     private fun handleRemoteDetectionFailureForFallback(reason: String): Boolean {
         if (autoPipelineMode != AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY) {
+            return false
+        }
+        if (!enableLocalFallbackLoading) {
+            Log.i(TAG, "skip local fallback loading because config disabled reason=$reason")
             return false
         }
         remoteFailureCount += 1
@@ -1675,26 +1845,37 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return true
     }
 
-    private fun continueOnlineInferenceAfterCompletion() {
+    private fun continueOnlineInferenceAfterCompletion(
+        lane: OnlineHazardDetectionService.DetectionLane,
+    ) {
         if (startPendingStreamAnalysis()) {
             return
         }
-        if (!onlineLoopRunning || pageState != PageState.DETECTING) {
+        val runtime = onlineLaneRuntime(lane)
+        if (!runtime.loopRunning || pageState != PageState.DETECTING) {
             return
         }
         val advanceDecision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
             requestInFlight = false,
-            queuedNext = onlineQueuedNext,
+            queuedNext = runtime.queuedNext,
             nowElapsedMs = SystemClock.elapsedRealtime(),
-            nextEarliestStartElapsedMs = onlineNextEarliestStartElapsedMs,
-            loopAlreadyPosted = onlineLoopPosted,
+            nextEarliestStartElapsedMs = runtime.nextEarliestStartElapsedMs,
+            loopAlreadyPosted = runtime.loopPosted,
         )
         if (advanceDecision.startNow) {
-            postOnlineInferenceLoop(delayMs = 0L, reason = "online_queued_after_complete")
+            postOnlineInferenceLoop(
+                lane = lane,
+                delayMs = 0L,
+                reason = "online_queued_after_complete",
+            )
             return
         }
         advanceDecision.delayMs?.let { delayMs ->
-            postOnlineInferenceLoop(delayMs = delayMs, reason = "online_wait_next_window")
+            postOnlineInferenceLoop(
+                lane = lane,
+                delayMs = delayMs,
+                reason = "online_wait_next_window",
+            )
         }
     }
 
@@ -1706,18 +1887,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             autoInferenceEpoch == epoch
     }
 
-    private fun isOnlineLoopActive(epoch: Long): Boolean {
+    private fun isOnlineLoopActive(
+        lane: OnlineHazardDetectionService.DetectionLane,
+        epoch: Long,
+    ): Boolean {
+        val runtime = onlineLaneRuntime(lane)
         return !destroyed &&
             pageState == PageState.DETECTING &&
-            onlineLoopRunning &&
-            onlineLoopEpoch == epoch &&
+            runtime.loopRunning &&
+            runtime.loopEpoch == epoch &&
             autoInferenceEpoch == epoch
-    }
-
-    private fun isOnlineRequestActive(request: OnlineHazardDetectionService.DetectionRequest): Boolean {
-        return isOnlineLoopActive(request.epoch) &&
-            onlineRequestInFlight &&
-            request.requestId == onlineActiveRequestId
     }
 
     /**
@@ -1760,35 +1939,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun copyLatestSharedInferenceFrameForOnline(
-        lastTimestampExclusive: Long,
-        nowElapsedMs: Long = SystemClock.elapsedRealtime(),
-    ): SquareFramePayload? {
-        pruneSharedFrameForMotionIfNeeded(nowElapsedMs)
-        val frame = latestSharedInferenceFrame ?: return null
-        val decision = SharedInferenceFrameDecider.decide(
-            frameTimestamp = frame.timestamp,
-            frameReceivedAtElapsedMs = frame.receivedAtElapsedMs,
-            lastTimestampExclusive = lastTimestampExclusive,
-            nowElapsedMs = nowElapsedMs,
-            staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
-            lastMotionUnstableElapsedMs = lastMotionUnstableElapsedMs,
-            motionClearThresholdMs = SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS,
-        )
-        if (decision.shouldClearSharedFrame) {
-            clearLatestSharedInferenceFrame(decision.reason)
-            return null
-        }
-        if (!decision.canUseSharedFrame) {
-            Log.i(
-                TAG,
-                "shared frame unavailable reason=${decision.reason} ts=${frame.timestamp} last=$lastTimestampExclusive",
-            )
-            return null
-        }
-        return frame
-    }
-
     private fun copyLatestSquareFrameForLocalOrNull(lastTimestampExclusive: Long): SquareFramePayload? {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
@@ -1803,53 +1953,34 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     /**
      * 将统一方图编码为在线链路使用的 JPEG。
-     * 自动检测阶段这里与本地链路共享同一个 SquareFramePayload，差异仅在编码形式：
-     * 本地使用 NV21 缩放后直接推理，在线使用 JPEG 上传。
+     * 本地使用 NV21 缩放后直接推理，在线 lane 使用 JPEG 上传。
      */
     private fun buildCapturedFramePayload(frame: SquareFramePayload): CapturedFramePayload? {
         return frameCaptureService.buildCapturedFramePayload(frame)
     }
 
     /**
-     * 自动在线检测优先复用最近一次本地推理缓存的原始裁切方图。
-     * 若共享缓存不可用或编码失败，再回退到当前独立选帧逻辑。
+     * 在线检测 lane 总是直接独立选取最新画面，不等待本地共享缓存。
      */
-    private fun buildOnlineDetectionPayloadOrNull(lastTimestampExclusive: Long): CapturedFramePayload? {
-        val nowElapsedMs = SystemClock.elapsedRealtime()
-        val sharedFrame = copyLatestSharedInferenceFrameForOnline(
+    private fun buildOnlineDetectionPayloadOrNull(
+        lane: OnlineHazardDetectionService.DetectionLane,
+        lastTimestampExclusive: Long,
+    ): CapturedFramePayload? {
+        return selectBestOnlineFramePayload(
+            lane = lane,
             lastTimestampExclusive = lastTimestampExclusive,
-            nowElapsedMs = nowElapsedMs,
         )
-        if (sharedFrame != null) {
-            val sharedPayload = buildCapturedFramePayload(sharedFrame)
-            if (sharedPayload != null) {
-                Log.i(
-                    TAG,
-                    "online detect use shared frame ts=${sharedPayload.timestamp} size=${sharedPayload.width}x${sharedPayload.height}",
-                )
-                return sharedPayload
-            }
-            Log.i(TAG, "online detect fallback reason=shared_encode_failed ts=${sharedFrame.timestamp}")
-        } else {
-            Log.i(TAG, "online detect fallback reason=shared_unavailable")
-        }
-
-        val fallbackPayload = selectBestOnlineFramePayload(lastTimestampExclusive)
-        if (fallbackPayload != null) {
-            Log.i(
-                TAG,
-                "online detect fallback reason=fresh_capture ts=${fallbackPayload.timestamp} size=${fallbackPayload.width}x${fallbackPayload.height}",
-            )
-        }
-        return fallbackPayload
     }
 
-    private fun selectBestOnlineFramePayload(lastTimestampExclusive: Long): CapturedFramePayload? {
+    private fun selectBestOnlineFramePayload(
+        lane: OnlineHazardDetectionService.DetectionLane,
+        lastTimestampExclusive: Long,
+    ): CapturedFramePayload? {
         val bestPayload = frameCaptureService.selectBestFramePayload(lastTimestampExclusive)
         bestPayload?.let { payload ->
             Log.i(
                 TAG,
-                "selected online frame ts=${payload.timestamp} sharpness=${"%.2f".format(payload.sharpnessScore)} crop=${payload.cropRect} output=${payload.width}x${payload.height} bytes=${payload.jpegBytes.size}",
+                "selected online frame lane=${lane.logName} ts=${payload.timestamp} sharpness=${"%.2f".format(payload.sharpnessScore)} crop=${payload.cropRect} output=${payload.width}x${payload.height} bytes=${payload.jpegBytes.size}",
             )
         }
         return bestPayload
@@ -2660,7 +2791,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                     val request = OnlineHazardDetectionService.DetectionRequest(
                         epoch = autoInferenceEpoch,
-                        requestId = ++onlineActiveRequestId,
+                        requestId = nextOnlineRequestId(),
                         jpegBytes = jpegBytes.copyOf(),
                     )
                     queueAutoDetectedOnlineHazardPresentation(request)
@@ -2972,7 +3103,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 resolved = resolved,
             )
         }
-        val requestId = ++onlineActiveRequestId
+        val requestId = nextOnlineRequestId()
         val sharedJpegBytes = resolved.jpegBytes.copyOf()
         streamingInProgress = true
         onlineHazardDetectionService.requestDeepAnalysis(
@@ -3340,8 +3471,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             append(" pageState=").append(pageState)
             append(" captureInProgress=").append(captureInProgress)
             append(" inferenceRunning=").append(inferenceRunning.get())
-            append(" onlineFrameSelectionInProgress=").append(onlineFrameSelectionInProgress)
-            append(" onlineRequestInFlight=").append(onlineRequestInFlight)
+            append(" itemOnlineFrameSelectionInProgress=").append(itemOnlineLaneRuntime.frameSelectionInProgress)
+            append(" itemOnlineRequestInFlight=").append(itemOnlineLaneRuntime.requestInFlight)
+            append(" sceneOnlineFrameSelectionInProgress=").append(sceneOnlineLaneRuntime.frameSelectionInProgress)
+            append(" sceneOnlineRequestInFlight=").append(sceneOnlineLaneRuntime.requestInFlight)
             append(" streamingInProgress=").append(streamingInProgress)
             append(" pendingStreamStart=").append(pendingStreamStart)
             append(" heapUsed=").append(usedMemory)
@@ -3627,7 +3760,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         try {
             imageEncodeExecutor.execute {
-                val payload = selectBestOnlineFramePayload(lastTimestampExclusive = Long.MIN_VALUE)
+                val payload = selectBestOnlineFramePayload(
+                    lane = OnlineHazardDetectionService.DetectionLane.ITEM,
+                    lastTimestampExclusive = Long.MIN_VALUE,
+                )
                 if (payload == null) {
                     Log.e(TAG, "当前 SDK 在线选帧失败")
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))

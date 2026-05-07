@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
 
 /**
  * 在线隐患识别调度服务。
- * ctype=1 识别物品隐患阶段仅允许单飞，并对单次请求施加超时控制；
+ * ctype=1 / ctype=2 检测阶段在单个 service 实例内仅允许单飞，并对单次请求施加超时控制；
  * ctype=0 深度分析阶段按需单次拉取。
  */
 internal class OnlineHazardDetectionService(
@@ -25,10 +25,19 @@ internal class OnlineHazardDetectionService(
     private val infoLogger: (String) -> Unit = { message -> Log.i(TAG, message) },
     private val warningLogger: (String) -> Unit = { message -> Log.w(TAG, message) },
 ) {
+    enum class DetectionLane(
+        val ctype: Int,
+        val logName: String,
+    ) {
+        ITEM(1, "item"),
+        SCENE(2, "scene"),
+    }
+
     data class DetectionRequest(
         val epoch: Long,
         val requestId: Long,
         val jpegBytes: ByteArray,
+        val lane: DetectionLane = DetectionLane.ITEM,
     )
 
     data class DetailRequest(
@@ -47,7 +56,7 @@ internal class OnlineHazardDetectionService(
     }
 
     internal interface RequestGateway {
-        fun identifyItemHazard(
+        fun identifyHazard(
             request: DetectionRequest,
             base64Image: String,
             callback: AiArSseService.DetectCallback,
@@ -88,13 +97,13 @@ internal class OnlineHazardDetectionService(
         scheduler.post {
             if (activeDetectionRequest != null) {
                 warningLogger(
-                    "submitDetection droppedBusy requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+                    "submitDetection droppedBusy lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
                 )
                 callback.onDetectionDropped(request, REASON_BUSY)
                 return@post
             }
             infoLogger(
-                "submitDetection accepted requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+                "submitDetection accepted lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
             )
             startDetection(request)
         }
@@ -182,27 +191,27 @@ internal class OnlineHazardDetectionService(
         activeDetectionStartedElapsedMs = elapsedRealtimeProvider()
         scheduleDetectionTimeout()
         infoLogger(
-            "startDetection encodeStart requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs",
+            "startDetection encodeStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs",
         )
         encodeExecutor.execute {
             val base64Image = base64Encoder(request.jpegBytes)
             scheduler.post detectPost@{
                 if (activeDetectionRequest != request) {
                     infoLogger(
-                        "startDetection encodeDiscarded requestId=${request.requestId} epoch=${request.epoch}",
+                        "startDetection encodeDiscarded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch}",
                     )
                     return@detectPost
                 }
                 infoLogger(
-                    "startDetection encoded requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                    "startDetection encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                 )
-                activeDetectionHandle = requestGateway.identifyItemHazard(
+                activeDetectionHandle = requestGateway.identifyHazard(
                     request = request,
                     base64Image = base64Image,
                     callback = object : AiArSseService.DetectCallback {
                         override fun onOpened(handle: AiArSseService.RequestHandle) {
                             infoLogger(
-                                "detect opened taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                                "detect opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                             )
                         }
 
@@ -216,7 +225,7 @@ internal class OnlineHazardDetectionService(
                             }
                             clearActiveDetection()
                             infoLogger(
-                                "detect success taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                             )
                             callback.onDetectionResult(request, hasHazard, fullText)
                         }
@@ -230,7 +239,7 @@ internal class OnlineHazardDetectionService(
                             }
                             clearActiveDetection()
                             warningLogger(
-                                "detect failure taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs} message=$message",
+                                "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs} message=$message",
                             )
                             callback.onDetectionFailure(request, message)
                         }
@@ -255,12 +264,15 @@ internal class OnlineHazardDetectionService(
     private class SseRequestGateway(
         private val aiArSseService: AiArSseService,
     ) : RequestGateway {
-        override fun identifyItemHazard(
+        override fun identifyHazard(
             request: DetectionRequest,
             base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle {
-            return aiArSseService.identifyItemHazard(base64Image, callback)
+            return when (request.lane) {
+                DetectionLane.ITEM -> aiArSseService.identifyItemHazard(base64Image, callback)
+                DetectionLane.SCENE -> aiArSseService.identifySceneHazard(base64Image, callback)
+            }
         }
 
         override fun requestDeepAnalysis(

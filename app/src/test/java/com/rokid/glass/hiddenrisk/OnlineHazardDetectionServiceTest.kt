@@ -59,6 +59,25 @@ class OnlineHazardDetectionServiceTest {
     }
 
     @Test
+    fun submitDetection_sceneLaneUsesSceneGateway() {
+        val env = TestEnv()
+        val service = env.createService()
+
+        val request = detectionRequest(
+            requestId = 23L,
+            lane = OnlineHazardDetectionService.DetectionLane.SCENE,
+        )
+        service.submitDetection(request)
+
+        assertEquals(listOf(23L), env.gateway.startedDetectionRequestIds)
+        assertEquals(
+            listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
+            env.gateway.startedDetectionLanes,
+        )
+        assertEquals(2, env.gateway.lastDetectionHandle?.ctype)
+    }
+
+    @Test
     fun cancelAll_preventsOldDetectionCallbackDelivery() {
         val env = TestEnv()
         val service = env.createService()
@@ -78,11 +97,15 @@ class OnlineHazardDetectionServiceTest {
         assertTrue(staleHandle?.isCanceled() ?: false)
     }
 
-    private fun detectionRequest(requestId: Long): OnlineHazardDetectionService.DetectionRequest {
+    private fun detectionRequest(
+        requestId: Long,
+        lane: OnlineHazardDetectionService.DetectionLane = OnlineHazardDetectionService.DetectionLane.ITEM,
+    ): OnlineHazardDetectionService.DetectionRequest {
         return OnlineHazardDetectionService.DetectionRequest(
             epoch = 1L,
             requestId = requestId,
             jpegBytes = byteArrayOf(1, 2, 3),
+            lane = lane,
         )
     }
 
@@ -191,20 +214,23 @@ class OnlineHazardDetectionServiceTest {
         var lastDetectionHandle: AiArSseService.RequestHandle? = null
         var detailCallback: AiArSseService.DetailCallback? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
+        val startedDetectionLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
 
-        override fun identifyItemHazard(
+        override fun identifyHazard(
             request: OnlineHazardDetectionService.DetectionRequest,
             base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle {
             val requestId = request.requestId
+            val lane = request.lane
             val handle = AiArSseService.RequestHandle(
                 taskId = "detect-$requestId",
-                ctype = 1,
+                ctype = lane.ctype,
             )
             detectCallback = callback
             lastDetectionHandle = handle
             startedDetectionRequestIds += requestId
+            startedDetectionLanes += lane
             return handle
         }
 

@@ -81,12 +81,35 @@ class AiArSseService(
         base64Image: String,
         callback: DetectCallback,
     ): RequestHandle {
+        return requestHazardDetection(
+            base64Image = base64Image,
+            detectCtype = CTYPE_IDENTIFY_ITEM_HAZARD,
+            callback = callback,
+        )
+    }
+
+    fun identifySceneHazard(
+        base64Image: String,
+        callback: DetectCallback,
+    ): RequestHandle {
+        return requestHazardDetection(
+            base64Image = base64Image,
+            detectCtype = CTYPE_IDENTIFY_SCENE_HAZARD,
+            callback = callback,
+        )
+    }
+
+    private fun requestHazardDetection(
+        base64Image: String,
+        detectCtype: Int,
+        callback: DetectCallback,
+    ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_IDENTIFY_ITEM_HAZARD)
+        val handle = RequestHandle(taskId = taskId, ctype = detectCtype)
         val aggregator = AiArEventAggregator(gson)
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, ctype = CTYPE_IDENTIFY_ITEM_HAZARD, image = base64Image),
+            payload = RequestPayload(task_id = taskId, ctype = detectCtype, image = base64Image),
             onOpened = { callback.onOpened(handle) },
             onClosed = { fullText ->
                 val hasHazard = parseHasHazard(fullText)
@@ -348,6 +371,7 @@ class AiArSseService(
         private const val DONE_SENTINEL = "[DONE]"
         private const val CTYPE_DEEP_ANALYSIS = 0
         private const val CTYPE_IDENTIFY_ITEM_HAZARD = 1
+        private const val CTYPE_IDENTIFY_SCENE_HAZARD = 2
         private const val CTYPE_FETCH_INSPECTION_GUIDE = 3
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512

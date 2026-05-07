@@ -73,8 +73,12 @@
     "onlineSelectPollIntervalMs": 80,
     // 在线检测最小触发间隔，单位 ms。standard 默认 1000，demo overlay 会覆盖。
     "onlineDetectIntervalMs": 1000,
+    // 在线场景识别最小触发间隔，单位 ms。
+    "onlineSceneDetectIntervalMs": 3000,
     // 远程 ctype=1 连续失败达到该次数后，降级到本地 NCNN 备用链路。
     "remoteFailureFallbackThreshold": 3,
+    // 是否允许远端失败后进入本地 fallback loading。接口联调阶段默认关闭，避免自动切到本地链路干扰验证。
+    "enableLocalFallbackLoading": false,
     // 本地备用链路运行时，系统网络恢复探测间隔，单位 ms。
     "localNetworkProbeIntervalMs": 3000,
     // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
@@ -95,7 +99,7 @@
     },
     "aiArApi": {
       // AI AR SSE 接口地址。
-      "url": "http://183.147.142.133:50016/ai/ar",
+      "url": "http://183.147.142.133:50011/ai/ar",
       // AI AR SSE connect timeout，单位 ms。
       "connectTimeoutMs": 15000,
       // AI AR SSE read timeout，单位 ms。流式接口一般需要更长读取时间。
@@ -107,7 +111,7 @@
     },
     "deviceGuideDetectApi": {
       // 设备指引检测接口地址。当前先复用 /ai/ar，后续可替换为独立服务。
-      "url": "http://183.147.142.133:50016/ai/ar",
+      "url": "http://183.147.142.133:50011/ai/ar",
       // 设备指引检测 connect timeout，单位 ms。
       "connectTimeoutMs": 15000,
       // 设备指引检测 read timeout，单位 ms。

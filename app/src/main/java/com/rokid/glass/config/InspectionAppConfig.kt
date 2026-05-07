@@ -53,7 +53,9 @@ data class AiInspectionConfig(
     val onlineSelectMaxFrames: Int = 3,
     val onlineSelectPollIntervalMs: Long = 80L,
     val onlineDetectIntervalMs: Long = 1000L,
+    val onlineSceneDetectIntervalMs: Long = 3000L,
     val remoteFailureFallbackThreshold: Int = 3,
+    val enableLocalFallbackLoading: Boolean = false,
     val localNetworkProbeIntervalMs: Long = 3000L,
     val forceOnlineDetailForLocalHazard: Boolean = false,
 )
@@ -73,7 +75,7 @@ data class EnterpriseObjectApiConfig(
 )
 
 data class AiArApiConfig(
-    val url: String = "http://183.147.142.133:50016/ai/ar",
+    val url: String = "http://183.147.142.133:50011/ai/ar",
     val connectTimeoutMs: Long = 15_000L,
     val readTimeoutMs: Long = 45_000L,
     val writeTimeoutMs: Long = 30_000L,
@@ -171,7 +173,9 @@ data class AiInspectionConfigOverride(
     val onlineSelectMaxFrames: Int? = null,
     val onlineSelectPollIntervalMs: Long? = null,
     val onlineDetectIntervalMs: Long? = null,
+    val onlineSceneDetectIntervalMs: Long? = null,
     val remoteFailureFallbackThreshold: Int? = null,
+    val enableLocalFallbackLoading: Boolean? = null,
     val localNetworkProbeIntervalMs: Long? = null,
     val forceOnlineDetailForLocalHazard: Boolean? = null,
 )
