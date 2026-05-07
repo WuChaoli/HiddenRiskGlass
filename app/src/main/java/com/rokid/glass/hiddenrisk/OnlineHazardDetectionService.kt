@@ -38,6 +38,8 @@ internal class OnlineHazardDetectionService(
         val requestId: Long,
         val jpegBytes: ByteArray,
         val lane: DetectionLane = DetectionLane.ITEM,
+        val frameTimestamp: Long = 0L,
+        val frameCapturedAtElapsedMs: Long = 0L,
     )
 
     data class DetailRequest(
@@ -205,6 +207,10 @@ internal class OnlineHazardDetectionService(
                 infoLogger(
                     "startDetection encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
                 )
+                val uploadStartedElapsedMs = elapsedRealtimeProvider()
+                infoLogger(
+                    "detect timing uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} encodeMs=${uploadStartedElapsedMs - activeDetectionStartedElapsedMs} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length}",
+                )
                 activeDetectionHandle = requestGateway.identifyHazard(
                     request = request,
                     base64Image = base64Image,
@@ -223,9 +229,19 @@ internal class OnlineHazardDetectionService(
                             if (activeDetectionRequest != request) {
                                 return
                             }
+                            val completedElapsedMs = elapsedRealtimeProvider()
+                            val detectElapsedMs = completedElapsedMs - activeDetectionStartedElapsedMs
+                            val captureToHasHazardMs = durationOrMinusOne(
+                                request.frameCapturedAtElapsedMs,
+                                completedElapsedMs,
+                            )
+                            val uploadToHasHazardMs = completedElapsedMs - uploadStartedElapsedMs
                             clearActiveDetection()
                             infoLogger(
-                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=$detectElapsedMs",
+                            )
+                            infoLogger(
+                                "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} jpegBytes=${request.jpegBytes.size}",
                             )
                             callback.onDetectionResult(request, hasHazard, fullText)
                         }
@@ -237,9 +253,11 @@ internal class OnlineHazardDetectionService(
                             if (activeDetectionRequest != request) {
                                 return
                             }
+                            val failedElapsedMs = elapsedRealtimeProvider()
+                            val detectElapsedMs = failedElapsedMs - activeDetectionStartedElapsedMs
                             clearActiveDetection()
                             warningLogger(
-                                "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs} message=$message",
+                                "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=$detectElapsedMs captureToFailureMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, failedElapsedMs)} message=$message",
                             )
                             callback.onDetectionFailure(request, message)
                         }
@@ -309,5 +327,13 @@ internal class OnlineHazardDetectionService(
         private const val TAG = "OnlineHazardDetect"
         const val REASON_TIMEOUT = "timeout"
         const val REASON_BUSY = "busy"
+
+        private fun durationOrMinusOne(startElapsedMs: Long, endElapsedMs: Long): Long {
+            return if (startElapsedMs > 0L && endElapsedMs >= startElapsedMs) {
+                endElapsedMs - startElapsedMs
+            } else {
+                -1L
+            }
+        }
     }
 }

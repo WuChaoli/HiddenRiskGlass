@@ -2,6 +2,7 @@ package com.rokid.glass.hiddenrisk
 
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.config.AiArApiConfig
@@ -184,6 +185,7 @@ class AiArSseService(
         onFailure: (String) -> Unit,
         aggregator: AiArEventAggregator,
     ) {
+        val requestStartedElapsedMs = SystemClock.elapsedRealtime()
         val requestBody = gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE)
         val request = Request.Builder()
             .url(apiConfig.url)
@@ -198,6 +200,7 @@ class AiArSseService(
             request,
             object : EventSourceListener() {
                 private val terminalDelivered = AtomicBoolean(false)
+                private var firstEventElapsedMs = 0L
 
                 override fun onOpen(eventSource: EventSource, response: Response) {
                     Log.i(
@@ -236,6 +239,13 @@ class AiArSseService(
                     if (normalizedData.isEmpty()) {
                         return
                     }
+                    if (firstEventElapsedMs == 0L) {
+                        firstEventElapsedMs = SystemClock.elapsedRealtime()
+                        Log.i(
+                            TAG,
+                            "openStream firstEvent ctype=${payload.ctype} taskId=${payload.task_id} uploadToFirstEventMs=${firstEventElapsedMs - requestStartedElapsedMs} id=${id ?: "(none)"} type=${type ?: "(none)"} dataChars=${normalizedData.length}",
+                        )
+                    }
                     runCatching {
                         aggregator.append(normalizedData)
                         aggregator.fullText()
@@ -266,6 +276,11 @@ class AiArSseService(
                         return
                     }
                     val fullText = aggregator.fullText().trim()
+                    val closedElapsedMs = SystemClock.elapsedRealtime()
+                    Log.i(
+                        TAG,
+                        "openStream closed ctype=${payload.ctype} taskId=${payload.task_id} uploadToClosedMs=${closedElapsedMs - requestStartedElapsedMs} firstEventToClosedMs=${durationOrMinusOne(firstEventElapsedMs, closedElapsedMs)} fullTextLength=${fullText.length}",
+                    )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
                             runCatching {
@@ -386,6 +401,14 @@ class AiArSseService(
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
+        private fun durationOrMinusOne(startElapsedMs: Long, endElapsedMs: Long): Long {
+            return if (startElapsedMs > 0L && endElapsedMs >= startElapsedMs) {
+                endElapsedMs - startElapsedMs
+            } else {
+                -1L
+            }
+        }
 
         internal fun isDoneEvent(type: String?, normalizedData: String): Boolean {
             if (type.equals(DONE_EVENT_TYPE, ignoreCase = true)) {

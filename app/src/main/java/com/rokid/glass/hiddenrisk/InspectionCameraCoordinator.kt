@@ -46,23 +46,39 @@ object InspectionCameraCoordinator {
 
         fun snapshot(): SessionSnapshot = snapshot
 
-        fun beginAcquire(owner: CameraOwner, readyNow: Boolean): SessionSnapshot {
+        fun beginAcquire(
+            owner: CameraOwner,
+            readyNow: Boolean,
+            needPreview: Boolean,
+        ): SessionSnapshot {
             val next = SessionSnapshot(
                 owner = owner,
-                state = if (readyNow) snapshot.state.coerceReadyState() else CameraSessionState.OPENING,
+                state = if (readyNow) {
+                    if (needPreview) CameraSessionState.READY_WITH_PREVIEW else CameraSessionState.READY_NO_PREVIEW
+                } else {
+                    CameraSessionState.OPENING
+                },
                 generation = snapshot.generation + 1L,
             )
             snapshot = next
             return next
         }
 
-        fun beginPreviewUpdate(owner: CameraOwner, readyNow: Boolean): SessionSnapshot? {
+        fun beginPreviewUpdate(
+            owner: CameraOwner,
+            readyNow: Boolean,
+            needPreview: Boolean,
+        ): SessionSnapshot? {
             if (snapshot.owner != owner) {
                 return null
             }
             val next = SessionSnapshot(
                 owner = owner,
-                state = if (readyNow) snapshot.state.coerceReadyState() else CameraSessionState.OPENING,
+                state = if (readyNow) {
+                    if (needPreview) CameraSessionState.READY_WITH_PREVIEW else CameraSessionState.READY_NO_PREVIEW
+                } else {
+                    CameraSessionState.OPENING
+                },
                 generation = snapshot.generation + 1L,
             )
             snapshot = next
@@ -149,13 +165,6 @@ object InspectionCameraCoordinator {
             )
         }
 
-        private fun CameraSessionState.coerceReadyState(): CameraSessionState {
-            return when (this) {
-                CameraSessionState.READY_WITH_PREVIEW -> CameraSessionState.READY_WITH_PREVIEW
-                CameraSessionState.READY_NO_PREVIEW -> CameraSessionState.READY_NO_PREVIEW
-                else -> CameraSessionState.READY_NO_PREVIEW
-            }
-        }
     }
 
     private const val TAG = "InspectionCameraCoord"
@@ -185,7 +194,7 @@ object InspectionCameraCoordinator {
             } else {
                 boundPreviewView = null
             }
-            stateMachine.beginAcquire(owner, readyNow = readyNow)
+            stateMachine.beginAcquire(owner, readyNow = readyNow, needPreview = needPreview)
         }
         logState(
             action = "acquire",
@@ -285,7 +294,7 @@ object InspectionCameraCoordinator {
     ): Long {
         val readyNow = isFrameStreamReady()
         val snapshot = synchronized(lock) {
-            stateMachine.beginPreviewUpdate(owner, readyNow = readyNow)?.also {
+            stateMachine.beginPreviewUpdate(owner, readyNow = readyNow, needPreview = needPreview)?.also {
                 activeNeedPreview = needPreview
                 if (needPreview) {
                     boundPreviewView = previewView

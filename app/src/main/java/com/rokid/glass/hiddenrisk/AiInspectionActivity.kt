@@ -1714,6 +1714,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             requestId = requestId,
                             jpegBytes = payload.jpegBytes.copyOf(),
                             lane = lane,
+                            frameTimestamp = payload.timestamp,
+                            frameCapturedAtElapsedMs = payload.receivedAtElapsedMs,
                         ),
                     )
                     postOnlineInferenceLoop(
@@ -2798,6 +2800,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         epoch = autoInferenceEpoch,
                         requestId = nextOnlineRequestId(),
                         jpegBytes = jpegBytes.copyOf(),
+                        frameTimestamp = payload.timestamp,
+                        frameCapturedAtElapsedMs = payload.receivedAtElapsedMs,
                     )
                     queueAutoDetectedOnlineHazardPresentation(request)
                 }

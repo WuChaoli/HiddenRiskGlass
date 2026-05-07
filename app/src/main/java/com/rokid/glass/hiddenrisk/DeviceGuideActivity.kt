@@ -94,6 +94,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var currentPayload: InspectionFrameCaptureService.CapturedFramePayload? = null
     private var detectInFlight = false
     private var detailInFlight = false
+    private var previewRestartAttempted = false
     private var activeDetectHandle: AiArSseService.RequestHandle? = null
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
     private var batteryReceiver: BroadcastReceiver? = null
@@ -298,22 +299,76 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             requestPermissionsIfNeeded()
             return
         }
-        if (frameStreamReady && InspectionCameraCoordinator.isFrameStreamReady()) {
+        if (
+            frameStreamReady &&
+            InspectionCameraCoordinator.isFrameStreamReady() &&
+            (pageState != PageState.DETECTING || viewLivePreview.isPreviewStarted())
+        ) {
             return
         }
         if (frameStreamInitializing || RokidSdkManager.state != RokidSdkManager.SdkState.READY) {
             return
         }
         frameStreamInitializing = true
-        InspectionCameraCoordinator.acquire(
+        var requestGeneration = 0L
+        requestGeneration = InspectionCameraCoordinator.acquire(
             owner = CameraOwner.DEVICE_GUIDE,
             needPreview = true,
             previewView = viewLivePreview,
         ) { success ->
             uiHandler.post {
+                if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
+                    Log.i(
+                        TAG,
+                        "ignore stale device guide acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
+                    )
+                    return@post
+                }
                 frameStreamInitializing = false
                 frameStreamReady = success
-                if (!success) {
+                Log.i(
+                    TAG,
+                    "ensureFrameStreamReady end success=$success generation=$requestGeneration previewStarted=${viewLivePreview.isPreviewStarted()} state=${InspectionCameraCoordinator.getState()}",
+                )
+                if (success && !viewLivePreview.isPreviewStarted() && !previewRestartAttempted) {
+                    restartFrameStreamForPreview()
+                    return@post
+                }
+                if (success) {
+                    previewRestartAttempted = false
+                    scheduleNextDetection(immediate = true)
+                } else {
+                    tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
+                }
+            }
+        }
+    }
+
+    private fun restartFrameStreamForPreview() {
+        previewRestartAttempted = true
+        frameStreamInitializing = true
+        frameStreamReady = false
+        Log.i(
+            TAG,
+            "restartFrameStreamForPreview state=${InspectionCameraCoordinator.getState()} previewStarted=${viewLivePreview.isPreviewStarted()}",
+        )
+        InspectionCameraCoordinator.restart(
+            owner = CameraOwner.DEVICE_GUIDE,
+            reason = "device_guide_preview_not_started",
+            needPreview = true,
+            previewView = viewLivePreview,
+        ) { restartSuccess ->
+            uiHandler.post {
+                frameStreamInitializing = false
+                frameStreamReady = restartSuccess
+                Log.i(
+                    TAG,
+                    "restartFrameStreamForPreview end success=$restartSuccess previewStarted=${viewLivePreview.isPreviewStarted()} state=${InspectionCameraCoordinator.getState()}",
+                )
+                if (restartSuccess) {
+                    previewRestartAttempted = false
+                    scheduleNextDetection(immediate = true)
+                } else {
                     tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
                 }
             }
