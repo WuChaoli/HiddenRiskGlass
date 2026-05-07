@@ -179,6 +179,8 @@ object InspectionConfigRepository {
                 override?.onlineSelectPollIntervalMs ?: base.onlineSelectPollIntervalMs,
             onlineDetectIntervalMs =
                 override?.onlineDetectIntervalMs ?: base.onlineDetectIntervalMs,
+            enableOnlineSceneHazardDetection =
+                override?.enableOnlineSceneHazardDetection ?: base.enableOnlineSceneHazardDetection,
             onlineSceneDetectIntervalMs =
                 override?.onlineSceneDetectIntervalMs ?: base.onlineSceneDetectIntervalMs,
             remoteFailureFallbackThreshold =

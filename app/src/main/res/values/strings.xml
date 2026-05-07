@@ -157,10 +157,8 @@
     <string name="ai_inspection_voice_exit">退出</string>
     <string name="ai_inspection_voice_analysis">分析</string>
     <string name="ai_inspection_voice_analysis_deep">深度分析</string>
-    <string name="ai_inspection_voice_finish">结束</string>
-    <string name="ai_inspection_voice_finish_accent_alias">结速</string>
-    <string name="ai_inspection_voice_finish_patrol">结束巡查</string>
-    <string name="ai_inspection_voice_finish_detect">结束识患</string>
+    <string name="ai_inspection_voice_finish">结束任务</string>
+    <string name="ai_inspection_voice_finish_accent_alias">结速任务</string>
     <string name="ai_inspection_online_display_title">在线识别隐患</string>
     <string name="ai_inspection_online_fetching_detail">正在拉取在线隐患详情...</string>
     <string name="ai_inspection_online_prepare_image">正在准备图像...</string>

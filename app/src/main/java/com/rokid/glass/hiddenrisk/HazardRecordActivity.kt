@@ -248,7 +248,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 label = "结束任务",
                 triggers = listOf(
                     UnifiedInputSession.InputTrigger.Voice("结束任务", "jie shu ren wu"),
-                    UnifiedInputSession.InputTrigger.Voice("结束", "jie shu"),
+                    UnifiedInputSession.InputTrigger.Voice("结速任务", "jie su ren wu"),
                 ),
                 enabled = { pageState == PageState.IDLE },
             ) {

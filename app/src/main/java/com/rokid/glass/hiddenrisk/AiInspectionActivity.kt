@@ -313,6 +313,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val onlineDetectIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
 
+    private val enableOnlineSceneHazardDetection: Boolean
+        get() = InspectionConfigRepository.get().aiInspection.enableOnlineSceneHazardDetection
+
     private val onlineSceneDetectIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs
 
@@ -639,7 +642,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun areAllOnlineLanesRunning(): Boolean {
-        return itemOnlineLaneRuntime.loopRunning && sceneOnlineLaneRuntime.loopRunning
+        return itemOnlineLaneRuntime.loopRunning &&
+            (!enableOnlineSceneHazardDetection || sceneOnlineLaneRuntime.loopRunning)
     }
 
     private fun resetOnlineLaneRuntime(runtime: OnlineDetectionLaneRuntime) {
@@ -1213,11 +1217,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 delayMs = initialDelayMs,
                 reason = reason,
             )
-            startOnlineDetectionLaneIfNeeded(
-                lane = OnlineHazardDetectionService.DetectionLane.SCENE,
-                delayMs = initialDelayMs,
-                reason = reason,
-            )
+            if (enableOnlineSceneHazardDetection) {
+                startOnlineDetectionLaneIfNeeded(
+                    lane = OnlineHazardDetectionService.DetectionLane.SCENE,
+                    delayMs = initialDelayMs,
+                    reason = reason,
+                )
+            }
         }
     }
 
@@ -2209,10 +2215,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId("ai_detecting_finish"),
                 label = getString(R.string.ai_inspection_input_label_detecting_finish),
                 triggers = listOf(
-                    voiceTrigger(R.string.ai_inspection_voice_finish, "jie shu"),
-                    voiceTrigger(R.string.ai_inspection_voice_finish_accent_alias, "jie su"),
-                    voiceTrigger(R.string.ai_inspection_voice_finish_patrol, "jie shu xun cha"),
-                    voiceTrigger(R.string.ai_inspection_voice_finish_detect, "jie shu shi huan"),
+                    voiceTrigger(R.string.ai_inspection_voice_finish, "jie shu ren wu"),
+                    voiceTrigger(R.string.ai_inspection_voice_finish_accent_alias, "jie su ren wu"),
                 ),
                 enabled = { pageState == PageState.DETECTING && !isAutoHazardPresentationPending() },
             ) {

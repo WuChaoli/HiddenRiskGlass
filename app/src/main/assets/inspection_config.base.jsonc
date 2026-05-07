@@ -73,6 +73,8 @@
     "onlineSelectPollIntervalMs": 80,
     // 在线检测最小触发间隔，单位 ms。standard 默认 1000，demo overlay 会覆盖。
     "onlineDetectIntervalMs": 1000,
+    // 是否启用隐患场景识别 ctype=2。默认关闭，只保留隐患物品识别 ctype=1。
+    "enableOnlineSceneHazardDetection": false,
     // 在线场景识别最小触发间隔，单位 ms。
     "onlineSceneDetectIntervalMs": 3000,
     // 远程 ctype=1 连续失败达到该次数后，降级到本地 NCNN 备用链路。
