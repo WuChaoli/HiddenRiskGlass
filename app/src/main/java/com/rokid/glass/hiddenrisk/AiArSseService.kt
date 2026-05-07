@@ -8,13 +8,17 @@ import com.google.gson.Gson
 import com.rokid.glass.config.AiArApiConfig
 import com.rokid.glass.config.InspectionConfigRepository
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Call
+import okhttp3.EventListener
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import okio.BufferedSink
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -23,11 +27,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class AiArSseService(
     private val apiConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiArApi,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-        .build(),
+    private val client: OkHttpClient = createDefaultClient(apiConfig),
     private val gson: Gson = Gson(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
 ) {
@@ -175,10 +175,17 @@ class AiArSseService(
         aggregator: AiArEventAggregator,
     ) {
         val requestStartedElapsedMs = SystemClock.elapsedRealtime()
-        val requestBody = gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE)
+        val rawRequestBody = gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE)
+        val requestBody = TimingRequestBody(
+            delegate = rawRequestBody,
+            taskId = payload.task_id,
+            ctype = payload.ctype,
+            requestStartedElapsedMs = requestStartedElapsedMs,
+        )
         val request = Request.Builder()
             .url(apiConfig.url)
             .header("Accept", "text/event-stream")
+            .tag(RequestTimingTag::class.java, RequestTimingTag(payload.task_id, payload.ctype, requestStartedElapsedMs))
             .post(requestBody)
             .build()
         Log.i(
@@ -192,9 +199,10 @@ class AiArSseService(
                 private var firstEventElapsedMs = 0L
 
                 override fun onOpen(eventSource: EventSource, response: Response) {
+                    val openedElapsedMs = SystemClock.elapsedRealtime()
                     Log.i(
                         TAG,
-                        "openStream opened ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} requestUrl=${response.request.url} httpCode=${response.code} httpMessage=${response.message} contentType=${response.header("Content-Type")}",
+                        "openStream opened ctype=${payload.ctype} taskId=${payload.task_id} uploadToOpenedMs=${openedElapsedMs - requestStartedElapsedMs} endpoint=${apiConfig.url} requestUrl=${response.request.url} httpCode=${response.code} httpMessage=${response.message} contentType=${response.header("Content-Type")}",
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
@@ -388,6 +396,15 @@ class AiArSseService(
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
+        private fun createDefaultClient(apiConfig: AiArApiConfig): OkHttpClient {
+            return OkHttpClient.Builder()
+                .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+                .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+                .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
+                .eventListenerFactory(TimingEventListenerFactory)
+                .build()
+        }
+
         private fun durationOrMinusOne(startElapsedMs: Long, endElapsedMs: Long): Long {
             return if (startElapsedMs > 0L && endElapsedMs >= startElapsedMs) {
                 endElapsedMs - startElapsedMs
@@ -401,6 +418,104 @@ class AiArSseService(
                 return true
             }
             return normalizedData == DONE_SENTINEL || normalizedData == DONE_SENTINEL_JSON_ARRAY
+        }
+    }
+
+    private data class RequestTimingTag(
+        val taskId: String,
+        val ctype: Int,
+        val requestStartedElapsedMs: Long,
+    )
+
+    private class TimingRequestBody(
+        private val delegate: RequestBody,
+        private val taskId: String,
+        private val ctype: Int,
+        private val requestStartedElapsedMs: Long,
+    ) : RequestBody() {
+        override fun contentType() = delegate.contentType()
+
+        override fun contentLength(): Long = delegate.contentLength()
+
+        override fun writeTo(sink: BufferedSink) {
+            val bodyStartElapsedMs = SystemClock.elapsedRealtime()
+            Log.i(
+                TAG,
+                "openStream bodyTiming event=writeStart ctype=$ctype taskId=$taskId requestStartToBodyStartMs=${bodyStartElapsedMs - requestStartedElapsedMs} contentLength=${contentLength()}",
+            )
+            delegate.writeTo(sink)
+            val bodyEndElapsedMs = SystemClock.elapsedRealtime()
+            Log.i(
+                TAG,
+                "openStream bodyTiming event=writeEnd ctype=$ctype taskId=$taskId requestStartToBodyEndMs=${bodyEndElapsedMs - requestStartedElapsedMs} requestBodyMs=${durationOrMinusOne(bodyStartElapsedMs, bodyEndElapsedMs)} contentLength=${contentLength()}",
+            )
+        }
+    }
+
+    private object TimingEventListenerFactory : EventListener.Factory {
+        override fun create(call: Call): EventListener {
+            val tag = call.request().tag(RequestTimingTag::class.java)
+            return if (tag == null) {
+                EventListener.NONE
+            } else {
+                TimingEventListener(tag)
+            }
+        }
+    }
+
+    private class TimingEventListener(
+        private val tag: RequestTimingTag,
+    ) : EventListener() {
+        private var requestBodyStartedElapsedMs = 0L
+        private var requestBodyEndedElapsedMs = 0L
+
+        override fun callStart(call: Call) {
+            logTiming("callStart")
+        }
+
+        override fun requestBodyStart(call: Call) {
+            requestBodyStartedElapsedMs = SystemClock.elapsedRealtime()
+            logTiming("requestBodyStart")
+        }
+
+        override fun requestBodyEnd(call: Call, byteCount: Long) {
+            requestBodyEndedElapsedMs = SystemClock.elapsedRealtime()
+            Log.i(
+                TAG,
+                "openStream networkTiming event=requestBodyEnd ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${requestBodyEndedElapsedMs - tag.requestStartedElapsedMs} requestBodyMs=${durationOrMinusOne(requestBodyStartedElapsedMs, requestBodyEndedElapsedMs)} byteCount=$byteCount",
+            )
+        }
+
+        override fun responseHeadersStart(call: Call) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            Log.i(
+                TAG,
+                "openStream networkTiming event=responseHeadersStart ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} bodyEndToHeadersMs=${durationOrMinusOne(requestBodyEndedElapsedMs, nowElapsedMs)}",
+            )
+        }
+
+        override fun responseHeadersEnd(call: Call, response: Response) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            Log.i(
+                TAG,
+                "openStream networkTiming event=responseHeadersEnd ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} httpCode=${response.code} httpMessage=${response.message}",
+            )
+        }
+
+        override fun callFailed(call: Call, ioe: java.io.IOException) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            Log.w(
+                TAG,
+                "openStream networkTiming event=callFailed ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} error=${ioe.javaClass.simpleName}:${ioe.message}",
+            )
+        }
+
+        private fun logTiming(event: String) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            Log.i(
+                TAG,
+                "openStream networkTiming event=$event ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs}",
+            )
         }
     }
 }

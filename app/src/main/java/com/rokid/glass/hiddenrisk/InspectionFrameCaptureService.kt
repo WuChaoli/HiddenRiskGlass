@@ -62,6 +62,7 @@ class InspectionFrameCaptureService(
             height = frame.height,
             timestamp = frame.timestamp,
             receivedAtElapsedMs = frame.receivedAtElapsedMs,
+            payloadBuiltAtElapsedMs = clockElapsedMs(),
             sourceWidth = frame.sourceWidth,
             sourceHeight = frame.sourceHeight,
             cropRect = copyRect(frame.cropRect),
@@ -75,10 +76,15 @@ class InspectionFrameCaptureService(
     }
 
     fun selectBestFramePayload(lastTimestampExclusive: Long): CapturedFramePayload? {
-        val deadline = clockElapsedMs() + selectWindowMs
+        val selectStartedElapsedMs = clockElapsedMs()
+        val deadline = selectStartedElapsedMs + selectWindowMs
         var bestFrame: SquareFramePayload? = null
         var lastTimestamp = lastTimestampExclusive
         var sampledFrames = 0
+        logger(
+            "select_best_frame_payload:start",
+            "lastTs=$lastTimestampExclusive windowMs=$selectWindowMs maxFrames=$selectMaxFrames",
+        )
         while (sampledFrames < selectMaxFrames) {
             val frame = copyLatestSquareFrameOrNull(lastTimestamp)
             if (frame == null) {
@@ -102,7 +108,19 @@ class InspectionFrameCaptureService(
             }
             sleepMs(selectPollIntervalMs)
         }
-        return bestFrame?.let(::buildCapturedFramePayload)
+        val selectedFrame = bestFrame
+        if (selectedFrame == null) {
+            logger(
+                "select_best_frame_payload:null",
+                "sampledFrames=$sampledFrames elapsedMs=${clockElapsedMs() - selectStartedElapsedMs}",
+            )
+            return null
+        }
+        logger(
+            "select_best_frame_payload:selected",
+            "frameTs=${selectedFrame.timestamp} sampledFrames=$sampledFrames sharpness=${"%.2f".format(selectedFrame.sharpnessScore)} selectElapsedMs=${clockElapsedMs() - selectStartedElapsedMs}",
+        )
+        return buildCapturedFramePayload(selectedFrame)
     }
 
     private fun SourceSquareFrame.toPayload(): SquareFramePayload {
@@ -162,6 +180,7 @@ class InspectionFrameCaptureService(
         val height: Int,
         val timestamp: Long,
         val receivedAtElapsedMs: Long,
+        val payloadBuiltAtElapsedMs: Long,
         val sourceWidth: Int,
         val sourceHeight: Int,
         val cropRect: Rect,

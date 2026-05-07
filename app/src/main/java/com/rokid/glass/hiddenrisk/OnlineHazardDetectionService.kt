@@ -40,6 +40,7 @@ internal class OnlineHazardDetectionService(
         val lane: DetectionLane = DetectionLane.ITEM,
         val frameTimestamp: Long = 0L,
         val frameCapturedAtElapsedMs: Long = 0L,
+        val framePayloadBuiltAtElapsedMs: Long = 0L,
     )
 
     data class DetailRequest(
@@ -193,10 +194,12 @@ internal class OnlineHazardDetectionService(
         activeDetectionStartedElapsedMs = elapsedRealtimeProvider()
         scheduleDetectionTimeout()
         infoLogger(
-            "startDetection encodeStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs",
+            "startDetection encodeStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs captureToSubmitMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, activeDetectionStartedElapsedMs)} payloadBuiltToSubmitMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, activeDetectionStartedElapsedMs)}",
         )
         encodeExecutor.execute {
+            val base64StartedElapsedMs = elapsedRealtimeProvider()
             val base64Image = base64Encoder(request.jpegBytes)
+            val base64FinishedElapsedMs = elapsedRealtimeProvider()
             scheduler.post detectPost@{
                 if (activeDetectionRequest != request) {
                     infoLogger(
@@ -209,7 +212,7 @@ internal class OnlineHazardDetectionService(
                 )
                 val uploadStartedElapsedMs = elapsedRealtimeProvider()
                 infoLogger(
-                    "detect timing uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} encodeMs=${uploadStartedElapsedMs - activeDetectionStartedElapsedMs} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length}",
+                    "detect timing uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=${uploadStartedElapsedMs - activeDetectionStartedElapsedMs} base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length}",
                 )
                 activeDetectionHandle = requestGateway.identifyHazard(
                     request = request,
@@ -231,6 +234,7 @@ internal class OnlineHazardDetectionService(
                             }
                             val completedElapsedMs = elapsedRealtimeProvider()
                             val detectElapsedMs = completedElapsedMs - activeDetectionStartedElapsedMs
+                            val submitToUploadMs = uploadStartedElapsedMs - activeDetectionStartedElapsedMs
                             val captureToHasHazardMs = durationOrMinusOne(
                                 request.frameCapturedAtElapsedMs,
                                 completedElapsedMs,
@@ -241,7 +245,7 @@ internal class OnlineHazardDetectionService(
                                 "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=$detectElapsedMs",
                             )
                             infoLogger(
-                                "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} jpegBytes=${request.jpegBytes.size}",
+                                "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=$submitToUploadMs base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} jpegBytes=${request.jpegBytes.size}",
                             )
                             callback.onDetectionResult(request, hasHazard, fullText)
                         }
