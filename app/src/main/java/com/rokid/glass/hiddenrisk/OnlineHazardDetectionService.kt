@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
 
 /**
  * 在线隐患识别调度服务。
- * ctype=1 / ctype=2 检测阶段在单个 service 实例内仅允许单飞，并对单次请求施加超时控制；
+ * ctype=1 检测阶段在单个 service 实例内仅允许单飞，并对单次请求施加超时控制；
  * ctype=0 深度分析阶段按需单次拉取。
  */
 internal class OnlineHazardDetectionService(
@@ -30,7 +30,7 @@ internal class OnlineHazardDetectionService(
         val logName: String,
     ) {
         ITEM(1, "item"),
-        SCENE(2, "scene"),
+        SCENE(-1, "scene"),
     }
 
     data class DetectionRequest(
@@ -289,7 +289,7 @@ internal class OnlineHazardDetectionService(
         ): AiArSseService.RequestHandle {
             return when (request.lane) {
                 DetectionLane.ITEM -> aiArSseService.identifyItemHazard(base64Image, callback)
-                DetectionLane.SCENE -> aiArSseService.identifySceneHazard(base64Image, callback)
+                DetectionLane.SCENE -> error("Scene hazard detection lane is disabled")
             }
         }
 

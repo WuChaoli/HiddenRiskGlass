@@ -73,9 +73,9 @@
     "onlineSelectPollIntervalMs": 80,
     // 在线检测最小触发间隔，单位 ms。standard 默认 1000，demo overlay 会覆盖。
     "onlineDetectIntervalMs": 1000,
-    // 是否启用隐患场景识别 ctype=2。默认关闭，只保留隐患物品识别 ctype=1。
+    // 场景识别运行入口已关闭，ctype=2 保留给检查指引。该字段保留用于兼容旧配置。
     "enableOnlineSceneHazardDetection": false,
-    // 在线场景识别最小触发间隔，单位 ms。
+    // 旧场景识别最小触发间隔，单位 ms。当前不作为运行链路使用。
     "onlineSceneDetectIntervalMs": 3000,
     // 远程 ctype=1 连续失败达到该次数后，降级到本地 NCNN 备用链路。
     "remoteFailureFallbackThreshold": 3,
@@ -101,7 +101,7 @@
     },
     "aiArApi": {
       // AI AR SSE 接口地址。
-      "url": "http://183.147.142.133:50011/ai/ar",
+      "url": "http://183.147.142.133:5000/ai/ar",
       // AI AR SSE connect timeout，单位 ms。
       "connectTimeoutMs": 15000,
       // AI AR SSE read timeout，单位 ms。流式接口一般需要更长读取时间。

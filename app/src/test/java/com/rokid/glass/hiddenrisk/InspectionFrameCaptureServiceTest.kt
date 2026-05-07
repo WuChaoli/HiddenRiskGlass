@@ -96,16 +96,16 @@ class InspectionFrameCaptureServiceTest {
     }
 
     @Test
-    fun requestPayload_forInspectionGuideIncludesCtypeThreeAndText() {
+    fun requestPayload_forInspectionGuideIncludesCtypeTwoAndText() {
         val json = com.google.gson.Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "record-3",
-                ctype = 3,
+                ctype = 2,
                 text = "guide-text",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":3"))
+        assertTrue(json.contains("\"ctype\":2"))
         assertTrue(json.contains("\"text\":\"guide-text\""))
     }
 

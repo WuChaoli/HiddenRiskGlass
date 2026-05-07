@@ -315,7 +315,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
 
     private val enableOnlineSceneHazardDetection: Boolean
-        get() = InspectionConfigRepository.get().aiInspection.enableOnlineSceneHazardDetection
+        get() = false
 
     private val onlineSceneDetectIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs

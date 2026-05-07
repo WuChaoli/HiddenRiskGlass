@@ -59,7 +59,7 @@ class OnlineHazardDetectionServiceTest {
     }
 
     @Test
-    fun submitDetection_sceneLaneUsesSceneGateway() {
+    fun submitDetection_sceneLaneIsDisabled() {
         val env = TestEnv()
         val service = env.createService()
 
@@ -74,7 +74,7 @@ class OnlineHazardDetectionServiceTest {
             listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
             env.gateway.startedDetectionLanes,
         )
-        assertEquals(2, env.gateway.lastDetectionHandle?.ctype)
+        assertEquals(-1, env.gateway.lastDetectionHandle?.ctype)
     }
 
     @Test

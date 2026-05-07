@@ -89,17 +89,6 @@ class AiArSseService(
         )
     }
 
-    fun identifySceneHazard(
-        base64Image: String,
-        callback: DetectCallback,
-    ): RequestHandle {
-        return requestHazardDetection(
-            base64Image = base64Image,
-            detectCtype = CTYPE_IDENTIFY_SCENE_HAZARD,
-            callback = callback,
-        )
-    }
-
     private fun requestHazardDetection(
         base64Image: String,
         detectCtype: Int,
@@ -224,9 +213,7 @@ class AiArSseService(
                         return
                     }
                     val normalizedData = data.trim()
-                    if (payload.ctype == CTYPE_IDENTIFY_ITEM_HAZARD ||
-                        payload.ctype == CTYPE_IDENTIFY_SCENE_HAZARD
-                    ) {
+                    if (payload.ctype == CTYPE_IDENTIFY_ITEM_HAZARD) {
                         Log.i(
                             TAG,
                             "openStream raw event ctype=${payload.ctype} taskId=${payload.task_id} id=${id ?: "(none)"} type=${type ?: "(none)"} data=$normalizedData",
@@ -396,8 +383,7 @@ class AiArSseService(
         private const val DONE_EVENT_TYPE = "done"
         private const val CTYPE_DEEP_ANALYSIS = 0
         private const val CTYPE_IDENTIFY_ITEM_HAZARD = 1
-        private const val CTYPE_IDENTIFY_SCENE_HAZARD = 2
-        private const val CTYPE_FETCH_INSPECTION_GUIDE = 3
+        private const val CTYPE_FETCH_INSPECTION_GUIDE = 2
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
