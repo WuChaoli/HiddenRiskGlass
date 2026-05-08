@@ -1,15 +1,21 @@
 package com.rokid.glass
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.util.TypedValue
+import com.rokid.glass.config.EnterpriseInfoLayoutMode
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.input.UnifiedInputSession
@@ -31,6 +37,15 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
     private lateinit var hazardListContainer: LinearLayout
     private lateinit var statusBar: GlassStatusBar
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var batteryReceiver: BroadcastReceiver? = null
+
+    private val statusUpdateRunnable = object : Runnable {
+        override fun run() {
+            statusBar.updateTime()
+            mainHandler.postDelayed(this, STATUS_UPDATE_INTERVAL_MS)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +70,7 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         hazardListContainer = findViewById(R.id.hazardListContainer)
         statusBar = findViewById(R.id.statusBar)
         applyLayoutMode(DEFAULT_LAYOUT_MODE)
+        statusBar.updateTime()
         updateBatteryLevel()
 
         // debug模式：从Intent读取测试数据
@@ -158,14 +174,17 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         super.onResume()
         inputSession.attach()
         inputSession.updateActions(buildInputActions())
+        startStatusBarUpdates()
     }
 
     override fun onPause() {
+        stopStatusBarUpdates()
         inputSession.detach()
         super.onPause()
     }
 
     override fun onDestroy() {
+        stopStatusBarUpdates()
         inputSession.release()
         super.onDestroy()
     }
@@ -230,13 +249,39 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
     }
 
     /**
+     * 页面可见时持续刷新状态栏时间与电量，保证底部状态栏显示真实系统状态。
+     */
+    private fun startStatusBarUpdates() {
+        statusBar.updateTime()
+        updateBatteryLevel()
+        mainHandler.removeCallbacks(statusUpdateRunnable)
+        mainHandler.post(statusUpdateRunnable)
+        if (batteryReceiver == null) {
+            batteryReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    updateBatteryLevel(intent)
+                }
+            }
+            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }
+    }
+
+    private fun stopStatusBarUpdates() {
+        mainHandler.removeCallbacks(statusUpdateRunnable)
+        batteryReceiver?.let {
+            unregisterReceiver(it)
+            batteryReceiver = null
+        }
+    }
+
+    /**
      * 获取当前电池电量并更新电池图标填充
      */
-    private fun updateBatteryLevel() {
-        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { intent ->
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+    private fun updateBatteryLevel(intent: Intent? = null) {
+        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        batteryStatus?.let { batteryIntent ->
+            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
             if (level != -1 && scale != -1) {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
                 statusBar.setBatteryPercent(batteryPct)
@@ -253,22 +298,32 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
 
     companion object {
         private const val TAG = "EnterpriseInfoActivity"
-        private const val MAX_HAZARD_HISTORY_DISPLAY_COUNT = 3
-        private const val RECENT_INSPECTION_TIME = "最近巡查时间：2026年1月21日"
-        private const val COMPANY_NAME_TEXT_SIZE_LEGACY_SP = 20f
-        private const val COMPANY_NAME_TEXT_SIZE_NEW_SP = 24f
-        private const val INFO_TEXT_SIZE_LEGACY_SP = 11f
-        private const val INFO_TEXT_SIZE_NEW_SP = 17f
-        private const val INFO_LINE_SPACING_EXTRA_LEGACY_DP = 0f
-        private const val INFO_LINE_SPACING_EXTRA_NEW_DP = 6f
-        private val DEFAULT_LAYOUT_MODE = EnterpriseInfoLayoutMode.NEW
-    }
+        private val MAX_HAZARD_HISTORY_DISPLAY_COUNT: Int
+            get() = InspectionConfigRepository.get().enterpriseInfo.maxHazardHistoryDisplayCount
 
-    /**
-     * 企业详情页布局模式。
-     */
-    private enum class EnterpriseInfoLayoutMode {
-        LEGACY,
-        NEW,
+        private val RECENT_INSPECTION_TIME: String
+            get() = InspectionConfigRepository.get().enterpriseInfo.recentInspectionTimeFallbackText
+
+        private const val STATUS_UPDATE_INTERVAL_MS = 1000L
+        private val COMPANY_NAME_TEXT_SIZE_LEGACY_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.companyNameTextSizeLegacySp
+
+        private val COMPANY_NAME_TEXT_SIZE_NEW_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.companyNameTextSizeNewSp
+
+        private val INFO_TEXT_SIZE_LEGACY_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoTextSizeLegacySp
+
+        private val INFO_TEXT_SIZE_NEW_SP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoTextSizeNewSp
+
+        private val INFO_LINE_SPACING_EXTRA_LEGACY_DP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoLineSpacingExtraLegacyDp
+
+        private val INFO_LINE_SPACING_EXTRA_NEW_DP: Float
+            get() = InspectionConfigRepository.get().enterpriseInfo.infoLineSpacingExtraNewDp
+
+        private val DEFAULT_LAYOUT_MODE: EnterpriseInfoLayoutMode
+            get() = InspectionConfigRepository.get().enterpriseInfo.layoutMode
     }
 }

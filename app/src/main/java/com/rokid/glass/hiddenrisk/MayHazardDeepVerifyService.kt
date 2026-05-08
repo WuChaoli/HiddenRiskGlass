@@ -5,6 +5,8 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.config.MayHazardVerifyApiConfig
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
@@ -20,7 +22,10 @@ private const val TAG = "MayHazardVerify"
 /**
  * MayHazard 深度识别服务。
  */
-class MayHazardDeepVerifyService {
+class MayHazardDeepVerifyService(
+    private val apiConfig: MayHazardVerifyApiConfig =
+        InspectionConfigRepository.get().network.mayHazardVerifyApi,
+) {
     data class VerifyMetrics(
         val answerMs: Long = -1L,
         val httpTotalMs: Long = -1L,
@@ -58,9 +63,9 @@ class MayHazardDeepVerifyService {
     }
 
     private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
         .build()
     private val gson = Gson()
     private val mainHandler = Handler(Looper.getMainLooper())

@@ -4,6 +4,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.config.AiArApiConfig
+import com.rokid.glass.config.InspectionConfigRepository
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -19,10 +21,11 @@ import java.util.concurrent.atomic.AtomicBoolean
  * /ai/ar 专用 SSE 服务。
  */
 class AiArSseService(
+    private val apiConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiArApi,
     private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(45, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
         .build(),
     private val gson: Gson = Gson(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
@@ -160,11 +163,11 @@ class AiArSseService(
     ) {
         val requestBody = gson.toJson(payload).toRequestBody(JSON_MEDIA_TYPE)
         val request = Request.Builder()
-            .url(AI_AR_URL)
+            .url(apiConfig.url)
             .header("Accept", "text/event-stream")
             .post(requestBody)
             .build()
-        Log.i(TAG, "openStream ctype=${payload.ctype} taskId=${payload.task_id} endpoint=$AI_AR_URL")
+        Log.i(TAG, "openStream ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url}")
         val eventSource = eventSourceFactory.newEventSource(
             request,
             object : EventSourceListener() {
@@ -293,7 +296,6 @@ class AiArSseService(
 
     companion object {
         private const val TAG = "AiArSseService"
-        private const val AI_AR_URL = "http://183.147.142.133:50016/ai/ar"
         private const val DONE_SENTINEL = "[DONE]"
         private const val CTYPE_DETAIL = 0
         private const val CTYPE_HAS_HAZARD = 1

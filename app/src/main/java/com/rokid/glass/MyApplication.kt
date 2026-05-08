@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.ToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
 
@@ -50,6 +51,7 @@ class MyApplication : Application() {
         mContext = this
         gMainHandler = Handler(Looper.getMainLooper())
         ToastUtil.init(this)
+        InspectionConfigRepository.init(this)
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
     }
 

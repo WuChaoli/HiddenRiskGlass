@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glass.utils.HttpUtils
 import okhttp3.Call
@@ -22,11 +23,6 @@ import java.util.concurrent.TimeUnit
 object InspectionFinishService {
     private const val TAG = "InspectionFinishApi"
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .build()
     private val gson = Gson()
 
     interface Callback {
@@ -130,6 +126,7 @@ object InspectionFinishService {
                     .header("Content-Type", "application/json")
                     .post(requestBodyJson.toRequestBody(InspectionFinishApiProtocol.JSON_MEDIA_TYPE))
                     .build()
+                val client = createClient()
                 val call = client.newCall(request)
                 call.enqueue(object : okhttp3.Callback {
                     override fun onFailure(call: Call, e: IOException) {
@@ -189,11 +186,22 @@ object InspectionFinishService {
         return outcomes.firstOrNull { !it.success }?.message
             ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE
     }
+
+    private fun createClient(): OkHttpClient {
+        val apiConfig = InspectionConfigRepository.get().network.saveResultApi
+        return OkHttpClient.Builder()
+            .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+            .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
+            .build()
+    }
 }
 
 internal object InspectionFinishApiProtocol {
     internal const val DEFAULT_FAILURE_MESSAGE = "结束巡检失败，请重试"
-    internal const val BACKUP_REQUEST_URL = "${HttpUtils.BACKUP_BASE_URL}/hxy/apis/hazardCheckRecord/hazardIsEnd"
+    internal val BACKUP_REQUEST_URL: String
+        get() = "${HttpUtils.BACKUP_BASE_URL.trimEnd('/')}/hxy/apis/hazardCheckRecord/hazardIsEnd"
+
     internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
     private const val IF_END_VALUE = "1"
 

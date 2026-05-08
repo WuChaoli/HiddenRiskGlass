@@ -34,6 +34,7 @@ class GlassStatusBar @JvmOverloads constructor(
         LayoutInflater.from(context).inflate(R.layout.view_glass_status_bar, this, true)
         timeView = findViewById(R.id.tvStatusTime)
         batteryFillView = findViewById(R.id.ivStatusBatteryFill)
+        updateTime()
     }
 
     /** 更新时间显示 */

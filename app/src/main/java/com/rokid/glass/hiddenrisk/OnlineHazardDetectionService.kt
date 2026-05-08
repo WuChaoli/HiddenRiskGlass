@@ -5,6 +5,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
+import com.rokid.glass.config.InspectionConfigRepository
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -20,6 +21,7 @@ internal class OnlineHazardDetectionService(
     private val elapsedRealtimeProvider: () -> Long = { SystemClock.elapsedRealtime() },
     private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
     private val encodeExecutor: ExecutorService = Executors.newSingleThreadExecutor(),
+    private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiArApi.detectTimeoutMs,
 ) {
     data class DetectionRequest(
         val epoch: Long,
@@ -71,10 +73,10 @@ internal class OnlineHazardDetectionService(
 
     private val detectionTimeoutRunnable = Runnable {
         val request = activeDetectionRequest ?: return@Runnable
-        if (elapsedRealtimeProvider() - activeDetectionStartedElapsedMs < DETECT_TIMEOUT_MS) {
+        if (elapsedRealtimeProvider() - activeDetectionStartedElapsedMs < detectTimeoutMs) {
             return@Runnable
         }
-        Log.w(TAG, "detect timeout requestId=${request.requestId}")
+        runCatching { Log.w(TAG, "detect timeout requestId=${request.requestId}") }
         activeDetectionHandle?.cancel()
         clearActiveDetection()
         callback.onDetectionDropped(request, REASON_TIMEOUT)
@@ -215,7 +217,7 @@ internal class OnlineHazardDetectionService(
 
     private fun scheduleDetectionTimeout() {
         scheduler.removeCallbacks(detectionTimeoutRunnable)
-        scheduler.postDelayed(detectionTimeoutRunnable, DETECT_TIMEOUT_MS)
+        scheduler.postDelayed(detectionTimeoutRunnable, detectTimeoutMs)
     }
 
     private fun clearActiveDetection() {
@@ -268,7 +270,6 @@ internal class OnlineHazardDetectionService(
 
     companion object {
         private const val TAG = "OnlineHazardDetect"
-        private const val DETECT_TIMEOUT_MS = 3000L
         const val REASON_TIMEOUT = "timeout"
         const val REASON_BUSY = "busy"
     }

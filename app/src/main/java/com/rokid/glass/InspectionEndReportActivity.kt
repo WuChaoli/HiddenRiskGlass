@@ -88,9 +88,10 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     override fun onResume() {
         super.onResume()
         if (!endReportTtsPlayed) {
-            endReportTtsPlayed = OfflineTtsPlayer.speak(
+            endReportTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
                 ownerTag = TAG,
-                message = getString(R.string.offline_tts_inspection_end_report),
+                audioResId = R.raw.inspection_end,
             )
         }
         inputSession.attach()
@@ -104,6 +105,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
 
     override fun onDestroy() {
         stopTimeAndBatteryUpdate()
+        OfflineTtsPlayer.release(TAG)
         inputSession.release()
         clearThumbnailBitmaps()
         super.onDestroy()

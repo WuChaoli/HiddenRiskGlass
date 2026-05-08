@@ -3,12 +3,14 @@ package com.rokid.glass.hiddenrisk
 import com.google.gson.Gson
 import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
+import com.rokid.glass.config.InspectionConfigRepository
 
 /**
  * MayHazard 深度识别协议定义与解析工具。
  */
 object MayHazardDeepVerifyProtocol {
-    const val ANSWER_URL = "http://183.147.142.133:8006/has_hazard_answer"
+    val ANSWER_URL: String
+        get() = InspectionConfigRepository.get().network.mayHazardVerifyApi.answerUrl
 
     private val gson = Gson()
 

@@ -37,6 +37,9 @@ import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.config.AutoHazardRoutingMode as ConfigAutoHazardRoutingMode
+import com.rokid.glass.config.AutoInferenceMode as ConfigAutoInferenceMode
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.AlertBehavior
 import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
@@ -48,8 +51,8 @@ import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.BitmapUtils
-import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.utils.SpriteToastUtil
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.io.InputStreamReader
@@ -61,7 +64,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * AI 巡检页面。
- * 流程：加载初始化 -> 周期抓拍 -> 本地 NCNN 自动识别 -> 本地命中后调用在线详情链路 -> 结果确认/保存。
+ * 流程：加载初始化 -> 周期抓拍 -> 本地 NCNN + 在线 /ai/ar 并行识别 -> 结果确认/保存。
  */
 class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -70,30 +73,72 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     companion object {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
-        private const val CAPTURE_WARMUP_MS = 1200L
-        private const val AUTO_INFERENCE_RETRY_DELAY_MS = 80L
-        private const val ONLINE_DETECT_INTERVAL_MS = 1000L
-        private const val AUTO_HAZARD_PRESENT_DELAY_MS = 3000L
-        private const val HAZARD_ALERT_DELAY_MS = 1000L
-        private const val LOCAL_LABEL_COOLDOWN_MS = 30_000L
-        private const val STREAM_THUMBNAIL_TARGET_PX = 160
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
-        private const val LOCAL_SAVE_SUCCESS_TOAST_MS = 1500
 
-        private const val BACKEND_GPU = 1
-        private const val GPU_PROFILE_BALANCED_FP16 = 1
-        private const val DEFAULT_TARGET_INPUT_SIZE = 640
-        private const val ENABLE_HIT_CAPTURE_SAVE = false
-        private const val ENABLE_ONLINE_ADVICE_PAGE = false
-        private const val STALE_FRAME_THRESHOLD_MS = 1200L
-        private const val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS = 1000L
-        private const val ONLINE_JPEG_QUALITY = 97
-        private const val ONLINE_SELECT_WINDOW_MS = 240L
-        private const val ONLINE_SELECT_MAX_FRAMES = 3
-        private const val ONLINE_SELECT_POLL_INTERVAL_MS = 80L
-        // 自动检测阶段仅跑本地模型；在线链路只在本地命中后作为后续详情流程触发。
-        private val AUTO_INFERENCE_MODE = AutoInferenceMode.LOCAL_ONLY // BOTH | ONLINE_ONLY | LOCAL_ONLY
-        private val AUTO_HAZARD_ROUTING_MODE = AutoHazardRoutingMode.ONLINE_ONLY // SEPARATED | ONLINE_ONLY | LOCAL_ONLY
+        private val CAPTURE_WARMUP_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.captureWarmupMs
+
+        private val AUTO_INFERENCE_RETRY_DELAY_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.autoInferenceRetryDelayMs
+
+        private val AUTO_HAZARD_PRESENT_DELAY_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.autoHazardPresentDelayMs
+
+        private val LOCAL_LABEL_COOLDOWN_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.localLabelCooldownMs
+
+        private val STREAM_THUMBNAIL_TARGET_PX: Int
+            get() = InspectionConfigRepository.get().aiInspection.streamThumbnailTargetPx
+
+        private val LOCAL_SAVE_SUCCESS_TOAST_MS: Int
+            get() = InspectionConfigRepository.get().aiInspection.localSaveSuccessToastMs
+
+        private val BACKEND_GPU: Int
+            get() = InspectionConfigRepository.get().aiInspection.backend.code
+
+        private val GPU_PROFILE_BALANCED_FP16: Int
+            get() = InspectionConfigRepository.get().aiInspection.gpuProfile.code
+
+        private val DEFAULT_TARGET_INPUT_SIZE: Int
+            get() = InspectionConfigRepository.get().aiInspection.targetInputSize
+
+        private val ENABLE_HIT_CAPTURE_SAVE: Boolean
+            get() = InspectionConfigRepository.get().aiInspection.enableHitCaptureSave
+
+        private val ENABLE_ONLINE_ADVICE_PAGE: Boolean
+            get() = InspectionConfigRepository.get().aiInspection.enableOnlineAdvicePage
+
+        private val STALE_FRAME_THRESHOLD_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.staleFrameThresholdMs
+
+        private val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.sharedFrameMotionClearThresholdMs
+
+        private val ONLINE_JPEG_QUALITY: Int
+            get() = InspectionConfigRepository.get().aiInspection.onlineJpegQuality
+
+        private val ONLINE_SELECT_WINDOW_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.onlineSelectWindowMs
+
+        private val ONLINE_SELECT_MAX_FRAMES: Int
+            get() = InspectionConfigRepository.get().aiInspection.onlineSelectMaxFrames
+
+        private val ONLINE_SELECT_POLL_INTERVAL_MS: Long
+            get() = InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs
+
+        private val AUTO_INFERENCE_MODE: AutoInferenceMode
+            get() = when (InspectionConfigRepository.get().aiInspection.autoInferenceMode) {
+                ConfigAutoInferenceMode.LOCAL_ONLY -> AutoInferenceMode.LOCAL_ONLY
+                ConfigAutoInferenceMode.ONLINE_ONLY -> AutoInferenceMode.ONLINE_ONLY
+                ConfigAutoInferenceMode.BOTH -> AutoInferenceMode.BOTH
+            }
+
+        private val AUTO_HAZARD_ROUTING_MODE: AutoHazardRoutingMode
+            get() = when (InspectionConfigRepository.get().aiInspection.autoHazardRoutingMode) {
+                ConfigAutoHazardRoutingMode.SEPARATED -> AutoHazardRoutingMode.SEPARATED
+                ConfigAutoHazardRoutingMode.ONLINE_ONLY -> AutoHazardRoutingMode.ONLINE_ONLY
+                ConfigAutoHazardRoutingMode.LOCAL_ONLY -> AutoHazardRoutingMode.LOCAL_ONLY
+            }
     }
 
     private enum class AutoInferenceMode {
@@ -275,6 +320,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             override val detectedAtElapsedMs: Long,
             val requestId: Long,
             val jpegBytes: ByteArray,
+            val baseResolved: ResolvedHazardContent? = null,
             val resolved: ResolvedHazardContent? = null,
             val streamedText: String = "",
             val firstChunkReceived: Boolean = false,
@@ -293,6 +339,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val localOnlyRouteEnabled: Boolean
         get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.LOCAL_ONLY
+
+    private val onlineDetectIntervalMs: Long
+        get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
+
+    private val forceOnlineDetailForLocalHazard: Boolean
+        get() = InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard
 
     // --- UI ---
     private lateinit var layoutDetection: FrameLayout
@@ -529,12 +581,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val pendingAutoHazardPresentationRunnable = Runnable {
         tryPresentPendingAutoHazard()
     }
-    private val delayedHazardAlertRunnable = Runnable {
-        if (destroyed || pageState != PageState.DETECTING || pendingAutoHazardPresentation == null) {
-            return@Runnable
-        }
-        playHazardAlertIfNeeded()
-    }
 
     private val localLoopRunnable = Runnable {
         localRetryPosted = false
@@ -683,7 +729,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.notifyConsumerWaitStopped()
         stopDetectionPreview()
         stopAutoInferencePipelines("onPause")
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -703,7 +748,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         stopAutoInferencePipelines("onStop")
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -716,6 +760,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         phoneSyncHandle?.cancel()
         phoneSyncHandle = null
+        OfflineTtsPlayer.release(TAG)
         inputSession.release()
         ivSyncLoading.clearAnimation()
         if (debugSnapshotState != null) {
@@ -726,7 +771,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         motionStabilityTracker.removeListener(motionStabilityListener)
         motionStabilityTracker.stop()
         stopAutoInferencePipelines("onDestroy")
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         hideStatusAlertOverlay()
         stopDetectionPreview()
         frameStreamInitializing = false
@@ -1329,7 +1373,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun postPendingLocalHazardPresentation(resolved: ResolvedHazardContent) {
         val detectedAtElapsedMs = SystemClock.elapsedRealtime()
-        pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
+        pendingAutoHazardPresentation = buildPendingLocalHazardPresentation(
             detectedAtElapsedMs = detectedAtElapsedMs,
             resolved = resolved,
         )
@@ -1409,7 +1453,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     onlineRequestInFlight = true
                     onlineQueuedNext = false
                     val startedAtElapsedMs = SystemClock.elapsedRealtime()
-                    onlineNextEarliestStartElapsedMs = startedAtElapsedMs + ONLINE_DETECT_INTERVAL_MS
+                    onlineNextEarliestStartElapsedMs = startedAtElapsedMs + onlineDetectIntervalMs
                     Log.i(
                         TAG,
                         "start online detect requestId=$requestId reason=$reason nextEarliest=$onlineNextEarliestStartElapsedMs",
@@ -1421,7 +1465,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             jpegBytes = payload.jpegBytes.copyOf(),
                         ),
                     )
-                    postOnlineInferenceLoop(delayMs = ONLINE_DETECT_INTERVAL_MS, reason = "online_window_elapsed")
+                    postOnlineInferenceLoop(delayMs = onlineDetectIntervalMs, reason = "online_window_elapsed")
                 }
             }
         } catch (error: RejectedExecutionException) {
@@ -1812,7 +1856,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ),
             ),
         )
-        scheduleHazardAlertIfNeeded()
+        playHazardAlertIfNeeded()
     }
 
     private fun syncToPhone() {
@@ -2910,8 +2954,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pending.requestId != request.requestId) {
             return
         }
+        val finalResolved = pending.baseResolved?.let { localResolved ->
+            resolved.copy(
+                source = localResolved.source,
+                displayTitle = localResolved.displayTitle,
+                jpegBytes = localResolved.jpegBytes.copyOf(),
+                localCooldownLabels = localResolved.localCooldownLabels,
+            )
+        } ?: resolved
         pendingAutoHazardPresentation = pending.copy(
-            resolved = resolved,
+            resolved = finalResolved,
             streamedText = fullText,
             firstChunkReceived = pending.firstChunkReceived || fullText.isNotBlank(),
         )
@@ -3011,6 +3063,38 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         logAudioPressureSnapshot(
             stage = "queue_online_hazard_presentation:details_requested",
             extra = "requestId=${request.requestId}",
+        )
+    }
+
+    private fun buildPendingLocalHazardPresentation(
+        detectedAtElapsedMs: Long,
+        resolved: ResolvedHazardContent,
+    ): PendingAutoHazardPresentation {
+        if (!forceOnlineDetailForLocalHazard) {
+            return PendingAutoHazardPresentation.Local(
+                detectedAtElapsedMs = detectedAtElapsedMs,
+                resolved = resolved,
+            )
+        }
+        val requestId = ++onlineActiveRequestId
+        val sharedJpegBytes = resolved.jpegBytes.copyOf()
+        streamingInProgress = true
+        onlineHazardDetectionService.fetchHazardDetails(
+            OnlineHazardDetectionService.DetailRequest(
+                epoch = autoInferenceEpoch,
+                requestId = requestId,
+                jpegBytes = sharedJpegBytes,
+            ),
+        )
+        logAudioPressureSnapshot(
+            stage = "queue_local_hazard_presentation:details_requested",
+            extra = "requestId=$requestId title=${resolved.displayTitle} jpegBytes=${sharedJpegBytes.size}",
+        )
+        return PendingAutoHazardPresentation.Online(
+            detectedAtElapsedMs = detectedAtElapsedMs,
+            requestId = requestId,
+            jpegBytes = sharedJpegBytes,
+            baseResolved = resolved,
         )
     }
 
@@ -3160,27 +3244,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun playHazardAlertIfNeeded() {
         logAudioPressureSnapshot(
             stage = "play_hazard_alert_if_needed:enter",
-            extra = "alreadyPlayed=$localHazardAlertTtsPlayed",
-        )
-        if (!localHazardAlertTtsPlayed) {
-            localHazardAlertTtsPlayed = OfflineTtsPlayer.speak(
-                ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_alert),
-            )
-        }
-    }
-
-    private fun scheduleHazardAlertIfNeeded() {
-        logAudioPressureSnapshot(
-            stage = "schedule_hazard_alert_if_needed:enter",
-            extra = "pendingPlayed=$pendingHazardAlertTtsPlayed localPlayed=$localHazardAlertTtsPlayed delayMs=$HAZARD_ALERT_DELAY_MS",
+            extra = "pendingPlayed=$pendingHazardAlertTtsPlayed alreadyPlayed=$localHazardAlertTtsPlayed",
         )
         if (pendingHazardAlertTtsPlayed || localHazardAlertTtsPlayed) {
             return
         }
         pendingHazardAlertTtsPlayed = true
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
-        uiHandler.postDelayed(delayedHazardAlertRunnable, HAZARD_ALERT_DELAY_MS)
+        if (!localHazardAlertTtsPlayed) {
+            localHazardAlertTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
+                ownerTag = TAG,
+                audioResId = R.raw.hazard_alert,
+            )
+        }
     }
 
     private fun handleStreamConfirmAction() {
@@ -3193,7 +3269,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     returnToDetecting()
                     return
                 }
-                advanceToLocalHazardAdvice()
+                completeStreamResultAfterDescription()
             }
             LocalResultStage.ADVICE -> {
                 if (advanceStreamViewportByPage()) {
@@ -3232,6 +3308,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         showLocalHazardAdvice(showSaveSuccessToast = false)
+    }
+
+    private fun completeStreamResultAfterDescription() {
+        val hazardContent = activeHazardContent ?: run {
+            returnToDetecting()
+            return
+        }
+        if (hazardContent.source == HazardSource.ONLINE || hazardContent.isOnlineNoHazardResult()) {
+            returnToDetecting()
+            return
+        }
+        advanceToLocalHazardAdvice()
     }
 
     private fun scheduleBackgroundLocalHazardSaveIfNeeded(hazardContent: ResolvedHazardContent) {
@@ -3348,9 +3436,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 stage = "show_local_hazard_advice:before_tts",
                 extra = "title=${hazardContent.displayTitle} showSaveSuccessToast=$showSaveSuccessToast",
             )
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
                 ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_advice_intro),
+                audioResId = R.raw.hazard_advice_intro,
             )
             logAudioPressureSnapshot(
                 stage = "show_local_hazard_advice:after_tts",
@@ -3432,9 +3521,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideActionPrompts()
         refreshInputActions()
         if (!localHazardAdviceTtsPlayed) {
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.speak(
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
                 ownerTag = TAG,
-                message = getString(R.string.offline_tts_hazard_advice_intro),
+                audioResId = R.raw.hazard_advice_intro,
             )
         }
         currentManualAnalysisHandle = aiArSseService.fetchHazardAdvice(
@@ -3562,7 +3652,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun clearLocalHazardResultState() {
         clearPendingAutoHazardPresentation()
-        uiHandler.removeCallbacks(delayedHazardAlertRunnable)
         streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
