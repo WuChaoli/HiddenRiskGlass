@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.rokid.glesse.BuildConfig
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.ToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -51,7 +52,8 @@ class MyApplication : Application() {
         mContext = this
         gMainHandler = Handler(Looper.getMainLooper())
         ToastUtil.init(this)
-        InspectionConfigRepository.init(this)
+        // Gradle flavor 名直接映射到 inspection_config.<flavor>.jsonc overlay。
+        InspectionConfigRepository.init(this, BuildConfig.FLAVOR)
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
     }
 

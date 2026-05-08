@@ -7,6 +7,7 @@ android {
     namespace 'com.rokid.glesse'
     compileSdk 34
     ndkVersion "29.0.14206865"
+    flavorDimensions += "appMode"
 
     defaultConfig {
         applicationId "com.rokid.glesse"
@@ -40,6 +41,14 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    productFlavors {
+        standard {
+            dimension "appMode"
+        }
+        localonly {
+            dimension "appMode"
         }
     }
     compileOptions {

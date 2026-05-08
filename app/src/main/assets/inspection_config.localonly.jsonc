@@ -1,0 +1,6 @@
+{
+  "aiInspection": {
+    "autoInferenceMode": "LOCAL_ONLY",
+    "autoHazardRoutingMode": "LOCAL_ONLY"
+  }
+}
