@@ -2887,8 +2887,30 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return emptyList()
         }
         pruneExpiredLocalCooldowns(nowElapsedMs)
-        return localMatches.filterNot { match ->
-            isLocalLabelCooling(match.cooldownLabel, nowElapsedMs)
+        val accepted = mutableListOf<LocalHazardMatch>()
+        val suppressedLabels = mutableListOf<String>()
+        localMatches.forEach { match ->
+            if (isLocalLabelCooling(match.cooldownLabel, nowElapsedMs)) {
+                suppressedLabels += match.cooldownLabel
+            } else {
+                accepted += match
+            }
+        }
+        Log.i(
+            TAG,
+            "local cooldown filter now=$nowElapsedMs incoming=${localMatches.map { it.cooldownLabel }} " +
+                "accepted=${accepted.map { it.cooldownLabel }} suppressed=$suppressedLabels " +
+                "activeCooldowns=${localLabelCooldownUntilMs.mapValues { it.value - nowElapsedMs }}",
+        )
+        return accepted
+    }
+
+    private fun debugLocalCooldownSnapshot(nowElapsedMs: Long): String {
+        return localLabelCooldownUntilMs.entries.joinToString(
+            prefix = "[",
+            postfix = "]",
+        ) { entry ->
+            "${entry.key}:${entry.value - nowElapsedMs}"
         }
     }
 
@@ -2911,13 +2933,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         pruneExpiredLocalCooldowns(nowElapsedMs)
         val cooldownUntilMs = nowElapsedMs + LOCAL_LABEL_COOLDOWN_MS
-        labels
+        val normalizedLabels = labels
             .map { it.trim() }
             .filter { it.isNotBlank() }
             .distinct()
-            .forEach { label ->
-                localLabelCooldownUntilMs[label] = cooldownUntilMs
-            }
+        normalizedLabels.forEach { label ->
+            localLabelCooldownUntilMs[label] = cooldownUntilMs
+        }
+        Log.i(
+            TAG,
+            "local cooldown mark now=$nowElapsedMs durationMs=$LOCAL_LABEL_COOLDOWN_MS " +
+                "labels=$normalizedLabels until=$cooldownUntilMs activeCooldowns=${debugLocalCooldownSnapshot(nowElapsedMs)}",
+        )
     }
 
     private fun handleOnlineDetailSuccess(
