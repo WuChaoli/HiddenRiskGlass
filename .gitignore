@@ -10,8 +10,6 @@ app/.cxx/
 .reports/
 .serena/
 .vscode/
-.claude/
-.opencode/
 .playwright-mcp/
 .playwright-cli/
 .venv/
@@ -19,8 +17,7 @@ shots/
 debug/
 third_party/
 models/
-assets/
-.codex/*
+/assets/
 !.codex/environments/
 .codex/environments/*
 !.codex/environments/environment.toml

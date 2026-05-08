@@ -28,11 +28,15 @@ import androidx.core.content.ContextCompat
 import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.EnterpriseQrScanActivity
 import com.rokid.glass.WifiQrScanActivity
+import com.rokid.glass.config.AutoHazardRoutingMode
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.math.max
 
 /**
@@ -94,6 +98,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var subtitleFrame = 0
     private var subtitleAnimating = false
     private var batteryReceiver: BroadcastReceiver? = null
+    private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     // 转圈动画
@@ -222,6 +227,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         super.onDestroy()
         stopLoadingUi()
         RokidSdkManager.removeListener(this)
+        modelLoadExecutor.shutdownNow()
         InspectionCameraCoordinator.release(CameraOwner.LOADING, reason = "loading_on_destroy")
 
         // 如果初始化未完成且出现错误，清理资源
@@ -440,14 +446,46 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 if (activityDestroyed) return@post
                 cameraSessionGeneration = requestGeneration
                 if (success) {
-                    InspectionSession.markInitialized()
-                    onInitializationComplete()
+                    preloadLocalModelIfNeeded()
                 } else {
                     showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_frame_stream))
                 }
             }
         }
         cameraSessionGeneration = requestGeneration
+    }
+
+    private fun preloadLocalModelIfNeeded() {
+        if (!requiresLocalModelPreload()) {
+            InspectionSession.markInitialized()
+            onInitializationComplete()
+            return
+        }
+        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_camera_init), animated = true)
+        animateProgressTo(95)
+        Log.i(TAG, "preload local NCNN model start")
+        modelLoadExecutor.execute {
+            val success = InspectionSession.createNcnnInstance() && InspectionSession.loadModel(assets)
+            uiHandler.post {
+                if (activityDestroyed) return@post
+                if (success) {
+                    Log.i(TAG, "preload local NCNN model success")
+                    InspectionSession.markInitialized()
+                    onInitializationComplete()
+                } else {
+                    val message = InspectionSession.errorMessage
+                        ?: getString(R.string.ai_inspection_loading_error_frame_stream)
+                    Log.e(TAG, "preload local NCNN model failed message=$message")
+                    showError(message)
+                }
+            }
+        }
+    }
+
+    private fun requiresLocalModelPreload(): Boolean {
+        return InspectionConfigRepository.get()
+            .aiInspection
+            .autoHazardRoutingMode == AutoHazardRoutingMode.LOCAL_ONLY
     }
 
     private fun onInitializationComplete() {

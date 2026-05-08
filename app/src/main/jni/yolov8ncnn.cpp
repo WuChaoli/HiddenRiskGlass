@@ -21,9 +21,12 @@
 
 #include <gpu.h>
 
+#include <atomic>
 #include <cstdio>
 #include <dlfcn.h>
 #include <string>
+#include <sys/syscall.h>
+#include <unistd.h>
 #include <vector>
 
 #include <benchmark.h>
@@ -39,6 +42,7 @@ static const char* LOG_TAG_PROBE = "HiddenRiskProbe";
 
 static YOLOv8* g_yolov8 = 0;
 static ncnn::Mutex lock;
+static std::atomic<bool> g_diagnostic_detect_in_flight(false);
 static std::vector<Object> g_latest_objects;
 static int g_latest_image_width = 0;
 static int g_latest_image_height = 0;
@@ -54,6 +58,26 @@ static jint g_loaded_backend_id = -1;
 static jint g_loaded_gpu_profile = -1;
 static jint g_loaded_target_size = 0;
 static const size_t k_max_java_detection_count = 32;
+
+static long diagnostic_tid()
+{
+    return (long)syscall(SYS_gettid);
+}
+
+struct DiagnosticDetectScope
+{
+    bool reentered;
+
+    DiagnosticDetectScope()
+        : reentered(g_diagnostic_detect_in_flight.exchange(true))
+    {
+    }
+
+    ~DiagnosticDetectScope()
+    {
+        g_diagnostic_detect_in_flight.store(false);
+    }
+};
 
 static const char* backend_label(int backend_id)
 {
@@ -473,10 +497,26 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
         ncnn::MutexLockGuard g(lock);
         yolov8 = g_yolov8;
     }
+    DiagnosticDetectScope diagnostic_scope;
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        LOG_TAG_NCNN,
+        "diagnostic detect begin tid=%ld rgb=%dx%d yolov8=%p reentered=%d",
+        diagnostic_tid(),
+        rgb.cols,
+        rgb.rows,
+        yolov8,
+        diagnostic_scope.reentered ? 1 : 0);
 
     if (!yolov8)
     {
         set_latest_failed_frame_state(rgb.cols, rgb.rows, 0, "model_state", -1, "model not loaded");
+        __android_log_print(
+            ANDROID_LOG_INFO,
+            LOG_TAG_NCNN,
+            "diagnostic detect end tid=%ld result=model_missing elapsedMs=%.0f",
+            diagnostic_tid(),
+            ncnn::get_current_time() - start_time_ms);
         return false;
     }
 
@@ -487,6 +527,15 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
     const int detect_result = yolov8->detect(rgb, objects, &detect_error_stage, &detect_error_code, &detect_error_message);
     const jint prelimit_detection_count = get_hiddenrisk_last_raw_detection_count();
     const jlong inference_time_ms = (jlong)(ncnn::get_current_time() - start_time_ms + 0.5);
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        LOG_TAG_NCNN,
+        "diagnostic detect end tid=%ld result=%d objectCount=%zu prelimitCount=%d elapsedMs=%lld",
+        diagnostic_tid(),
+        detect_result,
+        objects.size(),
+        (int)prelimit_detection_count,
+        (long long)inference_time_ms);
 
     if (detect_result != 0)
     {
@@ -651,6 +700,20 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
     jint targetSize)
 {
     const double load_start_ms = ncnn::get_current_time();
+    YOLOv8* current_yolov8 = 0;
+    {
+        ncnn::MutexLockGuard g(lock);
+        current_yolov8 = g_yolov8;
+    }
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        LOG_TAG_NCNN,
+        "diagnostic loadModel enter tid=%ld backend=%d profile=%d targetSize=%d currentYolo=%p",
+        diagnostic_tid(),
+        (int)backend,
+        (int)gpuProfile,
+        (int)targetSize,
+        current_yolov8);
     if (backend < 0 || backend > 2)
     {
         ncnn::MutexLockGuard g(lock);
@@ -706,7 +769,9 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
             __android_log_print(
                 ANDROID_LOG_INFO,
                 LOG_TAG_NCNN,
-                "loadModel reuse backend=%s profile=%s targetSize=%d device=%s totalMs=%.0f",
+                "diagnostic loadModel reuse tid=%ld yolo=%p backend=%s profile=%s targetSize=%d device=%s totalMs=%.0f",
+                diagnostic_tid(),
+                g_yolov8,
                 backend_name.c_str(),
                 gpu_profile_label((int)gpuProfile),
                 (int)targetSize,
@@ -856,7 +921,9 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
         __android_log_print(
             ANDROID_LOG_ERROR,
             LOG_TAG_NCNN,
-            "loadModel failed backend=%s device=%s stage=%s code=%d message=%s reuseCheckMs=%.0f cleanupMs=%.0f createGpuMs=%.0f gpuQueryMs=%.0f yoloCreateMs=%.0f netLoadMs=%.0f totalMs=%.0f",
+            "diagnostic loadModel failed tid=%ld newYolo=%p backend=%s device=%s stage=%s code=%d message=%s reuseCheckMs=%.0f cleanupMs=%.0f createGpuMs=%.0f gpuQueryMs=%.0f yoloCreateMs=%.0f netLoadMs=%.0f totalMs=%.0f",
+            diagnostic_tid(),
+            new_yolov8,
             backend_name.c_str(),
             device_name.c_str(),
             stage.c_str(),
@@ -888,7 +955,9 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
     __android_log_print(
         ANDROID_LOG_INFO,
         LOG_TAG_NCNN,
-        "loadModel success backend=%s profile=%s targetSize=%d device=%s reuseCheckMs=%.0f cleanupMs=%.0f createGpuMs=%.0f gpuQueryMs=%.0f yoloCreateMs=%.0f netLoadMs=%.0f setTargetMs=%.0f totalMs=%.0f",
+        "diagnostic loadModel success tid=%ld yolo=%p backend=%s profile=%s targetSize=%d device=%s reuseCheckMs=%.0f cleanupMs=%.0f createGpuMs=%.0f gpuQueryMs=%.0f yoloCreateMs=%.0f netLoadMs=%.0f setTargetMs=%.0f totalMs=%.0f",
+        diagnostic_tid(),
+        new_yolov8,
         backend_name.c_str(),
         gpu_profile_label((int)gpuProfile),
         (int)targetSize,
@@ -936,6 +1005,20 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_submit
     jint height)
 {
     (void)thiz;
+    YOLOv8* current_yolov8 = 0;
+    {
+        ncnn::MutexLockGuard g(lock);
+        current_yolov8 = g_yolov8;
+    }
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        LOG_TAG_NCNN,
+        "diagnostic submitNv21 enter tid=%ld width=%d height=%d yolo=%p detectInFlight=%d",
+        diagnostic_tid(),
+        (int)width,
+        (int)height,
+        current_yolov8,
+        g_diagnostic_detect_in_flight.load() ? 1 : 0);
     cv::Mat rgb;
     std::string error_message;
     const bool converted = convert_nv21_to_rgb(env, nv21, width, height, rgb, &error_message);

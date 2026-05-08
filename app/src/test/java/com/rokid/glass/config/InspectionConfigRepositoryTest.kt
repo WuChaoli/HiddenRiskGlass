@@ -1,5 +1,6 @@
 package com.rokid.glass.config
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -30,5 +31,23 @@ class InspectionConfigRepositoryTest {
         )
 
         assertTrue(config.aiInspection.enableHeadMotionStabilityGate)
+    }
+
+    @Test
+    fun `local hazard detect overlay uses local route and remote detail`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = """
+                {
+                  "aiInspection": {
+                    "autoHazardRoutingMode": "LOCAL_ONLY",
+                    "forceOnlineDetailForLocalHazard": true
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(AutoHazardRoutingMode.LOCAL_ONLY, config.aiInspection.autoHazardRoutingMode)
+        assertTrue(config.aiInspection.forceOnlineDetailForLocalHazard)
     }
 }

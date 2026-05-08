@@ -41,6 +41,7 @@ class RokidFrameSourceTest {
         val loadingAcquire = stateMachine.beginAcquire(
             owner = CameraOwner.LOADING,
             readyNow = false,
+            needPreview = false,
         )
         assertTrue(
             stateMachine.finishReady(
@@ -55,6 +56,7 @@ class RokidFrameSourceTest {
         val enterpriseAcquire = stateMachine.beginAcquire(
             owner = CameraOwner.ENTERPRISE_QR_SCAN,
             readyNow = true,
+            needPreview = true,
         )
         assertEquals(CameraOwner.ENTERPRISE_QR_SCAN, enterpriseAcquire.owner)
         assertEquals(CameraSessionState.READY_NO_PREVIEW, enterpriseAcquire.state)
@@ -76,6 +78,7 @@ class RokidFrameSourceTest {
         val aiAcquire = stateMachine.beginAcquire(
             owner = CameraOwner.AI_INSPECTION,
             readyNow = true,
+            needPreview = false,
         )
         assertEquals(CameraOwner.AI_INSPECTION, aiAcquire.owner)
         assertEquals(aiAcquire.generation, stateMachine.snapshot().generation)

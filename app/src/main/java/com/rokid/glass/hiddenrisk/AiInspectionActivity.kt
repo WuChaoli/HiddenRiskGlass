@@ -1031,6 +1031,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "initFrameStreamAndTransition pageState=$pageState resumed=$isActivityResumed active=$isWorkflowActive initializing=$frameStreamInitializing frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} warm=${RokidFrameSource.isCroppedFrameStreamWarm()}",
         )
+        Log.i(
+            TAG,
+            "diagnostic initFrameStreamAndTransition caller=${Throwable().stackTrace.getOrNull(1)?.methodName ?: "unknown"} frameStreamInitializing=$frameStreamInitializing frameStreamReady=$frameStreamReady autoInferenceStartRequested=$autoInferenceStartRequested localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} pageState=$pageState cameraSessionGeneration=$cameraSessionGeneration",
+        )
         if (!isActivityResumed || !isWorkflowActive) {
             Log.i(
                 TAG,
@@ -1082,6 +1086,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 TAG,
                 "frame stream ready generation=$requestGeneration autoStartRequested=$autoInferenceStartRequested pageState=$pageState state=${InspectionCameraCoordinator.getState()}",
             )
+            Log.i(
+                TAG,
+                "diagnostic frame_stream_ready generation=$requestGeneration localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} autoInferenceStartRequested=$autoInferenceStartRequested frameStreamReady=$frameStreamReady cameraSessionGeneration=$cameraSessionGeneration",
+            )
             if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
                 startDetectionPreviewIfNeeded()
             }
@@ -1100,6 +1108,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         Log.i(
             TAG,
             "transitionToDetection pageState=$pageState resumed=$isActivityResumed active=$isWorkflowActive frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} previewStarted=${viewLivePreview.isPreviewStarted()}",
+        )
+        Log.i(
+            TAG,
+            "diagnostic transitionToDetection localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} autoInferenceStartRequested=$autoInferenceStartRequested modelLoaded=$modelLoaded hiddenRiskNcnnPresent=${hiddenRiskNcnn != null} cameraSessionGeneration=$cameraSessionGeneration",
         )
         autoInferenceStartRequested = false
         startAutoInferencePipelinesIfNeeded(reason = "transition_to_detection", preferImmediate = true)
@@ -1242,6 +1254,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun ensureAutoPipelineModeForStart(reason: String): Boolean {
+        if (localOnlyRouteEnabled && autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY) {
+            startLocalFallbackModelLoadIfNeeded(reason = "$reason:local_only")
+            return false
+        }
         return when (autoPipelineMode) {
             AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY -> {
                 if (SystemStateUtils.isNetworkAvailable(this)) {
@@ -1326,6 +1342,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun scheduleLocalNetworkProbe() {
         if (destroyed ||
+            localOnlyRouteEnabled ||
             autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY ||
             localNetworkProbePosted
         ) {
@@ -1340,6 +1357,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun probeNetworkForRemoteRecovery() {
         if (destroyed ||
+            localOnlyRouteEnabled ||
             pageState != PageState.DETECTING ||
             autoPipelineMode == AutoHazardPipelineDecider.PipelineMode.REMOTE_PRIMARY
         ) {
@@ -1412,6 +1430,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun postLocalInferenceLoop(delayMs: Long, reason: String) {
+        Log.d(
+            TAG,
+            "diagnostic postLocalInferenceLoop requested delayMs=$delayMs reason=$reason epoch=$localLoopEpoch localLoopRunning=$localLoopRunning destroyed=$destroyed localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} thread=${Thread.currentThread().name}",
+        )
         if (!localLoopRunning || destroyed || localRetryPosted) {
             return
         }
@@ -1422,6 +1444,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun runLocalInferenceLoop() {
         val epoch = localLoopEpoch
+        Log.d(
+            TAG,
+            "diagnostic runLocalInferenceLoop enter epoch=$epoch localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} modelLoaded=$modelLoaded hiddenRiskNcnnPresent=${hiddenRiskNcnn != null} pageState=$pageState thread=${Thread.currentThread().name}",
+        )
         if (!isLocalLoopActive(epoch)) {
             return
         }
@@ -1439,6 +1465,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val frame = copyLatestSquareFrameForLocalOrNull(localLastFrameTimestamp)
         captureInProgress = false
         if (frame == null) {
+            Log.d(
+                TAG,
+                "diagnostic runLocalInferenceLoop frame_unavailable epoch=$epoch lastFrameTs=$localLastFrameTimestamp frameStreamReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()}",
+            )
             if (startPendingStreamAnalysis()) {
                 return
             }
@@ -1446,6 +1476,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         if (!inferenceRunning.compareAndSet(false, true)) {
+            Log.d(
+                TAG,
+                "diagnostic runLocalInferenceLoop busy epoch=$epoch frameTs=${frame.timestamp} thread=${Thread.currentThread().name}",
+            )
             postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "local_inference_busy")
             return
         }
@@ -1467,6 +1501,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         if (!submitNativeTask {
                 val nativeStartElapsedMs = SystemClock.elapsedRealtime()
+                Log.i(
+                    TAG,
+                    "diagnostic submitNv21 before epoch=$epoch frameTs=${frame.timestamp} input=${DEFAULT_TARGET_INPUT_SIZE}x$DEFAULT_TARGET_INPUT_SIZE modelLoaded=$modelLoaded hiddenRiskNcnnPresent=${hiddenRiskNcnn != null} thread=${Thread.currentThread().name}",
+                )
                 val success = runCatching {
                     local.submitNv21(
                         localInput,
@@ -1486,6 +1524,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     .orEmpty()
                 uiHandler.post {
                     inferenceRunning.set(false)
+                    Log.i(
+                        TAG,
+                        "diagnostic submitNv21 after epoch=$epoch frameTs=${frame.timestamp} success=$success nativeElapsedMs=$nativeElapsedMs detectionCount=$detectionCount inferenceMs=$inferenceMs thread=${Thread.currentThread().name}",
+                    )
                     Log.d(
                         TAG,
                         "local inference success=$success detectionCount=$detectionCount nativeElapsedMs=$nativeElapsedMs inferenceMs=$inferenceMs",

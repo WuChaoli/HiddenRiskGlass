@@ -14,7 +14,11 @@ class InspectionCameraCoordinatorStateMachineTest {
     fun beginRelease_ignoresOldOwnerAfterTransfer() {
         val stateMachine = InspectionCameraCoordinator.StateMachine()
 
-        val aiSnapshot = stateMachine.beginAcquire(CameraOwner.AI_INSPECTION, readyNow = true)
+        val aiSnapshot = stateMachine.beginAcquire(
+            CameraOwner.AI_INSPECTION,
+            readyNow = true,
+            needPreview = true,
+        )
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.AI_INSPECTION,
@@ -23,7 +27,11 @@ class InspectionCameraCoordinatorStateMachineTest {
             ),
         )
 
-        val deviceGuideSnapshot = stateMachine.beginAcquire(CameraOwner.DEVICE_GUIDE, readyNow = true)
+        val deviceGuideSnapshot = stateMachine.beginAcquire(
+            CameraOwner.DEVICE_GUIDE,
+            readyNow = true,
+            needPreview = true,
+        )
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.DEVICE_GUIDE,
@@ -43,7 +51,11 @@ class InspectionCameraCoordinatorStateMachineTest {
     fun beginPreviewUpdate_ignoresOldOwnerAfterTransfer() {
         val stateMachine = InspectionCameraCoordinator.StateMachine()
 
-        val deviceGuideSnapshot = stateMachine.beginAcquire(CameraOwner.DEVICE_GUIDE, readyNow = true)
+        val deviceGuideSnapshot = stateMachine.beginAcquire(
+            CameraOwner.DEVICE_GUIDE,
+            readyNow = true,
+            needPreview = true,
+        )
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.DEVICE_GUIDE,
@@ -52,7 +64,11 @@ class InspectionCameraCoordinatorStateMachineTest {
             ),
         )
 
-        val aiSnapshot = stateMachine.beginAcquire(CameraOwner.AI_INSPECTION, readyNow = true)
+        val aiSnapshot = stateMachine.beginAcquire(
+            CameraOwner.AI_INSPECTION,
+            readyNow = true,
+            needPreview = true,
+        )
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.AI_INSPECTION,
@@ -65,6 +81,7 @@ class InspectionCameraCoordinatorStateMachineTest {
             stateMachine.beginPreviewUpdate(
                 owner = CameraOwner.DEVICE_GUIDE,
                 readyNow = true,
+                needPreview = true,
             ),
         )
         val snapshot = stateMachine.snapshot()
@@ -79,7 +96,11 @@ class InspectionCameraCoordinatorStateMachineTest {
         val stateMachine = InspectionCameraCoordinator.StateMachine()
 
         // 隐患录入页获取 owner
-        val hazardSnapshot = stateMachine.beginAcquire(CameraOwner.HAZARD_RECORD, readyNow = true)
+        val hazardSnapshot = stateMachine.beginAcquire(
+            CameraOwner.HAZARD_RECORD,
+            readyNow = true,
+            needPreview = false,
+        )
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.HAZARD_RECORD,
@@ -89,7 +110,11 @@ class InspectionCameraCoordinatorStateMachineTest {
         )
 
         // 设备指引页抢占 owner
-        val deviceGuideSnapshot = stateMachine.beginAcquire(CameraOwner.DEVICE_GUIDE, readyNow = true)
+        val deviceGuideSnapshot = stateMachine.beginAcquire(
+            CameraOwner.DEVICE_GUIDE,
+            readyNow = true,
+            needPreview = true,
+        )
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.DEVICE_GUIDE,
@@ -115,7 +140,11 @@ class InspectionCameraCoordinatorStateMachineTest {
         val stateMachine = InspectionCameraCoordinator.StateMachine()
 
         // 初始获取，needPreview=true
-        val acquire1 = stateMachine.beginAcquire(CameraOwner.DEVICE_GUIDE, readyNow = false)
+        val acquire1 = stateMachine.beginAcquire(
+            CameraOwner.DEVICE_GUIDE,
+            readyNow = false,
+            needPreview = true,
+        )
         assertNotNull(acquire1)
         assertTrue(
             stateMachine.finishReady(
@@ -127,7 +156,11 @@ class InspectionCameraCoordinatorStateMachineTest {
         assertEquals(CameraSessionState.READY_WITH_PREVIEW, stateMachine.snapshot().state)
 
         // 关闭预览，needPreview=false
-        val update1 = stateMachine.beginPreviewUpdate(CameraOwner.DEVICE_GUIDE, readyNow = true)
+        val update1 = stateMachine.beginPreviewUpdate(
+            CameraOwner.DEVICE_GUIDE,
+            readyNow = true,
+            needPreview = false,
+        )
         assertNotNull("同 owner 关闭预览应成功", update1)
         assertTrue(
             stateMachine.finishReady(
@@ -139,7 +172,11 @@ class InspectionCameraCoordinatorStateMachineTest {
         assertEquals(CameraSessionState.READY_NO_PREVIEW, stateMachine.snapshot().state)
 
         // 重新打开预览，needPreview=true
-        val update2 = stateMachine.beginPreviewUpdate(CameraOwner.DEVICE_GUIDE, readyNow = true)
+        val update2 = stateMachine.beginPreviewUpdate(
+            CameraOwner.DEVICE_GUIDE,
+            readyNow = true,
+            needPreview = true,
+        )
         assertNotNull("同 owner 重新打开预览应成功", update2)
         assertTrue(
             stateMachine.finishReady(
