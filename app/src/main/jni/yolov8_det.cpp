@@ -26,13 +26,83 @@
 #include <pipeline.h>
 #include <algorithm>
 #include <cstdio>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 static int g_hiddenrisk_last_raw_detection_count = 0;
 static bool g_hiddenrisk_debug_compare_enabled = false;
+static float g_hiddenrisk_default_prob_threshold = 0.65f;
+static std::unordered_map<std::string, float> g_hiddenrisk_label_prob_thresholds;
+static std::mutex g_hiddenrisk_threshold_mutex;
+
+static const char* kHiddenRiskClassNames[] = {
+    "T_btn",                    // 0: T字按钮
+    "tee_joint",                // 1: 三通接口
+    "cutoff_linkage",           // 2: 切断联动装置
+    "cassette_stove",           // 3: 卡式炉
+    "gas_alarm",                // 4: 可燃气体报警器
+    "exit_sign",                // 5: 安全出口标志
+    "fire_cabinet",             // 6: 室内消火栓箱
+    "hydrant_outdoor",          // 7: 室外消火栓
+    "industrial_gas_detector",  // 8: 工业可燃气体探测器
+    "emergency_light",          // 9: 应急灯
+    "exhaust_fan",              // 10: 排气扇
+    "hydrant_nozzle",           // 11: 栓口
+    "regulator",                // 12: 气瓶调压阀
+    "oxygen_cylinder",          // 13: 氧气瓶
+    "hose",                     // 14: 水带
+    "nozzle",                   // 15: 水枪
+    "pump_connector",           // 16: 水泵接合器
+    "lpg_cylinder",             // 17: 液化石油气瓶
+    "extinguisher",             // 18: 灭火器
+    "extinguisher_box",         // 19: 灭火器箱
+    "charcoal_stove",           // 20: 炭炉
+    "igniter",                  // 21: 点火针
+    "coal_stove",               // 22: 煤炉
+    "lighting_fixture",         // 23: 照明灯具
+    "flameout_protection",      // 24: 熄火保护装置
+    "gas_range",                // 25: 燃气灶
+    "electric_tricycle",        // 26: 电动三轮车
+    "electric_bike",            // 27: 电动车
+    "load_switch",              // 28: 负荷开关
+    "gas_hose",                 // 29: 软管
+    "door_closer",              // 30: 防火门闭门器
+    "door_sequencer",           // 31: 防火门顺序器
+    "security_window"           // 32: 防盗窗
+};
+
+static const char* hiddenrisk_label_name_for_id(int label)
+{
+    const int class_count = sizeof(kHiddenRiskClassNames) / sizeof(kHiddenRiskClassNames[0]);
+    if (label < 0 || label >= class_count)
+        return 0;
+    return kHiddenRiskClassNames[label];
+}
+
+static float hiddenrisk_default_prob_threshold()
+{
+    std::lock_guard<std::mutex> guard(g_hiddenrisk_threshold_mutex);
+    return g_hiddenrisk_default_prob_threshold;
+}
+
+static float hiddenrisk_prob_threshold_for_label(int label, float fallback_threshold)
+{
+    std::lock_guard<std::mutex> guard(g_hiddenrisk_threshold_mutex);
+    const char* label_name = hiddenrisk_label_name_for_id(label);
+    if (label_name)
+    {
+        auto it = g_hiddenrisk_label_prob_thresholds.find(label_name);
+        if (it != g_hiddenrisk_label_prob_thresholds.end())
+        {
+            return it->second;
+        }
+    }
+    return g_hiddenrisk_default_prob_threshold > 0.f ? g_hiddenrisk_default_prob_threshold : fallback_threshold;
+}
 
 void set_hiddenrisk_detect_result_limit(int limit)
 {
@@ -48,6 +118,24 @@ int get_hiddenrisk_last_raw_detection_count()
 void set_hiddenrisk_debug_compare_enabled(bool enabled)
 {
     g_hiddenrisk_debug_compare_enabled = enabled;
+}
+
+void set_hiddenrisk_default_prob_threshold(float threshold)
+{
+    std::lock_guard<std::mutex> guard(g_hiddenrisk_threshold_mutex);
+    g_hiddenrisk_default_prob_threshold = threshold;
+}
+
+void clear_hiddenrisk_label_prob_thresholds()
+{
+    std::lock_guard<std::mutex> guard(g_hiddenrisk_threshold_mutex);
+    g_hiddenrisk_label_prob_thresholds.clear();
+}
+
+void set_hiddenrisk_label_prob_threshold(const std::string& label_name, float threshold)
+{
+    std::lock_guard<std::mutex> guard(g_hiddenrisk_threshold_mutex);
+    g_hiddenrisk_label_prob_thresholds[label_name] = threshold;
 }
 
 static std::string summarize_objects(
@@ -246,7 +334,8 @@ static void generate_proposals(const ncnn::Mat& pred, int stride, const ncnn::Ma
             if (is_filtered_label(label))
                 continue;
 
-            if (score >= prob_threshold)
+            const float label_prob_threshold = hiddenrisk_prob_threshold_for_label(label, prob_threshold);
+            if (score >= label_prob_threshold)
             {
                 ncnn::Mat pred_bbox = pred_grid.range(0, reg_max_1 * 4).reshape(reg_max_1, 4);
 
@@ -355,7 +444,8 @@ static void generate_proposals_decoded(const ncnn::Mat& pred, float prob_thresho
         if (is_filtered_label(label))
             continue;
 
-        if (label < 0 || score < prob_threshold)
+        const float label_prob_threshold = hiddenrisk_prob_threshold_for_label(label, prob_threshold);
+        if (label < 0 || score < label_prob_threshold)
             continue;
 
         const float cx = values[0];
@@ -561,7 +651,7 @@ static int postprocess_hiddenrisk_output(
     int crop_offset_x = 0,
     int crop_offset_y = 0)
 {
-    const float prob_threshold = 0.70f;
+    const float prob_threshold = hiddenrisk_default_prob_threshold();
     const float nms_threshold = 0.45f;
 
     std::vector<int> strides(3);
@@ -1220,43 +1310,6 @@ int YOLOv8_det::detect_hardware_buffer(
 
 int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects)
 {
-    // YOLOv11: 33个类别 (索引0-32)
-    static const char* class_names[] = {
-        "T_btn",                    // 0: T字按钮
-        "tee_joint",                // 1: 三通接口
-        "cutoff_linkage",           // 2: 切断联动装置
-        "cassette_stove",           // 3: 卡式炉
-        "gas_alarm",                // 4: 可燃气体报警器
-        "exit_sign",                // 5: 安全出口标志
-        "fire_cabinet",             // 6: 室内消火栓箱
-        "hydrant_outdoor",          // 7: 室外消火栓
-        "industrial_gas_detector",  // 8: 工业可燃气体探测器
-        "emergency_light",          // 9: 应急灯
-        "exhaust_fan",              // 10: 排气扇
-        "hydrant_nozzle",           // 11: 栓口
-        "regulator",                // 12: 气瓶调压阀
-        "oxygen_cylinder",          // 13: 氧气瓶
-        "hose",                     // 14: 水带
-        "nozzle",                   // 15: 水枪
-        "pump_connector",           // 16: 水泵接合器
-        "lpg_cylinder",             // 17: 液化石油气瓶
-        "extinguisher",             // 18: 灭火器
-        "extinguisher_box",         // 19: 灭火器箱
-        "charcoal_stove",           // 20: 炭炉
-        "igniter",                  // 21: 点火针
-        "coal_stove",               // 22: 煤炉
-        "lighting_fixture",         // 23: 照明灯具
-        "flameout_protection",      // 24: 熄火保护装置
-        "gas_range",                // 25: 燃气灶
-        "electric_tricycle",        // 26: 电动三轮车
-        "electric_bike",            // 27: 电动车
-        "load_switch",              // 28: 负荷开关
-        "gas_hose",                 // 29: 软管
-        "door_closer",              // 30: 防火门闭门器
-        "door_sequencer",           // 31: 防火门顺序器
-        "security_window"           // 32: 防盗窗
-    };
-
     static cv::Scalar colors[] = {
         cv::Scalar(67, 54, 244),
         cv::Scalar(30, 99, 233),
@@ -1300,10 +1353,9 @@ int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects
 
         char text[256];
         const char* label_name = "unknown";
-        if (obj.label >= 0 && obj.label < (int)(sizeof(class_names) / sizeof(class_names[0])))
-        {
-            label_name = class_names[obj.label];
-        }
+        const char* resolved_label_name = hiddenrisk_label_name_for_id(obj.label);
+        if (resolved_label_name)
+            label_name = resolved_label_name;
         sprintf(text, "%s %.1f%%", label_name, obj.prob * 100);
 
         int baseLine = 0;
@@ -1328,44 +1380,6 @@ int YOLOv8_det_hiddenrisk::draw(cv::Mat& rgb, const std::vector<Object>& objects
 
 const char* YOLOv8_det_hiddenrisk::label_name(int label) const
 {
-    // YOLOv11: 33个类别
-    static const char* class_names[] = {
-        "T_btn",                    // 0: T字按钮
-        "tee_joint",                // 1: 三通接口
-        "cutoff_linkage",           // 2: 切断联动装置
-        "cassette_stove",           // 3: 卡式炉
-        "gas_alarm",                // 4: 可燃气体报警器
-        "exit_sign",                // 5: 安全出口标志
-        "fire_cabinet",             // 6: 室内消火栓箱
-        "hydrant_outdoor",          // 7: 室外消火栓
-        "industrial_gas_detector",  // 8: 工业可燃气体探测器
-        "emergency_light",          // 9: 应急灯
-        "exhaust_fan",              // 10: 排气扇
-        "hydrant_nozzle",           // 11: 栓口
-        "regulator",                // 12: 气瓶调压阀
-        "oxygen_cylinder",          // 13: 氧气瓶
-        "hose",                     // 14: 水带
-        "nozzle",                   // 15: 水枪
-        "pump_connector",           // 16: 水泵接合器
-        "lpg_cylinder",             // 17: 液化石油气瓶
-        "extinguisher",             // 18: 灭火器
-        "extinguisher_box",         // 19: 灭火器箱
-        "charcoal_stove",           // 20: 炭炉
-        "igniter",                  // 21: 点火针
-        "coal_stove",               // 22: 煤炉
-        "lighting_fixture",         // 23: 照明灯具
-        "flameout_protection",      // 24: 熄火保护装置
-        "gas_range",                // 25: 燃气灶
-        "electric_tricycle",        // 26: 电动三轮车
-        "electric_bike",            // 27: 电动车
-        "load_switch",              // 28: 负荷开关
-        "gas_hose",                 // 29: 软管
-        "door_closer",              // 30: 防火门闭门器
-        "door_sequencer",           // 31: 防火门顺序器
-        "security_window"           // 32: 防盗窗
-    };
-    int class_count = sizeof(class_names) / sizeof(class_names[0]);
-    if (label < 0 || label >= class_count)
-        return "unknown";
-    return class_names[label];
+    const char* resolved_label_name = hiddenrisk_label_name_for_id(label);
+    return resolved_label_name ? resolved_label_name : "unknown";
 }

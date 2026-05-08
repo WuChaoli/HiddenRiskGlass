@@ -1,0 +1,8 @@
+{
+  "aiInspection": {
+    "localDetectionDefaultThreshold": 0.65,
+    "localDetectionLabelThresholds": {
+      "燃气灶": 0.65
+    }
+  }
+}

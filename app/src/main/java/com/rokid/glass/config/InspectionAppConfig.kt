@@ -56,6 +56,8 @@ data class AiInspectionConfig(
     val onlineSelectPollIntervalMs: Long = 80L,
     val onlineDetectIntervalMs: Long = 1000L,
     val forceOnlineDetailForLocalHazard: Boolean = false,
+    val localDetectionDefaultThreshold: Float = 0.65f,
+    val localDetectionLabelThresholds: Map<String, Float> = emptyMap(),
 )
 
 data class NetworkConfig(
@@ -182,6 +184,8 @@ data class AiInspectionConfigOverride(
     val onlineSelectPollIntervalMs: Long? = null,
     val onlineDetectIntervalMs: Long? = null,
     val forceOnlineDetailForLocalHazard: Boolean? = null,
+    val localDetectionDefaultThreshold: Float? = null,
+    val localDetectionLabelThresholds: Map<String, Float>? = null,
 )
 
 data class NetworkConfigOverride(

@@ -24,6 +24,7 @@
 #include <cstdio>
 #include <dlfcn.h>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <benchmark.h>
@@ -54,6 +55,105 @@ static jint g_loaded_backend_id = -1;
 static jint g_loaded_gpu_profile = -1;
 static jint g_loaded_target_size = 0;
 static const size_t k_max_java_detection_count = 32;
+
+static std::string normalize_threshold_label_key(const std::string& raw_label)
+{
+    if (raw_label == "燃气灶")
+    {
+        return "gas_range";
+    }
+    return raw_label;
+}
+
+static std::vector<std::pair<std::string, float>> read_threshold_entries(
+    JNIEnv* env,
+    jobject label_thresholds)
+{
+    std::vector<std::pair<std::string, float>> entries;
+    if (!label_thresholds)
+    {
+        return entries;
+    }
+
+    jclass mapClass = env->GetObjectClass(label_thresholds);
+    jmethodID entrySetMethod = env->GetMethodID(mapClass, "entrySet", "()Ljava/util/Set;");
+    jobject entrySet = env->CallObjectMethod(label_thresholds, entrySetMethod);
+    env->DeleteLocalRef(mapClass);
+    if (!entrySet)
+    {
+        return entries;
+    }
+
+    jclass setClass = env->GetObjectClass(entrySet);
+    jmethodID iteratorMethod = env->GetMethodID(setClass, "iterator", "()Ljava/util/Iterator;");
+    jobject iterator = env->CallObjectMethod(entrySet, iteratorMethod);
+    env->DeleteLocalRef(setClass);
+    env->DeleteLocalRef(entrySet);
+    if (!iterator)
+    {
+        return entries;
+    }
+
+    jclass iteratorClass = env->GetObjectClass(iterator);
+    jmethodID hasNextMethod = env->GetMethodID(iteratorClass, "hasNext", "()Z");
+    jmethodID nextMethod = env->GetMethodID(iteratorClass, "next", "()Ljava/lang/Object;");
+    jclass numberClass = env->FindClass("java/lang/Number");
+    jmethodID floatValueMethod = env->GetMethodID(numberClass, "floatValue", "()F");
+    jclass entryClass = 0;
+    jmethodID getKeyMethod = 0;
+    jmethodID getValueMethod = 0;
+
+    while (env->CallBooleanMethod(iterator, hasNextMethod) == JNI_TRUE)
+    {
+        jobject entry = env->CallObjectMethod(iterator, nextMethod);
+        if (!entry)
+        {
+            continue;
+        }
+
+        if (!entryClass)
+        {
+            entryClass = reinterpret_cast<jclass>(env->NewGlobalRef(env->GetObjectClass(entry)));
+            getKeyMethod = env->GetMethodID(entryClass, "getKey", "()Ljava/lang/Object;");
+            getValueMethod = env->GetMethodID(entryClass, "getValue", "()Ljava/lang/Object;");
+        }
+
+        jstring key = reinterpret_cast<jstring>(env->CallObjectMethod(entry, getKeyMethod));
+        jobject value = env->CallObjectMethod(entry, getValueMethod);
+        if (key && value)
+        {
+            const char* key_chars = env->GetStringUTFChars(key, 0);
+            const std::string normalized_key = normalize_threshold_label_key(key_chars ? key_chars : "");
+            if (key_chars)
+            {
+                env->ReleaseStringUTFChars(key, key_chars);
+            }
+            if (!normalized_key.empty())
+            {
+                entries.push_back(std::make_pair(normalized_key, env->CallFloatMethod(value, floatValueMethod)));
+            }
+        }
+
+        if (key)
+        {
+            env->DeleteLocalRef(key);
+        }
+        if (value)
+        {
+            env->DeleteLocalRef(value);
+        }
+        env->DeleteLocalRef(entry);
+    }
+
+    if (entryClass)
+    {
+        env->DeleteGlobalRef(entryClass);
+    }
+    env->DeleteLocalRef(numberClass);
+    env->DeleteLocalRef(iteratorClass);
+    env->DeleteLocalRef(iterator);
+    return entries;
+}
 
 static const char* backend_label(int backend_id)
 {
@@ -641,15 +741,18 @@ JNIEXPORT void JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_setDebugCo
         enabled == JNI_TRUE ? 1 : 0);
 }
 
-// public native boolean loadModel(AssetManager mgr, int backend, int gpuProfile, int targetSize);
+// public native boolean loadModel(AssetManager mgr, int backend, int gpuProfile, int targetSize, float defaultThreshold, Map<String, Float> labelThresholds);
 JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadModel(
     JNIEnv* env,
     jobject thiz,
     jobject assetManager,
     jint backend,
     jint gpuProfile,
-    jint targetSize)
+    jint targetSize,
+    jfloat defaultThreshold,
+    jobject labelThresholds)
 {
+    (void)thiz;
     const double load_start_ms = ncnn::get_current_time();
     if (backend < 0 || backend > 2)
     {
@@ -680,6 +783,22 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
         set_latest_backend_info_locked(backend, backend_label((int)backend), "");
         set_latest_error_locked("asset_manager", -1, "asset manager unavailable");
         return JNI_FALSE;
+    }
+
+    const std::vector<std::pair<std::string, float>> threshold_entries =
+        read_threshold_entries(env, labelThresholds);
+    set_hiddenrisk_default_prob_threshold((float)defaultThreshold);
+    clear_hiddenrisk_label_prob_thresholds();
+    for (size_t i = 0; i < threshold_entries.size(); i++)
+    {
+        const std::pair<std::string, float>& entry = threshold_entries[i];
+        set_hiddenrisk_label_prob_threshold(entry.first, entry.second);
+        __android_log_print(
+            ANDROID_LOG_INFO,
+            LOG_TAG_NCNN,
+            "loadModel threshold label=%s value=%.4f",
+            entry.first.c_str(),
+            entry.second);
     }
 
     const char* parampath = "hiddenrisk.ncnn.param";

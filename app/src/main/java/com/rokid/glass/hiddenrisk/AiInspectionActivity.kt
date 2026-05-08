@@ -908,12 +908,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         if (!submitNativeTask {
                 local.setDebugCompareEnabled(false)
+                val thresholdConfig = InspectionConfigRepository.get().aiInspection
                 val success = runCatching {
                     local.loadModel(
                         assets,
                         BACKEND_GPU,
                         GPU_PROFILE_BALANCED_FP16,
-                        DEFAULT_TARGET_INPUT_SIZE
+                        DEFAULT_TARGET_INPUT_SIZE,
+                        thresholdConfig.localDetectionDefaultThreshold,
+                        thresholdConfig.localDetectionLabelThresholds,
                     )
                 }.onFailure { e -> Log.e(TAG, "loadModel failed", e) }
                     .getOrDefault(false)
@@ -1306,6 +1309,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             emptyList()
         }
         if (filteredLocalMatches.isNotEmpty()) {
+            markLocalLabelsCooldown(
+                localMatches = filteredLocalMatches,
+                nowElapsedMs = SystemClock.elapsedRealtime(),
+            )
             stopAutoInferencePipelines("accept_local_hazard_result")
             handleAutoDetectedLocalHazardResult(
                 localMatches = filteredLocalMatches,
@@ -3141,17 +3148,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localResultStage = LocalResultStage.DESCRIPTION
         localSaveSubmitting = false
         sessionId = ""
-        if (result.source == HazardSource.LOCAL) {
-            val cooldownLabels = result.localCooldownLabels.ifEmpty {
-                result.resolvedHazards()
-                    .map { it.displayTitle.trim() }
-                    .filter { it.isNotBlank() }
-            }
-            markLocalLabelsCooldownByName(
-                labels = cooldownLabels,
-                nowElapsedMs = SystemClock.elapsedRealtime(),
-            )
-        }
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
         InspectionWorkflowSession.recordCapture(result.jpegBytes)

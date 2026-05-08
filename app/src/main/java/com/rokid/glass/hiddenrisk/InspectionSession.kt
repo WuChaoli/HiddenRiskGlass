@@ -1,6 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.config.InspectionConfigRepository
 
 /**
  * 巡检会话管理单例。
@@ -52,12 +53,15 @@ object InspectionSession {
     fun loadModel(assets: android.content.res.AssetManager): Boolean {
         val ncnn = hiddenRiskNcnn ?: return false
         return try {
+            val thresholdConfig = InspectionConfigRepository.get().aiInspection
             ncnn.setDebugCompareEnabled(false)
             ncnn.loadModel(
                 assets,
                 backendGpu,
                 gpuProfile,
-                targetInputSize
+                targetInputSize,
+                thresholdConfig.localDetectionDefaultThreshold,
+                thresholdConfig.localDetectionLabelThresholds,
             )
             errorMessage = null
             true

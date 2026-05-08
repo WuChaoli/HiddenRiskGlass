@@ -23,6 +23,7 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
@@ -487,8 +488,16 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!submitNativeTask {
                 local.setDebugResultLimit(targetResultLimitOverride)
                 local.setDebugCompareEnabled(targetDebugCompareEnabled)
+                val thresholdConfig = InspectionConfigRepository.get().aiInspection
                 val success = runCatching {
-                    local.loadModel(assets, targetBackend, targetGpuProfile, targetInputSize)
+                    local.loadModel(
+                        assets,
+                        targetBackend,
+                        targetGpuProfile,
+                        targetInputSize,
+                        thresholdConfig.localDetectionDefaultThreshold,
+                        thresholdConfig.localDetectionLabelThresholds,
+                    )
                 }
                     .onFailure { error -> Log.e(TAG, "loadModel failed", error) }
                     .getOrDefault(false)

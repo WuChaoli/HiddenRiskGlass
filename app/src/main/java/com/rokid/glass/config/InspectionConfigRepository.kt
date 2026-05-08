@@ -192,6 +192,10 @@ object InspectionConfigRepository {
                 override?.onlineDetectIntervalMs ?: base.onlineDetectIntervalMs,
             forceOnlineDetailForLocalHazard =
                 override?.forceOnlineDetailForLocalHazard ?: base.forceOnlineDetailForLocalHazard,
+            localDetectionDefaultThreshold =
+                override?.localDetectionDefaultThreshold ?: base.localDetectionDefaultThreshold,
+            localDetectionLabelThresholds =
+                base.localDetectionLabelThresholds + (override?.localDetectionLabelThresholds ?: emptyMap()),
         )
     }
 

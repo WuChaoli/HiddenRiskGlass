@@ -17,6 +17,7 @@ package com.rokid.glass.hiddenrisk;
 import android.graphics.Bitmap;
 import android.content.res.AssetManager;
 import android.hardware.HardwareBuffer;
+import java.util.Map;
 
 public class HiddenRiskNcnn
 {
@@ -28,7 +29,13 @@ public class HiddenRiskNcnn
     public static final int GPU_PROFILE_BALANCED_FP16 = 1;
     public static final int GPU_PROFILE_NO_PACKING_FP32 = 2;
 
-    public native boolean loadModel(AssetManager mgr, int backend, int gpuProfile, int targetSize);
+    public native boolean loadModel(
+            AssetManager mgr,
+            int backend,
+            int gpuProfile,
+            int targetSize,
+            float defaultThreshold,
+            Map<String, Float> labelThresholds);
     public native boolean submitBitmap(Bitmap bitmap);
     public native boolean submitNv21(byte[] nv21, int width, int height);
     public native boolean submitHardwareBuffer(HardwareBuffer hardwareBuffer, int width, int height, int rotationDegrees);

@@ -18,6 +18,7 @@
 #include <opencv2/core/core.hpp>
 
 #include <string>
+#include <unordered_map>
 
 #include <net.h>
 
@@ -35,6 +36,9 @@ struct Object
 void set_hiddenrisk_detect_result_limit(int limit);
 int get_hiddenrisk_last_raw_detection_count();
 void set_hiddenrisk_debug_compare_enabled(bool enabled);
+void set_hiddenrisk_default_prob_threshold(float threshold);
+void clear_hiddenrisk_label_prob_thresholds();
+void set_hiddenrisk_label_prob_threshold(const std::string& label_name, float threshold);
 
 class YOLOv8
 {
