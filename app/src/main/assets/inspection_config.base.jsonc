@@ -73,13 +73,15 @@
     "onlineSelectMaxFrames": 3,
     // 在线取样轮询间隔，单位 ms。
     "onlineSelectPollIntervalMs": 80,
-    // 在线检测最小触发间隔，单位 ms。standard 默认 1000，demo overlay 会覆盖。
-    "onlineDetectIntervalMs": 1000,
+    // 在线检测最小触发间隔，单位 ms。standard 默认 500，demo overlay 会覆盖。
+    "onlineDetectIntervalMs": 500,
+    // 在线检测最大并发数。超过该数量的新请求会被本地丢弃为 busy。
+    "onlineDetectConcurrencyLimit": 5,
     // 场景识别运行入口已关闭，ctype=2 保留给检查指引。该字段保留用于兼容旧配置。
     "enableOnlineSceneHazardDetection": false,
     // 旧场景识别最小触发间隔，单位 ms。当前不作为运行链路使用。
     "onlineSceneDetectIntervalMs": 3000,
-    // 远程 ctype=1 连续失败达到该次数后，降级到本地 NCNN 备用链路。
+    // 远程 ctype=3 连续失败达到该次数后，降级到本地 NCNN 备用链路。
     "remoteFailureFallbackThreshold": 3,
     // 是否允许远端失败后进入本地 fallback loading。接口联调阶段默认关闭，避免自动切到本地链路干扰验证。
     "enableLocalFallbackLoading": false,
@@ -111,7 +113,7 @@
       // AI AR SSE write timeout，单位 ms。
       "writeTimeoutMs": 30000,
       // 在线检测阶段的业务超时，单位 ms。超时后会主动丢弃请求。
-      "detectTimeoutMs": 3000
+      "detectTimeoutMs": 1500
     },
     "deviceGuideDetectApi": {
       // 设备指引检测接口地址。当前先复用 /ai/ar，后续可替换为独立服务。

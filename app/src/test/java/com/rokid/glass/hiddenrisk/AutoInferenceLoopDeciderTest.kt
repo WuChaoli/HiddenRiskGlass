@@ -28,24 +28,22 @@ class AutoInferenceLoopDeciderTest {
     }
 
     @Test
-    fun decideOnlineLoopAdvance_queuesNextWhenWindowElapsedButRequestStillActive() {
+    fun decideOnlineLoopAdvance_schedulesNextWhenWindowElapsed() {
         val decision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
-            requestInFlight = true,
             queuedNext = false,
             nowElapsedMs = 1_500L,
             nextEarliestStartElapsedMs = 1_000L,
             loopAlreadyPosted = false,
         )
 
-        assertTrue(decision.queueNext)
+        assertFalse(decision.queueNext)
         assertFalse(decision.startNow)
-        assertEquals(null, decision.delayMs)
+        assertEquals(0L, decision.delayMs)
     }
 
     @Test
     fun decideOnlineLoopAdvance_startsImmediatelyAfterQueuedRequestCompletes() {
         val decision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
-            requestInFlight = false,
             queuedNext = true,
             nowElapsedMs = 1_500L,
             nextEarliestStartElapsedMs = 1_000L,

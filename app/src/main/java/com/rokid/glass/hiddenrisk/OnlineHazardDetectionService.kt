@@ -11,7 +11,7 @@ import java.util.concurrent.Executors
 
 /**
  * 在线隐患识别调度服务。
- * ctype=1 检测阶段在单个 service 实例内仅允许单飞，并对单次请求施加超时控制；
+ * ctype=3 检测阶段在单个 service 实例内允许受限并发，并对每个请求施加独立超时控制；
  * ctype=0 深度分析阶段按需单次拉取。
  */
 internal class OnlineHazardDetectionService(
@@ -22,6 +22,8 @@ internal class OnlineHazardDetectionService(
     private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
     private val encodeExecutor: ExecutorService = Executors.newSingleThreadExecutor(),
     private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiArApi.detectTimeoutMs,
+    private val detectConcurrencyLimit: Int = InspectionConfigRepository.get()
+        .aiInspection.onlineDetectConcurrencyLimit,
     private val infoLogger: (String) -> Unit = { message -> Log.i(TAG, message) },
     private val warningLogger: (String) -> Unit = { message -> Log.w(TAG, message) },
 ) {
@@ -29,7 +31,7 @@ internal class OnlineHazardDetectionService(
         val ctype: Int,
         val logName: String,
     ) {
-        ITEM(1, "item"),
+        ITEM(3, "item"),
         SCENE(-1, "scene"),
     }
 
@@ -79,34 +81,29 @@ internal class OnlineHazardDetectionService(
         fun removeCallbacks(runnable: Runnable)
     }
 
-    private var activeDetectionRequest: DetectionRequest? = null
-    private var activeDetectionHandle: AiArSseService.RequestHandle? = null
-    private var activeDetectionStartedElapsedMs = 0L
+    private data class ActiveDetection(
+        val request: DetectionRequest,
+        val startedElapsedMs: Long,
+        val timeoutRunnable: Runnable,
+        var handle: AiArSseService.RequestHandle? = null,
+    )
+
+    private val activeDetections = linkedMapOf<Long, ActiveDetection>()
     private var activeDetailRequest: DetailRequest? = null
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
 
-    private val detectionTimeoutRunnable = Runnable {
-        val request = activeDetectionRequest ?: return@Runnable
-        if (elapsedRealtimeProvider() - activeDetectionStartedElapsedMs < detectTimeoutMs) {
-            return@Runnable
-        }
-        runCatching { warningLogger("detect timeout requestId=${request.requestId}") }
-        activeDetectionHandle?.cancel()
-        clearActiveDetection()
-        callback.onDetectionDropped(request, REASON_TIMEOUT)
-    }
-
     fun submitDetection(request: DetectionRequest) {
         scheduler.post {
-            if (activeDetectionRequest != null) {
+            val limit = detectConcurrencyLimit.coerceAtLeast(1)
+            if (activeDetections.size >= limit) {
                 warningLogger(
-                    "submitDetection droppedBusy lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+                    "submitDetection droppedBusy lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} concurrencyLimit=$limit jpegBytes=${request.jpegBytes.size}",
                 )
                 callback.onDetectionDropped(request, REASON_BUSY)
                 return@post
             }
             infoLogger(
-                "submitDetection accepted lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+                "submitDetection accepted lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size + 1} concurrencyLimit=$limit jpegBytes=${request.jpegBytes.size}",
             )
             startDetection(request)
         }
@@ -114,8 +111,7 @@ internal class OnlineHazardDetectionService(
 
     fun cancelActiveDetection() {
         scheduler.post {
-            activeDetectionHandle?.cancel()
-            clearActiveDetection()
+            cancelAllActiveDetections(reason = "cancel_active")
         }
     }
 
@@ -175,9 +171,7 @@ internal class OnlineHazardDetectionService(
 
     fun cancelAll() {
         scheduler.post {
-            scheduler.removeCallbacks(detectionTimeoutRunnable)
-            activeDetectionHandle?.cancel()
-            clearActiveDetection()
+            cancelAllActiveDetections(reason = "cancel_all")
             activeDetailHandle?.cancel()
             activeDetailHandle = null
             activeDetailRequest = null
@@ -190,37 +184,46 @@ internal class OnlineHazardDetectionService(
     }
 
     private fun startDetection(request: DetectionRequest) {
-        activeDetectionRequest = request
-        activeDetectionStartedElapsedMs = elapsedRealtimeProvider()
-        scheduleDetectionTimeout()
+        val startedElapsedMs = elapsedRealtimeProvider()
+        val timeoutRunnable = Runnable {
+            handleDetectionTimeout(request.requestId)
+        }
+        activeDetections[request.requestId] = ActiveDetection(
+            request = request,
+            startedElapsedMs = startedElapsedMs,
+            timeoutRunnable = timeoutRunnable,
+        )
+        scheduler.postDelayed(timeoutRunnable, detectTimeoutMs)
         infoLogger(
-            "startDetection encodeStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs captureToSubmitMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, activeDetectionStartedElapsedMs)} payloadBuiltToSubmitMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, activeDetectionStartedElapsedMs)}",
+            "startDetection encodeStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} concurrencyLimit=${detectConcurrencyLimit.coerceAtLeast(1)} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs captureToSubmitMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, startedElapsedMs)} payloadBuiltToSubmitMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, startedElapsedMs)}",
         )
         encodeExecutor.execute {
             val base64StartedElapsedMs = elapsedRealtimeProvider()
             val base64Image = base64Encoder(request.jpegBytes)
             val base64FinishedElapsedMs = elapsedRealtimeProvider()
             scheduler.post detectPost@{
-                if (activeDetectionRequest != request) {
+                val active = activeDetections[request.requestId]
+                if (active?.request != request) {
                     infoLogger(
                         "startDetection encodeDiscarded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch}",
                     )
                     return@detectPost
                 }
                 infoLogger(
-                    "startDetection encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                    "startDetection encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - active.startedElapsedMs}",
                 )
                 val uploadStartedElapsedMs = elapsedRealtimeProvider()
                 infoLogger(
-                    "detect timing uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=${uploadStartedElapsedMs - activeDetectionStartedElapsedMs} base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length}",
+                    "detect timing uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=${uploadStartedElapsedMs - active.startedElapsedMs} base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length}",
                 )
-                activeDetectionHandle = requestGateway.identifyHazard(
+                val handle = requestGateway.identifyHazard(
                     request = request,
                     base64Image = base64Image,
                     callback = object : AiArSseService.DetectCallback {
                         override fun onOpened(handle: AiArSseService.RequestHandle) {
+                            val openedActive = activeDetections[request.requestId] ?: return
                             infoLogger(
-                                "detect opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - activeDetectionStartedElapsedMs}",
+                                "detect opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - openedActive.startedElapsedMs}",
                             )
                         }
 
@@ -229,20 +232,17 @@ internal class OnlineHazardDetectionService(
                             hasHazard: Boolean,
                             fullText: String,
                         ) {
-                            if (activeDetectionRequest != request) {
-                                return
-                            }
+                            val completedActive = removeActiveDetection(request.requestId) ?: return
                             val completedElapsedMs = elapsedRealtimeProvider()
-                            val detectElapsedMs = completedElapsedMs - activeDetectionStartedElapsedMs
-                            val submitToUploadMs = uploadStartedElapsedMs - activeDetectionStartedElapsedMs
+                            val detectElapsedMs = completedElapsedMs - completedActive.startedElapsedMs
+                            val submitToUploadMs = uploadStartedElapsedMs - completedActive.startedElapsedMs
                             val captureToHasHazardMs = durationOrMinusOne(
                                 request.frameCapturedAtElapsedMs,
                                 completedElapsedMs,
                             )
                             val uploadToHasHazardMs = completedElapsedMs - uploadStartedElapsedMs
-                            clearActiveDetection()
                             infoLogger(
-                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${fullText.length} totalElapsedMs=$detectElapsedMs",
+                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard activePoolSize=${activeDetections.size} rawTextLength=${fullText.length} totalElapsedMs=$detectElapsedMs",
                             )
                             infoLogger(
                                 "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=$submitToUploadMs base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} jpegBytes=${request.jpegBytes.size}",
@@ -254,33 +254,54 @@ internal class OnlineHazardDetectionService(
                             handle: AiArSseService.RequestHandle,
                             message: String,
                         ) {
-                            if (activeDetectionRequest != request) {
-                                return
-                            }
+                            val failedActive = removeActiveDetection(request.requestId) ?: return
                             val failedElapsedMs = elapsedRealtimeProvider()
-                            val detectElapsedMs = failedElapsedMs - activeDetectionStartedElapsedMs
-                            clearActiveDetection()
+                            val detectElapsedMs = failedElapsedMs - failedActive.startedElapsedMs
                             warningLogger(
-                                "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} totalElapsedMs=$detectElapsedMs captureToFailureMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, failedElapsedMs)} message=$message",
+                                "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} totalElapsedMs=$detectElapsedMs captureToFailureMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, failedElapsedMs)} message=$message",
                             )
                             callback.onDetectionFailure(request, message)
                         }
                     },
                 )
+                active.handle = handle
             }
         }
     }
 
-    private fun scheduleDetectionTimeout() {
-        scheduler.removeCallbacks(detectionTimeoutRunnable)
-        scheduler.postDelayed(detectionTimeoutRunnable, detectTimeoutMs)
+    private fun handleDetectionTimeout(requestId: Long) {
+        val active = removeActiveDetection(requestId) ?: return
+        val request = active.request
+        if (elapsedRealtimeProvider() - active.startedElapsedMs < detectTimeoutMs) {
+            return
+        }
+        runCatching {
+            warningLogger(
+                "detect timeout lane=${request.lane.logName} requestId=${request.requestId} activePoolSize=${activeDetections.size} timeoutMs=$detectTimeoutMs",
+            )
+        }
+        active.handle?.cancel()
+        callback.onDetectionDropped(request, REASON_TIMEOUT)
     }
 
-    private fun clearActiveDetection() {
-        scheduler.removeCallbacks(detectionTimeoutRunnable)
-        activeDetectionHandle = null
-        activeDetectionRequest = null
-        activeDetectionStartedElapsedMs = 0L
+    private fun removeActiveDetection(requestId: Long): ActiveDetection? {
+        val active = activeDetections.remove(requestId) ?: return null
+        scheduler.removeCallbacks(active.timeoutRunnable)
+        return active
+    }
+
+    private fun cancelAllActiveDetections(reason: String) {
+        if (activeDetections.isEmpty()) {
+            return
+        }
+        val requestIds = activeDetections.keys.toList()
+        infoLogger("cancel active detections reason=$reason requestIds=$requestIds activePoolSize=${activeDetections.size}")
+        val activeItems = activeDetections.values.toList()
+        activeDetections.clear()
+        activeItems.forEach { active ->
+            scheduler.removeCallbacks(active.timeoutRunnable)
+            active.handle?.cancel()
+        }
     }
 
     private class SseRequestGateway(

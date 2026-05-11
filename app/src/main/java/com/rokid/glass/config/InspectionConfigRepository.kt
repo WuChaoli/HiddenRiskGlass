@@ -181,6 +181,8 @@ object InspectionConfigRepository {
                 override?.onlineSelectPollIntervalMs ?: base.onlineSelectPollIntervalMs,
             onlineDetectIntervalMs =
                 override?.onlineDetectIntervalMs ?: base.onlineDetectIntervalMs,
+            onlineDetectConcurrencyLimit =
+                override?.onlineDetectConcurrencyLimit ?: base.onlineDetectConcurrencyLimit,
             enableOnlineSceneHazardDetection =
                 override?.enableOnlineSceneHazardDetection ?: base.enableOnlineSceneHazardDetection,
             onlineSceneDetectIntervalMs =

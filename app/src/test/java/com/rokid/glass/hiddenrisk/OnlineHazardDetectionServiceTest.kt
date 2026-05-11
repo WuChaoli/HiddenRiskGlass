@@ -10,51 +10,48 @@ import java.util.concurrent.TimeUnit
 class OnlineHazardDetectionServiceTest {
 
     @Test
-    fun submitDetection_rejectsSecondRequestWhileActive() {
+    fun submitDetection_acceptsFiveConcurrentRequestsAndDropsSixth() {
         val env = TestEnv()
         val service = env.createService()
 
-        val first = detectionRequest(requestId = 1L)
-        val second = detectionRequest(requestId = 2L)
+        (1L..6L).forEach { requestId ->
+            service.submitDetection(detectionRequest(requestId = requestId))
+        }
 
-        service.submitDetection(first)
-        service.submitDetection(second)
-
-        assertEquals(listOf(1L), env.gateway.startedDetectionRequestIds)
-        assertEquals(listOf("drop:2:busy"), env.callbackEvents)
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), env.gateway.startedDetectionRequestIds)
+        assertEquals(listOf("drop:6:busy"), env.callbackEvents)
     }
 
     @Test
-    fun submitDetection_timesOutAfterThreeSecondsAndCancelsHandle() {
+    fun submitDetection_timesOutAfterOneAndHalfSecondsAndCancelsHandle() {
         val env = TestEnv()
         val service = env.createService()
 
         val request = detectionRequest(requestId = 7L)
         service.submitDetection(request)
 
-        env.advanceTimeBy(2999L)
+        env.advanceTimeBy(1499L)
         assertTrue(env.callbackEvents.isEmpty())
-        assertFalse(env.gateway.lastDetectionHandle?.isCanceled() ?: true)
+        assertFalse(env.gateway.detectionHandles[7L]?.isCanceled() ?: true)
 
         env.advanceTimeBy(1L)
 
         assertEquals(listOf("drop:7:timeout"), env.callbackEvents)
-        assertTrue(env.gateway.lastDetectionHandle?.isCanceled() ?: false)
+        assertTrue(env.gateway.detectionHandles[7L]?.isCanceled() ?: false)
     }
 
     @Test
-    fun submitDetection_allowsNextRequestAfterSuccess() {
+    fun submitDetection_releasesOnlyCompletedRequestSlotAfterSuccess() {
         val env = TestEnv()
         val service = env.createService()
 
-        val first = detectionRequest(requestId = 11L)
-        val second = detectionRequest(requestId = 12L)
+        (11L..15L).forEach { requestId ->
+            service.submitDetection(detectionRequest(requestId = requestId))
+        }
+        env.gateway.completeDetectionSuccess(requestId = 11L, hasHazard = false, fullText = "否")
+        service.submitDetection(detectionRequest(requestId = 16L))
 
-        service.submitDetection(first)
-        env.gateway.completeDetectionSuccess(hasHazard = false, fullText = "否")
-        service.submitDetection(second)
-
-        assertEquals(listOf(11L, 12L), env.gateway.startedDetectionRequestIds)
+        assertEquals(listOf(11L, 12L, 13L, 14L, 15L, 16L), env.gateway.startedDetectionRequestIds)
         assertEquals(listOf("result:11:false"), env.callbackEvents)
     }
 
@@ -74,27 +71,32 @@ class OnlineHazardDetectionServiceTest {
             listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
             env.gateway.startedDetectionLanes,
         )
-        assertEquals(-1, env.gateway.lastDetectionHandle?.ctype)
+        assertEquals(-1, env.gateway.detectionHandles[23L]?.ctype)
     }
 
     @Test
-    fun cancelAll_preventsOldDetectionCallbackDelivery() {
+    fun cancelActiveDetection_cancelsAllActiveHandlesAndIgnoresOldCallbacks() {
         val env = TestEnv()
         val service = env.createService()
 
-        val request = detectionRequest(requestId = 19L)
-        service.submitDetection(request)
-        val staleHandle = env.gateway.lastDetectionHandle
+        service.submitDetection(detectionRequest(requestId = 19L))
+        service.submitDetection(detectionRequest(requestId = 20L))
 
-        service.cancelAll()
+        service.cancelActiveDetection()
         env.gateway.completeDetectionSuccess(
-            handle = staleHandle,
+            requestId = 19L,
             hasHazard = true,
             fullText = "是",
         )
+        env.gateway.completeDetectionSuccess(
+            requestId = 20L,
+            hasHazard = false,
+            fullText = "否",
+        )
 
         assertTrue(env.callbackEvents.isEmpty())
-        assertTrue(staleHandle?.isCanceled() ?: false)
+        assertTrue(env.gateway.detectionHandles[19L]?.isCanceled() ?: false)
+        assertTrue(env.gateway.detectionHandles[20L]?.isCanceled() ?: false)
     }
 
     private fun detectionRequest(
@@ -160,6 +162,8 @@ class OnlineHazardDetectionServiceTest {
                 elapsedRealtimeProvider = { nowElapsedMs },
                 base64Encoder = { "encoded" },
                 encodeExecutor = ImmediateExecutorService(),
+                detectTimeoutMs = 1_500L,
+                detectConcurrencyLimit = 5,
                 infoLogger = { _ -> },
                 warningLogger = { _ -> },
             )
@@ -210,8 +214,8 @@ class OnlineHazardDetectionServiceTest {
     }
 
     private class FakeRequestGateway : OnlineHazardDetectionService.RequestGateway {
-        var detectCallback: AiArSseService.DetectCallback? = null
-        var lastDetectionHandle: AiArSseService.RequestHandle? = null
+        val detectCallbacks = mutableMapOf<Long, AiArSseService.DetectCallback>()
+        val detectionHandles = mutableMapOf<Long, AiArSseService.RequestHandle>()
         var detailCallback: AiArSseService.DetailCallback? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
         val startedDetectionLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
@@ -227,8 +231,8 @@ class OnlineHazardDetectionServiceTest {
                 taskId = "detect-$requestId",
                 ctype = lane.ctype,
             )
-            detectCallback = callback
-            lastDetectionHandle = handle
+            detectCallbacks[requestId] = callback
+            detectionHandles[requestId] = handle
             startedDetectionRequestIds += requestId
             startedDetectionLanes += lane
             return handle
@@ -249,12 +253,12 @@ class OnlineHazardDetectionServiceTest {
         }
 
         fun completeDetectionSuccess(
-            handle: AiArSseService.RequestHandle? = lastDetectionHandle,
+            requestId: Long,
             hasHazard: Boolean,
             fullText: String,
         ) {
-            val callback = detectCallback ?: return
-            val activeHandle = handle ?: return
+            val callback = detectCallbacks[requestId] ?: return
+            val activeHandle = detectionHandles[requestId] ?: return
             callback.onSuccess(activeHandle, hasHazard, fullText)
         }
     }

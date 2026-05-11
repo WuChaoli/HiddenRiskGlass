@@ -32,19 +32,11 @@ internal object AutoInferenceLoopDecider {
     }
 
     fun decideOnlineLoopAdvance(
-        requestInFlight: Boolean,
         queuedNext: Boolean,
         nowElapsedMs: Long,
         nextEarliestStartElapsedMs: Long,
         loopAlreadyPosted: Boolean,
     ): OnlineLoopAdvance {
-        if (requestInFlight) {
-            return if (nowElapsedMs >= nextEarliestStartElapsedMs) {
-                OnlineLoopAdvance(queueNext = true)
-            } else {
-                OnlineLoopAdvance(delayMs = nextEarliestStartElapsedMs - nowElapsedMs)
-            }
-        }
         if (queuedNext) {
             return OnlineLoopAdvance(startNow = true)
         }

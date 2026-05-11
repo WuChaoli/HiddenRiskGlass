@@ -303,10 +303,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         var queuedNext: Boolean = false,
         var loopPosted: Boolean = false,
         var frameSelectionInProgress: Boolean = false,
-        var requestInFlight: Boolean = false,
         var nextEarliestStartElapsedMs: Long = 0L,
-        var activeRequestId: Long = 0L,
-    )
+        val activeRequestIds: MutableSet<Long> = linkedSetOf(),
+    ) {
+        val requestInFlight: Boolean
+            get() = activeRequestIds.isNotEmpty()
+    }
 
     private val onlineOnlyRouteEnabled: Boolean
         get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.ONLINE_ONLY
@@ -657,9 +659,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runtime.queuedNext = false
         runtime.loopPosted = false
         runtime.frameSelectionInProgress = false
-        runtime.requestInFlight = false
         runtime.nextEarliestStartElapsedMs = 0L
-        runtime.activeRequestId = 0L
+        runtime.activeRequestIds.clear()
     }
 
     private val hideUploadSuccessToastRunnable = Runnable {
@@ -1700,22 +1701,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         val nowElapsedMs = SystemClock.elapsedRealtime()
         val advanceDecision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
-            requestInFlight = runtime.requestInFlight,
             queuedNext = false,
             nowElapsedMs = nowElapsedMs,
             nextEarliestStartElapsedMs = runtime.nextEarliestStartElapsedMs,
             loopAlreadyPosted = runtime.loopPosted,
         )
         if (advanceDecision.queueNext) {
-            Log.d(TAG, "online request still active, lane=${lane.logName} queue next requestId=${runtime.activeRequestId}")
+            Log.d(TAG, "online queued next lane=${lane.logName} activeRequestIds=${runtime.activeRequestIds}")
             runtime.queuedNext = true
             return
         }
         advanceDecision.delayMs?.let { delayMs ->
-            if (runtime.requestInFlight) {
-                postOnlineInferenceLoop(lane = lane, delayMs = delayMs, reason = "online_wait_interval")
-                return
-            }
+            postOnlineInferenceLoop(lane = lane, delayMs = delayMs, reason = "online_wait_interval")
+            return
         }
         if (runtime.frameSelectionInProgress) {
             return
@@ -1759,15 +1757,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     cameraRecoveryController.reportFrameConsumed(payload.timestamp)
                     cameraRecoveryController.notifyConsumerWaitStopped()
                     val requestId = nextOnlineRequestId()
-                    runtime.activeRequestId = requestId
-                    runtime.requestInFlight = true
+                    runtime.activeRequestIds += requestId
                     runtime.queuedNext = false
                     val startedAtElapsedMs = SystemClock.elapsedRealtime()
                     val detectIntervalMs = onlineDetectIntervalMs(lane)
                     runtime.nextEarliestStartElapsedMs = startedAtElapsedMs + detectIntervalMs
                     Log.i(
                         TAG,
-                        "start online detect lane=${lane.logName} requestId=$requestId reason=$reason nextEarliest=${runtime.nextEarliestStartElapsedMs}",
+                        "start online detect lane=${lane.logName} requestId=$requestId reason=$reason activeRequestIds=${runtime.activeRequestIds} activePoolSize=${runtime.activeRequestIds.size} nextEarliest=${runtime.nextEarliestStartElapsedMs}",
                     )
                     onlineLaneService(lane).submitDetection(
                         OnlineHazardDetectionService.DetectionRequest(
@@ -1806,8 +1803,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val runtime = onlineLaneRuntime(request.lane)
         val decision = OnlineHazardCompetitionDecider.decide(
             requestId = request.requestId,
-            activeRequestId = runtime.activeRequestId,
-            requestInFlight = runtime.requestInFlight,
+            activeRequestIds = runtime.activeRequestIds,
             outcome = if (hasHazard) {
                 OnlineHazardCompetitionDecider.Outcome.POSITIVE
             } else {
@@ -1817,10 +1813,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (decision.shouldIgnore) {
             return
         }
-        runtime.requestInFlight = false
+        runtime.activeRequestIds.remove(request.requestId)
         logAudioPressureSnapshot(
             stage = "handle_online_detection_result",
-            extra = "lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
+            extra = "lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard activeRequestIds=${runtime.activeRequestIds} rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
         )
         Log.i(
             TAG,
@@ -1844,14 +1840,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val runtime = onlineLaneRuntime(request.lane)
         val decision = OnlineHazardCompetitionDecider.decide(
             requestId = request.requestId,
-            activeRequestId = runtime.activeRequestId,
-            requestInFlight = runtime.requestInFlight,
+            activeRequestIds = runtime.activeRequestIds,
             outcome = OnlineHazardCompetitionDecider.Outcome.FAILURE,
         )
         if (decision.shouldIgnore) {
             return
         }
-        runtime.requestInFlight = false
+        runtime.activeRequestIds.remove(request.requestId)
         Log.w(
             TAG,
             "online detect failed lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} autoMode=$autoPipelineMode message=$message",
@@ -1873,15 +1868,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val runtime = onlineLaneRuntime(request.lane)
         val decision = OnlineHazardCompetitionDecider.decide(
             requestId = request.requestId,
-            activeRequestId = runtime.activeRequestId,
-            requestInFlight = runtime.requestInFlight,
+            activeRequestIds = runtime.activeRequestIds,
             outcome = OnlineHazardCompetitionDecider.Outcome.FAILURE,
         )
         if (decision.shouldIgnore) {
             return
         }
-        runtime.requestInFlight = false
+        runtime.activeRequestIds.remove(request.requestId)
         Log.i(TAG, "online detect dropped lane=${request.lane.logName} requestId=${request.requestId} reason=$reason")
+        if (reason == OnlineHazardDetectionService.REASON_BUSY) {
+            if (decision.shouldContinueCurrentLane) {
+                continueOnlineInferenceAfterCompletion(request.lane)
+            }
+            return
+        }
         if (decision.shouldCountRemoteFailure &&
             handleRemoteDetectionFailureForFallback(reason = "${request.lane.logName}_dropped:$reason")
         ) {
@@ -1927,7 +1927,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val advanceDecision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
-            requestInFlight = false,
             queuedNext = runtime.queuedNext,
             nowElapsedMs = SystemClock.elapsedRealtime(),
             nextEarliestStartElapsedMs = runtime.nextEarliestStartElapsedMs,
@@ -3571,9 +3570,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             append(" captureInProgress=").append(captureInProgress)
             append(" inferenceRunning=").append(inferenceRunning.get())
             append(" itemOnlineFrameSelectionInProgress=").append(itemOnlineLaneRuntime.frameSelectionInProgress)
-            append(" itemOnlineRequestInFlight=").append(itemOnlineLaneRuntime.requestInFlight)
+            append(" itemOnlineActiveRequests=").append(itemOnlineLaneRuntime.activeRequestIds.size)
             append(" sceneOnlineFrameSelectionInProgress=").append(sceneOnlineLaneRuntime.frameSelectionInProgress)
-            append(" sceneOnlineRequestInFlight=").append(sceneOnlineLaneRuntime.requestInFlight)
+            append(" sceneOnlineActiveRequests=").append(sceneOnlineLaneRuntime.activeRequestIds.size)
             append(" streamingInProgress=").append(streamingInProgress)
             append(" pendingStreamStart=").append(pendingStreamStart)
             append(" heapUsed=").append(usedMemory)

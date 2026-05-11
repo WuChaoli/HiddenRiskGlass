@@ -82,16 +82,16 @@ class InspectionFrameCaptureServiceTest {
     }
 
     @Test
-    fun requestPayload_forIdentifyItemHazardIncludesCtypeOneAndImage() {
+    fun requestPayload_forIdentifyItemHazardIncludesCtypeThreeAndImage() {
         val json = com.google.gson.Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "record-2",
-                ctype = 1,
+                ctype = 3,
                 image = "base64-image",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":1"))
+        assertTrue(json.contains("\"ctype\":3"))
         assertTrue(json.contains("\"image\":\"base64-image\""))
     }
 

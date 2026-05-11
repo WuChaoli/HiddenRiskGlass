@@ -21,11 +21,10 @@ internal object OnlineHazardCompetitionDecider {
 
     fun decide(
         requestId: Long,
-        activeRequestId: Long,
-        requestInFlight: Boolean,
+        activeRequestIds: Set<Long>,
         outcome: Outcome,
     ): Decision {
-        if (!requestInFlight || requestId != activeRequestId) {
+        if (!activeRequestIds.contains(requestId)) {
             return Decision(shouldIgnore = true)
         }
         return when (outcome) {

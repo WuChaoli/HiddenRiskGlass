@@ -9,16 +9,16 @@ import org.junit.Test
 class AiArSseServiceRequestPayloadTest {
 
     @Test
-    fun requestPayload_forItemDetectionIncludesImageAndCtype1() {
+    fun requestPayload_forItemDetectionIncludesImageAndCtype3() {
         val json = Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "task-item",
-                ctype = 1,
+                ctype = 3,
                 image = "base64-item",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":1"))
+        assertTrue(json.contains("\"ctype\":3"))
         assertTrue(json.contains("\"image\":\"base64-item\""))
         assertFalse(json.contains("\"text\""))
     }

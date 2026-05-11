@@ -53,7 +53,8 @@ data class AiInspectionConfig(
     val onlineSelectWindowMs: Long = 240L,
     val onlineSelectMaxFrames: Int = 3,
     val onlineSelectPollIntervalMs: Long = 80L,
-    val onlineDetectIntervalMs: Long = 1000L,
+    val onlineDetectIntervalMs: Long = 500L,
+    val onlineDetectConcurrencyLimit: Int = 5,
     val enableOnlineSceneHazardDetection: Boolean = false,
     val onlineSceneDetectIntervalMs: Long = 3000L,
     val remoteFailureFallbackThreshold: Int = 3,
@@ -83,7 +84,7 @@ data class AiArApiConfig(
     val connectTimeoutMs: Long = 15_000L,
     val readTimeoutMs: Long = 45_000L,
     val writeTimeoutMs: Long = 30_000L,
-    val detectTimeoutMs: Long = 3_000L,
+    val detectTimeoutMs: Long = 1_500L,
 )
 
 data class SaveResultApiConfig(
@@ -178,6 +179,7 @@ data class AiInspectionConfigOverride(
     val onlineSelectMaxFrames: Int? = null,
     val onlineSelectPollIntervalMs: Long? = null,
     val onlineDetectIntervalMs: Long? = null,
+    val onlineDetectConcurrencyLimit: Int? = null,
     val enableOnlineSceneHazardDetection: Boolean? = null,
     val onlineSceneDetectIntervalMs: Long? = null,
     val remoteFailureFallbackThreshold: Int? = null,

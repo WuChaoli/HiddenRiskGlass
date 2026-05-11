@@ -400,7 +400,7 @@ class AiArSseService(
         private const val DONE_SENTINEL_JSON_ARRAY = "[\"DONE\"]"
         private const val DONE_EVENT_TYPE = "done"
         private const val CTYPE_DEEP_ANALYSIS = 0
-        private const val CTYPE_IDENTIFY_ITEM_HAZARD = 1
+        private const val CTYPE_IDENTIFY_ITEM_HAZARD = 3
         private const val CTYPE_FETCH_INSPECTION_GUIDE = 2
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
