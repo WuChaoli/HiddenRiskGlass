@@ -3346,7 +3346,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun scheduleBackgroundLocalHazardSaveIfNeeded(hazardContent: ResolvedHazardContent) {
-        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+        val saveResultConfig = InspectionConfigRepository.get().network.saveResultApi
+        val enterpriseFlowEnabled = InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()
+        val useFallbackPayload =
+            !enterpriseFlowEnabled && saveResultConfig.allowUploadWhenEnterpriseFlowDisabled
+        if (!enterpriseFlowEnabled && !useFallbackPayload) {
             Log.i(TAG, "skip local hazard background upload: enterprise inspection flow disabled")
             return
         }
@@ -3356,30 +3360,37 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         localHazardAutoSaveTaskKey = taskKey
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
+        val fallbackPayload = saveResultConfig.fallbackUploadPayload
+        val baseUrl = enterprisePayload?.apiBaseUrl.orEmpty()
+        val authCode = enterprisePayload?.authCode ?: fallbackPayload.authCode
+        val objectId = enterprisePayload?.objectId ?: fallbackPayload.objectId
+        val userId = enterprisePayload?.userId ?: fallbackPayload.userId
+        val customParam = enterprisePayload?.extraField ?: fallbackPayload.customParam
+        val backupOnly = useFallbackPayload && saveResultConfig.backupOnlyUpload
         val capturedJpeg = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
         val uploadItems = buildLocalHazardUploadItems(hazardContent)
         val taskId = when {
-            enterprisePayload == null -> {
+            enterprisePayload == null && !useFallbackPayload -> {
                 Log.w(TAG, "skip local hazard background upload: missing enterprise payload")
                 null
             }
 
-            enterprisePayload.apiBaseUrl.isBlank() -> {
+            !backupOnly && baseUrl.isBlank() -> {
                 Log.w(TAG, "skip local hazard background upload: blank api base url")
                 null
             }
 
-            enterprisePayload.authCode.isBlank() -> {
+            authCode.isBlank() -> {
                 Log.w(TAG, "skip local hazard background upload: blank auth code")
                 null
             }
 
-            enterprisePayload.objectId.isBlank() -> {
+            objectId.isBlank() -> {
                 Log.w(TAG, "skip local hazard background upload: blank object id")
                 null
             }
 
-            enterprisePayload.userId.isBlank() -> {
+            userId.isBlank() -> {
                 Log.w(TAG, "skip local hazard background upload: blank user id")
                 null
             }
@@ -3397,13 +3408,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             else -> {
                 InspectionBackgroundUploadQueue.enqueueLocalHazardSave(
                     taskKey = taskKey,
-                    baseUrl = enterprisePayload.apiBaseUrl,
-                    authCode = enterprisePayload.authCode,
-                    objectId = enterprisePayload.objectId,
-                    userId = enterprisePayload.userId,
-                    customParam = enterprisePayload.extraField,
+                    baseUrl = baseUrl,
+                    authCode = authCode,
+                    objectId = objectId,
+                    userId = userId,
+                    customParam = customParam,
                     jpegBytes = capturedJpeg,
                     hidDanger = uploadItems,
+                    backupOnly = backupOnly,
                 )
             }
         }

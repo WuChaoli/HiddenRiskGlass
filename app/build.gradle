@@ -50,6 +50,9 @@ android {
         localonly {
             dimension "appMode"
         }
+        localonlySkipenterprise {
+            dimension "appMode"
+        }
         skipenterprise {
             dimension "appMode"
         }

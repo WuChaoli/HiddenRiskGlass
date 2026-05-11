@@ -1,0 +1,21 @@
+{
+  "featureFlags": {
+    "enableEnterpriseInspectionFlow": false
+  },
+  "aiInspection": {
+    "autoInferenceMode": "LOCAL_ONLY",
+    "autoHazardRoutingMode": "LOCAL_ONLY"
+  },
+  "network": {
+    "saveResultApi": {
+      "allowUploadWhenEnterpriseFlowDisabled": true,
+      "backupOnlyUpload": true,
+      "fallbackUploadPayload": {
+        "authCode": "PLACEHOLDER_AUTH_CODE",
+        "objectId": "PLACEHOLDER_OBJECT_ID",
+        "userId": "PLACEHOLDER_USER_ID",
+        "customParam": "PLACEHOLDER_CUSTOM_PARAM"
+      }
+    }
+  }
+}

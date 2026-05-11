@@ -80,6 +80,7 @@ class InspectionBackgroundUploadService : Service() {
             customParam = task.customParam,
             jpegBytes = task.jpegBytes,
             hidDanger = task.hidDanger,
+            backupOnly = task.backupOnly,
             callback = object : LocalHazardPushService.Callback {
                 override fun onSuccess() {
                     val recorded = InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
@@ -118,6 +119,7 @@ class InspectionBackgroundUploadService : Service() {
             objectId = task.objectId,
             userId = task.userId,
             customParam = task.customParam,
+            backupOnly = task.backupOnly,
             callback = object : InspectionFinishService.Callback {
                 override fun onSuccess() {
                     Log.i(TAG, "finish background upload success taskKey=${task.taskKey}")

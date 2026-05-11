@@ -36,6 +36,7 @@ object InspectionFinishService {
         objectId: String,
         userId: String,
         customParam: String,
+        backupOnly: Boolean = false,
         callback: Callback,
     ): RetryRequestHandle {
         val handle = RetryRequestHandle()
@@ -51,6 +52,27 @@ object InspectionFinishService {
             userId = userId,
             customParam = customParam,
         )
+        if (backupOnly) {
+            submitSingleEndpoint(
+                label = "backup",
+                requestUrl = InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
+                requestBodyJson = requestBodyJson,
+                handle = handle,
+            ) { outcome ->
+                InspectionWorkflowSession.clearFinishSubmitProgress()
+                if (outcome.success) {
+                    Log.i(TAG, "finish backup success attempts=${outcome.attemptCount}")
+                    InspectionWorkflowSession.markFinishSubmitBackupDone()
+                    mainHandler.post { callback.onSuccess() }
+                } else {
+                    deliverFailure(
+                        callback,
+                        outcome.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
+                    )
+                }
+            }
+            return handle
+        }
         val coordinator = DualEndpointSubmitCoordinator(
             labels = listOf("primary", "backup"),
         ) { outcomes ->

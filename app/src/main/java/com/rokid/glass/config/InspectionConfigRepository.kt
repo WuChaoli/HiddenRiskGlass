@@ -242,9 +242,27 @@ object InspectionConfigRepository {
         return SaveResultApiConfig(
             primarySaveResultUrl = override?.primarySaveResultUrl ?: base.primarySaveResultUrl,
             backupBaseUrl = override?.backupBaseUrl ?: base.backupBaseUrl,
+            allowUploadWhenEnterpriseFlowDisabled =
+                override?.allowUploadWhenEnterpriseFlowDisabled
+                    ?: base.allowUploadWhenEnterpriseFlowDisabled,
+            backupOnlyUpload = override?.backupOnlyUpload ?: base.backupOnlyUpload,
+            fallbackUploadPayload =
+                merge(base.fallbackUploadPayload, override?.fallbackUploadPayload),
             connectTimeoutMs = override?.connectTimeoutMs ?: base.connectTimeoutMs,
             readTimeoutMs = override?.readTimeoutMs ?: base.readTimeoutMs,
             writeTimeoutMs = override?.writeTimeoutMs ?: base.writeTimeoutMs,
+        )
+    }
+
+    private fun merge(
+        base: FallbackUploadPayloadConfig,
+        override: FallbackUploadPayloadConfigOverride?,
+    ): FallbackUploadPayloadConfig {
+        return FallbackUploadPayloadConfig(
+            authCode = override?.authCode ?: base.authCode,
+            objectId = override?.objectId ?: base.objectId,
+            userId = override?.userId ?: base.userId,
+            customParam = override?.customParam ?: base.customParam,
         )
     }
 

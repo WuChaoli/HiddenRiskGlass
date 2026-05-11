@@ -21,6 +21,7 @@ import androidx.annotation.StringRes
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.OperationGuideView
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadQueue
@@ -205,23 +206,51 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private fun submitFinishInspectionInBackground() {
         if (finishExitTriggered) return
         finishExitTriggered = true
-        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+        val saveResultConfig = InspectionConfigRepository.get().network.saveResultApi
+        val enterpriseFlowEnabled = InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()
+        val useFallbackPayload =
+            !enterpriseFlowEnabled && saveResultConfig.allowUploadWhenEnterpriseFlowDisabled
+        if (!enterpriseFlowEnabled && !useFallbackPayload) {
             exitAppAfterFinishSubmitted()
             return
         }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
-        if (enterprisePayload == null) {
+        if (enterprisePayload == null && !useFallbackPayload) {
             android.util.Log.w(TAG, "skip finish background upload: missing enterprise payload")
             exitAppAfterFinishSubmitted()
             return
         }
+        val fallbackPayload = saveResultConfig.fallbackUploadPayload
+        val baseUrl = enterprisePayload?.apiBaseUrl.orEmpty()
+        val authCode = enterprisePayload?.authCode ?: fallbackPayload.authCode
+        val objectId = enterprisePayload?.objectId ?: fallbackPayload.objectId
+        val userId = enterprisePayload?.userId ?: fallbackPayload.userId
+        val customParam = enterprisePayload?.extraField ?: fallbackPayload.customParam
+        val backupOnly = useFallbackPayload && saveResultConfig.backupOnlyUpload
+        if ((!backupOnly && baseUrl.isBlank()) ||
+            authCode.isBlank() ||
+            objectId.isBlank() ||
+            userId.isBlank()
+        ) {
+            android.util.Log.w(TAG, "skip finish background upload: missing upload payload")
+            exitAppAfterFinishSubmitted()
+            return
+        }
         val taskId = InspectionBackgroundUploadQueue.enqueueFinishInspection(
-            taskKey = buildFinishUploadTaskKey(enterprisePayload),
-            baseUrl = enterprisePayload.apiBaseUrl,
-            authCode = enterprisePayload.authCode,
-            objectId = enterprisePayload.objectId,
-            userId = enterprisePayload.userId,
-            customParam = enterprisePayload.extraField,
+            taskKey = buildFinishUploadTaskKey(
+                baseUrl = baseUrl,
+                authCode = authCode,
+                objectId = objectId,
+                userId = userId,
+                customParam = customParam,
+                backupOnly = backupOnly,
+            ),
+            baseUrl = baseUrl,
+            authCode = authCode,
+            objectId = objectId,
+            userId = userId,
+            customParam = customParam,
+            backupOnly = backupOnly,
         )
         if (!taskId.isNullOrBlank()) {
             InspectionBackgroundUploadService.start(this, taskId)
@@ -229,13 +258,21 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         exitAppAfterFinishSubmitted()
     }
 
-    private fun buildFinishUploadTaskKey(payload: InspectionWorkflowSession.EnterpriseQrPayload): String {
+    private fun buildFinishUploadTaskKey(
+        baseUrl: String,
+        authCode: String,
+        objectId: String,
+        userId: String,
+        customParam: String,
+        backupOnly: Boolean,
+    ): String {
         return listOf(
-            payload.apiBaseUrl,
-            payload.authCode,
-            payload.objectId,
-            payload.userId,
-            payload.extraField,
+            baseUrl,
+            authCode,
+            objectId,
+            userId,
+            customParam,
+            backupOnly.toString(),
             InspectionWorkflowSession.resolveFinishSessionId().orEmpty(),
         ).joinToString(separator = "|")
     }

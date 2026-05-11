@@ -71,6 +71,7 @@ class LocalHazardPushService(
         customParam: String,
         jpegBytes: ByteArray,
         hidDanger: List<HidDangerItem>,
+        backupOnly: Boolean = false,
         callback: Callback,
     ): RetryRequestHandle {
         val handle = RetryRequestHandle()
@@ -96,6 +97,22 @@ class LocalHazardPushService(
             jpegBytes = jpegBytes,
             hidDanger = hidDanger,
         )
+        if (backupOnly) {
+            submitSingleEndpoint(
+                label = "backup",
+                requestUrl = LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
+                requestBodyJson = requestBodyJson,
+                handle = handle,
+            ) { outcome ->
+                if (outcome.success) {
+                    Log.i(TAG, "pushLocalHazard backup success attempts=${outcome.attemptCount}")
+                    mainHandler.post { callback.onSuccess() }
+                } else {
+                    deliverFailure(callback, normalizeFailureMessage(outcome.message ?: DEFAULT_FAILURE_MESSAGE))
+                }
+            }
+            return handle
+        }
         val coordinator = DualEndpointSubmitCoordinator(
             labels = listOf("primary", "backup"),
         ) { outcomes ->

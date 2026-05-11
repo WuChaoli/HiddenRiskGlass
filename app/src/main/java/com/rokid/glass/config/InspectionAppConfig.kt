@@ -84,6 +84,9 @@ data class AiArApiConfig(
 data class SaveResultApiConfig(
     val primarySaveResultUrl: String = "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave",
     val backupBaseUrl: String = "http://183.147.142.133:7443",
+    val allowUploadWhenEnterpriseFlowDisabled: Boolean = false,
+    val backupOnlyUpload: Boolean = false,
+    val fallbackUploadPayload: FallbackUploadPayloadConfig = FallbackUploadPayloadConfig(),
     val connectTimeoutMs: Long = 30_000L,
     val readTimeoutMs: Long = 30_000L,
     val writeTimeoutMs: Long = 30_000L,
@@ -91,6 +94,13 @@ data class SaveResultApiConfig(
     val backupSaveResultUrl: String
         get() = "${backupBaseUrl.trimEnd('/')}/hxy/apis/hazardCheckRecord/saveHazard"
 }
+
+data class FallbackUploadPayloadConfig(
+    val authCode: String = "",
+    val objectId: String = "",
+    val userId: String = "",
+    val customParam: String = "",
+)
 
 data class MayHazardVerifyApiConfig(
     val answerUrl: String = "http://183.147.142.133:8006/has_hazard_answer",
@@ -212,9 +222,19 @@ data class AiArApiConfigOverride(
 data class SaveResultApiConfigOverride(
     val primarySaveResultUrl: String? = null,
     val backupBaseUrl: String? = null,
+    val allowUploadWhenEnterpriseFlowDisabled: Boolean? = null,
+    val backupOnlyUpload: Boolean? = null,
+    val fallbackUploadPayload: FallbackUploadPayloadConfigOverride? = null,
     val connectTimeoutMs: Long? = null,
     val readTimeoutMs: Long? = null,
     val writeTimeoutMs: Long? = null,
+)
+
+data class FallbackUploadPayloadConfigOverride(
+    val authCode: String? = null,
+    val objectId: String? = null,
+    val userId: String? = null,
+    val customParam: String? = null,
 )
 
 data class MayHazardVerifyApiConfigOverride(

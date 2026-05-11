@@ -2,7 +2,8 @@
   "aiInspection": {
     "localDetectionDefaultThreshold": 0.65,
     "localDetectionLabelThresholds": {
-      "燃气灶": 0.65
+      "燃气灶": 0.65,
+      "负荷开关": 0.5
     }
   }
 }
