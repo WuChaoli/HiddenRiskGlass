@@ -38,7 +38,7 @@ data class EnterpriseInfoConfig(
 data class AiInspectionConfig(
     val autoInferenceMode: AutoInferenceMode = AutoInferenceMode.LOCAL_ONLY,
     val autoHazardRoutingMode: AutoHazardRoutingMode = AutoHazardRoutingMode.ONLINE_ONLY,
-    val captureWarmupMs: Long = 1200L,
+    val captureWarmupMs: Long = 500L,
     val autoInferenceRetryDelayMs: Long = 80L,
     val autoHazardPresentDelayMs: Long = 3000L,
     val localLabelCooldownMs: Long = 15_000L,

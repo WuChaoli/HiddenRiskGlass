@@ -466,6 +466,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             uiHandler.post {
                 if (activityDestroyed) return@post
                 if (success) {
+                    InspectionSession.stopFrameStream()
                     onInitializationComplete()
                 } else {
                     showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_frame_stream))
