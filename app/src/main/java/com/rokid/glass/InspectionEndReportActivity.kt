@@ -251,6 +251,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
             userId = userId,
             customParam = customParam,
             backupOnly = backupOnly,
+            nsCode = InspectionWorkflowSession.deviceNsCode,
         )
         if (!taskId.isNullOrBlank()) {
             InspectionBackgroundUploadService.start(this, taskId)

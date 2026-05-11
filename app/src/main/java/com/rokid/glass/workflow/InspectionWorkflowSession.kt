@@ -95,6 +95,8 @@ object InspectionWorkflowSession {
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
     var latestCapturedJpeg: ByteArray? = null
+    var deviceNsCode: String = ""
+        private set
     var phoneSyncProgress: DualSubmitProgress = DualSubmitProgress()
         private set
     var finishSubmitProgress: DualSubmitProgress = DualSubmitProgress()
@@ -104,6 +106,16 @@ object InspectionWorkflowSession {
 
     fun updateMode(connected: Boolean) {
         workflowMode = if (connected) WorkflowMode.ONLINE else WorkflowMode.OFFLINE
+    }
+
+    fun updateDeviceNsCode(nsCode: String) {
+        val normalizedNsCode = nsCode.trim()
+        if (normalizedNsCode.isBlank()) {
+            Log.w(TAG, "device nsCode is blank")
+        } else {
+            deviceNsCode = normalizedNsCode
+            Log.i(TAG, "device nsCode cached")
+        }
     }
 
     fun beginInspection(sessionId: String) {
@@ -300,6 +312,7 @@ object InspectionWorkflowSession {
         latestSyncedSessionId = ""
         inspectionSessionId = ""
         latestCapturedJpeg = null
+        deviceNsCode = ""
         clearPhoneSyncProgress()
         clearFinishSubmitProgress()
         savedHazardRecordsByKey.clear()

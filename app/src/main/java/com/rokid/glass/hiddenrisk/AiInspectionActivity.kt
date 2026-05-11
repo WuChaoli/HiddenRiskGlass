@@ -3416,6 +3416,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     jpegBytes = capturedJpeg,
                     hidDanger = uploadItems,
                     backupOnly = backupOnly,
+                    nsCode = InspectionWorkflowSession.deviceNsCode,
                 )
             }
         }

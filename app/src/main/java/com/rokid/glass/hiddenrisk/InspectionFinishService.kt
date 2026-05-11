@@ -37,6 +37,7 @@ object InspectionFinishService {
         userId: String,
         customParam: String,
         backupOnly: Boolean = false,
+        nsCode: String = "",
         callback: Callback,
     ): RetryRequestHandle {
         val handle = RetryRequestHandle()
@@ -58,6 +59,7 @@ object InspectionFinishService {
                 requestUrl = InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
                 requestBodyJson = requestBodyJson,
                 handle = handle,
+                nsCode = nsCode,
             ) { outcome ->
                 InspectionWorkflowSession.clearFinishSubmitProgress()
                 if (outcome.success) {
@@ -137,6 +139,7 @@ object InspectionFinishService {
         requestUrl: String,
         requestBodyJson: String,
         handle: RetryRequestHandle,
+        nsCode: String? = null,
         onComplete: (RetryOutcome) -> Unit,
     ) {
         InspectionRetryExecutor.execute(
@@ -146,6 +149,17 @@ object InspectionFinishService {
                 val request = Request.Builder()
                     .url(requestUrl)
                     .header("Content-Type", "application/json")
+                    .apply {
+                        if (nsCode == null) {
+                            return@apply
+                        }
+                        if (nsCode.isBlank()) {
+                            Log.w(TAG, "skip nsCode header: blank nsCode endpoint=$label")
+                        } else {
+                            header("nsCode", nsCode)
+                            Log.i(TAG, "add nsCode header endpoint=$label")
+                        }
+                    }
                     .post(requestBodyJson.toRequestBody(InspectionFinishApiProtocol.JSON_MEDIA_TYPE))
                     .build()
                 val client = createClient()

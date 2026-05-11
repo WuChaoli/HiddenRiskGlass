@@ -72,6 +72,7 @@ class LocalHazardPushService(
         jpegBytes: ByteArray,
         hidDanger: List<HidDangerItem>,
         backupOnly: Boolean = false,
+        nsCode: String = "",
         callback: Callback,
     ): RetryRequestHandle {
         val handle = RetryRequestHandle()
@@ -103,6 +104,7 @@ class LocalHazardPushService(
                 requestUrl = LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
                 requestBodyJson = requestBodyJson,
                 handle = handle,
+                nsCode = nsCode,
             ) { outcome ->
                 if (outcome.success) {
                     Log.i(TAG, "pushLocalHazard backup success attempts=${outcome.attemptCount}")
@@ -175,6 +177,7 @@ class LocalHazardPushService(
         requestUrl: String,
         requestBodyJson: String,
         handle: RetryRequestHandle,
+        nsCode: String? = null,
         onComplete: (RetryOutcome) -> Unit,
     ) {
         InspectionRetryExecutor.execute(
@@ -184,6 +187,17 @@ class LocalHazardPushService(
                 val request = Request.Builder()
                     .url(requestUrl)
                     .header("Content-Type", "application/json")
+                    .apply {
+                        if (nsCode == null) {
+                            return@apply
+                        }
+                        if (nsCode.isBlank()) {
+                            Log.w(TAG, "skip nsCode header: blank nsCode endpoint=$label")
+                        } else {
+                            header("nsCode", nsCode)
+                            Log.i(TAG, "add nsCode header endpoint=$label")
+                        }
+                    }
                     .post(requestBodyJson.toRequestBody(LocalHazardPushApiProtocol.JSON_MEDIA_TYPE))
                     .build()
                 val call = client.newCall(request)

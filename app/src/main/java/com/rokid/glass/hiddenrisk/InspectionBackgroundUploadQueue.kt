@@ -25,6 +25,7 @@ object InspectionBackgroundUploadQueue {
         val jpegBytes: ByteArray,
         val hidDanger: List<LocalHazardPushService.HidDangerItem>,
         val backupOnly: Boolean,
+        val nsCode: String,
     ) : Task(taskId = taskId, taskKey = taskKey)
 
     data class FinishInspectionTask(
@@ -36,6 +37,7 @@ object InspectionBackgroundUploadQueue {
         val userId: String,
         val customParam: String,
         val backupOnly: Boolean,
+        val nsCode: String,
     ) : Task(taskId = taskId, taskKey = taskKey)
 
     private val pendingTasks = linkedMapOf<String, Task>()
@@ -51,6 +53,7 @@ object InspectionBackgroundUploadQueue {
         jpegBytes: ByteArray,
         hidDanger: List<LocalHazardPushService.HidDangerItem>,
         backupOnly: Boolean = false,
+        nsCode: String = "",
     ): String? {
         if (taskKey.isBlank() || jpegBytes.isEmpty() || hidDanger.isEmpty()) {
             return null
@@ -72,6 +75,7 @@ object InspectionBackgroundUploadQueue {
                 jpegBytes = jpegBytes.copyOf(),
                 hidDanger = hidDanger.toList(),
                 backupOnly = backupOnly,
+                nsCode = nsCode,
             )
             return taskId
         }
@@ -85,6 +89,7 @@ object InspectionBackgroundUploadQueue {
         userId: String,
         customParam: String,
         backupOnly: Boolean = false,
+        nsCode: String = "",
     ): String? {
         if (taskKey.isBlank()) {
             return null
@@ -104,6 +109,7 @@ object InspectionBackgroundUploadQueue {
                 userId = userId,
                 customParam = customParam,
                 backupOnly = backupOnly,
+                nsCode = nsCode,
             )
             return taskId
         }

@@ -255,6 +255,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         uiHandler.post {
             when (state) {
                 RokidSdkManager.SdkState.READY -> {
+                    InspectionWorkflowSession.updateDeviceNsCode(RokidSdkManager.getSerialNumber())
                     setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
                     animateProgressTo(30)
                     // 延迟一下确保 SDK 完全就绪
@@ -541,6 +542,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     private fun navigateToInspection() {
+        InspectionWorkflowSession.updateDeviceNsCode(RokidSdkManager.getSerialNumber())
         InspectionWorkflowSession.beginInspection(
             InspectionBackendSessionId.create(RokidSdkManager.getSerialNumber(), prefix = "inspection"),
         )
