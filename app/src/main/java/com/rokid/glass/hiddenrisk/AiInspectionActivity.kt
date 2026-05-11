@@ -956,10 +956,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
             return
         }
-        if (frameStreamReady && !RokidFrameSource.isCroppedFrameStreamWarm()) {
-            frameStreamReady = false
-            frameStreamReadyAtElapsedMs = 0L
-        }
         if (frameStreamReady) {
             if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
                 Log.i(
@@ -1094,10 +1090,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         autoInferenceStartRequested = true
         if (!shouldRunAutoInferencePipelines()) {
             return
-        }
-        if (frameStreamReady && !RokidFrameSource.isCroppedFrameStreamWarm()) {
-            frameStreamReady = false
-            frameStreamReadyAtElapsedMs = 0L
         }
         if (!frameStreamReady) {
             initFrameStreamAndTransition()
