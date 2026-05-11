@@ -14,6 +14,7 @@ data class InspectionAppConfig(
 
 data class FeatureFlagsConfig(
     val enableEnterpriseInspectionFlow: Boolean = true,
+    val enterMenuAfterLoadingWhenEnterpriseFlowDisabled: Boolean = false,
 )
 
 data class EnterpriseScanConfig(
@@ -152,6 +153,7 @@ data class InspectionAppConfigOverride(
 
 data class FeatureFlagsConfigOverride(
     val enableEnterpriseInspectionFlow: Boolean? = null,
+    val enterMenuAfterLoadingWhenEnterpriseFlowDisabled: Boolean? = null,
 )
 
 data class EnterpriseScanConfigOverride(

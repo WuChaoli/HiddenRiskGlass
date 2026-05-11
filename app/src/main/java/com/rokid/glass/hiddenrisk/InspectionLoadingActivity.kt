@@ -26,8 +26,10 @@ import com.rokid.glass.component.GlassStatusBar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.InspectionFeatureFlags
+import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.EnterpriseQrScanActivity
 import com.rokid.glass.WifiQrScanActivity
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -544,7 +546,14 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         )
         val wifiConnected = SystemStateUtils.getCurrentWifiSsid(this) != null
         InspectionWorkflowSession.updateMode(wifiConnected)
-        val targetIntent = if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+        val enterpriseFlowEnabled = InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()
+        val enterMenuAfterLoading =
+            InspectionConfigRepository.get()
+                .featureFlags
+                .enterMenuAfterLoadingWhenEnterpriseFlowDisabled
+        val targetIntent = if (!enterpriseFlowEnabled && enterMenuAfterLoading) {
+            Intent(this, AiInspectionMenuActivity::class.java)
+        } else if (!enterpriseFlowEnabled) {
             Intent(this, AiInspectionActivity::class.java)
         } else if (wifiConnected) {
             Intent(this, EnterpriseQrScanActivity::class.java)

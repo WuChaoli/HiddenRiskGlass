@@ -1,6 +1,7 @@
 {
   "featureFlags": {
-    "enableEnterpriseInspectionFlow": false
+    "enableEnterpriseInspectionFlow": false,
+    "enterMenuAfterLoadingWhenEnterpriseFlowDisabled": true
   },
   "aiInspection": {
     "autoInferenceMode": "LOCAL_ONLY",
