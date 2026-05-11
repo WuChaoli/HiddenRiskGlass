@@ -799,6 +799,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // ==================== 输入事件 ====================
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        if (pageState == PageState.DETECTING &&
+            (keyEvent == GlassKeyEvent.KEYCODE_BACK ||
+                keyEvent == GlassKeyEvent.KEYCODE_DOUBLE_CLICK)
+        ) {
+            Log.i(TAG, "ignore detecting back-like touch key=$keyEvent")
+            return true
+        }
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
@@ -2133,8 +2140,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId("ai_detecting_back_to_menu"),
                 label = getString(R.string.ai_inspection_input_label_detecting_return),
                 triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
                     voiceTrigger(R.string.ai_inspection_voice_return, "fan hui"),
                     voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
                 ),
