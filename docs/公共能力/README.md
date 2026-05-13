@@ -14,6 +14,7 @@
 - [统一输入设计与接入.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\公共能力\统一输入设计与接入.md)
 - [隐患识别验证与排障.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\公共能力\隐患识别验证与排障.md)
 - [头部动作调参与验证.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\公共能力\头部动作调参与验证.md)
+- [日志系统.md](C:\Users\wuchaoli\Desktop\codespace\glassdemo\docs\公共能力\日志系统.md)
 
 ## 使用规则
 
