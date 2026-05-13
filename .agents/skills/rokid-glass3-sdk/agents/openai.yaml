@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rokid Glass3 SDK"
+  short_description: "接入与排查 Rokid Glass3 Android SDK 工作流"
+  default_prompt: "Use $rokid-glass3-sdk to integrate or troubleshoot Rokid Glass3 SDK in this Android project."
