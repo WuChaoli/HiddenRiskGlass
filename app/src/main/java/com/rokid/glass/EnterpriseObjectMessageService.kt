@@ -44,14 +44,16 @@ class EnterpriseObjectMessageService(
         val data: ObjectMessageData? = null,
     )
 
-    data class ObjectMessageData(
-        val objectName: String? = null,
-        val areaName: String? = null,
-        val domain: String? = null,
-        val tags: String? = null,
-        val riskLevel: String? = null,
-        val hidDanger: List<ObjectMessageHazard>? = null,
-    )
+data class ObjectMessageData(
+         val objectName: String? = null,
+         val areaName: String? = null,
+         val domain: String? = null,
+         val tags: String? = null,
+         val riskLevel: String? = null,
+         val hidDanger: List<ObjectMessageHazard>? = null,
+         val placeCode: String? = null,
+         val lastInspectionDate: String? = null,
+     )
 
     data class ObjectMessageHazard(
         val indexNum: String? = null,
@@ -241,12 +243,14 @@ class EnterpriseObjectMessageService(
         val hazardList = data.hidDanger.orEmpty()
         val describedHazardCount = hazardList.count { !it.descrip.isNullOrBlank() }
         val missingFields = buildList {
-            if (data.objectName.isNullOrBlank()) add("objectName")
-            if (data.areaName.isNullOrBlank()) add("areaName")
-            if (data.domain.isNullOrBlank()) add("domain")
-            if (data.tags.isNullOrBlank()) add("tags")
-            if (data.riskLevel.isNullOrBlank()) add("riskLevel")
-            if (data.hidDanger == null) add("hidDanger")
+if (data.objectName.isNullOrBlank()) add("objectName")
+             if (data.areaName.isNullOrBlank()) add("areaName")
+             if (data.domain.isNullOrBlank()) add("domain")
+             if (data.tags.isNullOrBlank()) add("tags")
+             if (data.riskLevel.isNullOrBlank()) add("riskLevel")
+             if (data.hidDanger == null) add("hidDanger")
+             if (data.placeCode.isNullOrBlank()) add("placeCode")
+             if (data.lastInspectionDate.isNullOrBlank()) add("lastInspectionDate")
         }
         val summary =
             "requestUrl=$requestUrl elapsedMs=$elapsedMs objectNameBlank=${data.objectName.isNullOrBlank()} areaNameBlank=${data.areaName.isNullOrBlank()} domainBlank=${data.domain.isNullOrBlank()} tagsBlank=${data.tags.isNullOrBlank()} riskLevelBlank=${data.riskLevel.isNullOrBlank()} hazardCount=${hazardList.size} hazardWithDescriptionCount=$describedHazardCount"

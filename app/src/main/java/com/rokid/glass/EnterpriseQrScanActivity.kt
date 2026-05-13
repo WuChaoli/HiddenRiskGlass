@@ -389,18 +389,20 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                     objectMessageRequest = null
                     val hazardHistory = data.hidDanger.orEmpty()
                         .mapNotNull { it.descrip?.trim()?.takeIf(String::isNotEmpty) }
-                    Log.i(
-                        TAG,
-                        "enterprise object fetch success requestId=$objectFetchRequestId objectNameBlank=${data.objectName.isNullOrBlank()} areaNameBlank=${data.areaName.isNullOrBlank()} domainBlank=${data.domain.isNullOrBlank()} tagsBlank=${data.tags.isNullOrBlank()} riskLevelBlank=${data.riskLevel.isNullOrBlank()} hazardCount=${data.hidDanger.orEmpty().size} hazardWithDescriptionCount=${hazardHistory.size}",
-                    )
-                    InspectionWorkflowSession.updateEnterpriseObjectInfo(
-                        companyName = data.objectName,
-                        region = data.areaName,
-                        category = data.domain,
-                        riskTags = data.tags,
-                        riskLevel = data.riskLevel,
-                        hazardHistory = hazardHistory,
-                    )
+Log.i(
+                         TAG,
+                         "enterprise object fetch success requestId=$objectFetchRequestId objectNameBlank=${data.objectName.isNullOrBlank()} areaNameBlank=${data.areaName.isNullOrBlank()} domainBlank=${data.domain.isNullOrBlank()} tagsBlank=${data.tags.isNullOrBlank()} riskLevelBlank=${data.riskLevel.isNullOrBlank()} placeCode=${data.placeCode} lastInspectionDate=${data.lastInspectionDate} hazardCount=${data.hidDanger.orEmpty().size} hazardWithDescriptionCount=${hazardHistory.size}",
+                     )
+InspectionWorkflowSession.updateEnterpriseObjectInfo(
+                         companyName = data.objectName,
+                         region = data.areaName,
+                         category = data.domain,
+                         riskTags = data.tags,
+                         riskLevel = data.riskLevel,
+                         hazardHistory = hazardHistory,
+                         placeCode = data.placeCode,
+                         lastInspectionDate = data.lastInspectionDate,
+                     )
                     Log.i(TAG, "enterprise object fetch navigate requestId=$objectFetchRequestId target=EnterpriseInfoActivity")
                     navigateToEnterpriseInfo()
                 }

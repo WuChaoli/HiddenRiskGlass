@@ -84,26 +84,30 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
     }
 
     private fun bindEnterpriseInfo() {
-        val info = InspectionWorkflowSession.enterpriseInfo
-        if (info == null) {
-            tvCompanyName.text = "-"
-            tvRegion.text = getString(R.string.enterprise_info_region_prefix)
-            tvCategory.text = getString(R.string.enterprise_info_category_prefix)
-            tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix)
-            tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix)
-            tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
-            hazardListContainer.removeAllViews()
-            return
-        }
+val info = InspectionWorkflowSession.enterpriseInfo
+         if (info == null) {
+             tvCompanyName.text = "-"
+             tvRegion.text = getString(R.string.enterprise_info_region_prefix)
+             tvCategory.text = getString(R.string.enterprise_info_category_prefix)
+             tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix)
+             tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix)
+             tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
+             hazardListContainer.removeAllViews()
+             return
+         }
 
-        tvCompanyName.text = info.companyName
-        tvRegion.text = getString(R.string.enterprise_info_region_prefix) + info.region
-        tvCategory.text = getString(R.string.enterprise_info_category_prefix) + info.category
-        tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + info.riskTags
-        tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + info.riskLevel
-        tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
+         tvCompanyName.text = info.companyName
+         tvRegion.text = getString(R.string.enterprise_info_region_prefix) + info.region
+         tvCategory.text = getString(R.string.enterprise_info_category_prefix) + info.category
+         tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + info.riskTags
+         tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + info.riskLevel
+         tvRecentInspectionTime.text = if (info.lastInspectionDate.isNotBlank()) {
+             getString(R.string.enterprise_info_recent_inspection_time_prefix) + info.lastInspectionDate
+         } else {
+             RECENT_INSPECTION_TIME
+         }
 
-        renderHazardHistory(info.hazardHistory)
+         renderHazardHistory(info.hazardHistory)
     }
 
     private fun renderHazardHistory(hazards: List<String>) {

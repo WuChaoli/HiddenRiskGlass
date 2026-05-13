@@ -24,12 +24,14 @@ object InspectionWorkflowSession {
         val inspectorName: String,
         val qrContent: String,
         // 扩展字段，用于企业信息展示
-        val region: String = "",
-        val category: String = "",
-        val riskTags: String = "",
-        val riskLevel: String = "",
-        val hazardHistory: List<String> = emptyList(),
-    )
+val region: String = "",
+         val category: String = "",
+         val riskTags: String = "",
+         val riskLevel: String = "",
+         val hazardHistory: List<String> = emptyList(),
+         val placeCode: String = "",
+         val lastInspectionDate: String = "",
+     )
 
     data class EnterpriseQrPayload(
         val rightCode: String,
@@ -131,26 +133,30 @@ object InspectionWorkflowSession {
         return true
     }
 
-    fun updateEnterpriseObjectInfo(
-        companyName: String?,
-        region: String?,
-        category: String?,
-        riskTags: String?,
-        riskLevel: String?,
-        hazardHistory: List<String>,
-    ) {
+fun updateEnterpriseObjectInfo(
+         companyName: String?,
+         region: String?,
+         category: String?,
+         riskTags: String?,
+         riskLevel: String?,
+         hazardHistory: List<String>,
+         placeCode: String?,
+         lastInspectionDate: String?,
+     ) {
         val payload = enterpriseQrPayload ?: return
-        enterpriseInfo = EnterpriseInfo(
-            companyName = companyName?.trim().takeUnless { it.isNullOrEmpty() } ?: "-",
-            siteName = DEFAULT_ENTERPRISE_SITE_NAME,
-            inspectorName = DEFAULT_ENTERPRISE_INSPECTOR_NAME,
-            qrContent = payload.rawContent,
-            region = region.orEmpty(),
-            category = category.orEmpty(),
-            riskTags = riskTags.orEmpty(),
-            riskLevel = riskLevel.orEmpty(),
-            hazardHistory = hazardHistory,
-        )
+enterpriseInfo = EnterpriseInfo(
+             companyName = companyName?.trim().takeUnless { it.isNullOrEmpty() } ?: "-",
+             siteName = DEFAULT_ENTERPRISE_SITE_NAME,
+             inspectorName = DEFAULT_ENTERPRISE_INSPECTOR_NAME,
+             qrContent = payload.rawContent,
+             region = region.orEmpty(),
+             category = category.orEmpty(),
+             riskTags = riskTags.orEmpty(),
+             riskLevel = riskLevel.orEmpty(),
+             hazardHistory = hazardHistory,
+             placeCode = placeCode.orEmpty(),
+             lastInspectionDate = lastInspectionDate.orEmpty(),
+         )
     }
 
     fun recordDetection(title: String, message: String) {
