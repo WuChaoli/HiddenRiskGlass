@@ -59,11 +59,4 @@ class InspectionFinishApiProtocolTest {
         assertEquals(InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE, result.message)
     }
 
-    @Test
-    fun backupRequestUrl_isFixedEndpoint() {
-        assertEquals(
-            "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/hazardIsEnd",
-            InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
-        )
-    }
 }

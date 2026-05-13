@@ -6,7 +6,6 @@ import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.workflow.InspectionWorkflowSession
-import com.rokid.glass.utils.HttpUtils
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -18,7 +17,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * 结束巡检服务。
- * 主备接口并行发送，两个端点都完成后再统一汇总结果。
+ * 使用 InspectionRetryExecutor 通过主 URL 提交，最多重试 4 次。
  */
 object InspectionFinishService {
     private const val TAG = "InspectionFinishApi"
@@ -51,61 +50,30 @@ object InspectionFinishService {
             userId = userId,
             customParam = customParam,
         )
-        val coordinator = DualEndpointSubmitCoordinator(
-            labels = listOf("primary", "backup"),
-        ) { outcomes ->
-            val primaryOutcome = outcomes.getValue("primary")
-            val backupOutcome = outcomes.getValue("backup")
-            if (primaryOutcome.success && backupOutcome.success) {
+        if (primaryUrl == null) {
+            InspectionWorkflowSession.clearFinishSubmitProgress()
+            deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
+            return handle
+        }
+        submitSingleEndpoint(
+            label = "primary",
+            requestUrl = primaryUrl,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+        ) { outcome ->
+            if (outcome.success) {
+                Log.i(TAG, "finish success attempts=${outcome.attemptCount}")
+                InspectionWorkflowSession.markFinishSubmitPrimaryDone()
                 InspectionWorkflowSession.clearFinishSubmitProgress()
                 mainHandler.post { callback.onSuccess() }
             } else {
                 InspectionWorkflowSession.clearFinishSubmitProgress()
                 Log.w(
                     TAG,
-                    "finish final failed primarySuccess=${primaryOutcome.success} backupSuccess=${backupOutcome.success}",
+                    "finish failed attempts=${outcome.attemptCount} message=${outcome.message}",
                 )
-                deliverFailure(
-                    callback,
-                    firstFailureMessage(primaryOutcome, backupOutcome),
-                )
+                deliverFailure(callback, outcome.message ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
             }
-        }
-
-        if (primaryUrl == null) {
-            coordinator.record(
-                label = "primary",
-                outcome = RetryOutcome(
-                    success = false,
-                    message = InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE,
-                    attemptCount = 0,
-                ),
-            )
-        } else {
-            submitSingleEndpoint(
-                label = "primary",
-                requestUrl = primaryUrl,
-                requestBodyJson = requestBodyJson,
-                handle = handle,
-            ) { outcome ->
-                if (outcome.success) {
-                    Log.i(TAG, "finish primary success attempts=${outcome.attemptCount}")
-                    InspectionWorkflowSession.markFinishSubmitPrimaryDone()
-                }
-                coordinator.record(label = "primary", outcome = outcome)
-            }
-        }
-        submitSingleEndpoint(
-            label = "backup",
-            requestUrl = InspectionFinishApiProtocol.BACKUP_REQUEST_URL,
-            requestBodyJson = requestBodyJson,
-            handle = handle,
-        ) { outcome ->
-            if (outcome.success) {
-                Log.i(TAG, "finish backup success attempts=${outcome.attemptCount}")
-                InspectionWorkflowSession.markFinishSubmitBackupDone()
-            }
-            coordinator.record(label = "backup", outcome = outcome)
         }
         return handle
     }
@@ -182,11 +150,6 @@ object InspectionFinishService {
         mainHandler.post { callback.onError(message) }
     }
 
-    private fun firstFailureMessage(vararg outcomes: RetryOutcome): String {
-        return outcomes.firstOrNull { !it.success }?.message
-            ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE
-    }
-
     private fun createClient(): OkHttpClient {
         val apiConfig = InspectionConfigRepository.get().network.saveResultApi
         return OkHttpClient.Builder()
@@ -199,8 +162,6 @@ object InspectionFinishService {
 
 internal object InspectionFinishApiProtocol {
     internal const val DEFAULT_FAILURE_MESSAGE = "结束巡检失败，请重试"
-    internal val BACKUP_REQUEST_URL: String
-        get() = "${HttpUtils.BACKUP_BASE_URL.trimEnd('/')}/hxy/apis/hazardCheckRecord/hazardIsEnd"
 
     internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
     private const val IF_END_VALUE = "1"

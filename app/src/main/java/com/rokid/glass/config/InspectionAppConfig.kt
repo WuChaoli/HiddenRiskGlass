@@ -89,14 +89,10 @@ data class AiArApiConfig(
 
 data class SaveResultApiConfig(
     val primarySaveResultUrl: String = "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave",
-    val backupBaseUrl: String = "http://183.147.142.133:7443",
     val connectTimeoutMs: Long = 30_000L,
     val readTimeoutMs: Long = 30_000L,
     val writeTimeoutMs: Long = 30_000L,
-) {
-    val backupSaveResultUrl: String
-        get() = "${backupBaseUrl.trimEnd('/')}/hxy/apis/hazardCheckRecord/saveHazard"
-}
+)
 
 data class MayHazardVerifyApiConfig(
     val answerUrl: String = "http://183.147.142.133:8006/has_hazard_answer",
@@ -212,7 +208,6 @@ data class AiArApiConfigOverride(
 
 data class SaveResultApiConfigOverride(
     val primarySaveResultUrl: String? = null,
-    val backupBaseUrl: String? = null,
     val connectTimeoutMs: Long? = null,
     val readTimeoutMs: Long? = null,
     val writeTimeoutMs: Long? = null,

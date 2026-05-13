@@ -41,7 +41,7 @@ import java.util.concurrent.RejectedExecutionException
 
 /**
  * 设备指引独立页。
- * 当前仅依赖远端 ctype=1 识别物品隐患，再通过 ctype=0 深度分析拉取检查重点文本。
+ * 当前仅依赖远端 ctype=3 识别物品隐患，再通过 ctype=0 深度分析拉取检查重点文本。
  */
 class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 

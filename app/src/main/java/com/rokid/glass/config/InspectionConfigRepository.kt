@@ -241,7 +241,6 @@ object InspectionConfigRepository {
     ): SaveResultApiConfig {
         return SaveResultApiConfig(
             primarySaveResultUrl = override?.primarySaveResultUrl ?: base.primarySaveResultUrl,
-            backupBaseUrl = override?.backupBaseUrl ?: base.backupBaseUrl,
             connectTimeoutMs = override?.connectTimeoutMs ?: base.connectTimeoutMs,
             readTimeoutMs = override?.readTimeoutMs ?: base.readTimeoutMs,
             writeTimeoutMs = override?.writeTimeoutMs ?: base.writeTimeoutMs,

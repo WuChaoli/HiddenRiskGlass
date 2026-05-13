@@ -15,12 +15,6 @@ class HttpUtils {
         val PRIMARY_SAVE_RESULT_URL: String
             get() = InspectionConfigRepository.get().network.saveResultApi.primarySaveResultUrl
 
-        val BACKUP_BASE_URL: String
-            get() = InspectionConfigRepository.get().network.saveResultApi.backupBaseUrl
-
-        val BACKUP_SAVE_RESULT_URL: String
-            get() = InspectionConfigRepository.get().network.saveResultApi.backupSaveResultUrl
-
         private val gson = com.google.gson.Gson()
     }
 

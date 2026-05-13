@@ -51,11 +51,6 @@ val region: String = "",
         val analyzedCount: Int = 0,
     )
 
-    data class DualSubmitProgress(
-        val primaryDone: Boolean = false,
-        val backupDone: Boolean = false,
-    )
-
     enum class SaveOutcome {
         PENDING,
         SUCCESS,
@@ -96,9 +91,9 @@ val region: String = "",
     var latestDetectionMessage: String? = null
     var latestAnalysisText: String = ""
     var latestCapturedJpeg: ByteArray? = null
-    var phoneSyncProgress: DualSubmitProgress = DualSubmitProgress()
+    var phoneSyncDone: Boolean = false
         private set
-    var finishSubmitProgress: DualSubmitProgress = DualSubmitProgress()
+    var finishSubmitDone: Boolean = false
         private set
     private val savedHazardRecordsByKey = linkedMapOf<String, SavedHazardRecord>()
     var summary: InspectionSummary = InspectionSummary()
@@ -174,27 +169,19 @@ enterpriseInfo = EnterpriseInfo(
     }
 
     fun markFinishSubmitPrimaryDone() {
-        finishSubmitProgress = finishSubmitProgress.copy(primaryDone = true)
-    }
-
-    fun markFinishSubmitBackupDone() {
-        finishSubmitProgress = finishSubmitProgress.copy(backupDone = true)
+        finishSubmitDone = true
     }
 
     fun markPhoneSyncPrimaryDone() {
-        phoneSyncProgress = phoneSyncProgress.copy(primaryDone = true)
-    }
-
-    fun markPhoneSyncBackupDone() {
-        phoneSyncProgress = phoneSyncProgress.copy(backupDone = true)
+        phoneSyncDone = true
     }
 
     fun clearFinishSubmitProgress() {
-        finishSubmitProgress = DualSubmitProgress()
+        finishSubmitDone = false
     }
 
     fun clearPhoneSyncProgress() {
-        phoneSyncProgress = DualSubmitProgress()
+        phoneSyncDone = false
     }
 
     fun resolveFinishSessionId(): String? {

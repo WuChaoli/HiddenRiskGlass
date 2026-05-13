@@ -61,14 +61,6 @@ class LocalHazardPushApiProtocolTest {
     }
 
     @Test
-    fun backupRequestUrl_isFixedEndpoint() {
-        assertEquals(
-            "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/saveHazard",
-            LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
-        )
-    }
-
-    @Test
     fun buildRequestBodyJson_includesLawBasisAndEmptyStrings() {
         val json = LocalHazardPushApiProtocol.buildRequestBodyJson(
             gson = Gson(),

@@ -9,30 +9,25 @@ import org.junit.Test
 class InspectionWorkflowSessionTest {
 
     @Test
-    fun clearForNewInspection_resetsDualSubmitProgress() {
+    fun clearForNewInspection_resetsSingleSubmitFlags() {
         InspectionWorkflowSession.markPhoneSyncPrimaryDone()
         InspectionWorkflowSession.markFinishSubmitPrimaryDone()
 
         InspectionWorkflowSession.clearForNewInspection()
 
-        assertFalse(InspectionWorkflowSession.phoneSyncProgress.primaryDone)
-        assertFalse(InspectionWorkflowSession.phoneSyncProgress.backupDone)
-        assertFalse(InspectionWorkflowSession.finishSubmitProgress.primaryDone)
-        assertFalse(InspectionWorkflowSession.finishSubmitProgress.backupDone)
+        assertFalse(InspectionWorkflowSession.phoneSyncDone)
+        assertFalse(InspectionWorkflowSession.finishSubmitDone)
     }
 
     @Test
-    fun markBackupDone_preservesPrimaryDoneState() {
+    fun markSingleSubmitDone_setsFlagsCorrectly() {
         InspectionWorkflowSession.clearForNewInspection()
-        InspectionWorkflowSession.markPhoneSyncPrimaryDone()
-        InspectionWorkflowSession.markPhoneSyncBackupDone()
-        InspectionWorkflowSession.markFinishSubmitPrimaryDone()
-        InspectionWorkflowSession.markFinishSubmitBackupDone()
 
-        assertTrue(InspectionWorkflowSession.phoneSyncProgress.primaryDone)
-        assertTrue(InspectionWorkflowSession.phoneSyncProgress.backupDone)
-        assertTrue(InspectionWorkflowSession.finishSubmitProgress.primaryDone)
-        assertTrue(InspectionWorkflowSession.finishSubmitProgress.backupDone)
+        InspectionWorkflowSession.markPhoneSyncPrimaryDone()
+        InspectionWorkflowSession.markFinishSubmitPrimaryDone()
+
+        assertTrue(InspectionWorkflowSession.phoneSyncDone)
+        assertTrue(InspectionWorkflowSession.finishSubmitDone)
 
         InspectionWorkflowSession.clearForNewInspection()
     }

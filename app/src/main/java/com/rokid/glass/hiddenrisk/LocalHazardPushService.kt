@@ -7,7 +7,6 @@ import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.config.SaveResultApiConfig
 import com.rokid.glass.utils.AppFileLogger
-import com.rokid.glass.utils.HttpUtils
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -22,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * 本地隐患保存上报服务。
- * 主备接口并行发送，两个端点都完成后再统一汇总结果。
+ * 使用 InspectionRetryExecutor 通过主 URL 提交，最多重试 4 次。
  */
 class LocalHazardPushService(
     private val apiConfig: SaveResultApiConfig =
@@ -99,72 +98,36 @@ class LocalHazardPushService(
             jpegBytes = jpegBytes,
             hidDanger = hidDanger,
         )
+        AppFileLogger.i(
+            TAG,
+            "pushLocalHazard start objectId=$objectId jpegBytes=${jpegBytes.size} hazardCount=${hidDanger.size} url=$primaryUrl",
+        )
+        if (primaryUrl == null) {
+            callback.onFailure("本地隐患保存失败，请重试")
+            return handle
+        }
         val requestContext = RequestContext(
-            primaryUrl = primaryUrl,
-            backupUrl = LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
             jpegBytesSize = jpegBytes.size,
             hazardCount = hidDanger.size,
             requestBodyBytes = requestBodyJson.toByteArray(Charsets.UTF_8).size,
         )
-        AppFileLogger.i(
-            TAG,
-            "pushLocalHazard start objectId=$objectId jpegBytes=${requestContext.jpegBytesSize} hazardCount=${requestContext.hazardCount} requestBodyBytes=${requestContext.requestBodyBytes} primaryUrl=${requestContext.primaryUrl} backupUrl=${requestContext.backupUrl}",
-        )
-        val coordinator = DualEndpointSubmitCoordinator(
-            labels = listOf("primary", "backup"),
-        ) { outcomes ->
-            val primaryOutcome = outcomes.getValue("primary")
-            val backupOutcome = outcomes.getValue("backup")
-            if (primaryOutcome.success && backupOutcome.success) {
-                mainHandler.post { callback.onSuccess() }
-            } else {
-                AppFileLogger.w(
-                    TAG,
-                    "pushLocalHazard final failed primarySuccess=${primaryOutcome.success} primaryAttempt=${primaryOutcome.attemptCount} primaryMessage=${primaryOutcome.message} backupSuccess=${backupOutcome.success} backupAttempt=${backupOutcome.attemptCount} backupMessage=${backupOutcome.message}",
-                )
-                deliverFailure(
-                    callback,
-                    normalizeFailureMessage(
-                        firstFailureMessage(primaryOutcome, backupOutcome),
-                    ),
-                )
-            }
-        }
-
-        if (primaryUrl == null) {
-            coordinator.record(
-                label = "primary",
-                outcome = RetryOutcome(
-                    success = false,
-                    message = DEFAULT_FAILURE_MESSAGE,
-                    attemptCount = 0,
-                ),
-            )
-        } else {
-            submitSingleEndpoint(
-                label = "primary",
-                requestUrl = primaryUrl,
-                requestBodyJson = requestBodyJson,
-                handle = handle,
-                requestContext = requestContext,
-            ) { outcome ->
-                if (outcome.success) {
-                    AppFileLogger.i(TAG, "pushLocalHazard primary success attempts=${outcome.attemptCount}")
-                }
-                coordinator.record(label = "primary", outcome = outcome)
-            }
-        }
         submitSingleEndpoint(
-            label = "backup",
-            requestUrl = LocalHazardPushApiProtocol.BACKUP_REQUEST_URL,
+            label = "primary",
+            requestUrl = primaryUrl,
             requestBodyJson = requestBodyJson,
             handle = handle,
             requestContext = requestContext,
         ) { outcome ->
             if (outcome.success) {
-                AppFileLogger.i(TAG, "pushLocalHazard backup success attempts=${outcome.attemptCount}")
+                AppFileLogger.i(TAG, "pushLocalHazard success attempts=${outcome.attemptCount}")
+                mainHandler.post { callback.onSuccess() }
+            } else {
+                AppFileLogger.w(
+                    TAG,
+                    "pushLocalHazard failed attempts=${outcome.attemptCount} message=${outcome.message}",
+                )
+                deliverFailure(callback, normalizeFailureMessage(outcome.message ?: DEFAULT_FAILURE_MESSAGE))
             }
-            coordinator.record(label = "backup", outcome = outcome)
         }
         return handle
     }
@@ -266,18 +229,12 @@ class LocalHazardPushService(
         }
     }
 
-    private fun firstFailureMessage(vararg outcomes: RetryOutcome): String {
-        return outcomes.firstOrNull { !it.success }?.message ?: DEFAULT_FAILURE_MESSAGE
-    }
-
     companion object {
         private const val TAG = "LocalHazardPushApi"
         private const val DEFAULT_FAILURE_MESSAGE = "本地隐患保存失败，请重试"
     }
 
     private data class RequestContext(
-        val primaryUrl: String?,
-        val backupUrl: String,
         val jpegBytesSize: Int,
         val hazardCount: Int,
         val requestBodyBytes: Int,
@@ -306,9 +263,6 @@ class LocalHazardPushService(
 }
 
 internal object LocalHazardPushApiProtocol {
-    internal val BACKUP_REQUEST_URL: String
-        get() = "${HttpUtils.BACKUP_BASE_URL.trimEnd('/')}/hxy/apis/hazardCheckRecord/saveHazard"
-
     internal val JSON_MEDIA_TYPE = "application/json".toMediaType()
     private const val IMAGE_DATA_URI_PREFIX = "data:image/jpg;base64,"
 
