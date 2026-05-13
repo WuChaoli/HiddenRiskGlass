@@ -32,6 +32,7 @@ import com.rokid.glass.config.AutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -257,7 +258,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     override fun onSdkStateChanged(state: RokidSdkManager.SdkState) {
-        Log.i(TAG, "SDK state=$state")
+        AppFileLogger.i(TAG, "SDK state=$state")
         uiHandler.post {
             when (state) {
                 RokidSdkManager.SdkState.READY -> {

@@ -5,10 +5,11 @@ import android.app.Application
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.ToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
+import com.rokid.glesse.BuildConfig
 
 
 /**
@@ -51,8 +52,20 @@ class MyApplication : Application() {
         mContext = this
         gMainHandler = Handler(Looper.getMainLooper())
         ToastUtil.init(this)
+        AppFileLogger.init(this, enabled = BuildConfig.DEBUG)
+        installCrashLogger()
         InspectionConfigRepository.init(this)
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
+    }
+
+    private fun installCrashLogger() {
+        val previousHandler = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            AppFileLogger.e("MyApplication", "uncaught exception thread=${thread.name}", throwable)
+            AppFileLogger.writeCrash(throwable)
+            AppFileLogger.flush()
+            previousHandler?.uncaughtException(thread, throwable)
+        }
     }
 
     /**
@@ -76,7 +89,7 @@ class MyApplication : Application() {
                 // 所有 Activity 均已销毁，应用已退出，清除企业信息和本轮巡检累计结果。
                 InspectionWorkflowSession.clearInspectionAccumulatedResults()
                 InspectionWorkflowSession.clearEnterpriseData()
-                Log.i("MyApplication", "app exited, enterprise and inspection session cleared")
+                AppFileLogger.i("MyApplication", "app exited, enterprise and inspection session cleared")
             }
         }
     }

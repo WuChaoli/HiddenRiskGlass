@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
@@ -94,13 +95,13 @@ object RokidFrameSource {
     fun startFrameStream(onReady: (Boolean) -> Unit = {}) {
         synchronized(lock) {
             if (!GlassSdk.isReady()) {
-                Log.w(TAG, "startFrameStream skipped sdkNotReady")
+                AppFileLogger.w(TAG, "startFrameStream skipped sdkNotReady")
                 mainHandler.post { onReady(false) }
                 return
             }
             enforceSharedPreviewZoom(applyImmediately = frameStreamOpened)
             if (nv21Helper != null) {
-                Log.i(TAG, "startFrameStream reuse helper opened=$frameStreamOpened")
+                AppFileLogger.i(TAG, "startFrameStream reuse helper opened=$frameStreamOpened")
                 if (frameStreamOpened) {
                     enforceSharedPreviewZoom(applyImmediately = true)
                     mainHandler.post { onReady(true) }
@@ -109,7 +110,7 @@ object RokidFrameSource {
                 }
                 return
             }
-            Log.i(TAG, "startFrameStream create helper")
+            AppFileLogger.i(TAG, "startFrameStream create helper")
             frameReadyCallbacks += onReady
             latestFrame = null
             val helperGeneration = ++helperGenerationCounter
@@ -118,7 +119,7 @@ object RokidFrameSource {
                 initNv21Export(enableMix = false, callback = object : CameraShareHelper.Nv21Callback {
                     override fun onCameraOpened(width: Int, height: Int) {
                         if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
-                            Log.i(
+                            AppFileLogger.i(
                                 TAG,
                                 "ignore stale onCameraOpened callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
                             )
@@ -151,7 +152,7 @@ object RokidFrameSource {
 
                     override fun onCameraClosed() {
                         if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
-                            Log.i(
+                            AppFileLogger.i(
                                 TAG,
                                 "ignore stale onCameraClosed callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
                             )
@@ -169,13 +170,13 @@ object RokidFrameSource {
 
                     override fun onError(code: Int, msg: String) {
                         if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
-                            Log.i(
+                            AppFileLogger.i(
                                 TAG,
                                 "ignore stale onError callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration code=$code",
                             )
                             return
                         }
-                        Log.e(TAG, "frame stream error code=$code msg=$msg")
+                        AppFileLogger.e(TAG, "frame stream error code=$code msg=$msg")
                         synchronized(lock) {
                             frameStreamOpened = false
                             frameSize = null
@@ -193,7 +194,7 @@ object RokidFrameSource {
 
     fun stopFrameStream() {
         val helper = synchronized(lock) {
-            Log.i(TAG, "stopFrameStream helperExists=${nv21Helper != null}")
+            AppFileLogger.i(TAG, "stopFrameStream helperExists=${nv21Helper != null}")
             frameReadyCallbacks.clear()
             frameStreamOpened = false
             frameSize = null
@@ -209,13 +210,13 @@ object RokidFrameSource {
         releaseDelayMs: Long = FRAME_STREAM_RESTART_RELEASE_DELAY_MS,
         onReady: (Boolean) -> Unit = {},
     ) {
-        Log.i(TAG, "restartFrameStream begin releaseDelayMs=$releaseDelayMs")
+        AppFileLogger.i(TAG, "restartFrameStream begin releaseDelayMs=$releaseDelayMs")
         stopFrameStream()
         mainHandler.postDelayed(
             {
-                Log.i(TAG, "restartFrameStream relaunch")
+                AppFileLogger.i(TAG, "restartFrameStream relaunch")
                 startFrameStream { success ->
-                    Log.i(TAG, "restartFrameStream finished success=$success")
+                    AppFileLogger.i(TAG, "restartFrameStream finished success=$success")
                     onReady(success)
                 }
             },

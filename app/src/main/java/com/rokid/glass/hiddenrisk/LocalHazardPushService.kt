@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.config.SaveResultApiConfig
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.HttpUtils
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
@@ -86,7 +87,7 @@ class LocalHazardPushService(
         }
 
         val primaryUrl = runCatching { LocalHazardPushApiProtocol.buildPrimaryRequestUrl(baseUrl) }.getOrElse { error ->
-            Log.e(TAG, "buildPrimaryRequestUrl failed baseUrl=$baseUrl", error)
+            AppFileLogger.e(TAG, "buildPrimaryRequestUrl failed baseUrl=$baseUrl", error)
             null
         }
         val requestBodyJson = LocalHazardPushApiProtocol.buildRequestBodyJson(
@@ -105,7 +106,7 @@ class LocalHazardPushService(
             hazardCount = hidDanger.size,
             requestBodyBytes = requestBodyJson.toByteArray(Charsets.UTF_8).size,
         )
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "pushLocalHazard start objectId=$objectId jpegBytes=${requestContext.jpegBytesSize} hazardCount=${requestContext.hazardCount} requestBodyBytes=${requestContext.requestBodyBytes} primaryUrl=${requestContext.primaryUrl} backupUrl=${requestContext.backupUrl}",
         )
@@ -117,7 +118,7 @@ class LocalHazardPushService(
             if (primaryOutcome.success && backupOutcome.success) {
                 mainHandler.post { callback.onSuccess() }
             } else {
-                Log.w(
+                AppFileLogger.w(
                     TAG,
                     "pushLocalHazard final failed primarySuccess=${primaryOutcome.success} primaryAttempt=${primaryOutcome.attemptCount} primaryMessage=${primaryOutcome.message} backupSuccess=${backupOutcome.success} backupAttempt=${backupOutcome.attemptCount} backupMessage=${backupOutcome.message}",
                 )
@@ -148,7 +149,7 @@ class LocalHazardPushService(
                 requestContext = requestContext,
             ) { outcome ->
                 if (outcome.success) {
-                    Log.i(TAG, "pushLocalHazard primary success attempts=${outcome.attemptCount}")
+                    AppFileLogger.i(TAG, "pushLocalHazard primary success attempts=${outcome.attemptCount}")
                 }
                 coordinator.record(label = "primary", outcome = outcome)
             }
@@ -161,7 +162,7 @@ class LocalHazardPushService(
             requestContext = requestContext,
         ) { outcome ->
             if (outcome.success) {
-                Log.i(TAG, "pushLocalHazard backup success attempts=${outcome.attemptCount}")
+                AppFileLogger.i(TAG, "pushLocalHazard backup success attempts=${outcome.attemptCount}")
             }
             coordinator.record(label = "backup", outcome = outcome)
         }
@@ -180,7 +181,7 @@ class LocalHazardPushService(
             label = "local-hazard-$label",
             handle = handle,
             attemptBlock = { attempt, completion ->
-                Log.i(
+                AppFileLogger.i(
                     TAG,
                     "pushLocalHazard attemptStart endpoint=$label attempt=$attempt requestBodyBytes=${requestContext.requestBodyBytes} jpegBytes=${requestContext.jpegBytesSize} hazardCount=${requestContext.hazardCount} canceled=${handle.isCanceled()} url=$requestUrl",
                 )
@@ -193,7 +194,7 @@ class LocalHazardPushService(
                 call.enqueue(object : okhttp3.Callback {
                     override fun onFailure(call: Call, e: IOException) {
                         val failureType = classifyFailure(e, call.isCanceled(), handle.isCanceled())
-                        Log.e(
+                        AppFileLogger.e(
                             TAG,
                             "pushLocalHazard failed endpoint=$label attempt=$attempt callCanceled=${call.isCanceled()} handleCanceled=${handle.isCanceled()} failureType=$failureType requestBodyBytes=${requestContext.requestBodyBytes} jpegBytes=${requestContext.jpegBytesSize} url=$requestUrl",
                             e,
@@ -209,7 +210,7 @@ class LocalHazardPushService(
                     override fun onResponse(call: Call, response: Response) {
                         response.use {
                             if (!response.isSuccessful) {
-                                Log.w(
+                                AppFileLogger.w(
                                     TAG,
                                     "pushLocalHazard httpFailed endpoint=$label attempt=$attempt code=${response.code} message=${response.message} callCanceled=${call.isCanceled()} requestBodyBytes=${requestContext.requestBodyBytes} url=$requestUrl",
                                 )
@@ -222,7 +223,7 @@ class LocalHazardPushService(
                                 return
                             }
                             val body = response.body?.string().orEmpty()
-                            Log.i(
+                            AppFileLogger.i(
                                 TAG,
                                 "pushLocalHazard response endpoint=$label attempt=$attempt code=${response.code} bodyLength=${body.length} body=$body",
                             )

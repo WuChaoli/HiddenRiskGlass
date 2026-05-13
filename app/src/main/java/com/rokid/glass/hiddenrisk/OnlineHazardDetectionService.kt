@@ -4,8 +4,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
-import android.util.Log
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.utils.AppFileLogger
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -24,8 +24,8 @@ internal class OnlineHazardDetectionService(
     private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiArApi.detectTimeoutMs,
     private val detectConcurrencyLimit: Int = InspectionConfigRepository.get()
         .aiInspection.onlineDetectConcurrencyLimit,
-    private val infoLogger: (String) -> Unit = { message -> Log.i(TAG, message) },
-    private val warningLogger: (String) -> Unit = { message -> Log.w(TAG, message) },
+    private val infoLogger: (String) -> Unit = { message -> AppFileLogger.i(TAG, message) },
+    private val warningLogger: (String) -> Unit = { message -> AppFileLogger.w(TAG, message) },
 ) {
     enum class DetectionLane(
         val ctype: Int,
