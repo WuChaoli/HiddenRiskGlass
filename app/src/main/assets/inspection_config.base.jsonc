@@ -105,7 +105,7 @@
     },
     "aiArApi": {
       // AI AR SSE 接口地址。
-      "url": "http://183.147.142.133:5000/ai/ar",
+      "url": "http://183.147.142.133:10010/ai/ar",
       // AI AR SSE connect timeout，单位 ms。
       "connectTimeoutMs": 15000,
       // AI AR SSE read timeout，单位 ms。流式接口一般需要更长读取时间。
@@ -117,7 +117,7 @@
     },
     "deviceGuideDetectApi": {
       // 设备指引检测接口地址。当前先复用 /ai/ar，后续可替换为独立服务。
-      "url": "http://183.147.142.133:50011/ai/ar",
+      "url": "http://183.147.142.133:10010/ai/ar",
       // 设备指引检测 connect timeout，单位 ms。
       "connectTimeoutMs": 15000,
       // 设备指引检测 read timeout，单位 ms。
@@ -128,25 +128,11 @@
       "detectTimeoutMs": 3000
     },
     "saveResultApi": {
-      // 手机端同步主接口地址。
-      "primarySaveResultUrl": "http://183.147.142.133:7443/hxy/apis/third/smartGlasses/isSave",
-      // 备份接口基础域名。LocalHazardPush / Finish / Sync 都会基于它拼接备份地址。
-      "backupBaseUrl": "http://183.147.142.133:7443",
       // 保存类接口 connect timeout，单位 ms。
       "connectTimeoutMs": 30000,
       // 保存类接口 read timeout，单位 ms。
       "readTimeoutMs": 30000,
       // 保存类接口 write timeout，单位 ms。
-      "writeTimeoutMs": 30000
-    },
-    "mayHazardVerifyApi": {
-      // MayHazard 深度校验地址。
-      "answerUrl": "http://183.147.142.133:8006/has_hazard_answer",
-      // MayHazard connect timeout，单位 ms。
-      "connectTimeoutMs": 15000,
-      // MayHazard read timeout，单位 ms。
-      "readTimeoutMs": 30000,
-      // MayHazard write timeout，单位 ms。
       "writeTimeoutMs": 30000
     }
   }

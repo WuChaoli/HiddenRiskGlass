@@ -31,7 +31,7 @@ internal class OnlineHazardDetectionService(
         val ctype: Int,
         val logName: String,
     ) {
-        ITEM(3, "item"),
+        ITEM(1, "item"),
         SCENE(-1, "scene"),
     }
 

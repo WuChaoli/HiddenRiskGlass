@@ -80,7 +80,7 @@ data class EnterpriseObjectApiConfig(
 )
 
 data class AiArApiConfig(
-    val url: String = "http://183.147.142.133:5000/ai/ar",
+    val url: String = "http://183.147.142.133:10010/ai/ar",
     val connectTimeoutMs: Long = 15_000L,
     val readTimeoutMs: Long = 45_000L,
     val writeTimeoutMs: Long = 30_000L,

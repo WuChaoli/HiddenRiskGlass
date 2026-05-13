@@ -234,7 +234,7 @@
 2. 通过 `InspectionCameraCoordinator` 获取共享帧流
 3. `InspectionFrameCaptureService` 选择候选帧
 4. `AutoInferenceLoopDecider` 决定本地和在线链路是否启动
-5. `OnlineHazardDetectionService` 通过 `AiArSseService` 发起 `ctype=3` 物品识别和 `ctype=2` 检查指引检测
+5. `OnlineHazardDetectionService` 通过 `AiArSseService` 发起 `ctype=1` 物品识别和 `ctype=2` 检查指引检测
 6. 结果进入流式详情或本地备用链路
 7. `AutoHazardPresentationCoordinator` 控制结果展示延迟
 8. 最终进入确认、保存、上报或结束页
