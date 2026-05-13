@@ -406,7 +406,6 @@ Manifest 中声明了相机、录音、蓝牙、Wi-Fi、存储、前台服务、
 - `ndkVersion "29.0.14206865"`
 - product flavor：
   - `standard`
-  - `demoOnlineonly`
 - `externalNativeBuild` 指向 `app/src/main/jni/CMakeLists.txt`
 - `buildFeatures` 开启 `compose`、`buildConfig`
 - `viewBinding` 开启

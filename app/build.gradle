@@ -31,14 +31,6 @@ android {
         standard {
             dimension "edition"
         }
-        demoOnlineonly {
-            dimension "edition"
-            versionNameSuffix "-demo-onlineonly"
-        }
-        localHazardDetect {
-            dimension "edition"
-            versionNameSuffix "-local-hazard-detect"
-        }
     }
 
     externalNativeBuild {
