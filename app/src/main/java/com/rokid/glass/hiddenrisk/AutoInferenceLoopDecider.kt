@@ -40,9 +40,12 @@ internal object AutoInferenceLoopDecider {
         if (queuedNext) {
             return OnlineLoopAdvance(startNow = true)
         }
-        if (!loopAlreadyPosted) {
+        if (loopAlreadyPosted) {
+            return OnlineLoopAdvance()
+        }
+        if (nowElapsedMs < nextEarliestStartElapsedMs) {
             return OnlineLoopAdvance(
-                delayMs = (nextEarliestStartElapsedMs - nowElapsedMs).coerceAtLeast(0L),
+                delayMs = nextEarliestStartElapsedMs - nowElapsedMs,
             )
         }
         return OnlineLoopAdvance()

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Android APK Packaging"
-  short_description: "Build, sign, and stage Android APK outputs"
-  default_prompt: "Use $android-apk-packaging to rebuild an Android app, ensure the APK is signed, and place the output in the requested release path."

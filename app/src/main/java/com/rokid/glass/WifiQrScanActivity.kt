@@ -737,7 +737,9 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
         releaseScanResources()
         mainHandler.removeCallbacks(finishResultRunnable)
-        mainHandler.postDelayed(finishResultRunnable, RESULT_STAY_MS)
+        if (isSuccess) {
+            mainHandler.postDelayed(finishResultRunnable, RESULT_STAY_MS)
+        }
         refreshInputActions()
     }
 

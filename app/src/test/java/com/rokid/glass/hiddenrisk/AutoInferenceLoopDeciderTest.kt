@@ -2,6 +2,7 @@ package com.rokid.glass.hiddenrisk
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -28,7 +29,7 @@ class AutoInferenceLoopDeciderTest {
     }
 
     @Test
-    fun decideOnlineLoopAdvance_schedulesNextWhenWindowElapsed() {
+    fun decideOnlineLoopAdvance_continuesWhenWindowElapsed() {
         val decision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
             queuedNext = false,
             nowElapsedMs = 1_500L,
@@ -38,7 +39,21 @@ class AutoInferenceLoopDeciderTest {
 
         assertFalse(decision.queueNext)
         assertFalse(decision.startNow)
-        assertEquals(0L, decision.delayMs)
+        assertNull(decision.delayMs)
+    }
+
+    @Test
+    fun decideOnlineLoopAdvance_schedulesDelayBeforeNextWindow() {
+        val decision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
+            queuedNext = false,
+            nowElapsedMs = 1_000L,
+            nextEarliestStartElapsedMs = 1_500L,
+            loopAlreadyPosted = false,
+        )
+
+        assertFalse(decision.queueNext)
+        assertFalse(decision.startNow)
+        assertEquals(500L, decision.delayMs)
     }
 
     @Test
@@ -52,5 +67,19 @@ class AutoInferenceLoopDeciderTest {
 
         assertTrue(decision.startNow)
         assertFalse(decision.queueNext)
+    }
+
+    @Test
+    fun decideOnlineLoopAdvance_ignoresWhenLoopAlreadyPosted() {
+        val decision = AutoInferenceLoopDecider.decideOnlineLoopAdvance(
+            queuedNext = false,
+            nowElapsedMs = 1_000L,
+            nextEarliestStartElapsedMs = 1_500L,
+            loopAlreadyPosted = true,
+        )
+
+        assertFalse(decision.queueNext)
+        assertFalse(decision.startNow)
+        assertNull(decision.delayMs)
     }
 }

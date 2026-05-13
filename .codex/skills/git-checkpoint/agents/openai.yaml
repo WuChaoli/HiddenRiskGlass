@@ -1,7 +1,0 @@
-interface:
-  display_name: "Git Checkpoint"
-  short_description: "Review, split, commit, then confirm push"
-  default_prompt: "Use $git-checkpoint to inspect my current working tree, propose a commit plan, and only commit after confirming each step with me."
-
-policy:
-  allow_implicit_invocation: true
