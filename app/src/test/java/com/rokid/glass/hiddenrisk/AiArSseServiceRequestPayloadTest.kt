@@ -114,4 +114,47 @@ class AiArSseServiceRequestPayloadTest {
             ),
         )
     }
+
+    @Test
+    fun parseHazardDetectionBody_prefersSseContentYesForScene() {
+        val body = """
+            id: 1
+            event: message
+            data: {"task_id":"task-scene","content":"是"}
+
+            event: done
+            data: [DONE]
+        """.trimIndent()
+
+        val parsed = AiArSseService.parseHazardDetectionBody(
+            body = body,
+            requireInferenceResults = false,
+            preferSse = true,
+        )
+
+        assertTrue(parsed.hasHazard)
+        assertEquals(0, parsed.inferenceCount)
+        assertTrue(parsed.rawText.contains("\"content\":\"是\""))
+    }
+
+    @Test
+    fun parseHazardDetectionBody_prefersSseContentNoForScene() {
+        val body = """
+            id: 1
+            event: message
+            data: {"task_id":"task-scene","content":"否"}
+
+            event: done
+            data: [DONE]
+        """.trimIndent()
+
+        val parsed = AiArSseService.parseHazardDetectionBody(
+            body = body,
+            requireInferenceResults = false,
+            preferSse = true,
+        )
+
+        assertFalse(parsed.hasHazard)
+        assertEquals(0, parsed.inferenceCount)
+    }
 }

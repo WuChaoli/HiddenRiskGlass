@@ -5,6 +5,9 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.rokid.glass.config.AiArApiConfig
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.AppFileLogger
@@ -202,20 +205,18 @@ class AiArSseService(
                     return
                 }
                 runCatching {
-                    val parsed = gson.fromJson(body, IdentifyResponse::class.java)
-                        ?: throw IllegalStateException("JSON 解析结果为 null")
-                    val hasHazard = hasHazardFromIdentifyResponse(
-                        parsed = parsed,
+                    val parsed = parseHazardDetectionBody(
+                        body = body,
                         requireInferenceResults = requireInferenceResults,
+                        preferSse = lane == "general",
                     )
-                    val rawText = gson.toJson(parsed.inference_result ?: emptyList<InferenceResultItem>())
                     AppFileLogger.i(
                         TAG,
-                        "detectJson success lane=$lane taskId=$taskId hasHazard=$hasHazard inferenceCount=${parsed.inference_result?.size ?: 0} code=${parsed.code}",
+                        "detectJson success lane=$lane taskId=$taskId hasHazard=${parsed.hasHazard} inferenceCount=${parsed.inferenceCount} code=${parsed.code}",
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
-                            callback.onSuccess(handle, hasHazard, rawText)
+                            callback.onSuccess(handle, parsed.hasHazard, parsed.rawText)
                         }
                     }
                 }.onFailure { error ->
@@ -410,6 +411,10 @@ class AiArSseService(
                             "openStream firstEvent lane=$lane taskId=${payload.task_id} uploadToFirstEventMs=${firstEventElapsedMs - requestStartedElapsedMs} id=${id ?: "(none)"} type=${type ?: "(none)"} dataChars=${normalizedData.length}",
                         )
                     }
+                    AppFileLogger.i(
+                        TAG,
+                        "openStream eventData lane=$lane taskId=${payload.task_id} id=${id ?: "(none)"} type=${type ?: "(none)"} data=${summarizeSseLogText(normalizedData)}",
+                    )
                     runCatching {
                         aggregator.append(normalizedData)
                         aggregator.fullText()
@@ -444,6 +449,10 @@ class AiArSseService(
                     AppFileLogger.i(
                         TAG,
                         "openStream closed lane=$lane taskId=${payload.task_id} uploadToClosedMs=${closedElapsedMs - requestStartedElapsedMs} firstEventToClosedMs=${durationOrMinusOne(firstEventElapsedMs, closedElapsedMs)} fullTextLength=${fullText.length}",
+                    )
+                    AppFileLogger.i(
+                        TAG,
+                        "openStream fullText lane=$lane taskId=${payload.task_id} text=${summarizeSseLogText(fullText)}",
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
@@ -556,7 +565,17 @@ class AiArSseService(
         private const val DONE_EVENT_TYPE = "done"
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
+        private const val MAX_SSE_BODY_LOG_CHARS = 4096
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
+        private fun summarizeSseLogText(text: String): String {
+            val normalized = text.replace("\r", "\\r").replace("\n", "\\n")
+            return if (normalized.length <= MAX_SSE_BODY_LOG_CHARS) {
+                normalized
+            } else {
+                "${normalized.take(MAX_SSE_BODY_LOG_CHARS)}...(truncated ${normalized.length - MAX_SSE_BODY_LOG_CHARS} chars)"
+            }
+        }
 
         private fun createDefaultClient(apiConfig: AiArApiConfig): OkHttpClient {
             return OkHttpClient.Builder()
@@ -589,7 +608,101 @@ class AiArSseService(
             return parsed.content &&
                 (!requireInferenceResults || !parsed.inference_result.isNullOrEmpty())
         }
+
+        internal fun parseHazardDetectionBody(
+            body: String,
+            requireInferenceResults: Boolean,
+            preferSse: Boolean,
+            gson: Gson = Gson(),
+        ): HazardDetectionParseResult {
+            val sseObjects = parseSseDataObjects(body)
+            if (preferSse && sseObjects.isNotEmpty()) {
+                return parseHazardDetectionObjects(sseObjects, requireInferenceResults, gson)
+            }
+            return runCatching {
+                parseHazardDetectionObjects(
+                    objects = listOf(JsonParser.parseString(body).asJsonObject),
+                    requireInferenceResults = requireInferenceResults,
+                    gson = gson,
+                )
+            }.getOrElse { jsonError ->
+                if (sseObjects.isNotEmpty()) {
+                    parseHazardDetectionObjects(sseObjects, requireInferenceResults, gson)
+                } else {
+                    throw jsonError
+                }
+            }
+        }
+
+        private fun parseHazardDetectionObjects(
+            objects: List<JsonObject>,
+            requireInferenceResults: Boolean,
+            gson: Gson,
+        ): HazardDetectionParseResult {
+            require(objects.isNotEmpty()) { "No hazard detection payload found" }
+            val hazardObject = objects.firstOrNull { contentAsBoolean(it.get("content")) } ?: objects.last()
+            val inferenceElement = hazardObject.get("inference_result")
+            val inferenceCount = inferenceElement
+                ?.takeIf { it.isJsonArray }
+                ?.asJsonArray
+                ?.size()
+                ?: 0
+            val hasHazard = contentAsBoolean(hazardObject.get("content")) &&
+                (!requireInferenceResults || inferenceCount > 0)
+            val code = hazardObject.get("code")
+                ?.takeIf { !it.isJsonNull && it.isJsonPrimitive }
+                ?.asJsonPrimitive
+                ?.takeIf { it.isNumber }
+                ?.asInt
+            val rawText = if (inferenceElement != null && !inferenceElement.isJsonNull) {
+                gson.toJson(inferenceElement)
+            } else {
+                gson.toJson(hazardObject)
+            }
+            return HazardDetectionParseResult(
+                hasHazard = hasHazard,
+                rawText = rawText,
+                inferenceCount = inferenceCount,
+                code = code,
+            )
+        }
+
+        private fun parseSseDataObjects(body: String): List<JsonObject> {
+            return body.lineSequence()
+                .map { it.trim() }
+                .filter { it.startsWith("data:") }
+                .map { it.removePrefix("data:").trim() }
+                .filter { it.isNotBlank() && it != DONE_SENTINEL && it != DONE_SENTINEL_JSON_ARRAY }
+                .mapNotNull { data ->
+                    runCatching { JsonParser.parseString(data).asJsonObject }.getOrNull()
+                }
+                .toList()
+        }
+
+        private fun contentAsBoolean(content: JsonElement?): Boolean {
+            if (content == null || content.isJsonNull || !content.isJsonPrimitive) {
+                return false
+            }
+            val primitive = content.asJsonPrimitive
+            if (primitive.isBoolean) {
+                return primitive.asBoolean
+            }
+            if (!primitive.isString) {
+                return false
+            }
+            return when (primitive.asString.trim().lowercase()) {
+                "true", "yes", "y", "1", "是", "有", "存在" -> true
+                else -> false
+            }
+        }
     }
+
+    data class HazardDetectionParseResult(
+        val hasHazard: Boolean,
+        val rawText: String,
+        val inferenceCount: Int,
+        val code: Int?,
+    )
 
     private data class RequestTimingTag(
         val taskId: String,
