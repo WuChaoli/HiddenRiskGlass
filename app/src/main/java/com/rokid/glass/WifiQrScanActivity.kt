@@ -40,6 +40,7 @@ import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.WifiQrParser
 import com.rokid.glass.utils.WifiQrPayload
@@ -165,7 +166,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
     private val addNetworksLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             val payload = pendingPayload
-            Log.i(
+            AppFileLogger.i(
                 TAG,
                 "add networks result resultCode=${result.resultCode} strategy=$activeStrategyName target=${payload?.ssid}"
             )
@@ -179,7 +180,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 return@registerForActivityResult
             }
             if (result.resultCode == Activity.RESULT_CANCELED) {
-                Log.i(TAG, "user cancelled add networks flow ssid=${payload.ssid}")
+                AppFileLogger.i(TAG, "user cancelled add networks flow ssid=${payload.ssid}")
                 finishDirectly()
                 return@registerForActivityResult
             }
@@ -214,7 +215,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 InputImage.fromByteArray(frame.data, frame.width, frame.height, 0, ImageFormat.NV21),
             )
                 .addOnSuccessListener { barcodes -> handleScanResult(barcodes) }
-                .addOnFailureListener { error -> Log.w(TAG, "scan failed: ${error.message}") }
+                .addOnFailureListener { error -> AppFileLogger.w(TAG, "scan failed: ${error.message}") }
                 .addOnCompleteListener {
                     isProcessingFrame = false
                     mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
@@ -238,7 +239,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 return
             }
             if (System.currentTimeMillis() >= verifyDeadlineMs) {
-                Log.w(TAG, "verify timeout strategy=$activeStrategyName target=${payload.ssid} current=$currentSsid")
+                AppFileLogger.w(TAG, "verify timeout strategy=$activeStrategyName target=${payload.ssid} current=$currentSsid")
                 showResultAndFinish(getString(R.string.wifi_scan_connect_failed))
                 return
             }
@@ -281,7 +282,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         if (debugSnapshotMode) return
         if (awaitingPrivateFlowReturn && pendingPayload != null) {
             awaitingPrivateFlowReturn = false
-            Log.i(TAG, "private/system wifi flow returned target=${pendingPayload?.ssid}")
+            AppFileLogger.i(TAG, "private/system wifi flow returned target=${pendingPayload?.ssid}")
             startVerification(requireNotNull(pendingPayload), "private_system_resume")
             return
         }
@@ -318,7 +319,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         if (connectionStage == ConnectionStage.CONNECTING_WITH_SPECIFIER ||
             connectionStage == ConnectionStage.WAITING_SYSTEM_RESULT
         ) {
-            Log.i(TAG, "onPause keep flow alive stage=$connectionStage strategy=$activeStrategyName")
+            AppFileLogger.i(TAG, "onPause keep flow alive stage=$connectionStage strategy=$activeStrategyName")
         }
         super.onPause()
     }
@@ -407,15 +408,15 @@ class WifiQrScanActivity : BaseGlassActivity() {
         val payload = WifiQrParser.parse(rawValue)
         when {
             payload == null -> {
-                Log.i(TAG, "invalid wifi qr raw=$rawValue")
+                AppFileLogger.i(TAG, "invalid wifi qr rawLength=${rawValue.length}")
                 showTemporaryStatus(getString(R.string.wifi_scan_invalid), INVALID_QR_COOLDOWN_MS)
             }
             payload.security == WifiQrPayload.SecurityType.WEP -> {
-                Log.i(TAG, "unsupported wifi security security=${payload.security}")
+                AppFileLogger.i(TAG, "unsupported wifi security security=${payload.security}")
                 showTemporaryStatus(getString(R.string.wifi_scan_unsupported_security), INVALID_QR_COOLDOWN_MS)
             }
             !SystemStateUtils.isWifiEnabled(this) -> {
-                Log.i(TAG, "wifi disabled while scanning, continue with system connect flow ssid=${payload.ssid}")
+                AppFileLogger.i(TAG, "wifi disabled while scanning, continue with system connect flow ssid=${payload.ssid}")
                 connectToWifi(payload)
             }
             else -> connectToWifi(payload)
@@ -432,7 +433,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         mainHandler.removeCallbacks(verifyRunnable)
         connectionStage = ConnectionStage.WAITING_SYSTEM_RESULT
         refreshInputActions()
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "wifi qr parsed ssid=${payload.ssid} security=${payload.security} hidden=${payload.hidden}"
         )
@@ -456,7 +457,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
             val resolved = intent.resolveActivity(packageManager)
-            Log.i(
+            AppFileLogger.i(
                 TAG,
                 "probe private/system wifi entry label=${entry.label} resolved=${resolved != null} action=${entry.action} component=${entry.packageName}/${entry.className}"
             )
@@ -465,17 +466,17 @@ class WifiQrScanActivity : BaseGlassActivity() {
                 awaitingPrivateFlowReturn = true
                 tvStatus.text = getString(R.string.wifi_scan_strategy_system, payload.ssid)
                 startActivity(intent)
-                Log.i(TAG, "launch private/system wifi flow label=${entry.label} target=${payload.ssid}")
+                AppFileLogger.i(TAG, "launch private/system wifi flow label=${entry.label} target=${payload.ssid}")
                 return true
             }
         }
-        Log.i(TAG, "no private/system wifi entry available target=${payload.ssid}")
+        AppFileLogger.i(TAG, "no private/system wifi entry available target=${payload.ssid}")
         return false
     }
 
     private fun launchAddNetworksFlow(payload: WifiQrPayload): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-            Log.i(TAG, "skip add networks flow due to sdk=${Build.VERSION.SDK_INT}")
+            AppFileLogger.i(TAG, "skip add networks flow due to sdk=${Build.VERSION.SDK_INT}")
             return false
         }
         val suggestionBuilder = WifiNetworkSuggestion.Builder()
@@ -493,7 +494,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             putParcelableArrayListExtra(Settings.EXTRA_WIFI_NETWORK_LIST, arrayListOf(suggestion))
         }
         val resolved = intent.resolveActivity(packageManager)
-        Log.i(TAG, "probe add networks flow resolved=${resolved != null} target=${payload.ssid}")
+        AppFileLogger.i(TAG, "probe add networks flow resolved=${resolved != null} target=${payload.ssid}")
         if (resolved == null) {
             return false
         }
@@ -501,7 +502,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         connectionStage = ConnectionStage.WAITING_SYSTEM_RESULT
         refreshInputActions()
         tvStatus.text = getString(R.string.wifi_scan_strategy_add_networks, payload.ssid)
-        Log.i(TAG, "launch add networks flow target=${payload.ssid}")
+        AppFileLogger.i(TAG, "launch add networks flow target=${payload.ssid}")
         addNetworksLauncher.launch(intent)
         return true
     }
@@ -515,7 +516,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         tvStatus.text = getString(R.string.wifi_scan_verify_connection, payload.ssid)
         mainHandler.removeCallbacks(verifyRunnable)
         mainHandler.post(verifyRunnable)
-        Log.i(TAG, "start verification source=$source target=${payload.ssid} deadline=$verifyDeadlineMs")
+        AppFileLogger.i(TAG, "start verification source=$source target=${payload.ssid} deadline=$verifyDeadlineMs")
     }
 
     private fun handleConnectionVerified(payload: WifiQrPayload, source: String) {
@@ -527,7 +528,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         scanBlockedUntilMs = Long.MAX_VALUE
         tvStatus.text = getString(R.string.wifi_scan_success, payload.ssid)
         InspectionWorkflowSession.updateMode(connected = true)
-        Log.i(TAG, "wifi connection verified source=$source target=${payload.ssid}")
+        AppFileLogger.i(TAG, "wifi connection verified source=$source target=${payload.ssid}")
         showResultAndFinish(getString(R.string.wifi_scan_success_generic))
     }
 
@@ -539,7 +540,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         activeStrategyName = "specifier_fallback:$reason"
         cameraRecoveryController.setRecoveryEnabled(false)
         tvStatus.text = getString(R.string.wifi_scan_connecting, payload.ssid)
-        Log.i(TAG, "start specifier fallback reason=$reason target=${payload.ssid}")
+        AppFileLogger.i(TAG, "start specifier fallback reason=$reason target=${payload.ssid}")
 
         val specifierBuilder = WifiNetworkSpecifier.Builder()
             .setSsid(payload.ssid)
@@ -564,7 +565,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) {
                 runOnUiThread {
-                    Log.i(TAG, "specifier network available target=${payload.ssid}")
+                    AppFileLogger.i(TAG, "specifier network available target=${payload.ssid}")
                     connectivityManager.bindProcessToNetwork(network)
                     handleConnectionVerified(payload, "specifier")
                 }
@@ -572,7 +573,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
 
             override fun onUnavailable() {
                 runOnUiThread {
-                    Log.w(TAG, "specifier network unavailable target=${payload.ssid}")
+                    AppFileLogger.w(TAG, "specifier network unavailable target=${payload.ssid}")
                     showResultAndFinish(getString(R.string.wifi_scan_connect_failed))
                 }
             }
@@ -580,7 +581,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             override fun onLost(network: Network) {
                 runOnUiThread {
                     if (!isFinishing) {
-                        Log.w(TAG, "specifier network lost target=${payload.ssid}")
+                        AppFileLogger.w(TAG, "specifier network lost target=${payload.ssid}")
                         showResultAndFinish(getString(R.string.wifi_scan_connect_failed))
                     }
                 }
@@ -588,11 +589,11 @@ class WifiQrScanActivity : BaseGlassActivity() {
         }
         networkCallback = callback
         tvStatus.setText(R.string.wifi_scan_wait_system)
-        Log.i(TAG, "requestNetwork submitted waiting for system confirmation target=${payload.ssid}")
+        AppFileLogger.i(TAG, "requestNetwork submitted waiting for system confirmation target=${payload.ssid}")
         runCatching {
             connectivityManager.requestNetwork(request, callback, VERIFY_TIMEOUT_MS.toInt())
         }.onFailure { error ->
-            Log.w(TAG, "requestNetwork failed target=${payload.ssid} error=${error.message}")
+            AppFileLogger.w(TAG, "requestNetwork failed target=${payload.ssid} error=${error.message}")
             showResultAndFinish(getString(R.string.wifi_scan_connect_failed))
         }
     }
@@ -672,7 +673,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
         scanBlockedUntilMs = System.currentTimeMillis() + resumeDelayMs
         tvStatus.text = message
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
-        Log.i(TAG, "reset to scanning delayMs=$resumeDelayMs message=$message")
+        AppFileLogger.i(TAG, "reset to scanning delayMs=$resumeDelayMs message=$message")
         refreshInputActions()
         if (resumeDelayMs <= 0L) {
             tvStatus.setText(R.string.wifi_scan_waiting)
@@ -714,6 +715,10 @@ class WifiQrScanActivity : BaseGlassActivity() {
         val isSuccess = message == getString(R.string.wifi_scan_success_generic)
         resultWasSuccess = isSuccess
         cameraRecoveryController.setRecoveryEnabled(false)
+        AppFileLogger.i(
+            TAG,
+            "show result success=$isSuccess strategy=$activeStrategyName target=${pendingPayload?.ssid} message=$message",
+        )
 
         cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
@@ -744,11 +749,19 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun finishDirectly() {
+        AppFileLogger.i(
+            TAG,
+            "finish directly stage=$connectionStage strategy=$activeStrategyName target=${pendingPayload?.ssid} success=$resultWasSuccess",
+        )
         releaseScanResources()
         finish()
     }
 
     private fun releaseScanResources() {
+        AppFileLogger.i(
+            TAG,
+            "release scan resources stage=$connectionStage strategy=$activeStrategyName target=${pendingPayload?.ssid} success=$resultWasSuccess",
+        )
         mainHandler.removeCallbacks(scanRunnable)
         mainHandler.removeCallbacks(verifyRunnable)
         mainHandler.removeCallbacks(finishResultRunnable)
@@ -866,6 +879,10 @@ class WifiQrScanActivity : BaseGlassActivity() {
         }
         mainHandler.removeCallbacks(finishResultRunnable)
         val targetClassName = nextAfterSuccess
+        AppFileLogger.i(
+            TAG,
+            "complete displayed result success=$resultWasSuccess targetClass=$targetClassName stage=$connectionStage strategy=$activeStrategyName target=${pendingPayload?.ssid}",
+        )
         if (resultWasSuccess && !targetClassName.isNullOrBlank()) {
             runCatching {
                 @Suppress("UNCHECKED_CAST")
@@ -885,6 +902,10 @@ class WifiQrScanActivity : BaseGlassActivity() {
     }
 
     private fun exitAppDirectly() {
+        AppFileLogger.i(
+            TAG,
+            "exit app directly stage=$connectionStage strategy=$activeStrategyName target=${pendingPayload?.ssid} success=$resultWasSuccess",
+        )
         releaseScanResources()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAffinity()

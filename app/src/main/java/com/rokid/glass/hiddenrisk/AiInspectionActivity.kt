@@ -49,6 +49,7 @@ import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.CapturedFramePay
 import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.SquareFramePayload
 import com.rokid.glass.input.HeadMotionStabilityTracker
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.SpriteToastUtil
 import com.rokid.glass.utils.OfflineTtsPlayer
@@ -79,6 +80,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val UPLOAD_SUCCESS_TOAST_FADE_MS = 300L
         private const val SIMULATED_STREAM_CHUNK_CHARS = 12
         private const val SIMULATED_STREAM_CHUNK_DELAY_MS = 35L
+        private const val MAX_DETAIL_BODY_LOG_CHARS = 4096
 
         private val CAPTURE_WARMUP_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.captureWarmupMs
@@ -140,6 +142,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ConfigAutoHazardRoutingMode.ONLINE_ONLY -> AutoHazardRoutingMode.ONLINE_ONLY
                 ConfigAutoHazardRoutingMode.LOCAL_ONLY -> AutoHazardRoutingMode.LOCAL_ONLY
             }
+
+        private fun summarizeLogText(text: String): String {
+            val normalized = text.replace("\r", "\\r").replace("\n", "\\n")
+            return if (normalized.length <= MAX_DETAIL_BODY_LOG_CHARS) {
+                normalized
+            } else {
+                "${normalized.take(MAX_DETAIL_BODY_LOG_CHARS)}...(truncated ${normalized.length - MAX_DETAIL_BODY_LOG_CHARS} chars)"
+            }
+        }
     }
 
     private enum class AutoHazardRoutingMode {
@@ -1308,7 +1319,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         decision: AutoHazardPipelineDecider.PipelineDecision,
         reason: String,
     ) {
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "auto pipeline decision reason=$reason mode=${decision.mode} startRemote=${decision.startRemote} startLocal=${decision.startLocal} loadLocal=${decision.loadLocalModel}",
         )
@@ -1340,7 +1351,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ) {
             return
         }
-        Log.i(TAG, "switch to remote primary reason=$reason")
+        AppFileLogger.i(TAG, "switch to remote primary reason=$reason")
         uiHandler.removeCallbacks(localNetworkProbeRunnable)
         localNetworkProbePosted = false
         localLoopRunning = false
@@ -1355,7 +1366,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun stopOnlinePipelineForFallback(reason: String) {
-        Log.i(TAG, "stop online pipeline for local fallback reason=$reason")
+        AppFileLogger.i(TAG, "stop online pipeline for local fallback reason=$reason")
         resetOnlineLaneRuntime(itemOnlineLaneRuntime)
         resetOnlineLaneRuntime(sceneOnlineLaneRuntime)
         uiHandler.removeCallbacks(onlineLoopRunnable)
@@ -1402,7 +1413,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             stage = "stop_auto_inference_pipelines:start",
             extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState",
         )
-        Log.i(TAG, "stop auto inference pipelines reason=$reason")
+        AppFileLogger.i(TAG, "stop auto inference pipelines reason=$reason")
         autoInferenceStartRequested = false
         captureDelayScheduled = false
         localRetryPosted = false
@@ -1786,7 +1797,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     val startedAtElapsedMs = SystemClock.elapsedRealtime()
                     val detectIntervalMs = onlineDetectIntervalMs(lane)
                     runtime.nextEarliestStartElapsedMs = startedAtElapsedMs + detectIntervalMs
-                    Log.i(
+                    AppFileLogger.i(
                         TAG,
                         "start online detect lane=${lane.logName} requestId=$requestId reason=$reason activeRequestIds=${runtime.activeRequestIds} activePoolSize=${runtime.activeRequestIds.size} nextEarliest=${runtime.nextEarliestStartElapsedMs}",
                     )
@@ -1842,7 +1853,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             stage = "handle_online_detection_result",
             extra = "lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard activeRequestIds=${runtime.activeRequestIds} rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
         )
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "online detect result lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
         )
@@ -1871,7 +1882,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         runtime.activeRequestIds.remove(request.requestId)
-        Log.w(
+        AppFileLogger.w(
             TAG,
             "online detect failed lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size} autoMode=$autoPipelineMode message=$message",
         )
@@ -1899,7 +1910,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         runtime.activeRequestIds.remove(request.requestId)
-        Log.i(TAG, "online detect dropped lane=${request.lane.logName} requestId=${request.requestId} reason=$reason")
+        AppFileLogger.i(TAG, "online detect dropped lane=${request.lane.logName} requestId=${request.requestId} reason=$reason")
         if (reason == OnlineHazardDetectionService.REASON_BUSY) {
             if (decision.shouldContinueCurrentLane) {
                 continueOnlineInferenceAfterCompletion(request.lane)
@@ -1921,7 +1932,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return false
         }
         if (!enableLocalFallbackLoading) {
-            Log.i(TAG, "skip local fallback loading because config disabled reason=$reason")
+            AppFileLogger.i(TAG, "skip local fallback loading because config disabled reason=$reason")
             return false
         }
         remoteFailureCount += 1
@@ -1929,7 +1940,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             currentFailureCount = remoteFailureCount,
             threshold = remoteFailureFallbackThreshold,
         )
-        Log.w(
+        AppFileLogger.w(
             TAG,
             "remote detect failure count=$remoteFailureCount threshold=$remoteFailureFallbackThreshold reason=$reason decision=${decision.mode}",
         )
@@ -2213,7 +2224,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val shouldShowLivePreview =
             state == PageState.DETECTING || state == PageState.STREAM_RESPONSE
         val shouldKeepPreviewRunning = shouldKeepDetectionPreviewRunning(state)
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "showPage state=$state shouldShowLivePreview=$shouldShowLivePreview shouldKeepPreviewRunning=$shouldKeepPreviewRunning resumed=$isActivityResumed workflowActive=$isWorkflowActive",
         )
@@ -2637,7 +2648,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun failWorkflow(message: String) {
-        Log.e(TAG, "workflow failed: $message")
+        AppFileLogger.e(TAG, "workflow failed: $message")
         // 简化错误处理，仅记录日志，不显示错误页面
         // 因为加载页面已剥离到 InspectionLoadingActivity
     }
@@ -3095,6 +3106,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             stage = "handle_online_detail_success:start",
             extra = "requestId=${request.requestId} textLength=${fullText.length} jpegBytes=${jpegBytes.size}",
         )
+        Log.i(
+            TAG,
+            "online detail fullText lane=${request.lane.logName} requestId=${request.requestId} text=${summarizeLogText(fullText)}",
+        )
         val resolved = runCatching {
             AiArHazardDetailParser.parse(
                 text = fullText,
@@ -3173,7 +3188,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pending.requestId != request.requestId) {
             return
         }
-        Log.e(TAG, "online detail failed requestId=${request.requestId} message=$message")
+        AppFileLogger.e(TAG, "online detail failed requestId=${request.requestId} message=$message")
         returnToDetecting()
         SpriteToastUtil.showSpriteToastOld(
             this,
@@ -3489,30 +3504,30 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun handleStreamConfirmAction() {
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "stream confirm stage=$localResultStage pageState=$pageState streaming=$streamingInProgress submitting=$localSaveSubmitting hasContent=${activeHazardContent != null} scrollY=${scrollContent.scrollY} maxScrollY=${maxStreamScrollY()}",
         )
         when (localResultStage) {
             LocalResultStage.DESCRIPTION -> {
                 if (advanceStreamViewportByPage()) {
-                    Log.i(TAG, "stream confirm consumed by description viewport advance")
+                    AppFileLogger.i(TAG, "stream confirm consumed by description viewport advance")
                     return
                 }
                 if (activeHazardContent == null) {
-                    Log.w(TAG, "stream confirm description without active content, return detecting")
+                    AppFileLogger.w(TAG, "stream confirm description without active content, return detecting")
                     returnToDetecting()
                     return
                 }
-                Log.i(TAG, "stream confirm description submit local hazard")
+                AppFileLogger.i(TAG, "stream confirm description submit local hazard")
                 submitLocalHazardAndShowAdvice()
             }
             LocalResultStage.ADVICE -> {
                 if (advanceStreamViewportByPage()) {
-                    Log.i(TAG, "stream confirm consumed by advice viewport advance")
+                    AppFileLogger.i(TAG, "stream confirm consumed by advice viewport advance")
                     return
                 }
-                Log.i(TAG, "stream confirm advice completed, return detecting")
+                AppFileLogger.i(TAG, "stream confirm advice completed, return detecting")
                 returnToDetecting()
             }
             LocalResultStage.NONE -> returnToDetecting()
@@ -3529,11 +3544,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun submitLocalHazardAndShowAdvice() {
         if (localSaveSubmitting) {
-            Log.i(TAG, "local hazard submit ignored because already submitting")
+            AppFileLogger.i(TAG, "local hazard submit ignored because already submitting")
             return
         }
         val hazardContent = activeHazardContent ?: run {
-            Log.w(TAG, "local hazard submit skipped because active content is null")
+            AppFileLogger.w(TAG, "local hazard submit skipped because active content is null")
             return
         }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
@@ -3550,7 +3565,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             uploadItems.isEmpty() -> "隐患信息缺失"
             else -> null
         }
-        Log.i(
+        AppFileLogger.i(
             TAG,
             "local hazard submit prepare source=${hazardContent.source} title=${hazardContent.displayTitle} jpegBytes=${jpegBytes?.size ?: 0} uploadItems=${uploadItems.size} failure=${failureMessage ?: "none"}",
         )
@@ -3580,7 +3595,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             callback = object : LocalHazardPushService.Callback {
                 override fun onSuccess() {
                     if (destroyed) return
-                    Log.i(
+                    AppFileLogger.i(
                         TAG,
                         "local hazard submit success source=${hazardContent.source} stage=$localResultStage title=${hazardContent.displayTitle}",
                     )
@@ -3597,7 +3612,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
                 override fun onFailure(message: String) {
                     if (destroyed) return
-                    Log.e(TAG, "local hazard submit failure message=$message")
+                    AppFileLogger.e(TAG, "local hazard submit failure message=$message")
                     localHazardUploadHandle = null
                     InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
                         recordKey = recordKey,

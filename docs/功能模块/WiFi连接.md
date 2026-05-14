@@ -176,6 +176,7 @@
 - 日志锚点：
   - `scan failed`
   - `reset to scanning`
+- 这些锚点及二维码解析、非法二维码、不支持安全类型会同步进入 `AppFileLogger` 文件日志；拉取方式见 `docs/公共能力/日志系统.md`。
 
 ## 链路 B：系统配网与连接验证
 
@@ -210,6 +211,7 @@
   - `verify tick`
   - `verify timeout`
   - `private/system wifi flow returned`
+- 除 500ms 周期性的 `verify tick` 仅保留在 logcat 外，配网发起、验证结果、失败原因和退出收口会同步进入 `AppFileLogger` 文件日志；拉取方式见 `docs/公共能力/日志系统.md`。
 
 ## 9. 会话与本地状态
 
