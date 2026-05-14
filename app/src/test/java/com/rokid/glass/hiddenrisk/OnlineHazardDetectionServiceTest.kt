@@ -98,6 +98,45 @@ class OnlineHazardDetectionServiceTest {
         assertTrue(env.gateway.detectionHandles[20L]?.isCanceled() ?: false)
     }
 
+    @Test
+    fun requestDeepAnalysis_keepsItemLaneForDefaultDetail() {
+        val env = TestEnv()
+        val service = env.createService()
+
+        service.requestDeepAnalysis(
+            OnlineHazardDetectionService.DetailRequest(
+                epoch = 1L,
+                requestId = 31L,
+                jpegBytes = byteArrayOf(1),
+            ),
+        )
+
+        assertEquals(
+            listOf(OnlineHazardDetectionService.DetectionLane.ITEM),
+            env.gateway.startedDetailLanes,
+        )
+    }
+
+    @Test
+    fun requestDeepAnalysis_preservesSceneLaneForGeneralDeepDetail() {
+        val env = TestEnv()
+        val service = env.createService()
+
+        service.requestDeepAnalysis(
+            OnlineHazardDetectionService.DetailRequest(
+                epoch = 1L,
+                requestId = 32L,
+                jpegBytes = byteArrayOf(1),
+                lane = OnlineHazardDetectionService.DetectionLane.SCENE,
+            ),
+        )
+
+        assertEquals(
+            listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
+            env.gateway.startedDetailLanes,
+        )
+    }
+
     private fun detectionRequest(
         requestId: Long,
         lane: OnlineHazardDetectionService.DetectionLane = OnlineHazardDetectionService.DetectionLane.ITEM,
@@ -218,6 +257,7 @@ class OnlineHazardDetectionServiceTest {
         var detailCallback: AiArSseService.DetailCallback? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
         val startedDetectionLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
+        val startedDetailLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
 
         override fun identifyHazard(
             request: OnlineHazardDetectionService.DetectionRequest,
@@ -246,6 +286,7 @@ class OnlineHazardDetectionServiceTest {
                 taskId = "detail",
             )
             detailCallback = callback
+            startedDetailLanes += request.lane
             return handle
         }
 

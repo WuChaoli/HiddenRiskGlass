@@ -322,7 +322,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
 
     private val enableOnlineSceneHazardDetection: Boolean
-        get() = false
+        get() = InspectionConfigRepository.get().aiInspection.enableOnlineSceneHazardDetection
 
     private val onlineSceneDetectIntervalMs: Long
         get() = InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs
@@ -384,10 +384,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val motionStabilityTracker by lazy { HeadMotionStabilityTracker(this) }
     private val aiArSseService by lazy { AiArSseService() }
     private val onlineHazardDetectionService by lazy {
-        createOnlineHazardDetectionService()
+        createOnlineHazardDetectionService(OnlineHazardDetectionService.DetectionLane.ITEM)
     }
     private val sceneOnlineHazardDetectionService by lazy {
-        createOnlineHazardDetectionService()
+        createOnlineHazardDetectionService(OnlineHazardDetectionService.DetectionLane.SCENE)
     }
 
     private var hiddenRiskNcnn: HiddenRiskNcnn? = null
@@ -562,7 +562,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
     private var localNetworkProbePosted = false
 
-    private fun createOnlineHazardDetectionService(): OnlineHazardDetectionService {
+    private fun createOnlineHazardDetectionService(
+        lane: OnlineHazardDetectionService.DetectionLane,
+    ): OnlineHazardDetectionService {
         return OnlineHazardDetectionService(
             callback = object : OnlineHazardDetectionService.Callback {
                 override fun onDetectionResult(
@@ -607,6 +609,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ) {
                     handleOnlineDetailFailure(request, message)
                 }
+            },
+            detectTimeoutMs = when (lane) {
+                OnlineHazardDetectionService.DetectionLane.ITEM ->
+                    InspectionConfigRepository.get().network.aiAutoApi.detectTimeoutMs
+                OnlineHazardDetectionService.DetectionLane.SCENE ->
+                    InspectionConfigRepository.get().network.aiGeneralApi.detectTimeoutMs
             },
         )
     }
@@ -3213,6 +3221,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 epoch = autoInferenceEpoch,
                 requestId = request.requestId,
                 jpegBytes = sharedJpegBytes,
+                lane = request.lane,
             ),
         )
         logAudioPressureSnapshot(

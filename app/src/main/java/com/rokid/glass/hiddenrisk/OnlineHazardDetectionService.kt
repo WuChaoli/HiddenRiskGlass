@@ -48,6 +48,7 @@ internal class OnlineHazardDetectionService(
         val epoch: Long,
         val requestId: Long,
         val jpegBytes: ByteArray,
+        val lane: DetectionLane = DetectionLane.ITEM,
     )
 
     interface Callback {
@@ -135,7 +136,9 @@ internal class OnlineHazardDetectionService(
                         },
                         callback = object : AiArSseService.DetailCallback {
                             override fun onOpened(handle: AiArSseService.RequestHandle) {
-                                infoLogger("detail opened taskId=${handle.taskId} requestId=${request.requestId}")
+                                infoLogger(
+                                    "detail opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId}",
+                                )
                             }
 
                             override fun onSuccess(
@@ -323,11 +326,18 @@ internal class OnlineHazardDetectionService(
             onChunk: (String) -> Unit,
             callback: AiArSseService.DetailCallback,
         ): AiArSseService.RequestHandle {
-            return aiArSseService.requestDeepAnalysis(
-                base64Image = base64Image,
-                onChunk = onChunk,
-                callback = callback,
-            )
+            return when (request.lane) {
+                DetectionLane.ITEM -> aiArSseService.requestDeepAnalysis(
+                    base64Image = base64Image,
+                    onChunk = onChunk,
+                    callback = callback,
+                )
+                DetectionLane.SCENE -> aiArSseService.requestGeneralDeepAnalysis(
+                    base64Image = base64Image,
+                    onChunk = onChunk,
+                    callback = callback,
+                )
+            }
         }
     }
 

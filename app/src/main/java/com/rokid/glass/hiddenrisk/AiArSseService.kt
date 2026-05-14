@@ -31,6 +31,7 @@ class AiArSseService(
     private val autoDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiAutoApi,
     private val deepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeepApi,
     private val generalDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralApi,
+    private val generalDeepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralDeepApi,
     private val deviceGuideConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeviceApi,
     private val client: OkHttpClient = createDefaultClient(
         InspectionConfigRepository.get().network.aiAutoApi,
@@ -122,6 +123,7 @@ class AiArSseService(
             scene = scene,
             url = autoDetectConfig.url,
             lane = "auto",
+            requireInferenceResults = true,
             callback = callback,
         )
     }
@@ -136,6 +138,7 @@ class AiArSseService(
             scene = scene,
             url = generalDetectConfig.url,
             lane = "general",
+            requireInferenceResults = false,
             callback = callback,
         )
     }
@@ -145,6 +148,7 @@ class AiArSseService(
         scene: String?,
         url: String,
         lane: String,
+        requireInferenceResults: Boolean,
         callback: DetectCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
@@ -200,7 +204,10 @@ class AiArSseService(
                 runCatching {
                     val parsed = gson.fromJson(body, IdentifyResponse::class.java)
                         ?: throw IllegalStateException("JSON 解析结果为 null")
-                    val hasHazard = parsed.content && !parsed.inference_result.isNullOrEmpty()
+                    val hasHazard = hasHazardFromIdentifyResponse(
+                        parsed = parsed,
+                        requireInferenceResults = requireInferenceResults,
+                    )
                     val rawText = gson.toJson(parsed.inference_result ?: emptyList<InferenceResultItem>())
                     AppFileLogger.i(
                         TAG,
@@ -247,6 +254,36 @@ class AiArSseService(
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
+        return requestDeepAnalysis(
+            base64Image = base64Image,
+            url = deepAnalysisConfig.url,
+            lane = "deep",
+            onChunk = onChunk,
+            callback = callback,
+        )
+    }
+
+    fun requestGeneralDeepAnalysis(
+        base64Image: String,
+        onChunk: (String) -> Unit = {},
+        callback: DetailCallback,
+    ): RequestHandle {
+        return requestDeepAnalysis(
+            base64Image = base64Image,
+            url = generalDeepAnalysisConfig.url,
+            lane = "general_deep",
+            onChunk = onChunk,
+            callback = callback,
+        )
+    }
+
+    private fun requestDeepAnalysis(
+        base64Image: String,
+        url: String,
+        lane: String,
+        onChunk: (String) -> Unit,
+        callback: DetailCallback,
+    ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
         val handle = RequestHandle(taskId = taskId)
         val aggregator = AiArEventAggregator(gson)
@@ -254,8 +291,8 @@ class AiArSseService(
         openStream(
             handle = handle,
             payload = RequestPayload(task_id = taskId, image = base64Image, scene = scene),
-            url = deepAnalysisConfig.url,
-            lane = "deep",
+            url = url,
+            lane = lane,
             onOpened = { callback.onOpened(handle) },
             onChunk = onChunk,
             onClosed = { fullText ->
@@ -543,6 +580,14 @@ class AiArSseService(
                 return true
             }
             return normalizedData == DONE_SENTINEL || normalizedData == DONE_SENTINEL_JSON_ARRAY
+        }
+
+        internal fun hasHazardFromIdentifyResponse(
+            parsed: IdentifyResponse,
+            requireInferenceResults: Boolean,
+        ): Boolean {
+            return parsed.content &&
+                (!requireInferenceResults || !parsed.inference_result.isNullOrEmpty())
         }
     }
 

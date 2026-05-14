@@ -66,4 +66,52 @@ class AiArSseServiceRequestPayloadTest {
     fun isDoneEvent_doesNotHideUnexpectedJsonArrayPayload() {
         assertFalse(AiArSseService.isDoneEvent(type = "message", normalizedData = "[\"unexpected\"]"))
     }
+
+    @Test
+    fun hasHazardFromIdentifyResponse_itemRequiresInferenceResults() {
+        val response = AiArSseService.IdentifyResponse(
+            code = 0,
+            content = true,
+            inference_result = emptyList(),
+        )
+
+        assertFalse(
+            AiArSseService.hasHazardFromIdentifyResponse(
+                parsed = response,
+                requireInferenceResults = true,
+            ),
+        )
+    }
+
+    @Test
+    fun hasHazardFromIdentifyResponse_sceneUsesContentOnly() {
+        val response = AiArSseService.IdentifyResponse(
+            code = 0,
+            content = true,
+            inference_result = emptyList(),
+        )
+
+        assertTrue(
+            AiArSseService.hasHazardFromIdentifyResponse(
+                parsed = response,
+                requireInferenceResults = false,
+            ),
+        )
+    }
+
+    @Test
+    fun hasHazardFromIdentifyResponse_falseContentNeverTriggers() {
+        val response = AiArSseService.IdentifyResponse(
+            code = 0,
+            content = false,
+            inference_result = listOf(AiArSseService.InferenceResultItem(label = "煤炉")),
+        )
+
+        assertFalse(
+            AiArSseService.hasHazardFromIdentifyResponse(
+                parsed = response,
+                requireInferenceResults = false,
+            ),
+        )
+    }
 }

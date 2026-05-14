@@ -50,4 +50,30 @@ class InspectionConfigRepositoryTest {
         assertEquals(AutoHazardRoutingMode.LOCAL_ONLY, config.aiInspection.autoHazardRoutingMode)
         assertTrue(config.aiInspection.forceOnlineDetailForLocalHazard)
     }
+
+    @Test
+    fun `scene hazard detection config can be enabled with general deep api`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "aiInspection": {
+                    "enableOnlineSceneHazardDetection": true,
+                    "onlineSceneDetectIntervalMs": 3000
+                  },
+                  "network": {
+                    "aiGeneralDeepApi": {
+                      "url": "http://example.test/ai/general_deep",
+                      "detectTimeoutMs": 2500
+                    }
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = null,
+        )
+
+        assertTrue(config.aiInspection.enableOnlineSceneHazardDetection)
+        assertEquals(3000L, config.aiInspection.onlineSceneDetectIntervalMs)
+        assertEquals("http://example.test/ai/general_deep", config.network.aiGeneralDeepApi.url)
+        assertEquals(2500L, config.network.aiGeneralDeepApi.detectTimeoutMs)
+    }
 }
