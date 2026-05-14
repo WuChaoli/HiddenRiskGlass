@@ -296,6 +296,28 @@ class ResolvedHazardContentTest {
         assertFalse(validCodeBlankLevel.isNoHazardPlaceholder())
         assertFalse(noneCodeValidLevel.isNoHazardPlaceholder())
         assertEquals(listOf(validCodeBlankLevel, noneCodeValidLevel), content.recordableHazards())
+        assertFalse(content.shouldReturnToIdleWithoutUpload())
+    }
+
+    @Test
+    fun shouldReturnToIdleWithoutUpload_returnsTrueWhenNoRecordableHazardsExist() {
+        val noneCodeAndLevel = hazardItem(hidNum = "无", hidLevel = "无")
+        val blankCodeAndLevel = hazardItem(hidNum = " ", hidLevel = "")
+        val content = ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = noneCodeAndLevel.description,
+            advice = noneCodeAndLevel.advice,
+            uploadAdvice = noneCodeAndLevel.uploadAdvice,
+            hidLevel = noneCodeAndLevel.hidLevel,
+            hidNum = noneCodeAndLevel.hidNum,
+            lawBasis = noneCodeAndLevel.lawBasis,
+            displayTitle = noneCodeAndLevel.displayTitle,
+            jpegBytes = byteArrayOf(11),
+            hazards = listOf(noneCodeAndLevel, blankCodeAndLevel),
+        )
+
+        assertEquals(emptyList<ResolvedHazardItem>(), content.recordableHazards())
+        assertTrue(content.shouldReturnToIdleWithoutUpload())
     }
 
     private fun hazardItem(

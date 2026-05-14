@@ -37,6 +37,45 @@ class AiArSseServiceRequestPayloadTest {
     }
 
     @Test
+    fun resolveDeepAnalysisEndpoint_usesDeepWhenPlaceCodeExists() {
+        val endpoint = AiArSseService.resolveDeepAnalysisEndpoint(
+            deepUrl = "http://example.test/ai/deep",
+            gmUrl = "http://example.test/ai/gm",
+            scene = "PLACE-001",
+            useGmWhenPlaceCodeMissing = true,
+        )
+
+        assertEquals("http://example.test/ai/deep", endpoint.url)
+        assertEquals("deep", endpoint.lane)
+    }
+
+    @Test
+    fun resolveDeepAnalysisEndpoint_usesGmWhenPlaceCodeMissingAndBranchEnabled() {
+        val endpoint = AiArSseService.resolveDeepAnalysisEndpoint(
+            deepUrl = "http://example.test/ai/deep",
+            gmUrl = "http://example.test/ai/gm",
+            scene = " ",
+            useGmWhenPlaceCodeMissing = true,
+        )
+
+        assertEquals("http://example.test/ai/gm", endpoint.url)
+        assertEquals("gm", endpoint.lane)
+    }
+
+    @Test
+    fun resolveDeepAnalysisEndpoint_keepsDeepWhenBranchDisabled() {
+        val endpoint = AiArSseService.resolveDeepAnalysisEndpoint(
+            deepUrl = "http://example.test/ai/deep",
+            gmUrl = "http://example.test/ai/gm",
+            scene = null,
+            useGmWhenPlaceCodeMissing = false,
+        )
+
+        assertEquals("http://example.test/ai/deep", endpoint.url)
+        assertEquals("deep", endpoint.lane)
+    }
+
+    @Test
     fun isDoneEvent_acceptsPlainDoneSentinel() {
         assertTrue(AiArSseService.isDoneEvent(type = null, normalizedData = "[DONE]"))
     }

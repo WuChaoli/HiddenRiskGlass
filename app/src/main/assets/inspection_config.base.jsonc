@@ -64,7 +64,7 @@
     // 是否启用头部稳态门控。关闭后不等待 500ms 头部稳定即可进入自动识别。
     "enableHeadMotionStabilityGate": false,
     // 在线识别 JPEG 压缩质量，范围 0-100。过高会增加上传体积。
-    "onlineJpegQuality": 85,
+    "onlineJpegQuality": 75,
     // 在线取样窗口时长，单位 ms。
     "onlineSelectWindowMs": 240,
     // 在线取样窗口内最多采样帧数，单位：帧。
@@ -122,6 +122,14 @@
     "aiDeepApi": {
       // 深度分析接口地址。
       "url": "http://183.147.142.133:10010/ai/deep",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 1500
+    },
+    "aiGmApi": {
+      // 缺少 placeCode 时，手动深度分析和隐患录入页使用的兼容接口地址。
+      "url": "http://183.147.142.133:10012/ai/gm",
       "connectTimeoutMs": 15000,
       "readTimeoutMs": 45000,
       "writeTimeoutMs": 30000,

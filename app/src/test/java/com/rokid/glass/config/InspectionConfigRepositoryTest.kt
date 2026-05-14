@@ -18,6 +18,37 @@ class InspectionConfigRepositoryTest {
     }
 
     @Test
+    fun `gm api defaults to compatibility endpoint`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = null,
+        )
+
+        assertEquals("http://183.147.142.133:10012/ai/gm", config.network.aiGmApi.url)
+        assertEquals(1500L, config.network.aiGmApi.detectTimeoutMs)
+    }
+
+    @Test
+    fun `gm api can be overridden from jsonc`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "network": {
+                    "aiGmApi": {
+                      "url": "http://example.test/ai/gm",
+                      "detectTimeoutMs": 2600
+                    }
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = null,
+        )
+
+        assertEquals("http://example.test/ai/gm", config.network.aiGmApi.url)
+        assertEquals(2600L, config.network.aiGmApi.detectTimeoutMs)
+    }
+
+    @Test
     fun `auto sleep config uses default timeout values`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = null,

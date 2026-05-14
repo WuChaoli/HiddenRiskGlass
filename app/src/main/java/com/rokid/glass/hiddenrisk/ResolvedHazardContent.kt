@@ -64,6 +64,10 @@ data class ResolvedHazardContent(
         return resolvedHazards().filterNot { it.isNoHazardPlaceholder() }
     }
 
+    fun shouldReturnToIdleWithoutUpload(): Boolean {
+        return recordableHazards().isEmpty()
+    }
+
     fun hazardCount(): Int {
         return resolvedHazards().size
     }

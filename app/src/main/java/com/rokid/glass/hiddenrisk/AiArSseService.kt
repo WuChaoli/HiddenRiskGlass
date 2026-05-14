@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class AiArSseService(
     private val autoDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiAutoApi,
     private val deepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeepApi,
+    private val gmAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGmApi,
     private val generalDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralApi,
     private val generalDeepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralDeepApi,
     private val deviceGuideConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeviceApi,
@@ -266,13 +267,22 @@ class AiArSseService(
 
     fun requestDeepAnalysis(
         base64Image: String,
+        useGmWhenPlaceCodeMissing: Boolean = false,
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
+        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
+        val endpoint = resolveDeepAnalysisEndpoint(
+            deepUrl = deepAnalysisConfig.url,
+            gmUrl = gmAnalysisConfig.url,
+            scene = scene,
+            useGmWhenPlaceCodeMissing = useGmWhenPlaceCodeMissing,
+        )
         return requestDeepAnalysis(
             base64Image = base64Image,
-            url = deepAnalysisConfig.url,
-            lane = "deep",
+            scene = scene,
+            url = endpoint.url,
+            lane = endpoint.lane,
             onChunk = onChunk,
             callback = callback,
         )
@@ -283,8 +293,10 @@ class AiArSseService(
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
+        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
         return requestDeepAnalysis(
             base64Image = base64Image,
+            scene = scene,
             url = generalDeepAnalysisConfig.url,
             lane = "general_deep",
             onChunk = onChunk,
@@ -294,6 +306,7 @@ class AiArSseService(
 
     private fun requestDeepAnalysis(
         base64Image: String,
+        scene: String?,
         url: String,
         lane: String,
         onChunk: (String) -> Unit,
@@ -302,7 +315,6 @@ class AiArSseService(
         val taskId = System.currentTimeMillis().toString()
         val handle = RequestHandle(taskId = taskId)
         val aggregator = AiArEventAggregator(gson)
-        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
         openStream(
             handle = handle,
             payload = RequestPayload(task_id = taskId, image = base64Image, scene = scene),
@@ -936,6 +948,19 @@ class AiArSseService(
                 else -> false
             }
         }
+
+        internal fun resolveDeepAnalysisEndpoint(
+            deepUrl: String,
+            gmUrl: String,
+            scene: String?,
+            useGmWhenPlaceCodeMissing: Boolean,
+        ): DeepAnalysisEndpoint {
+            return if (useGmWhenPlaceCodeMissing && scene.isNullOrBlank()) {
+                DeepAnalysisEndpoint(url = gmUrl, lane = "gm")
+            } else {
+                DeepAnalysisEndpoint(url = deepUrl, lane = "deep")
+            }
+        }
     }
 
     data class HazardDetectionParseResult(
@@ -944,6 +969,11 @@ class AiArSseService(
         val inferenceCount: Int,
         val code: Int?,
         val labels: List<String>,
+    )
+
+    data class DeepAnalysisEndpoint(
+        val url: String,
+        val lane: String,
     )
 
     private data class RequestTimingTag(
