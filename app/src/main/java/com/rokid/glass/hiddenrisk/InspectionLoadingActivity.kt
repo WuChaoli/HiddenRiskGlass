@@ -447,6 +447,11 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 if (activityDestroyed) return@post
                 cameraSessionGeneration = requestGeneration
                 if (success) {
+                    InspectionCameraCoordinator.release(
+                        CameraOwner.LOADING,
+                        reason = "loading_camera_ready_pause_frame_stream",
+                    )
+                    cameraSessionGeneration = 0L
                     preloadLocalModelIfNeeded()
                 } else {
                     showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_frame_stream))

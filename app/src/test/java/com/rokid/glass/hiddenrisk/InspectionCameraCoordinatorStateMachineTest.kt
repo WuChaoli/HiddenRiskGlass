@@ -90,6 +90,48 @@ class InspectionCameraCoordinatorStateMachineTest {
         assertEquals(aiSnapshot.generation, snapshot.generation)
     }
 
+    @Test
+    fun loadingReleaseAllowsAiInspectionAcquire() {
+        val stateMachine = InspectionCameraCoordinator.StateMachine()
+
+        val loadingSnapshot = stateMachine.beginAcquire(
+            CameraOwner.LOADING,
+            readyNow = false,
+            needPreview = false,
+        )
+        assertTrue(
+            stateMachine.finishReady(
+                owner = CameraOwner.LOADING,
+                generation = loadingSnapshot.generation,
+                needPreview = false,
+            ),
+        )
+        assertEquals(CameraSessionState.READY_NO_PREVIEW, stateMachine.snapshot().state)
+
+        val releaseSnapshot = stateMachine.beginRelease(CameraOwner.LOADING)
+            ?: error("Loading 相机验证完成后应允许释放帧流")
+        stateMachine.finishRelease(releaseSnapshot.generation)
+        assertNull(stateMachine.snapshot().owner)
+        assertEquals(CameraSessionState.IDLE, stateMachine.snapshot().state)
+
+        val aiSnapshot = stateMachine.beginAcquire(
+            CameraOwner.AI_INSPECTION,
+            readyNow = false,
+            needPreview = true,
+        )
+        assertTrue(
+            stateMachine.finishReady(
+                owner = CameraOwner.AI_INSPECTION,
+                generation = aiSnapshot.generation,
+                needPreview = true,
+            ),
+        )
+        val snapshot = stateMachine.snapshot()
+        assertEquals(CameraOwner.AI_INSPECTION, snapshot.owner)
+        assertEquals(CameraSessionState.READY_WITH_PREVIEW, snapshot.state)
+        assertEquals(aiSnapshot.generation, snapshot.generation)
+    }
+
     // HAZARD_RECORD -> DEVICE_GUIDE 竞争：新 owner acquire 后，旧 owner release 应被忽略
     @Test
     fun hazardRecordRelease_ignoredAfterDeviceGuideAcquire() {
@@ -176,18 +218,17 @@ class InspectionCameraCoordinatorStateMachineTest {
             CameraOwner.DEVICE_GUIDE,
             readyNow = true,
             needPreview = true,
-        )
-        assertNotNull("同 owner 重新打开预览应成功", update2)
+        ) ?: error("同 owner 重新打开预览应成功")
         assertTrue(
             stateMachine.finishReady(
                 owner = CameraOwner.DEVICE_GUIDE,
-                generation = update2!!.generation,
+                generation = update2.generation,
                 needPreview = true,
             ),
         )
         val snapshot = stateMachine.snapshot()
         assertEquals(CameraOwner.DEVICE_GUIDE, snapshot.owner)
         assertEquals(CameraSessionState.READY_WITH_PREVIEW, snapshot.state)
-        assertEquals(update2!!.generation, snapshot.generation)
+        assertEquals(update2.generation, snapshot.generation)
     }
 }
