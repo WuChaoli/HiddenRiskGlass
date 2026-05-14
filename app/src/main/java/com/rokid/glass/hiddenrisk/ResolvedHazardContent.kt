@@ -20,6 +20,10 @@ data class ResolvedHazardItem(
             hidNum.isNotBlank() ||
             lawBasis.isNotBlank()
     }
+
+    fun isNoHazardPlaceholder(): Boolean {
+        return hidNum.isBlankOrNone() && hidLevel.isBlankOrNone()
+    }
 }
 
 data class ResolvedHazardContent(
@@ -54,6 +58,10 @@ data class ResolvedHazardContent(
 
     fun primaryHazard(): ResolvedHazardItem? {
         return resolvedHazards().firstOrNull()
+    }
+
+    fun recordableHazards(): List<ResolvedHazardItem> {
+        return resolvedHazards().filterNot { it.isNoHazardPlaceholder() }
     }
 
     fun hazardCount(): Int {
@@ -104,8 +112,7 @@ data class ResolvedHazardContent(
         if (hazards.size != 1) {
             return false
         }
-        val hazard = hazards.first()
-        return hazard.hidNum.isBlankOrNone() && hazard.hidLevel.isBlankOrNone()
+        return hazards.first().isNoHazardPlaceholder()
     }
 
     fun displayAdvice(): String {
@@ -125,11 +132,6 @@ data class ResolvedHazardContent(
             hazard.hidNum.trim().takeIf { it.isNotBlank() }?.let { add("隐患编号：$it") }
             hazard.uploadAdvice.trim().takeIf { it.isNotBlank() }?.let { add("整改建议：$it") }
         }.joinToString("\n")
-    }
-
-    private fun String.isBlankOrNone(): Boolean {
-        val normalized = trim()
-        return normalized.isBlank() || normalized == "无"
     }
 
     companion object {
@@ -156,4 +158,9 @@ data class ResolvedHazardContent(
 enum class HazardSource {
     LOCAL,
     ONLINE,
+}
+
+private fun String.isBlankOrNone(): Boolean {
+    val normalized = trim()
+    return normalized.isBlank() || normalized == "无"
 }

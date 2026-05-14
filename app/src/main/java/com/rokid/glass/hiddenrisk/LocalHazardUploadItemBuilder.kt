@@ -9,7 +9,7 @@ object LocalHazardUploadItemBuilder {
     fun build(hazardContent: ResolvedHazardContent): List<LocalHazardPushService.HidDangerItem> {
         val uploadHazards = mutableListOf<ResolvedHazardItem>()
         val seenHidNums = linkedSetOf<String>()
-        hazardContent.resolvedHazards().forEach { hazard ->
+        hazardContent.recordableHazards().forEach { hazard ->
             val normalizedHidNum = hazard.hidNum.trim()
             if (normalizedHidNum.isBlank()) {
                 return@forEach

@@ -571,7 +571,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         resolved: ResolvedHazardContent,
         fallbackText: String,
     ): String {
-        val count = resolved.hazardCount().takeIf { it > 0 } ?: 1
+        val count = resolved.recordableHazards().size
         val detailText = resolved.descriptionPageText()
             .ifBlank { fallbackText.trim() }
             .ifBlank { getString(R.string.hazard_record_stream_failed) }
@@ -662,7 +662,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun buildRecordKey(hazardContent: ResolvedHazardContent): String {
-        val hazardKey = hazardContent.resolvedHazards()
+        val hazardKey = hazardContent.recordableHazards()
             .joinToString(separator = "||") { hazard ->
                 listOf(
                     hazard.displayTitle,

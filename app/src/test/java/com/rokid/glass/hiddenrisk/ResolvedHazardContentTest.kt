@@ -266,4 +266,50 @@ class ResolvedHazardContentTest {
         assertFalse(onlineBasisContent.isOnlineNoHazardResult())
         assertFalse(onlineLevelContent.isOnlineNoHazardResult())
     }
+
+    @Test
+    fun recordableHazards_filtersOnlyItemsWithBlankOrNoneCodeAndLevel() {
+        val noneCodeAndLevel = hazardItem(hidNum = "无", hidLevel = "无")
+        val blankCodeAndLevel = hazardItem(hidNum = " ", hidLevel = "")
+        val validCodeBlankLevel = hazardItem(hidNum = "HZ-001", hidLevel = "")
+        val noneCodeValidLevel = hazardItem(hidNum = "无", hidLevel = "1")
+        val content = ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = noneCodeAndLevel.description,
+            advice = noneCodeAndLevel.advice,
+            uploadAdvice = noneCodeAndLevel.uploadAdvice,
+            hidLevel = noneCodeAndLevel.hidLevel,
+            hidNum = noneCodeAndLevel.hidNum,
+            lawBasis = noneCodeAndLevel.lawBasis,
+            displayTitle = noneCodeAndLevel.displayTitle,
+            jpegBytes = byteArrayOf(10),
+            hazards = listOf(
+                noneCodeAndLevel,
+                blankCodeAndLevel,
+                validCodeBlankLevel,
+                noneCodeValidLevel,
+            ),
+        )
+
+        assertTrue(noneCodeAndLevel.isNoHazardPlaceholder())
+        assertTrue(blankCodeAndLevel.isNoHazardPlaceholder())
+        assertFalse(validCodeBlankLevel.isNoHazardPlaceholder())
+        assertFalse(noneCodeValidLevel.isNoHazardPlaceholder())
+        assertEquals(listOf(validCodeBlankLevel, noneCodeValidLevel), content.recordableHazards())
+    }
+
+    private fun hazardItem(
+        hidNum: String,
+        hidLevel: String,
+    ): ResolvedHazardItem {
+        return ResolvedHazardItem(
+            displayTitle = "online hazard",
+            description = "description-$hidNum-$hidLevel",
+            advice = "",
+            uploadAdvice = "",
+            hidLevel = hidLevel,
+            hidNum = hidNum,
+            lawBasis = "",
+        )
+    }
 }

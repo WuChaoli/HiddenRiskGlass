@@ -83,6 +83,38 @@ class LocalHazardUploadItemBuilderTest {
         assertEquals(listOf("HZ-001", "HZ-004", "HZ-006"), items.map { it.hidNum })
     }
 
+    @Test
+    fun build_skipsNoHazardPlaceholdersAndUploadsRecordableItems() {
+        val items = LocalHazardUploadItemBuilder.build(
+            hazardContent(
+                hazards = listOf(
+                    hazardItem(title = "无隐患1", description = "无效1", hidNum = "无", hidLevel = "无"),
+                    hazardItem(title = "燃气灶", description = "有效", hidNum = "HZ-001", hidLevel = "1"),
+                    hazardItem(title = "无隐患2", description = "无效2", hidNum = " ", hidLevel = ""),
+                ),
+            ),
+        )
+
+        assertEquals(1, items.size)
+        assertEquals("1", items[0].indexNum)
+        assertEquals("有效", items[0].descrip)
+        assertEquals("HZ-001", items[0].hidNum)
+    }
+
+    @Test
+    fun build_returnsEmptyWhenAllItemsAreNoHazardPlaceholders() {
+        val items = LocalHazardUploadItemBuilder.build(
+            hazardContent(
+                hazards = listOf(
+                    hazardItem(title = "无隐患1", description = "无效1", hidNum = "无", hidLevel = "无"),
+                    hazardItem(title = "无隐患2", description = "无效2", hidNum = " ", hidLevel = ""),
+                ),
+            ),
+        )
+
+        assertEquals(emptyList<LocalHazardPushService.HidDangerItem>(), items)
+    }
+
     private fun hazardContent(hazards: List<ResolvedHazardItem>): ResolvedHazardContent {
         val primary = hazards.first()
         return ResolvedHazardContent(
