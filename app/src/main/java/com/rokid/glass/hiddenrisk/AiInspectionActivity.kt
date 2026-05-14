@@ -4110,7 +4110,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     /**
-     * 通过 /ai/ar 接口发送图像数据。
+     * 通过在线识别接口发送图像数据。
      */
     private fun sendImageToAiAr(base64Image: String) {
         currentManualAnalysisHandle?.cancel()

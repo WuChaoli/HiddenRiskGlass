@@ -204,8 +204,10 @@ object InspectionConfigRepository {
     ): NetworkConfig {
         return NetworkConfig(
             enterpriseObjectApi = merge(base.enterpriseObjectApi, override?.enterpriseObjectApi),
-            aiArApi = merge(base.aiArApi, override?.aiArApi),
-            deviceGuideDetectApi = merge(base.deviceGuideDetectApi, override?.deviceGuideDetectApi),
+            aiAutoApi = merge(base.aiAutoApi, override?.aiAutoApi),
+            aiDeepApi = merge(base.aiDeepApi, override?.aiDeepApi),
+            aiGeneralApi = merge(base.aiGeneralApi, override?.aiGeneralApi),
+            aiDeviceApi = merge(base.aiDeviceApi, override?.aiDeviceApi),
             saveResultApi = merge(base.saveResultApi, override?.saveResultApi),
             mayHazardVerifyApi = merge(base.mayHazardVerifyApi, override?.mayHazardVerifyApi),
         )

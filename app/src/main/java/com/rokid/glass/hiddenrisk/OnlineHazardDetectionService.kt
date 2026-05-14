@@ -11,8 +11,8 @@ import java.util.concurrent.Executors
 
 /**
  * 在线隐患识别调度服务。
- * ctype=3 检测阶段在单个 service 实例内允许受限并发，并对每个请求施加独立超时控制；
- * ctype=0 深度分析阶段按需单次拉取。
+ * 物品检测阶段在单个 service 实例内允许受限并发，并对每个请求施加独立超时控制；
+ * 深度分析阶段按需单次拉取。
  */
 internal class OnlineHazardDetectionService(
     private val callback: Callback,
@@ -21,18 +21,17 @@ internal class OnlineHazardDetectionService(
     private val elapsedRealtimeProvider: () -> Long = { SystemClock.elapsedRealtime() },
     private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
     private val encodeExecutor: ExecutorService = Executors.newSingleThreadExecutor(),
-    private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiArApi.detectTimeoutMs,
+    private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiAutoApi.detectTimeoutMs,
     private val detectConcurrencyLimit: Int = InspectionConfigRepository.get()
         .aiInspection.onlineDetectConcurrencyLimit,
     private val infoLogger: (String) -> Unit = { message -> AppFileLogger.i(TAG, message) },
     private val warningLogger: (String) -> Unit = { message -> AppFileLogger.w(TAG, message) },
 ) {
     enum class DetectionLane(
-        val ctype: Int,
         val logName: String,
     ) {
-        ITEM(1, "item"),
-        SCENE(-1, "scene"),
+        ITEM("item"),
+        SCENE("scene"),
     }
 
     data class DetectionRequest(
@@ -314,7 +313,7 @@ internal class OnlineHazardDetectionService(
         ): AiArSseService.RequestHandle {
             return when (request.lane) {
                 DetectionLane.ITEM -> aiArSseService.identifyItemHazard(base64Image, callback)
-                DetectionLane.SCENE -> error("Scene hazard detection lane is disabled")
+                DetectionLane.SCENE -> aiArSseService.identifySceneHazard(base64Image, callback)
             }
         }
 

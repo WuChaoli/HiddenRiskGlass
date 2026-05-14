@@ -56,7 +56,7 @@ class OnlineHazardDetectionServiceTest {
     }
 
     @Test
-    fun submitDetection_sceneLaneIsDisabled() {
+    fun submitDetection_sceneLaneWorks() {
         val env = TestEnv()
         val service = env.createService()
 
@@ -71,7 +71,6 @@ class OnlineHazardDetectionServiceTest {
             listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
             env.gateway.startedDetectionLanes,
         )
-        assertEquals(-1, env.gateway.detectionHandles[23L]?.ctype)
     }
 
     @Test
@@ -229,7 +228,6 @@ class OnlineHazardDetectionServiceTest {
             val lane = request.lane
             val handle = AiArSseService.RequestHandle(
                 taskId = "detect-$requestId",
-                ctype = lane.ctype,
             )
             detectCallbacks[requestId] = callback
             detectionHandles[requestId] = handle
@@ -246,7 +244,6 @@ class OnlineHazardDetectionServiceTest {
         ): AiArSseService.RequestHandle {
             val handle = AiArSseService.RequestHandle(
                 taskId = "detail",
-                ctype = 0,
             )
             detailCallback = callback
             return handle

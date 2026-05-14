@@ -171,7 +171,7 @@
 
 职责：
 
-- `/ai/ar` SSE 流式识别
+- `/ai/auto` 物品隐患检测、`/ai/deep` 深度分析、`/ai/device` 设备指引
 - 在线隐患检测请求调度
 - 本地隐患保存主备提交
 - 后台静默上传队列
@@ -234,7 +234,7 @@
 2. 通过 `InspectionCameraCoordinator` 获取共享帧流
 3. `InspectionFrameCaptureService` 选择候选帧
 4. `AutoInferenceLoopDecider` 决定本地和在线链路是否启动
-5. `OnlineHazardDetectionService` 通过 `AiArSseService` 发起 `ctype=1` 物品识别和 `ctype=2` 检查指引检测
+5. `OnlineHazardDetectionService` 通过 `AiArSseService` 发起物品识别和检查指引检测
 6. 结果进入流式详情或本地备用链路
 7. `AutoHazardPresentationCoordinator` 控制结果展示延迟
 8. 最终进入确认、保存、上报或结束页
@@ -368,7 +368,7 @@ Manifest 中声明了相机、录音、蓝牙、Wi-Fi、存储、前台服务、
 
 用于：
 
-- `/ai/ar` SSE 流式识别
+- `/ai/auto` 物品隐患检测、`/ai/deep` 深度分析、`/ai/device` 设备指引
 - 本地隐患保存
 - 结束巡检提交
 

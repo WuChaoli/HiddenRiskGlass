@@ -24,11 +24,17 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * /ai/ar 专用 SSE 服务。
+ * 在线识别服务。
+ * 支持四个独立端点：隐患物品检测(/ai/auto)、深度分析(/ai/deep)、环境隐患识别(/ai/general)、设备指引(/ai/device)。
  */
 class AiArSseService(
-    private val apiConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiArApi,
-    private val client: OkHttpClient = createDefaultClient(apiConfig),
+    private val autoDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiAutoApi,
+    private val deepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeepApi,
+    private val generalDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralApi,
+    private val deviceGuideConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeviceApi,
+    private val client: OkHttpClient = createDefaultClient(
+        InspectionConfigRepository.get().network.aiAutoApi,
+    ),
     private val gson: Gson = Gson(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
 ) {
@@ -47,7 +53,6 @@ class AiArSseService(
     data class RequestPayload(
         val task_id: String,
         val stream: Boolean = true,
-        val ctype: Int,
         val image: String? = null,
         val text: String? = null,
         val scene: String? = null,
@@ -72,7 +77,6 @@ class AiArSseService(
 
     class RequestHandle(
         val taskId: String,
-        val ctype: Int,
     ) {
         @Volatile
         private var canceled = false
@@ -112,37 +116,53 @@ class AiArSseService(
         base64Image: String,
         callback: DetectCallback,
     ): RequestHandle {
+        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
         return requestHazardDetection(
             base64Image = base64Image,
-            detectCtype = CTYPE_IDENTIFY_ITEM_HAZARD,
+            scene = scene,
+            url = autoDetectConfig.url,
+            lane = "auto",
+            callback = callback,
+        )
+    }
+
+    fun identifySceneHazard(
+        base64Image: String,
+        callback: DetectCallback,
+    ): RequestHandle {
+        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
+        return requestHazardDetection(
+            base64Image = base64Image,
+            scene = scene,
+            url = generalDetectConfig.url,
+            lane = "general",
             callback = callback,
         )
     }
 
     private fun requestHazardDetection(
         base64Image: String,
-        detectCtype: Int,
+        scene: String?,
+        url: String,
+        lane: String,
         callback: DetectCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = detectCtype)
-        val scene = if (detectCtype == CTYPE_IDENTIFY_ITEM_HAZARD) {
-            com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
-        } else null
-        val payload = RequestPayload(task_id = taskId, ctype = detectCtype, image = base64Image, scene = scene)
+        val handle = RequestHandle(taskId = taskId)
+        val payload = RequestPayload(task_id = taskId, image = base64Image, scene = scene)
         val requestStartedElapsedMs = SystemClock.elapsedRealtime()
         val jsonBuildStartedElapsedMs = requestStartedElapsedMs
         val jsonBodyString = gson.toJson(payload)
         val jsonBuildFinishedElapsedMs = SystemClock.elapsedRealtime()
         val requestBody = jsonBodyString.toRequestBody(JSON_MEDIA_TYPE)
         val request = Request.Builder()
-            .url(apiConfig.url)
-            .tag(RequestTimingTag::class.java, RequestTimingTag(taskId, detectCtype, requestStartedElapsedMs))
+            .url(url)
+            .tag(RequestTimingTag::class.java, RequestTimingTag(taskId, lane, requestStartedElapsedMs))
             .post(requestBody)
             .build()
         AppFileLogger.i(
             TAG,
-            "detectJson request ctype=$detectCtype taskId=$taskId endpoint=${apiConfig.url} imageChars=${payload.image?.length ?: 0} jsonBuildMs=${jsonBuildFinishedElapsedMs - jsonBuildStartedElapsedMs}",
+            "detectJson request lane=$lane taskId=$taskId endpoint=$url imageChars=${payload.image?.length ?: 0} jsonBuildMs=${jsonBuildFinishedElapsedMs - jsonBuildStartedElapsedMs}",
         )
         val call = client.newCall(request)
         call.enqueue(object : okhttp3.Callback {
@@ -150,7 +170,7 @@ class AiArSseService(
                 val responseElapsedMs = SystemClock.elapsedRealtime()
                 AppFileLogger.i(
                     TAG,
-                    "detectJson response ctype=$detectCtype taskId=$taskId httpCode=${response.code} elapsedMs=${responseElapsedMs - requestStartedElapsedMs}",
+                    "detectJson response lane=$lane taskId=$taskId httpCode=${response.code} elapsedMs=${responseElapsedMs - requestStartedElapsedMs}",
                 )
                 if (handle.isCanceled()) {
                     return
@@ -184,7 +204,7 @@ class AiArSseService(
                     val rawText = gson.toJson(parsed.inference_result ?: emptyList<InferenceResultItem>())
                     AppFileLogger.i(
                         TAG,
-                        "detectJson success ctype=$detectCtype taskId=$taskId hasHazard=$hasHazard inferenceCount=${parsed.inference_result?.size ?: 0} code=${parsed.code}",
+                        "detectJson success lane=$lane taskId=$taskId hasHazard=$hasHazard inferenceCount=${parsed.inference_result?.size ?: 0} code=${parsed.code}",
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
@@ -194,7 +214,7 @@ class AiArSseService(
                 }.onFailure { error ->
                     AppFileLogger.e(
                         TAG,
-                        "detectJson parse failed ctype=$detectCtype taskId=$taskId body=${body.take(256)}",
+                        "detectJson parse failed lane=$lane taskId=$taskId body=${body.take(256)}",
                         error,
                     )
                     mainHandler.post {
@@ -208,7 +228,7 @@ class AiArSseService(
             override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
                 AppFileLogger.e(
                     TAG,
-                    "detectJson network failed ctype=$detectCtype taskId=$taskId error=${e.javaClass.simpleName}:${e.message}",
+                    "detectJson network failed lane=$lane taskId=$taskId error=${e.javaClass.simpleName}:${e.message}",
                     e,
                 )
                 mainHandler.post {
@@ -228,11 +248,14 @@ class AiArSseService(
         callback: DetailCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_DEEP_ANALYSIS)
+        val handle = RequestHandle(taskId = taskId)
         val aggregator = AiArEventAggregator(gson)
+        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, ctype = CTYPE_DEEP_ANALYSIS, image = base64Image),
+            payload = RequestPayload(task_id = taskId, image = base64Image, scene = scene),
+            url = deepAnalysisConfig.url,
+            lane = "deep",
             onOpened = { callback.onOpened(handle) },
             onChunk = onChunk,
             onClosed = { fullText ->
@@ -252,11 +275,14 @@ class AiArSseService(
         callback: DetailCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
-        val handle = RequestHandle(taskId = taskId, ctype = CTYPE_FETCH_INSPECTION_GUIDE)
+        val handle = RequestHandle(taskId = taskId)
         val aggregator = AiArEventAggregator(gson)
+        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
         openStream(
             handle = handle,
-            payload = RequestPayload(task_id = taskId, ctype = CTYPE_FETCH_INSPECTION_GUIDE, text = text),
+            payload = RequestPayload(task_id = taskId, text = text, scene = scene),
+            url = deviceGuideConfig.url,
+            lane = "device",
             onOpened = { callback.onOpened(handle) },
             onChunk = onChunk,
             onClosed = { fullText ->
@@ -273,6 +299,8 @@ class AiArSseService(
     private fun openStream(
         handle: RequestHandle,
         payload: RequestPayload,
+        url: String,
+        lane: String,
         onOpened: () -> Unit,
         onChunk: (String) -> Unit = {},
         onClosed: (String) -> Unit,
@@ -286,20 +314,20 @@ class AiArSseService(
         val requestBody = TimingRequestBody(
             delegate = rawRequestBody,
             taskId = payload.task_id,
-            ctype = payload.ctype,
+            lane = lane,
             requestStartedElapsedMs = requestStartedElapsedMs,
         )
         val requestBuildStartedElapsedMs = SystemClock.elapsedRealtime()
         val request = Request.Builder()
-            .url(apiConfig.url)
+            .url(url)
             .header("Accept", "text/event-stream")
-            .tag(RequestTimingTag::class.java, RequestTimingTag(payload.task_id, payload.ctype, requestStartedElapsedMs))
+            .tag(RequestTimingTag::class.java, RequestTimingTag(payload.task_id, lane, requestStartedElapsedMs))
             .post(requestBody)
             .build()
         val requestBuildFinishedElapsedMs = SystemClock.elapsedRealtime()
         AppFileLogger.i(
             TAG,
-            "openStream requestStart ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} imageChars=${payload.image?.length ?: 0} textLength=${payload.text?.length ?: 0} jsonBuildMs=${jsonBuildFinishedElapsedMs - jsonBuildStartedElapsedMs} requestBuildMs=${requestBuildFinishedElapsedMs - requestBuildStartedElapsedMs}",
+            "openStream requestStart lane=$lane taskId=${payload.task_id} endpoint=$url imageChars=${payload.image?.length ?: 0} textLength=${payload.text?.length ?: 0} jsonBuildMs=${jsonBuildFinishedElapsedMs - jsonBuildStartedElapsedMs} requestBuildMs=${requestBuildFinishedElapsedMs - requestBuildStartedElapsedMs}",
         )
         val newEventSourceStartedElapsedMs = SystemClock.elapsedRealtime()
         val eventSource = eventSourceFactory.newEventSource(
@@ -312,7 +340,7 @@ class AiArSseService(
                     val openedElapsedMs = SystemClock.elapsedRealtime()
                     AppFileLogger.i(
                         TAG,
-                        "openStream opened ctype=${payload.ctype} taskId=${payload.task_id} uploadToOpenedMs=${openedElapsedMs - requestStartedElapsedMs} endpoint=${apiConfig.url} requestUrl=${response.request.url} httpCode=${response.code} httpMessage=${response.message} contentType=${response.header("Content-Type")}",
+                        "openStream opened lane=$lane taskId=${payload.task_id} uploadToOpenedMs=${openedElapsedMs - requestStartedElapsedMs} endpoint=$url requestUrl=${response.request.url} httpCode=${response.code} httpMessage=${response.message} contentType=${response.header("Content-Type")}",
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
@@ -331,14 +359,8 @@ class AiArSseService(
                         return
                     }
                     val normalizedData = data.trim()
-                    if (payload.ctype == CTYPE_IDENTIFY_ITEM_HAZARD) {
-                        AppFileLogger.i(
-                            TAG,
-                            "openStream raw event ctype=${payload.ctype} taskId=${payload.task_id} id=${id ?: "(none)"} type=${type ?: "(none)"} data=$normalizedData",
-                        )
-                    }
                     if (isDoneEvent(type, normalizedData)) {
-                        AppFileLogger.i(TAG, "openStream received done sentinel ctype=${payload.ctype} taskId=${payload.task_id}")
+                        AppFileLogger.i(TAG, "openStream received done sentinel lane=$lane taskId=${payload.task_id}")
                         return
                     }
                     if (normalizedData.isEmpty()) {
@@ -348,7 +370,7 @@ class AiArSseService(
                         firstEventElapsedMs = SystemClock.elapsedRealtime()
                         AppFileLogger.i(
                             TAG,
-                            "openStream firstEvent ctype=${payload.ctype} taskId=${payload.task_id} uploadToFirstEventMs=${firstEventElapsedMs - requestStartedElapsedMs} id=${id ?: "(none)"} type=${type ?: "(none)"} dataChars=${normalizedData.length}",
+                            "openStream firstEvent lane=$lane taskId=${payload.task_id} uploadToFirstEventMs=${firstEventElapsedMs - requestStartedElapsedMs} id=${id ?: "(none)"} type=${type ?: "(none)"} dataChars=${normalizedData.length}",
                         )
                     }
                     runCatching {
@@ -362,7 +384,7 @@ class AiArSseService(
                             }
                         }
                     }.onFailure { error ->
-                        AppFileLogger.e(TAG, "openStream parse event failed ctype=${payload.ctype} taskId=${payload.task_id} data=$normalizedData", error)
+                        AppFileLogger.e(TAG, "openStream parse event failed lane=$lane taskId=${payload.task_id} data=$normalizedData", error)
                         eventSource.cancel()
                         deliverFailure(
                             handle = handle,
@@ -384,7 +406,7 @@ class AiArSseService(
                     val closedElapsedMs = SystemClock.elapsedRealtime()
                     AppFileLogger.i(
                         TAG,
-                        "openStream closed ctype=${payload.ctype} taskId=${payload.task_id} uploadToClosedMs=${closedElapsedMs - requestStartedElapsedMs} firstEventToClosedMs=${durationOrMinusOne(firstEventElapsedMs, closedElapsedMs)} fullTextLength=${fullText.length}",
+                        "openStream closed lane=$lane taskId=${payload.task_id} uploadToClosedMs=${closedElapsedMs - requestStartedElapsedMs} firstEventToClosedMs=${durationOrMinusOne(firstEventElapsedMs, closedElapsedMs)} fullTextLength=${fullText.length}",
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
@@ -423,7 +445,7 @@ class AiArSseService(
                     )
                     AppFileLogger.e(
                         TAG,
-                        "openStream failed ctype=${payload.ctype} taskId=${payload.task_id} endpoint=${apiConfig.url} requestUrl=${eventSource.request().url} throwable=${t?.javaClass?.simpleName} httpCode=$responseCode httpMessage=$responseMessage contentType=$responseContentType bodySnippet=$responseBodySnippet",
+                        "openStream failed lane=$lane taskId=${payload.task_id} endpoint=$url requestUrl=${eventSource.request().url} throwable=${t?.javaClass?.simpleName} httpCode=$responseCode httpMessage=$responseMessage contentType=$responseContentType bodySnippet=$responseBodySnippet",
                         t,
                     )
                     deliverFailure(
@@ -438,7 +460,7 @@ class AiArSseService(
         val newEventSourceFinishedElapsedMs = SystemClock.elapsedRealtime()
         AppFileLogger.i(
             TAG,
-            "openStream newEventSourceReturned ctype=${payload.ctype} taskId=${payload.task_id} requestStartToReturnMs=${newEventSourceFinishedElapsedMs - requestStartedElapsedMs} newEventSourceMs=${newEventSourceFinishedElapsedMs - newEventSourceStartedElapsedMs}",
+            "openStream newEventSourceReturned lane=$lane taskId=${payload.task_id} requestStartToReturnMs=${newEventSourceFinishedElapsedMs - requestStartedElapsedMs} newEventSourceMs=${newEventSourceFinishedElapsedMs - newEventSourceStartedElapsedMs}",
         )
         handle.bind(eventSource)
     }
@@ -495,9 +517,6 @@ class AiArSseService(
         private const val DONE_SENTINEL = "[DONE]"
         private const val DONE_SENTINEL_JSON_ARRAY = "[\"DONE\"]"
         private const val DONE_EVENT_TYPE = "done"
-        private const val CTYPE_DEEP_ANALYSIS = 0
-        private const val CTYPE_IDENTIFY_ITEM_HAZARD = 1
-        private const val CTYPE_FETCH_INSPECTION_GUIDE = 2
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
@@ -529,14 +548,14 @@ class AiArSseService(
 
     private data class RequestTimingTag(
         val taskId: String,
-        val ctype: Int,
+        val lane: String,
         val requestStartedElapsedMs: Long,
     )
 
     private class TimingRequestBody(
         private val delegate: RequestBody,
         private val taskId: String,
-        private val ctype: Int,
+        private val lane: String,
         private val requestStartedElapsedMs: Long,
     ) : RequestBody() {
         override fun contentType() = delegate.contentType()
@@ -547,13 +566,13 @@ class AiArSseService(
             val bodyStartElapsedMs = SystemClock.elapsedRealtime()
             Log.i(
                 TAG,
-                "openStream bodyTiming event=writeStart ctype=$ctype taskId=$taskId requestStartToBodyStartMs=${bodyStartElapsedMs - requestStartedElapsedMs} contentLength=${contentLength()}",
+                "openStream bodyTiming event=writeStart lane=$lane taskId=$taskId requestStartToBodyStartMs=${bodyStartElapsedMs - requestStartedElapsedMs} contentLength=${contentLength()}",
             )
             delegate.writeTo(sink)
             val bodyEndElapsedMs = SystemClock.elapsedRealtime()
             Log.i(
                 TAG,
-                "openStream bodyTiming event=writeEnd ctype=$ctype taskId=$taskId requestStartToBodyEndMs=${bodyEndElapsedMs - requestStartedElapsedMs} requestBodyMs=${durationOrMinusOne(bodyStartElapsedMs, bodyEndElapsedMs)} contentLength=${contentLength()}",
+                "openStream bodyTiming event=writeEnd lane=$lane taskId=$taskId requestStartToBodyEndMs=${bodyEndElapsedMs - requestStartedElapsedMs} requestBodyMs=${durationOrMinusOne(bodyStartElapsedMs, bodyEndElapsedMs)} contentLength=${contentLength()}",
             )
         }
     }
@@ -588,7 +607,7 @@ class AiArSseService(
             requestBodyEndedElapsedMs = SystemClock.elapsedRealtime()
             Log.i(
                 TAG,
-                "openStream networkTiming event=requestBodyEnd ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${requestBodyEndedElapsedMs - tag.requestStartedElapsedMs} requestBodyMs=${durationOrMinusOne(requestBodyStartedElapsedMs, requestBodyEndedElapsedMs)} byteCount=$byteCount",
+                "openStream networkTiming event=requestBodyEnd lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${requestBodyEndedElapsedMs - tag.requestStartedElapsedMs} requestBodyMs=${durationOrMinusOne(requestBodyStartedElapsedMs, requestBodyEndedElapsedMs)} byteCount=$byteCount",
             )
         }
 
@@ -596,7 +615,7 @@ class AiArSseService(
             val nowElapsedMs = SystemClock.elapsedRealtime()
             Log.i(
                 TAG,
-                "openStream networkTiming event=responseHeadersStart ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} bodyEndToHeadersMs=${durationOrMinusOne(requestBodyEndedElapsedMs, nowElapsedMs)}",
+                "openStream networkTiming event=responseHeadersStart lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} bodyEndToHeadersMs=${durationOrMinusOne(requestBodyEndedElapsedMs, nowElapsedMs)}",
             )
         }
 
@@ -604,7 +623,7 @@ class AiArSseService(
             val nowElapsedMs = SystemClock.elapsedRealtime()
             Log.i(
                 TAG,
-                "openStream networkTiming event=responseHeadersEnd ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} httpCode=${response.code} httpMessage=${response.message}",
+                "openStream networkTiming event=responseHeadersEnd lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} httpCode=${response.code} httpMessage=${response.message}",
             )
         }
 
@@ -612,7 +631,7 @@ class AiArSseService(
             val nowElapsedMs = SystemClock.elapsedRealtime()
             Log.w(
                 TAG,
-                "openStream networkTiming event=callFailed ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} error=${ioe.javaClass.simpleName}:${ioe.message}",
+                "openStream networkTiming event=callFailed lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} error=${ioe.javaClass.simpleName}:${ioe.message}",
             )
         }
 
@@ -620,7 +639,7 @@ class AiArSseService(
             val nowElapsedMs = SystemClock.elapsedRealtime()
             Log.i(
                 TAG,
-                "openStream networkTiming event=$event ctype=${tag.ctype} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs}",
+                "openStream networkTiming event=$event lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs}",
             )
         }
     }

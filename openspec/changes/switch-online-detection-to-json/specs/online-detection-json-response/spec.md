@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
-### Requirement: ctype=3 detection parses JSON response
-The system SHALL send a plain HTTP POST to `/ai/ar` for ctype=3 item hazard detection and parse the JSON response body, replacing the previous SSE event stream.
+### Requirement:  detection parses JSON response
+The system SHALL send a plain HTTP POST to `/ai/auto` for  item hazard detection and parse the JSON response body, replacing the previous SSE event stream.
 
 #### Scenario: Detection returns content=true with inference results
 - **WHEN** the server responds with HTTP 200 and JSON body `{"code":0,"content":true,"inference_result":[{...}]}`
@@ -30,8 +30,8 @@ The system SHALL serialize the `inference_result` array to JSON and pass it as t
 - **WHEN** the server returns `inference_result` with items containing `label`, `bbox`, `score`, `area_r`, `inter`
 - **THEN** the rawText passed to callback SHALL be a valid JSON array string of those items
 
-### Requirement: ctype=0 and ctype=2 paths remain SSE
-The system SHALL continue to use SSE `EventSource` for `requestDeepAnalysis` (ctype=0) and `fetchInspectionGuide` (ctype=2) requests.
+### Requirement:  and  paths remain SSE
+The system SHALL continue to use SSE `EventSource` for `requestDeepAnalysis` () and `fetchInspectionGuide` () requests.
 
 #### Scenario: Deep analysis still uses SSE
 - **WHEN** `requestDeepAnalysis` is called

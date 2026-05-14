@@ -41,7 +41,7 @@ import java.util.concurrent.RejectedExecutionException
 
 /**
  * 设备指引独立页。
- * 当前仅依赖远端 ctype=3 识别物品隐患，再通过 ctype=0 深度分析拉取检查重点文本。
+ * 当前仅依赖远端物品隐患识别，再通过深度分析拉取检查重点文本。
  */
 class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -71,10 +71,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val uiHandler = Handler(Looper.getMainLooper())
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val imageExecutor: ExecutorService = Executors.newSingleThreadExecutor()
-    private val detectSseService by lazy {
-        AiArSseService(apiConfig = InspectionConfigRepository.get().network.deviceGuideDetectApi)
-    }
-    private val detailSseService by lazy { AiArSseService() }
+    private val detectSseService by lazy { AiArSseService() }
     private val frameCaptureService by lazy {
         InspectionFrameCaptureService(
             staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
@@ -520,7 +517,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshFunctionMenuVisibility()
         val base64Image = Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
         activeDetailHandle?.cancel()
-        activeDetailHandle = detailSseService.requestDeepAnalysis(
+        activeDetailHandle = detectSseService.requestDeepAnalysis(
             base64Image = base64Image,
             onChunk = { partialText ->
                 uiHandler.post {

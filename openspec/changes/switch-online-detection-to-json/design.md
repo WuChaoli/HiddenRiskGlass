@@ -1,27 +1,27 @@
 ## Context
 
-当前 `AiArSseService` 的 `identifyItemHazard`（ctype=3）使用 OkHttp SSE `EventSource` 发起 POST 到 `/ai/ar`，接收多行 SSE event，通过 `AiArEventAggregator` 聚合 `content` 字段，最后由 `parseHasHazard` 匹配 "是"/"否" 判定。
+当前 `AiArSseService` 的 `identifyItemHazard`（）使用 OkHttp SSE `EventSource` 发起 POST 到 `/ai/auto`，接收多行 SSE event，通过 `AiArEventAggregator` 聚合 `content` 字段，最后由 `parseHasHazard` 匹配 "是"/"否" 判定。
 
-后端已升级：端口 5000 → 10010，响应从 SSE 流变为一次性 JSON body，包含 `content`（boolean）和 `inference_result`（检测框数组）。
+后端已升级：10010 → 10010，响应从 SSE 流变为一次性 JSON body，包含 `content`（boolean）和 `inference_result`（检测框数组）。
 
 ## Goals / Non-Goals
 
 **Goals:**
-- ctype=3 检测路径从 SSE 切换为普通 HTTP POST，适配新 JSON 响应
+-  检测路径从 SSE 切换为普通 HTTP POST，适配新 JSON 响应
 - 正确解析 JSON：`content == true && inference_result 非空` 时判定 hasHazard
 - 下游 `OnlineHazardDetectionService` / `AiInspectionActivity` 回调链零修改
 
 **Non-Goals:**
-- 不修改 ctype=0 深度分析的 SSE 流式路径
-- 不修改 ctype=2 巡检指引的 SSE 路径
+- 不修改  深度分析的 SSE 流式路径
+- 不修改  巡检指引的 SSE 路径
 - 不修改 500ms 轮询间隔逻辑
 - 不将 inference_result 中的 bbox/label 用于 UI 渲染（仅保存传递）
 
 ## Decisions
 
-### 1. 最小范围重构：仅改 ctype=3 路径
+### 1. 最小范围重构：仅改  路径
 
-在 `requestHazardDetection` 内部用 OkHttp `enqueue()` 替代 `openStream(EventSource)`。`openStream()` 方法保留给 ctype=0/2 使用。
+在 `requestHazardDetection` 内部用 OkHttp `enqueue()` 替代 `openStream(EventSource)`。`openStream()` 方法保留给 /2 使用。
 
 **理由**：`OnlineHazardDetectionService` 通过 `RequestGateway` 接口 + `DetectCallback` 接口双层隔离，Activity 层完全无感。改动控制在单个文件内的一个方法。
 
@@ -45,4 +45,4 @@
 
 ## Open Questions
 
-- ctype=0 深度分析是否后续也需改为 JSON？当前暂定不改
+-  深度分析是否后续也需改为 JSON？当前暂定不改

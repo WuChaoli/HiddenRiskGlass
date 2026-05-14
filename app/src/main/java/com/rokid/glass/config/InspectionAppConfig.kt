@@ -65,9 +65,18 @@ data class AiInspectionConfig(
 
 data class NetworkConfig(
     val enterpriseObjectApi: EnterpriseObjectApiConfig = EnterpriseObjectApiConfig(),
-    val aiArApi: AiArApiConfig = AiArApiConfig(),
-    val deviceGuideDetectApi: AiArApiConfig = AiArApiConfig(
-        url = "http://183.147.142.133:50011/ai/ar",
+    val aiAutoApi: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10010/ai/auto",
+    ),
+    val aiDeepApi: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10010/ai/deep",
+    ),
+    val aiGeneralApi: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10010/ai/general",
+    ),
+    val aiDeviceApi: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10010/ai/device",
+        detectTimeoutMs = 3_000L,
     ),
     val saveResultApi: SaveResultApiConfig = SaveResultApiConfig(),
     val mayHazardVerifyApi: MayHazardVerifyApiConfig = MayHazardVerifyApiConfig(),
@@ -80,7 +89,7 @@ data class EnterpriseObjectApiConfig(
 )
 
 data class AiArApiConfig(
-    val url: String = "http://183.147.142.133:10010/ai/ar",
+    val url: String = "http://183.147.142.133:10010/ai/auto",
     val connectTimeoutMs: Long = 15_000L,
     val readTimeoutMs: Long = 45_000L,
     val writeTimeoutMs: Long = 30_000L,
@@ -186,8 +195,10 @@ data class AiInspectionConfigOverride(
 
 data class NetworkConfigOverride(
     val enterpriseObjectApi: EnterpriseObjectApiConfigOverride? = null,
-    val aiArApi: AiArApiConfigOverride? = null,
-    val deviceGuideDetectApi: AiArApiConfigOverride? = null,
+    val aiAutoApi: AiArApiConfigOverride? = null,
+    val aiDeepApi: AiArApiConfigOverride? = null,
+    val aiGeneralApi: AiArApiConfigOverride? = null,
+    val aiDeviceApi: AiArApiConfigOverride? = null,
     val saveResultApi: SaveResultApiConfigOverride? = null,
     val mayHazardVerifyApi: MayHazardVerifyApiConfigOverride? = null,
 )

@@ -103,9 +103,9 @@
       // 企业对象信息接口 write timeout，单位 ms。
       "writeTimeoutMs": 30000
     },
-    "aiArApi": {
-      // AI AR SSE 接口地址。
-      "url": "http://183.147.142.133:10010/ai/ar",
+    "aiAutoApi": {
+      // 隐患物品检测接口地址。
+      "url": "http://183.147.142.133:10010/ai/auto",
       // AI AR SSE connect timeout，单位 ms。
       "connectTimeoutMs": 15000,
       // AI AR SSE read timeout，单位 ms。流式接口一般需要更长读取时间。
@@ -115,16 +115,28 @@
       // 在线检测阶段的业务超时，单位 ms。超时后会主动丢弃请求。
       "detectTimeoutMs": 1500
     },
-    "deviceGuideDetectApi": {
-      // 设备指引检测接口地址。当前先复用 /ai/ar，后续可替换为独立服务。
-      "url": "http://183.147.142.133:10010/ai/ar",
-      // 设备指引检测 connect timeout，单位 ms。
+    "aiDeepApi": {
+      // 深度分析接口地址。
+      "url": "http://183.147.142.133:10010/ai/deep",
       "connectTimeoutMs": 15000,
-      // 设备指引检测 read timeout，单位 ms。
       "readTimeoutMs": 45000,
-      // 设备指引检测 write timeout，单位 ms。
       "writeTimeoutMs": 30000,
-      // 设备指引检测阶段业务超时，单位 ms。
+      "detectTimeoutMs": 1500
+    },
+    "aiGeneralApi": {
+      // 环境隐患识别接口地址。
+      "url": "http://183.147.142.133:10010/ai/general",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 3000
+    },
+    "aiDeviceApi": {
+      // 设备指引接口地址。
+      "url": "http://183.147.142.133:10010/ai/device",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
       "detectTimeoutMs": 3000
     },
     "saveResultApi": {

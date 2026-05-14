@@ -3,7 +3,7 @@ package com.rokid.glass.hiddenrisk
 import com.google.gson.Gson
 
 /**
- * 聚合 /ai/ar SSE 的 content 字段。
+ * 聚合 SSE 的 content 字段。
  */
 class AiArEventAggregator(
     private val gson: Gson = Gson(),
