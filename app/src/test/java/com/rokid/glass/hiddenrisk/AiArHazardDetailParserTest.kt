@@ -120,4 +120,78 @@ class AiArHazardDetailParserTest {
         assertEquals(text, parsed.displayDescription())
         assertEquals(text, parsed.displayAdvice())
     }
+
+    @Test
+    fun parse_supportsHazardCodeAliasAndDetectsNoHazard() {
+        val parsed = AiArHazardDetailParser.parse(
+            text = """
+                隐患描述：无
+                隐患等级：无
+                隐患编码：无
+                整改建议：无
+                主要依据：无
+            """.trimIndent(),
+            jpegBytes = byteArrayOf(6),
+        )
+
+        assertEquals("无", parsed.hidNum)
+        assertEquals("无", parsed.lawBasis)
+        assertTrue(parsed.isOnlineNoHazardResult())
+    }
+
+    @Test
+    fun parse_treatsBlankHazardCodeAndLevelAsNoHazard() {
+        val parsed = AiArHazardDetailParser.parse(
+            text = """
+                隐患描述：无
+                隐患等级：
+                隐患编码：
+                主要依据：GB 55009-2021
+                整改建议：无
+            """.trimIndent(),
+            jpegBytes = byteArrayOf(7),
+        )
+
+        assertEquals("", parsed.hidNum)
+        assertEquals("", parsed.hidLevel)
+        assertEquals("GB 55009-2021", parsed.lawBasis)
+        assertTrue(parsed.isOnlineNoHazardResult())
+    }
+
+    @Test
+    fun parse_keepsLegacyHazardNumberField() {
+        val parsed = AiArHazardDetailParser.parse(
+            text = """
+                隐患描述：燃气软管老化
+                隐患编号：HZ-LEGACY-001
+                主要依据：GB 55009-2021
+                整改建议：更换燃气软管
+            """.trimIndent(),
+            jpegBytes = byteArrayOf(8),
+        )
+
+        assertEquals("HZ-LEGACY-001", parsed.hidNum)
+        assertEquals("GB 55009-2021", parsed.lawBasis)
+        assertFalse(parsed.isOnlineNoHazardResult())
+    }
+
+    @Test
+    fun parse_doesNotLetSuggestedCheckItemPolluteHazardCode() {
+        val parsed = AiArHazardDetailParser.parse(
+            text = """
+                隐患描述：经核查，图像中未发现相关的安全隐患。
+                隐患等级：无
+                主要依据：无
+                整改建议：由于未见任何隐患，无法提供整改建议。
+                隐患编码：无
+                建议检查项:无
+            """.trimIndent(),
+            jpegBytes = byteArrayOf(9),
+        )
+
+        assertEquals("无", parsed.hidNum)
+        assertEquals("", parsed.hidLevel)
+        assertEquals("无", parsed.lawBasis)
+        assertTrue(parsed.isOnlineNoHazardResult())
+    }
 }

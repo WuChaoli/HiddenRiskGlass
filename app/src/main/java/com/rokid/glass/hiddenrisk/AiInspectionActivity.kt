@@ -77,6 +77,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val ADVICE_CARD_FLOAT_ANIMATION_MS = 260L
         private const val UPLOAD_SUCCESS_TOAST_VISIBLE_MS = 2000L
         private const val UPLOAD_SUCCESS_TOAST_FADE_MS = 300L
+        private const val SIMULATED_STREAM_CHUNK_CHARS = 12
+        private const val SIMULATED_STREAM_CHUNK_DELAY_MS = 35L
 
         private val CAPTURE_WARMUP_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.captureWarmupMs
@@ -408,6 +410,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var streamingInProgress = false
     private var streamCallbackActive = false
     private var pendingStreamStart = false
+    private var manualDeepAnalysisInProgress = false
     private var activeStreamRequestId = 0L
     private val localHazardPushService by lazy { LocalHazardPushService() }
     private var localHazardUploadHandle: RetryRequestHandle? = null
@@ -421,6 +424,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var localHazardAdviceTtsPlayed = false
     private var streamAutoScrollLocked = false
     private var streamPanelAnchoredBelowPreview = false
+    private var simulatedStreamRunnable: Runnable? = null
+    private var simulatedStreamRequestId = 0L
     private var adviceCardAnimating = false
     private var pendingUploadSuccessToast = false
     private var pendingAutoHazardPresentation: PendingAutoHazardPresentation? = null
@@ -809,7 +814,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         stopDetectionPreview()
+        cancelSimulatedStreamRendering()
         stopAutoInferencePipelines("onPause")
+        manualDeepAnalysisInProgress = false
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -829,7 +836,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             super.onStop()
             return
         }
+        cancelSimulatedStreamRendering()
         stopAutoInferencePipelines("onStop")
+        manualDeepAnalysisInProgress = false
         hideStatusAlertOverlay()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
@@ -840,9 +849,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onDestroy() {
         destroyed = true
         streamCallbackActive = false
+        manualDeepAnalysisInProgress = false
         localHazardUploadHandle?.cancel()
         localHazardUploadHandle = null
         uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
+        cancelSimulatedStreamRendering()
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
         if (debugSnapshotState != null) {
@@ -1128,6 +1139,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
+        manualDeepAnalysisInProgress = false
+        cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
         stopAutoInferencePipelines("return_to_detecting")
         clearLocalHazardResultState()
@@ -1148,6 +1161,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
+        manualDeepAnalysisInProgress = false
         clearPendingAutoHazardPresentation()
         stopAutoInferencePipelines("return_home")
         clearLocalHazardResultState()
@@ -1170,6 +1184,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = false
         streamingInProgress = false
         pendingStreamStart = false
+        manualDeepAnalysisInProgress = false
         clearPendingAutoHazardPresentation()
         stopAutoInferencePipelines("finish_inspection")
         activeStreamRequestId++
@@ -1391,6 +1406,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         clearLatestSharedInferenceFrame(reason = "stop_auto_inference:$reason")
         lastMotionUnstableElapsedMs = null
         autoInferenceEpoch += 1
+        cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
         uiHandler.removeCallbacks(captureDelayRunnable)
         uiHandler.removeCallbacks(localLoopRunnable)
@@ -2075,6 +2091,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun updateDetectingBottomHintVisibility() {
+        tvDetectingBottomHint.setText(
+            if (manualDeepAnalysisInProgress) {
+                R.string.ai_inspection_manual_deep_analysis_pending
+            } else {
+                R.string.ai_inspection_detecting_bottom_hint
+            },
+        )
         tvDetectingBottomHint.visibility =
             if (pageState == PageState.DETECTING && pendingAutoHazardPresentation == null) {
                 View.VISIBLE
@@ -2089,6 +2112,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun refreshDetectionStatus() {
         // 检测状态仅保留内部状态机，不再向检测页渲染文案。
+        updateDetectingBottomHintVisibility()
     }
 
     // ==================== UI 页面切换 ====================
@@ -2542,6 +2566,47 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
             }
         }
+    }
+
+    private fun startSimulatedStreamRendering(fullText: String) {
+        cancelSimulatedStreamRendering()
+        val requestId = ++simulatedStreamRequestId
+        val chunks = SimulatedStreamTextChunker.prefixChunks(
+            text = fullText,
+            chunkSize = SIMULATED_STREAM_CHUNK_CHARS,
+        )
+        var chunkIndex = 0
+        val renderRunnable = object : Runnable {
+            override fun run() {
+                if (
+                    destroyed ||
+                    requestId != simulatedStreamRequestId ||
+                    pageState != PageState.STREAM_RESPONSE ||
+                    localResultStage != LocalResultStage.DESCRIPTION
+                ) {
+                    return
+                }
+                updateStreamingText(chunks[chunkIndex])
+                chunkIndex += 1
+                if (chunkIndex < chunks.size) {
+                    uiHandler.postDelayed(this, SIMULATED_STREAM_CHUNK_DELAY_MS)
+                    return
+                }
+                simulatedStreamRunnable = null
+                streamingInProgress = false
+                streamCallbackActive = false
+                renderLocalDescriptionPrompt()
+                refreshInputActions()
+            }
+        }
+        simulatedStreamRunnable = renderRunnable
+        uiHandler.post(renderRunnable)
+    }
+
+    private fun cancelSimulatedStreamRendering() {
+        simulatedStreamRunnable?.let(uiHandler::removeCallbacks)
+        simulatedStreamRunnable = null
+        simulatedStreamRequestId += 1
     }
 
     private fun maxStreamScrollY(): Int {
@@ -3037,10 +3102,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         logAudioPressureSnapshot(
             stage = "handle_online_detail_success:parsed",
-            extra = "requestId=${request.requestId} elapsedMs=${SystemClock.elapsedRealtime() - parseStartElapsedMs} title=${resolved.displayTitle}",
+            extra = "requestId=${request.requestId} elapsedMs=${SystemClock.elapsedRealtime() - parseStartElapsedMs} title=${resolved.displayTitle} structured=${resolved.hasStructuredFields()} noHazard=${resolved.isOnlineNoHazardResult()} hidNum=${resolved.hidNum} hidLevel=${resolved.hidLevel} lawBasis=${resolved.lawBasis}",
         )
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
         if (pending.requestId != request.requestId) {
+            return
+        }
+        if (!resolved.hasStructuredFields() || resolved.isOnlineNoHazardResult()) {
+            Log.i(
+                TAG,
+                "online detail ignored because result is no hazard requestId=${request.requestId} structured=${resolved.hasStructuredFields()} noHazard=${resolved.isOnlineNoHazardResult()}",
+            )
+            handleOnlineNoHazardResult(request.requestId)
             return
         }
         val finalResolved = pending.baseResolved?.let { localResolved ->
@@ -3051,14 +3124,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 localCooldownLabels = localResolved.localCooldownLabels,
             )
         } ?: resolved
-        pendingAutoHazardPresentation = pending.copy(
-            resolved = finalResolved,
-            streamedText = fullText,
-            firstChunkReceived = pending.firstChunkReceived || fullText.isNotBlank(),
-        )
-        schedulePendingAutoHazardPresentationCheck(pending.detectedAtElapsedMs)
-        tryPresentPendingAutoHazard()
-        refreshInputActions()
+        clearPendingAutoHazardPresentation()
+        presentOnlineHazardWithSimulatedStream(finalResolved)
     }
 
     private fun handleOnlineDetailChunk(
@@ -3084,7 +3151,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             firstChunkReceived = pending.firstChunkReceived || normalizedText.isNotEmpty(),
         )
         pendingAutoHazardPresentation = updatedPending
-        presentPendingOnlineStreamIfReady(updatedPending)
         refreshInputActions()
     }
 
@@ -3187,20 +3253,60 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    private fun presentResolvedHazardContent(result: ResolvedHazardContent) {
+    private fun handleOnlineNoHazardResult(requestId: Long) {
+        Log.i(TAG, "online no hazard result wait audio before detecting requestId=$requestId")
+        clearPendingAutoHazardPresentation()
+        hideStatusAlertOverlay()
+        streamCallbackActive = false
+        streamingInProgress = false
+        pendingStreamStart = false
+        manualDeepAnalysisInProgress = false
+        stopAutoInferencePipelines("online_no_hazard_wait_audio", clearPendingStreamState = false)
+        refreshInputActions()
+        OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.no_hazard,
+            onComplete = {
+                uiHandler.post {
+                    if (!destroyed) {
+                        returnToDetecting()
+                    }
+                }
+            },
+            onError = {
+                uiHandler.post {
+                    if (!destroyed) {
+                        returnToDetecting()
+                    }
+                }
+            },
+        )
+    }
+
+    private fun presentOnlineHazardWithSimulatedStream(result: ResolvedHazardContent) {
+        hideStatusAlertOverlay()
+        presentResolvedHazardContent(result, simulateTextStream = true)
+    }
+
+    private fun presentResolvedHazardContent(
+        result: ResolvedHazardContent,
+        simulateTextStream: Boolean = false,
+    ) {
         logAudioPressureSnapshot(
             stage = "present_resolved_hazard_content:start",
-            extra = "source=${result.source} title=${result.displayTitle} jpegBytes=${result.jpegBytes.size}",
+            extra = "source=${result.source} title=${result.displayTitle} jpegBytes=${result.jpegBytes.size} simulateTextStream=$simulateTextStream",
         )
         stopAutoInferencePipelines("present_hazard_result")
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         activeStreamRequestId += 1
-        streamingInProgress = false
+        streamingInProgress = simulateTextStream
         streamCallbackActive = false
         pendingStreamStart = false
         activeHazardContent = result
         localResultStage = LocalResultStage.DESCRIPTION
+        streamPanelAnchoredBelowPreview = simulateTextStream
         localSaveSubmitting = false
         sessionId = ""
         if (result.source == HazardSource.LOCAL) {
@@ -3216,16 +3322,41 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         showPage(PageState.STREAM_RESPONSE)
         clearStreamResponseUiState()
+        if (simulateTextStream) {
+            OfflineTtsPlayer.play(
+                context = this,
+                ownerTag = TAG,
+                audioResId = R.raw.has_hazard,
+            )
+        }
         InspectionWorkflowSession.recordCapture(result.jpegBytes)
         if (result.jpegBytes.isNotEmpty()) {
             setStreamThumbnail(result.jpegBytes)
         }
         val descriptionText = result.descriptionPageText()
-        setStreamContentAndResetViewport(descriptionText)
+        if (simulateTextStream) {
+            setStreamContentAndResetViewport("")
+        } else {
+            setStreamContentAndResetViewport(descriptionText)
+        }
         lastAnalysisText = descriptionText
         InspectionWorkflowSession.recordDetection(result.displayTitle, descriptionText)
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        renderLocalDescriptionPrompt()
+        if (simulateTextStream) {
+            hideActionPrompts()
+            layoutStreamResponse.post {
+                if (
+                    !destroyed &&
+                    pageState == PageState.STREAM_RESPONSE &&
+                    localResultStage == LocalResultStage.DESCRIPTION &&
+                    activeHazardContent === result
+                ) {
+                    startSimulatedStreamRendering(descriptionText)
+                }
+            }
+        } else {
+            renderLocalDescriptionPrompt()
+        }
         refreshInputActions()
         logAudioPressureSnapshot(
             stage = "present_resolved_hazard_content:end",
@@ -3293,7 +3424,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     presentResolvedHazardContent(resolved)
                     return
                 }
-                presentPendingOnlineStreamIfReady(pending)
+                Log.i(
+                    TAG,
+                    "pending online hazard waiting final detail requestId=${pending.requestId} firstChunkReceived=${pending.firstChunkReceived}",
+                )
             }
         }
     }
@@ -3800,6 +3934,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun clearLocalHazardResultState() {
+        cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
         streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
@@ -3898,6 +4033,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         stopAutoInferencePipelines("request_streaming")
+        manualDeepAnalysisInProgress = true
         clearLocalHazardResultState()
         pendingStreamStart = true
         refreshDetectionStatus()
@@ -3950,8 +4086,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     displayTitle = getString(R.string.ai_inspection_online_display_title),
                     jpegBytes = frozenJpeg,
                 )
-                InspectionWorkflowSession.recordCapture(frozenJpeg)
-                setStreamThumbnail(frozenJpeg)
                 sendImageToAiAr(base64Image)
             }
         }.onFailure { error ->
@@ -4084,17 +4218,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun beginStreamingRequest() {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
-        clearLocalHazardResultState()
-        sessionId = ""
+        manualDeepAnalysisInProgress = true
+        refreshDetectionStatus()
         activeStreamRequestId += 1
-        showPage(PageState.STREAM_RESPONSE)
-        clearStreamResponseUiState()
-        renderLocalDescriptionGuide()
-        streamPanelAnchoredBelowPreview = true
-        applyCurrentStreamPanelLayout()
+        OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.manual_deep,
+        )
+        streamPanelAnchoredBelowPreview = false
+        activeHazardContent = null
         streamingInProgress = true
         streamCallbackActive = true
-        tvStreamBottomHint.visibility = View.GONE
         hideActionPrompts()
         refreshInputActions()
     }
@@ -4103,7 +4238,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return !destroyed &&
             isActivityResumed &&
             isWorkflowActive &&
-            pageState == PageState.STREAM_RESPONSE &&
+            (pageState == PageState.STREAM_RESPONSE || manualDeepAnalysisInProgress) &&
             streamingInProgress &&
             streamCallbackActive &&
             requestId == activeStreamRequestId
@@ -4118,12 +4253,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             base64Image = base64Image,
             onChunk = { partialText ->
                 Log.d(TAG, "manual ai/ar chunk length=${partialText.length}")
-                uiHandler.post {
-                    if (currentManualAnalysisHandle == null) {
-                        return@post
-                    }
-                    updateStreamingText(partialText)
-                }
             },
             callback = object : AiArSseService.DetailCallback {
                 override fun onOpened(handle: AiArSseService.RequestHandle) {
@@ -4155,6 +4284,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun handleManualStreamingSuccess(fullText: String) {
         streamCallbackActive = false
         streamingInProgress = false
+        manualDeepAnalysisInProgress = false
+        refreshDetectionStatus()
         val jpegBytes = activeHazardContent?.jpegBytes ?: byteArrayOf()
         val resolved = runCatching {
             AiArHazardDetailParser.parse(
@@ -4165,17 +4296,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             handleSSEError(error.message ?: getString(R.string.ai_inspection_online_detail_parse_failed))
             return
         }
-        activeHazardContent = resolved
-        localResultStage = LocalResultStage.DESCRIPTION
-        localSaveSubmitting = false
-        sessionId = ""
-        val descriptionText = resolved.descriptionPageText()
-        setStreamContentAndResetViewport(descriptionText)
-        lastAnalysisText = descriptionText
-        InspectionWorkflowSession.recordDetection(resolved.displayTitle, descriptionText)
-        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        renderLocalDescriptionPrompt()
-        refreshInputActions()
+        if (!resolved.hasStructuredFields() || resolved.isOnlineNoHazardResult()) {
+            Log.i(
+                TAG,
+                "manual ai/ar ignored because result is no hazard structured=${resolved.hasStructuredFields()} noHazard=${resolved.isOnlineNoHazardResult()} hidNum=${resolved.hidNum} hidLevel=${resolved.hidLevel} lawBasis=${resolved.lawBasis}",
+            )
+            handleOnlineNoHazardResult(activeStreamRequestId)
+            return
+        }
+        presentOnlineHazardWithSimulatedStream(resolved)
     }
 
     /**
@@ -4187,6 +4316,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             currentManualAnalysisHandle = null
             streamCallbackActive = false
             streamingInProgress = false
+            manualDeepAnalysisInProgress = false
             pendingStreamStart = false
             returnToDetecting()
             SpriteToastUtil.showSpriteToastOld(

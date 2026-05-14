@@ -9,16 +9,15 @@ import org.junit.Test
 class AiArSseServiceRequestPayloadTest {
 
     @Test
-    fun requestPayload_forItemDetectionIncludesImageAndCtype3() {
+    fun requestPayload_forItemDetectionIncludesImageAndStreamFlag() {
         val json = Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "task-item",
-                ctype = 3,
                 image = "base64-item",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":3"))
+        assertTrue(json.contains("\"stream\":true"))
         assertTrue(json.contains("\"image\":\"base64-item\""))
         assertFalse(json.contains("\"text\""))
     }
@@ -28,12 +27,11 @@ class AiArSseServiceRequestPayloadTest {
         val json = Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "task-1",
-                ctype = 2,
                 text = "隐患描述：测试隐患\n整改建议：测试建议",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":2"))
+        assertTrue(json.contains("\"stream\":true"))
         assertTrue(json.contains("\"text\":\"隐患描述：测试隐患\\n整改建议：测试建议\""))
         assertFalse(json.contains("\"image\""))
     }

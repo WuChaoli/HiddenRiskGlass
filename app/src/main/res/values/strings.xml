@@ -90,6 +90,7 @@
     <string name="ai_inspection_hazard_found">识别到隐患</string>
     <string name="ai_inspection_pending_hazard_alert">发现疑似隐患，深度分析中，请稍后…</string>
     <string name="ai_inspection_detecting_bottom_hint">系统正在实时分析，请保持眼镜稳定\n如需切换功能，请说出功能名称</string>
+    <string name="ai_inspection_manual_deep_analysis_pending">深度分析中，请等待…</string>
     <string name="ai_inspection_description_bottom_hint">请确认是否同步至手机端？</string>
     <string name="ai_inspection_upload_success_tip">隐患已同步至手机端</string>
     <string name="ai_inspection_local_save_failed">保存失败，请重试</string>

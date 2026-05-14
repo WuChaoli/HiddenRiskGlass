@@ -5,7 +5,7 @@ package com.rokid.glass.hiddenrisk
  */
 object AiArHazardDetailParser {
     private val labelRegex = Regex(
-        pattern = """(?m)^(隐患描述|隐患等级|主要依据|整改建议|隐患编号)\s*[：:]\s*""",
+        pattern = """(?m)^(隐患描述|隐患等级|主要依据|整改建议|隐患编号|隐患编码|建议检查项)\s*[：:]\s*""",
     )
 
     fun parse(
@@ -58,7 +58,7 @@ object AiArHazardDetailParser {
             advice = this["整改建议"].orEmpty(),
             uploadAdvice = this["整改建议"].orEmpty(),
             hidLevel = ResolvedHazardContent.levelCode(this["隐患等级"].orEmpty()),
-            hidNum = this["隐患编号"].orEmpty(),
+            hidNum = this["隐患编号"].orEmpty().ifBlank { this["隐患编码"].orEmpty() },
             lawBasis = this["主要依据"].orEmpty(),
         )
     }

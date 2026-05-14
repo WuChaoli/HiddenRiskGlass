@@ -127,15 +127,15 @@ class ResolvedHazardContentTest {
     }
 
     @Test
-    fun isOnlineNoHazardResult_returnsTrueForSingleOnlineHazardWithWuHidNum() {
+    fun isOnlineNoHazardResult_returnsTrueForSingleOnlineHazardWithWuHidNumAndLevel() {
         val content = ResolvedHazardContent(
             source = HazardSource.ONLINE,
             description = "现场未发现明显隐患",
             advice = "",
             uploadAdvice = "",
-            hidLevel = "",
+            hidLevel = "无",
             hidNum = "无",
-            lawBasis = "",
+            lawBasis = "GB 55009-2021",
             displayTitle = "在线识别隐患",
             jpegBytes = byteArrayOf(3),
             hazards = listOf(
@@ -144,9 +144,37 @@ class ResolvedHazardContentTest {
                     description = "现场未发现明显隐患",
                     advice = "",
                     uploadAdvice = "",
-                    hidLevel = "",
+                    hidLevel = "无",
                     hidNum = "无",
-                    lawBasis = "",
+                    lawBasis = "GB 55009-2021",
+                ),
+            ),
+        )
+
+        assertTrue(content.isOnlineNoHazardResult())
+    }
+
+    @Test
+    fun isOnlineNoHazardResult_returnsTrueForBlankCodeAndLevel() {
+        val content = ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = "现场未发现明显隐患",
+            advice = "",
+            uploadAdvice = "",
+            hidLevel = " ",
+            hidNum = " ",
+            lawBasis = "GB 55009-2021",
+            displayTitle = "在线识别隐患",
+            jpegBytes = byteArrayOf(9),
+            hazards = listOf(
+                ResolvedHazardItem(
+                    displayTitle = "在线识别隐患",
+                    description = "现场未发现明显隐患",
+                    advice = "",
+                    uploadAdvice = "",
+                    hidLevel = " ",
+                    hidNum = " ",
+                    lawBasis = "GB 55009-2021",
                 ),
             ),
         )
@@ -209,9 +237,33 @@ class ResolvedHazardContentTest {
             displayTitle = "在线识别隐患",
             jpegBytes = byteArrayOf(6),
         )
+        val onlineBasisContent = ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = "发现燃气隐患",
+            advice = "",
+            uploadAdvice = "",
+            hidLevel = "1",
+            hidNum = "无",
+            lawBasis = "GB 55009-2021",
+            displayTitle = "在线识别隐患",
+            jpegBytes = byteArrayOf(7),
+        )
+        val onlineLevelContent = ResolvedHazardContent(
+            source = HazardSource.ONLINE,
+            description = "发现燃气隐患",
+            advice = "",
+            uploadAdvice = "",
+            hidLevel = "1",
+            hidNum = "无",
+            lawBasis = "",
+            displayTitle = "在线识别隐患",
+            jpegBytes = byteArrayOf(8),
+        )
 
         assertFalse(multiHazardContent.isOnlineNoHazardResult())
         assertFalse(localContent.isOnlineNoHazardResult())
         assertFalse(onlineHazardContent.isOnlineNoHazardResult())
+        assertFalse(onlineBasisContent.isOnlineNoHazardResult())
+        assertFalse(onlineLevelContent.isOnlineNoHazardResult())
     }
 }

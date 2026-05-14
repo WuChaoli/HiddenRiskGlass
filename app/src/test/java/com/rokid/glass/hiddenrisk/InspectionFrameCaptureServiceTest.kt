@@ -68,44 +68,41 @@ class InspectionFrameCaptureServiceTest {
     }
 
     @Test
-    fun requestPayload_forDeepAnalysisIncludesCtypeZeroAndImage() {
+    fun requestPayload_forDeepAnalysisIncludesImageAndStreamFlag() {
         val json = com.google.gson.Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "record-1",
-                ctype = 0,
                 image = "base64-image",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":0"))
+        assertTrue(json.contains("\"stream\":true"))
         assertTrue(json.contains("\"image\":\"base64-image\""))
     }
 
     @Test
-    fun requestPayload_forIdentifyItemHazardIncludesCtypeThreeAndImage() {
+    fun requestPayload_forIdentifyItemHazardIncludesImageAndStreamFlag() {
         val json = com.google.gson.Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "record-2",
-                ctype = 3,
                 image = "base64-image",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":3"))
+        assertTrue(json.contains("\"stream\":true"))
         assertTrue(json.contains("\"image\":\"base64-image\""))
     }
 
     @Test
-    fun requestPayload_forInspectionGuideIncludesCtypeTwoAndText() {
+    fun requestPayload_forInspectionGuideIncludesTextAndStreamFlag() {
         val json = com.google.gson.Gson().toJson(
             AiArSseService.RequestPayload(
                 task_id = "record-3",
-                ctype = 2,
                 text = "guide-text",
             ),
         )
 
-        assertTrue(json.contains("\"ctype\":2"))
+        assertTrue(json.contains("\"stream\":true"))
         assertTrue(json.contains("\"text\":\"guide-text\""))
     }
 

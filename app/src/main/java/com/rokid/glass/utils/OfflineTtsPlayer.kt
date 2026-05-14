@@ -17,6 +17,22 @@ object OfflineTtsPlayer {
     private var currentOwnerTag: String? = null
 
     fun play(context: Context, ownerTag: String, @RawRes audioResId: Int): Boolean {
+        return play(
+            context = context,
+            ownerTag = ownerTag,
+            audioResId = audioResId,
+            onComplete = null,
+            onError = null,
+        )
+    }
+
+    fun play(
+        context: Context,
+        ownerTag: String,
+        @RawRes audioResId: Int,
+        onComplete: (() -> Unit)? = null,
+        onError: (() -> Unit)? = null,
+    ): Boolean {
         val appContext = context.applicationContext
         synchronized(playerLock) {
             releasePlayerLocked(reason = "preempt", ownerTag = ownerTag)
@@ -28,29 +44,40 @@ object OfflineTtsPlayer {
 
             if (mediaPlayer == null) {
                 Log.w(ownerTag, "skip local audio: player unavailable resId=$audioResId")
+                onError?.invoke()
                 return false
             }
 
             currentPlayer = mediaPlayer
             currentOwnerTag = ownerTag
             mediaPlayer.setOnCompletionListener { completedPlayer ->
+                var shouldNotifyComplete = false
                 synchronized(playerLock) {
                     if (currentPlayer === completedPlayer) {
                         currentPlayer = null
                         currentOwnerTag = null
+                        shouldNotifyComplete = true
                     }
                     runCatching { completedPlayer.release() }
                     Log.i(ownerTag, "local audio completed resId=$audioResId owner=$ownerTag")
                 }
+                if (shouldNotifyComplete) {
+                    onComplete?.invoke()
+                }
             }
             mediaPlayer.setOnErrorListener { failedPlayer, what, extra ->
+                var shouldNotifyError = false
                 synchronized(playerLock) {
                     if (currentPlayer === failedPlayer) {
                         currentPlayer = null
                         currentOwnerTag = null
+                        shouldNotifyError = true
                     }
                     runCatching { failedPlayer.release() }
                     Log.e(ownerTag, "local audio failed resId=$audioResId what=$what extra=$extra owner=$ownerTag")
+                }
+                if (shouldNotifyError) {
+                    onError?.invoke()
                 }
                 true
             }
@@ -66,6 +93,7 @@ object OfflineTtsPlayer {
                 }
                 runCatching { mediaPlayer.release() }
                 Log.e(ownerTag, "local audio start failed resId=$audioResId owner=$ownerTag", error)
+                onError?.invoke()
             }.getOrDefault(false)
         }
     }

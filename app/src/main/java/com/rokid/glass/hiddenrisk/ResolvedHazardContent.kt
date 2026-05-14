@@ -94,14 +94,18 @@ data class ResolvedHazardContent(
     }
 
     /**
-     * 在线结果仅识别出一条且隐患编号为“无”时，视为无隐患，不进入 advice/保存链路。
+     * 在线结果仅识别出一条，且隐患编号与隐患等级都为空或“无”时，视为无隐患。
      */
     fun isOnlineNoHazardResult(): Boolean {
         if (source != HazardSource.ONLINE) {
             return false
         }
         val hazards = resolvedHazards()
-        return hazards.size == 1 && hazards.first().hidNum.trim() == "无"
+        if (hazards.size != 1) {
+            return false
+        }
+        val hazard = hazards.first()
+        return hazard.hidNum.isBlankOrNone() && hazard.hidLevel.isBlankOrNone()
     }
 
     fun displayAdvice(): String {
@@ -121,6 +125,11 @@ data class ResolvedHazardContent(
             hazard.hidNum.trim().takeIf { it.isNotBlank() }?.let { add("隐患编号：$it") }
             hazard.uploadAdvice.trim().takeIf { it.isNotBlank() }?.let { add("整改建议：$it") }
         }.joinToString("\n")
+    }
+
+    private fun String.isBlankOrNone(): Boolean {
+        val normalized = trim()
+        return normalized.isBlank() || normalized == "无"
     }
 
     companion object {
