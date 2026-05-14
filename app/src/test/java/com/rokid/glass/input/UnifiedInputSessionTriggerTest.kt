@@ -51,69 +51,65 @@ class UnifiedInputSessionTriggerTest {
     fun autoSleepStateMachine_disabledStateDoesNotShowPrompt() {
         val stateMachine = newAutoSleepStateMachine()
 
-        val events = stateMachine.onIdleQualified(nowMillis = 60_000L)
+        val snapshot = stateMachine.onIdleQualified(nowMillis = 60_000L)
 
-        assertTrue(events.isEmpty())
-        assertFalse(stateMachine.isPromptVisible())
+        assertEquals(null, snapshot)
+        assertFalse(stateMachine.isPromptVisible(60_000L))
     }
 
     @Test
     fun autoSleepStateMachine_enabledStateShowsPromptWhenIdleQualified() {
         val stateMachine = newAutoSleepStateMachine()
-        stateMachine.setEnabled(true)
+        stateMachine.setEnabled(true, 0L)
 
-        val events = stateMachine.onIdleQualified(nowMillis = 60_000L)
+        val snapshot = stateMachine.onIdleQualified(nowMillis = 60_000L)
 
-        assertEquals(listOf(AutoSleepStateMachine.Event.PromptShown), events)
-        assertTrue(stateMachine.isPromptVisible())
+        assertEquals(AutoSleepStateMachine.State.SLEEP_WARNING, snapshot?.state)
+        assertTrue(stateMachine.isPromptVisible(60_000L))
     }
 
     @Test
     fun autoSleepStateMachine_activityDuringPromptResumesAndClearsTimeout() {
         val stateMachine = newAutoSleepStateMachine()
-        stateMachine.setEnabled(true)
+        stateMachine.setEnabled(true, 0L)
         stateMachine.onIdleQualified(nowMillis = 60_000L)
 
-        val events = stateMachine.notifyUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH)
+        val events = stateMachine.onUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH, 61_000L)
         val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
 
-        assertEquals(
-            listOf(
-                AutoSleepStateMachine.Event.ResumeRequested(
-                    AutoSleepStateMachine.UserActivitySource.TOUCH,
-                ),
-            ),
-            events,
-        )
+        assertEquals(2, events.size)
+        assertEquals(AutoSleepStateMachine.State.WAKE, events[0].state)
+        assertEquals(AutoSleepStateMachine.State.WAKING, events[1].state)
         assertTrue(timeoutEvents.isEmpty())
-        assertFalse(stateMachine.isPromptVisible())
+        assertFalse(stateMachine.isPromptVisible(75_000L))
     }
 
     @Test
     fun autoSleepStateMachine_promptTimeoutReturnsToMenu() {
         val stateMachine = newAutoSleepStateMachine()
-        stateMachine.setEnabled(true)
+        stateMachine.setEnabled(true, 0L)
         stateMachine.onIdleQualified(nowMillis = 60_000L)
 
         val earlyEvents = stateMachine.tick(nowMillis = 74_999L)
         val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
 
         assertTrue(earlyEvents.isEmpty())
-        assertEquals(listOf(AutoSleepStateMachine.Event.TimeoutReturnToMenu), timeoutEvents)
-        assertFalse(stateMachine.isPromptVisible())
+        assertEquals(1, timeoutEvents.size)
+        assertEquals(AutoSleepStateMachine.State.TO_SLEEP, timeoutEvents.single().state)
+        assertFalse(stateMachine.isPromptVisible(75_000L))
     }
 
     @Test
     fun autoSleepStateMachine_disablingWhilePromptVisibleClearsPrompt() {
         val stateMachine = newAutoSleepStateMachine()
-        stateMachine.setEnabled(true)
+        stateMachine.setEnabled(true, 0L)
         stateMachine.onIdleQualified(nowMillis = 60_000L)
 
-        stateMachine.setEnabled(false)
+        stateMachine.setEnabled(false, 75_000L)
         val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
 
         assertTrue(timeoutEvents.isEmpty())
-        assertFalse(stateMachine.isPromptVisible())
+        assertFalse(stateMachine.isPromptVisible(75_000L))
     }
 
     private fun voiceCommands(triggers: List<UnifiedInputSession.InputTrigger>): List<String> {
@@ -138,8 +134,10 @@ class UnifiedInputSessionTriggerTest {
 
     private fun newAutoSleepStateMachine(): AutoSleepStateMachine {
         return AutoSleepStateMachine(
-            idleBeforePromptMs = 60_000L,
-            promptTimeoutMs = 15_000L,
+            config = AutoSleepStateMachine.Config(
+                wakingDurationMs = 60_000L,
+                sleepWarningDurationMs = 15_000L,
+            ),
         )
     }
 }

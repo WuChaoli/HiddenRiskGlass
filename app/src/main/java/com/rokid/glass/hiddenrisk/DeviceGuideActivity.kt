@@ -71,9 +71,10 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var tvResultBottomHint: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
+    private var autoSleepSnapshot: AutoSleepStateMachine.Snapshot? = null
     private val inputSession by lazy {
         UnifiedInputSession(this, TAG) { event ->
-            if (autoSleepController.isPromptVisible()) {
+            if (isAutoSleepWarningVisible()) {
                 autoSleepController.notifyUserActivity(
                     when (event.source) {
                         UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
@@ -89,20 +90,12 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         AutoSleepController(
             context = this,
             ownerTag = TAG,
-            idleBeforePromptMs = config.sleepIdlePromptMs,
-            promptTimeoutMs = config.sleepPromptTimeoutMs,
+            wakingDurationMs = config.sleepWakingDurationMs,
+            sleepWarningDurationMs = config.sleepWarningDurationMs,
             quietGyroMaxRad = config.sleepQuietGyroMaxRad,
             callback = object : AutoSleepController.Callback {
-                override fun onSleepPromptShown() {
-                    handleAutoSleepPromptShown()
-                }
-
-                override fun onSleepResumeRequested(source: AutoSleepStateMachine.UserActivitySource) {
-                    handleAutoSleepResumeRequested(source)
-                }
-
-                override fun onSleepTimeout() {
-                    handleAutoSleepTimeout()
+                override fun onAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
+                    handleAutoSleepStateChanged(snapshot)
                 }
             },
         )
@@ -199,7 +192,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        if (autoSleepController.isPromptVisible()) {
+        if (isAutoSleepWarningVisible()) {
             autoSleepController.notifyUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH)
             return true
         }
@@ -277,7 +270,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     UnifiedInputSession.InputTrigger.Voice("确定", "que ding"),
                     UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"),
                 ),
-                enabled = { autoSleepController.isPromptVisible() },
+                enabled = { isAutoSleepWarningVisible() },
             ) {
                 autoSleepController.notifyUserActivity(it.source.toAutoSleepActivitySource())
             },
@@ -306,7 +299,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     UnifiedInputSession.InputTrigger.Voice("结束任务", "jie shu ren wu"),
                     UnifiedInputSession.InputTrigger.Voice("结速任务", "jie su ren wu"),
                 ),
-                enabled = { !autoSleepController.isPromptVisible() },
+                enabled = { !isAutoSleepWarningVisible() },
             ) {
                 startActivity(
                     InspectionEndReportActivity.createIntent(
@@ -320,7 +313,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 label = "确认",
                 triggers = buildConfirmTriggers(),
                 enabled = {
-                    !autoSleepController.isPromptVisible() &&
+                    !isAutoSleepWarningVisible() &&
                         (pageState == PageState.PROMPT_PENDING || pageState == PageState.DETAIL)
                 },
             ) {
@@ -334,7 +327,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Cancel,
                 label = "返回",
                 triggers = buildReturnTriggers(),
-                enabled = { !autoSleepController.isPromptVisible() },
+                enabled = { !isAutoSleepWarningVisible() },
             ) {
                 if (pageState == PageState.DETECTING) {
                     returnToMenuHome()
@@ -368,7 +361,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun canHandleDetectingInput(): Boolean {
-        return pageState == PageState.DETECTING && !autoSleepController.isPromptVisible()
+        return pageState == PageState.DETECTING && !isAutoSleepWarningVisible()
     }
 
     private fun UnifiedInputSession.InputSource.toAutoSleepActivitySource(): AutoSleepStateMachine.UserActivitySource {
@@ -750,17 +743,32 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         autoSleepController.setEnabled(isActivityResumed && pageState == PageState.DETECTING)
     }
 
-    private fun handleAutoSleepPromptShown() {
+    private fun handleAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
+        autoSleepSnapshot = snapshot
+        refreshInputActions()
+        when (snapshot?.state) {
+            AutoSleepStateMachine.State.SLEEP_WARNING -> showAutoSleepWarning(snapshot)
+            AutoSleepStateMachine.State.TO_SLEEP -> {
+                statusAlertOverlay.reset()
+                autoSleepController.markSleepHandled()
+                returnToMenuHome()
+            }
+            AutoSleepStateMachine.State.WAKE,
+            AutoSleepStateMachine.State.WAKING -> resumeFromAutoSleepIfNeeded()
+            else -> Unit
+        }
+    }
+
+    private fun showAutoSleepWarning(snapshot: AutoSleepStateMachine.Snapshot) {
         if (pageState != PageState.DETECTING) {
             autoSleepController.setEnabled(false)
             return
         }
-        Log.i(TAG, "device guide auto sleep prompt shown")
         cancelActiveRequests()
         uiHandler.removeCallbacks(nextDetectRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
-        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_prompt")
+        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_warning")
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
         tvDetectingBottomHint.visibility = View.GONE
@@ -768,16 +776,15 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         statusAlertOverlay.render(
             StatusAlertModel(
                 status = AlertStatus.WARNING,
-                titleText = getString(R.string.inspection_auto_sleep_prompt),
-                messageText = getString(R.string.inspection_auto_sleep_hint),
+                titleText = if (snapshot.triggerReason == AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED) "检测到已摘下眼镜" else getString(R.string.inspection_auto_sleep_prompt),
+                messageText = buildAutoSleepMessage(snapshot),
                 behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
                 style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
             ),
         )
     }
 
-    private fun handleAutoSleepResumeRequested(source: AutoSleepStateMachine.UserActivitySource) {
-        Log.i(TAG, "device guide auto sleep resume requested source=$source")
+    private fun resumeFromAutoSleepIfNeeded() {
         statusAlertOverlay.reset()
         if (!isActivityResumed || pageState != PageState.DETECTING) {
             updateAutoSleepEnabled()
@@ -793,10 +800,17 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         updateAutoSleepEnabled()
     }
 
-    private fun handleAutoSleepTimeout() {
-        Log.i(TAG, "device guide auto sleep timeout return to menu")
-        statusAlertOverlay.reset()
-        returnToMenuHome()
+    private fun isAutoSleepWarningVisible(): Boolean {
+        return autoSleepSnapshot?.state == AutoSleepStateMachine.State.SLEEP_WARNING
+    }
+
+    private fun buildAutoSleepMessage(snapshot: AutoSleepStateMachine.Snapshot): String {
+        val seconds = ((snapshot.remainingMs ?: 0L) / 1000L).coerceAtLeast(0L)
+        return if (snapshot.triggerReason == AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED) {
+            "请重新佩戴，${seconds}秒后返回菜单"
+        } else {
+            "单击或说继续恢复使用，${seconds}秒后返回菜单"
+        }
     }
 
     private fun clearResultUi() {

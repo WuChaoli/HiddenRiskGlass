@@ -24,8 +24,8 @@ class InspectionConfigRepositoryTest {
             overlayJsonc = null,
         )
 
-        assertEquals(60_000L, config.aiInspection.sleepIdlePromptMs)
-        assertEquals(15_000L, config.aiInspection.sleepPromptTimeoutMs)
+        assertEquals(60_000L, config.aiInspection.sleepWakingDurationMs)
+        assertEquals(15_000L, config.aiInspection.sleepWarningDurationMs)
         assertEquals(0.20f, config.aiInspection.sleepQuietGyroMaxRad, 0.001f)
     }
 
@@ -35,8 +35,8 @@ class InspectionConfigRepositoryTest {
             baseJsonc = """
                 {
                   "aiInspection": {
-                    "sleepIdlePromptMs": 30000,
-                    "sleepPromptTimeoutMs": 10000,
+                    "sleepWakingDurationMs": 30000,
+                    "sleepWarningDurationMs": 10000,
                     "sleepQuietGyroMaxRad": 0.15
                   }
                 }
@@ -44,8 +44,8 @@ class InspectionConfigRepositoryTest {
             overlayJsonc = null,
         )
 
-        assertEquals(30_000L, config.aiInspection.sleepIdlePromptMs)
-        assertEquals(10_000L, config.aiInspection.sleepPromptTimeoutMs)
+        assertEquals(30_000L, config.aiInspection.sleepWakingDurationMs)
+        assertEquals(10_000L, config.aiInspection.sleepWarningDurationMs)
         assertEquals(0.15f, config.aiInspection.sleepQuietGyroMaxRad, 0.001f)
     }
 

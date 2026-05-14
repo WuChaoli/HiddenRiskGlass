@@ -8,56 +8,80 @@ import android.util.Log
 
 /**
  * 自动睡眠控制层。
- * 页面只声明检测态启停和回调，陀螺仪静止/活动判断在这里统一处理。
+ * 页面只消费状态快照；陀螺仪、摘镜广播和 tick 推进统一在这里协调。
  */
 class AutoSleepController(
     context: Context,
     private val ownerTag: String,
-    idleBeforePromptMs: Long,
-    private val promptTimeoutMs: Long,
+    wakingDurationMs: Long,
+    sleepWarningDurationMs: Long,
     quietGyroMaxRad: Float,
     private val callback: Callback,
 ) {
     interface Callback {
-        fun onSleepPromptShown()
-        fun onSleepResumeRequested(source: AutoSleepStateMachine.UserActivitySource)
-        fun onSleepTimeout()
+        fun onAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?)
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val stateMachine = AutoSleepStateMachine(
-        idleBeforePromptMs = idleBeforePromptMs,
-        promptTimeoutMs = promptTimeoutMs,
+        config = AutoSleepStateMachine.Config(
+            wakingDurationMs = wakingDurationMs,
+            sleepWarningDurationMs = sleepWarningDurationMs,
+        ),
     )
     private val motionTracker = HeadMotionStabilityTracker(
         context = context,
-        stableDurationMs = idleBeforePromptMs,
+        stableDurationMs = wakingDurationMs,
         quietGyroMaxRad = quietGyroMaxRad,
     )
-    private val timeoutRunnable = Runnable {
-        dispatchEvents(stateMachine.tick(SystemClock.elapsedRealtime()))
+    private val wearMonitor = GlassesWearMonitor(
+        context = context,
+        listener = object : GlassesWearMonitor.Listener {
+            override fun onWearStateChanged(isWorn: Boolean) {
+                val now = SystemClock.elapsedRealtime()
+                val updates = if (isWorn) {
+                    stateMachine.onGlassesWorn(now)
+                } else {
+                    listOfNotNull(stateMachine.onGlassesRemoved(now))
+                }
+                dispatchSnapshots(updates)
+            }
+        },
+    )
+    private val tickRunnable = object : Runnable {
+        override fun run() {
+            val now = SystemClock.elapsedRealtime()
+            dispatchSnapshots(stateMachine.tick(now))
+            scheduleNextTick()
+        }
     }
     private val motionListener = object : HeadMotionStabilityTracker.Listener {
         override fun onStabilityChanged(isStable: Boolean, stableSinceMillis: Long?) {
-            if (isStable) {
-                dispatchEvents(stateMachine.onIdleQualified(SystemClock.elapsedRealtime()))
+            val now = SystemClock.elapsedRealtime()
+            val snapshots = if (isStable) {
+                listOfNotNull(stateMachine.onIdleQualified(now))
             } else {
-                notifyUserActivity(AutoSleepStateMachine.UserActivitySource.HEAD_MOTION)
+                stateMachine.onUserActivity(AutoSleepStateMachine.UserActivitySource.HEAD_MOTION, now)
             }
+            dispatchSnapshots(snapshots)
         }
     }
 
     private var attached = false
     private var enabled = false
+    private var lastSnapshot: AutoSleepStateMachine.Snapshot? = null
 
     fun attach() {
         if (attached) {
-            syncTracker()
+            syncTrackers()
+            scheduleNextTick()
             return
         }
         attached = true
         motionTracker.addListener(motionListener)
-        syncTracker()
+        wearMonitor.attach()
+        syncTrackers()
+        scheduleNextTick()
     }
 
     fun detach() {
@@ -65,10 +89,10 @@ class AutoSleepController(
             return
         }
         attached = false
-        mainHandler.removeCallbacks(timeoutRunnable)
-        stateMachine.setEnabled(false)
+        mainHandler.removeCallbacks(tickRunnable)
         motionTracker.removeListener(motionListener)
         motionTracker.stop()
+        wearMonitor.detach()
     }
 
     fun release() {
@@ -78,25 +102,35 @@ class AutoSleepController(
 
     fun setEnabled(enabled: Boolean) {
         this.enabled = enabled
-        mainHandler.removeCallbacks(timeoutRunnable)
-        dispatchEvents(stateMachine.setEnabled(enabled))
-        syncTracker()
+        mainHandler.removeCallbacks(tickRunnable)
+        val now = SystemClock.elapsedRealtime()
+        lastSnapshot = stateMachine.setEnabled(enabled, now)
+        callback.onAutoSleepStateChanged(lastSnapshot)
+        syncTrackers()
+        scheduleNextTick()
     }
 
     fun notifyUserActivity(source: AutoSleepStateMachine.UserActivitySource) {
-        mainHandler.removeCallbacks(timeoutRunnable)
-        val events = stateMachine.notifyUserActivity(source)
-        if (events.isNotEmpty()) {
-            motionTracker.reset()
-        } else if (enabled && source != AutoSleepStateMachine.UserActivitySource.HEAD_MOTION) {
+        val now = SystemClock.elapsedRealtime()
+        dispatchSnapshots(stateMachine.onUserActivity(source, now))
+        if (enabled && source != AutoSleepStateMachine.UserActivitySource.HEAD_MOTION) {
             motionTracker.reset()
         }
-        dispatchEvents(events)
+        scheduleNextTick()
     }
 
-    fun isPromptVisible(): Boolean = stateMachine.isPromptVisible()
+    fun markSleepHandled() {
+        val snapshot = stateMachine.markSleepHandled(SystemClock.elapsedRealtime())
+        dispatchSnapshots(listOfNotNull(snapshot))
+    }
 
-    private fun syncTracker() {
+    fun currentSnapshot(): AutoSleepStateMachine.Snapshot? {
+        return stateMachine.currentSnapshot(SystemClock.elapsedRealtime())
+    }
+
+    fun isPromptVisible(): Boolean = currentSnapshot()?.state == AutoSleepStateMachine.State.SLEEP_WARNING
+
+    private fun syncTrackers() {
         if (!attached || !enabled) {
             motionTracker.stop()
             return
@@ -106,23 +140,24 @@ class AutoSleepController(
         }
     }
 
-    private fun dispatchEvents(events: List<AutoSleepStateMachine.Event>) {
-        events.forEach { event ->
-            when (event) {
-                AutoSleepStateMachine.Event.PromptShown -> {
-                    callback.onSleepPromptShown()
-                    mainHandler.removeCallbacks(timeoutRunnable)
-                    mainHandler.postDelayed(timeoutRunnable, promptTimeoutMs.coerceAtLeast(0L))
-                }
-                is AutoSleepStateMachine.Event.ResumeRequested -> {
-                    mainHandler.removeCallbacks(timeoutRunnable)
-                    callback.onSleepResumeRequested(event.source)
-                }
-                AutoSleepStateMachine.Event.TimeoutReturnToMenu -> {
-                    mainHandler.removeCallbacks(timeoutRunnable)
-                    callback.onSleepTimeout()
-                }
-            }
+    private fun dispatchSnapshots(snapshots: List<AutoSleepStateMachine.Snapshot>) {
+        snapshots.forEach { snapshot ->
+            lastSnapshot = snapshot
+            callback.onAutoSleepStateChanged(snapshot)
         }
+    }
+
+    private fun scheduleNextTick() {
+        mainHandler.removeCallbacks(tickRunnable)
+        if (!attached || !enabled) {
+            return
+        }
+        val snapshot = stateMachine.currentSnapshot(SystemClock.elapsedRealtime()) ?: return
+        val delayMs = when (snapshot.state) {
+            AutoSleepStateMachine.State.WAKING,
+            AutoSleepStateMachine.State.SLEEP_WARNING -> 250L
+            else -> return
+        }
+        mainHandler.postDelayed(tickRunnable, delayMs)
     }
 }
