@@ -42,6 +42,7 @@ internal class OnlineHazardDetectionService(
         val frameTimestamp: Long = 0L,
         val frameCapturedAtElapsedMs: Long = 0L,
         val framePayloadBuiltAtElapsedMs: Long = 0L,
+        val cooldownLabels: List<String> = emptyList(),
     )
 
     data class DetailRequest(
@@ -52,7 +53,7 @@ internal class OnlineHazardDetectionService(
     )
 
     interface Callback {
-        fun onDetectionResult(request: DetectionRequest, hasHazard: Boolean, rawText: String)
+        fun onDetectionResult(request: DetectionRequest, hasHazard: Boolean, rawText: String, labels: List<String>)
         fun onDetectionFailure(request: DetectionRequest, message: String)
         fun onDetectionDropped(request: DetectionRequest, reason: String)
         fun onDeepAnalysisChunk(request: DetailRequest, accumulatedText: String)
@@ -233,6 +234,7 @@ internal class OnlineHazardDetectionService(
                             handle: AiArSseService.RequestHandle,
                             hasHazard: Boolean,
                             fullText: String,
+                            labels: List<String>,
                         ) {
                             val completedActive = removeActiveDetection(request.requestId) ?: return
                             val completedElapsedMs = elapsedRealtimeProvider()
@@ -244,12 +246,17 @@ internal class OnlineHazardDetectionService(
                             )
                             val uploadToHasHazardMs = completedElapsedMs - uploadStartedElapsedMs
                             infoLogger(
-                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard activePoolSize=${activeDetections.size} rawTextLength=${fullText.length} totalElapsedMs=$detectElapsedMs",
+                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard activePoolSize=${activeDetections.size} rawTextLength=${fullText.length} labelCount=${labels.size} totalElapsedMs=$detectElapsedMs",
                             )
                             infoLogger(
-                                "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=$submitToUploadMs base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} jpegBytes=${request.jpegBytes.size}",
+                                "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=$submitToUploadMs base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} labelCount=${labels.size} jpegBytes=${request.jpegBytes.size}",
                             )
-                            callback.onDetectionResult(request, hasHazard, fullText)
+                            callback.onDetectionResult(
+                                request.copy(cooldownLabels = labels),
+                                hasHazard,
+                                fullText,
+                                labels,
+                            )
                         }
 
                         override fun onFailure(

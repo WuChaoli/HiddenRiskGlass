@@ -162,6 +162,7 @@ class OnlineHazardDetectionServiceTest {
                         request: OnlineHazardDetectionService.DetectionRequest,
                         hasHazard: Boolean,
                         rawText: String,
+                        labels: List<String>,
                     ) {
                         callbackEvents += "result:${request.requestId}:$hasHazard"
                     }
@@ -294,10 +295,11 @@ class OnlineHazardDetectionServiceTest {
             requestId: Long,
             hasHazard: Boolean,
             fullText: String,
+            labels: List<String> = emptyList(),
         ) {
             val callback = detectCallbacks[requestId] ?: return
             val activeHandle = detectionHandles[requestId] ?: return
-            callback.onSuccess(activeHandle, hasHazard, fullText)
+            callback.onSuccess(activeHandle, hasHazard, fullText, labels)
         }
     }
 

@@ -130,6 +130,27 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private val ONLINE_SELECT_MAX_FRAMES: Int
             get() = InspectionConfigRepository.get().aiInspection.onlineSelectMaxFrames
 
+        internal fun decideOnlineLabelCooldown(
+            labels: List<String>,
+            isCooling: (String) -> Boolean,
+        ): OnlineLabelCooldownDecision {
+            val normalizedLabels = labels
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+            if (normalizedLabels.isEmpty()) {
+                return OnlineLabelCooldownDecision(
+                    shouldSuppress = false,
+                    activeLabels = emptyList(),
+                )
+            }
+            val activeLabels = normalizedLabels.filterNot(isCooling)
+            return OnlineLabelCooldownDecision(
+                shouldSuppress = activeLabels.isEmpty(),
+                activeLabels = activeLabels,
+            )
+        }
+
         private val ONLINE_SELECT_POLL_INTERVAL_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs
 
@@ -298,6 +319,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             override val detectedAtElapsedMs: Long,
             val requestId: Long,
             val jpegBytes: ByteArray,
+            val cooldownLabels: List<String> = emptyList(),
             val baseResolved: ResolvedHazardContent? = null,
             val resolved: ResolvedHazardContent? = null,
             val streamedText: String = "",
@@ -572,6 +594,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             probeNetworkForRemoteRecovery()
         }
     }
+
+    internal data class OnlineLabelCooldownDecision(
+        val shouldSuppress: Boolean,
+        val activeLabels: List<String>,
+    )
     private var localNetworkProbePosted = false
 
     private fun createOnlineHazardDetectionService(
@@ -583,8 +610,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     request: OnlineHazardDetectionService.DetectionRequest,
                     hasHazard: Boolean,
                     rawText: String,
+                    labels: List<String>,
                 ) {
-                    handleOnlineDetectionResult(request, hasHazard, rawText)
+                    handleOnlineDetectionResult(request, hasHazard, rawText, labels)
                 }
 
                 override fun onDetectionFailure(
@@ -1849,6 +1877,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         request: OnlineHazardDetectionService.DetectionRequest,
         hasHazard: Boolean,
         rawText: String,
+        labels: List<String>,
     ) {
         val runtime = onlineLaneRuntime(request.lane)
         val decision = OnlineHazardCompetitionDecider.decide(
@@ -1866,16 +1895,30 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runtime.activeRequestIds.remove(request.requestId)
         logAudioPressureSnapshot(
             stage = "handle_online_detection_result",
-            extra = "lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard activeRequestIds=${runtime.activeRequestIds} rawTextLength=${rawText.length} jpegBytes=${request.jpegBytes.size}",
+            extra = "lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard activeRequestIds=${runtime.activeRequestIds} rawTextLength=${rawText.length} labelCount=${labels.size} jpegBytes=${request.jpegBytes.size}",
         )
         AppFileLogger.i(
             TAG,
-            "online detect result lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard rawText=${rawText.trim()}",
+            "online detect result lane=${request.lane.logName} requestId=${request.requestId} hasHazard=$hasHazard labels=${labels.joinToString()} rawText=${rawText.trim()}",
         )
         remoteFailureCount = 0
         if (decision.shouldStopAllLanes) {
+            val cooldownDecision = decideOnlineLabelCooldown(
+                labels = labels,
+                isCooling = { label -> isLocalLabelCooling(label, SystemClock.elapsedRealtime()) },
+            )
+            if (cooldownDecision.shouldSuppress) {
+                AppFileLogger.i(
+                    TAG,
+                    "online detect suppressed by label cooldown lane=${request.lane.logName} requestId=${request.requestId} labels=${labels.joinToString()}",
+                )
+                continueOnlineInferenceAfterCompletion(request.lane)
+                return
+            }
             stopAutoInferencePipelines("accept_online_hazard_result")
-            handleAutoDetectedOnlineHazardResult(request)
+            handleAutoDetectedOnlineHazardResult(
+                request.copy(cooldownLabels = cooldownDecision.activeLabels),
+            )
             return
         }
         if (decision.shouldContinueCurrentLane) {
@@ -3168,7 +3211,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 jpegBytes = localResolved.jpegBytes.copyOf(),
                 localCooldownLabels = localResolved.localCooldownLabels,
             )
-        } ?: resolved
+        } ?: resolved.copy(localCooldownLabels = pending.cooldownLabels)
         clearPendingAutoHazardPresentation()
         presentOnlineHazardWithSimulatedStream(finalResolved)
     }
@@ -3244,6 +3287,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             detectedAtElapsedMs = detectedAtElapsedMs,
             requestId = request.requestId,
             jpegBytes = sharedJpegBytes,
+            cooldownLabels = request.cooldownLabels,
         )
         streamingInProgress = true
         logAudioPressureSnapshot(
@@ -3355,8 +3399,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamPanelAnchoredBelowPreview = simulateTextStream
         localSaveSubmitting = false
         sessionId = ""
-        if (result.source == HazardSource.LOCAL) {
-            val cooldownLabels = result.localCooldownLabels.ifEmpty {
+        if (result.localCooldownLabels.isNotEmpty() || result.source == HazardSource.LOCAL) {
+            val cooldownLabels = if (result.localCooldownLabels.isNotEmpty()) {
+                result.localCooldownLabels
+            } else {
                 result.resolvedHazards()
                     .map { it.displayTitle.trim() }
                     .filter { it.isNotBlank() }

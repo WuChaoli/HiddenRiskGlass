@@ -45,7 +45,7 @@ class AiArSseService(
 ) {
     interface DetectCallback {
         fun onOpened(handle: RequestHandle)
-        fun onSuccess(handle: RequestHandle, hasHazard: Boolean, fullText: String)
+        fun onSuccess(handle: RequestHandle, hasHazard: Boolean, fullText: String, labels: List<String>)
         fun onFailure(handle: RequestHandle, message: String)
     }
 
@@ -222,7 +222,7 @@ class AiArSseService(
                     )
                     mainHandler.post {
                         if (!handle.isCanceled()) {
-                            callback.onSuccess(handle, parsed.hasHazard, parsed.rawText)
+                            callback.onSuccess(handle, parsed.hasHazard, parsed.rawText, parsed.labels)
                         }
                     }
                 }.onFailure { error ->
@@ -740,6 +740,22 @@ class AiArSseService(
                 ?.asJsonArray
                 ?.size()
                 ?: 0
+            val labels = inferenceElement
+                ?.takeIf { it.isJsonArray }
+                ?.asJsonArray
+                ?.mapNotNull { item ->
+                    item.takeIf { it.isJsonObject }
+                        ?.asJsonObject
+                        ?.get("label")
+                        ?.takeIf { !it.isJsonNull && it.isJsonPrimitive }
+                        ?.asJsonPrimitive
+                        ?.takeIf { it.isString }
+                        ?.asString
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                }
+                ?.distinct()
+                .orEmpty()
             val hasHazard = contentAsBoolean(hazardObject.get("content")) &&
                 (!requireInferenceResults || inferenceCount > 0)
             val code = hazardObject.get("code")
@@ -757,6 +773,7 @@ class AiArSseService(
                 rawText = rawText,
                 inferenceCount = inferenceCount,
                 code = code,
+                labels = labels,
             )
         }
 
@@ -795,6 +812,7 @@ class AiArSseService(
         val rawText: String,
         val inferenceCount: Int,
         val code: Int?,
+        val labels: List<String>,
     )
 
     private data class RequestTimingTag(

@@ -2,6 +2,7 @@ package com.rokid.glass.hiddenrisk
 
 import android.graphics.Rect
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -104,6 +105,118 @@ class InspectionFrameCaptureServiceTest {
 
         assertTrue(json.contains("\"stream\":true"))
         assertTrue(json.contains("\"text\":\"guide-text\""))
+    }
+
+    @Test
+    fun parseHazardDetectionBody_extractsLabelFromJsonResponse() {
+        val result = AiArSseService.parseHazardDetectionBody(
+            body = """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "task_id": "1",
+                  "content": true,
+                  "inference_result": [
+                    {
+                      "label": "煤炉",
+                      "bbox": [331.56, 783.49, 648.17, 1184.67],
+                      "score": 0.909,
+                      "area_r": 0.058,
+                      "inter": 0
+                    }
+                  ],
+                  "cost": 0.276
+                }
+            """.trimIndent(),
+            requireInferenceResults = true,
+            preferSse = false,
+        )
+
+        assertTrue(result.hasHazard)
+        assertEquals(listOf("煤炉"), result.labels)
+    }
+
+    @Test
+    fun parseHazardDetectionBody_dedupesLabelsAndIgnoresBlankLabels() {
+        val result = AiArSseService.parseHazardDetectionBody(
+            body = """
+                {
+                  "code": 0,
+                  "content": true,
+                  "inference_result": [
+                    { "label": "煤炉" },
+                    { "label": " " },
+                    { "label": "煤炉" },
+                    { "label": "配电箱" }
+                  ]
+                }
+            """.trimIndent(),
+            requireInferenceResults = true,
+            preferSse = false,
+        )
+
+        assertTrue(result.hasHazard)
+        assertEquals(listOf("煤炉", "配电箱"), result.labels)
+    }
+
+    @Test
+    fun parseHazardDetectionBody_extractsLabelsFromSseResponse() {
+        val result = AiArSseService.parseHazardDetectionBody(
+            body = """
+                data: {"code":0,"content":true,"inference_result":[{"label":"煤炉"}]}
+                data: [DONE]
+            """.trimIndent(),
+            requireInferenceResults = true,
+            preferSse = true,
+        )
+
+        assertTrue(result.hasHazard)
+        assertEquals(listOf("煤炉"), result.labels)
+    }
+
+    @Test
+    fun parseHazardDetectionBody_allowsGeneralHazardWithoutInferenceLabels() {
+        val result = AiArSseService.parseHazardDetectionBody(
+            body = """{"code":0,"content":true,"msg":"success"}""",
+            requireInferenceResults = false,
+            preferSse = false,
+        )
+
+        assertTrue(result.hasHazard)
+        assertEquals(emptyList<String>(), result.labels)
+    }
+
+    @Test
+    fun decideOnlineLabelCooldown_allowsLabelsThatAreNotCooling() {
+        val result = AiInspectionActivity.decideOnlineLabelCooldown(
+            labels = listOf("煤炉"),
+            isCooling = { false },
+        )
+
+        assertFalse(result.shouldSuppress)
+        assertEquals(listOf("煤炉"), result.activeLabels)
+    }
+
+    @Test
+    fun decideOnlineLabelCooldown_suppressesWhenAllLabelsAreCooling() {
+        val result = AiInspectionActivity.decideOnlineLabelCooldown(
+            labels = listOf("煤炉", "配电箱"),
+            isCooling = { true },
+        )
+
+        assertTrue(result.shouldSuppress)
+        assertEquals(emptyList<String>(), result.activeLabels)
+    }
+
+    @Test
+    fun decideOnlineLabelCooldown_keepsOnlyLabelsThatAreNotCooling() {
+        val result = AiInspectionActivity.decideOnlineLabelCooldown(
+            labels = listOf("煤炉", "配电箱"),
+            isCooling = { it == "煤炉" },
+        )
+
+        assertFalse(result.shouldSuppress)
+        assertEquals(listOf("配电箱"), result.activeLabels)
     }
 
     private fun newService(
