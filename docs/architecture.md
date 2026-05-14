@@ -47,7 +47,7 @@
   - 负责 Rokid SDK 初始化
   - 校验权限
   - 预热相机帧流
-  - 完成后按条件分流到后续页面
+  - 完成后按条件分流到后续页面；未联网时正式主链进入 `WifiQrScanActivity`
 
 它的分流逻辑明确依赖：
 
@@ -117,8 +117,9 @@
 职责：
 
 - 扫描企业二维码
+- 通过 Rokid 自带扫码 SDK 完成正式 Wi-Fi 二维码扫描与网络连接验证
 - 解析企业信息并写入巡检会话
-- 扫描 Wi-Fi QR 并完成网络连接验证
+- 保留 `WifiQrScanActivity` 这套自研 Wi-Fi 扫码实现，供非正式主链或后续对比使用
 - 给巡检主链提供企业侧上下文
 
 ### 4. Camera And Frame Source Layer
@@ -250,9 +251,9 @@
 流程：
 
 1. 加载页按企业流开关决定是否进入企业扫码链路
-2. 企业扫码页复用共享帧流识别二维码
-3. 成功后解析企业信息并写入 `InspectionWorkflowSession`
-4. Wi-Fi 扫码页负责网络接入和后续跳转
+2. 未联网时先进入 `WifiQrScanActivity`，拉起 Rokid 扫码 SDK 完成 Wi-Fi 配网
+3. 已联网后进入 `EnterpriseQrScanActivity`，复用共享帧流识别企业二维码
+4. 成功后解析企业信息并写入 `InspectionWorkflowSession`
 5. 这些上下文影响后续巡检与上报参数
 
 ### 4. Local Save And Finish Submission

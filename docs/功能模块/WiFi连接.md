@@ -37,20 +37,20 @@
 
 ## 3. 用户旅程 / 主流程
 
-1. `InspectionLoadingActivity` 在企业巡检开启且当前未连 Wi-Fi 时跳转到 `WifiQrScanActivity`。
-2. 页面启动扫描循环，持续从共享帧流读取二维码。
-3. 识别到合法 Wi-Fi 二维码后，停止扫描并解析 SSID、密码和安全类型。
-4. 页面优先尝试系统配网入口；系统入口不可用时回退到 `WifiNetworkSpecifier`。
-5. 配网结果返回后，页面轮询当前 SSID，确认是否真的连上目标网络。
-6. 连接成功后，页面写入在线模式并展示成功态。
-7. 页面根据 `EXTRA_NEXT_AFTER_SUCCESS` 跳转到后续页；当前正式主链通常进入 `EnterpriseQrScanActivity`。
-8. 若二维码无效、权限缺失或连接失败，页面提示失败并允许重新扫描或退出。
+1. `InspectionLoadingActivity` 在企业巡检开启且当前未连 Wi-Fi 时跳转到 `WifiQrScanActivity`，并拉起 Rokid 自带扫码 SDK。
+2. Rokid 扫码 SDK 返回二维码内容后，页面解析 SSID、密码和安全类型。
+3. 页面优先尝试系统配网入口；系统入口不可用时回退到 `WifiNetworkSpecifier`。
+4. 配网结果返回后，页面轮询当前 SSID，确认是否真的连上目标网络。
+5. 连接成功后，页面写入在线模式并展示成功态。
+6. 页面根据 `EXTRA_NEXT_AFTER_SUCCESS` 跳转到后续页；当前正式主链通常进入 `EnterpriseQrScanActivity`。
+7. 若二维码无效或连接失败，页面提示失败并允许重新扫码或退出。
 
 ## 4. 页面与状态总览
 
 | 页面 | 状态 | 进入条件 | 退出条件 | 备注 |
 | --- | --- | --- | --- | --- |
-| `WifiQrScanActivity` | `SCANNING` | 页面创建或失败重试 | 识别到合法二维码 / 用户退出 | 默认扫描态 |
+| `WifiQrScanActivity` | `READY_TO_SCAN` | 页面创建或失败重试 | 拉起 Rokid 扫码 SDK / 用户退出 | 默认待扫码态 |
+| `WifiQrScanActivity` | `WAITING_SCAN_RESULT` | 已拉起 Rokid 扫码 SDK | SDK 返回二维码 / 用户取消 | 等待 Rokid 扫码结果 |
 | `WifiQrScanActivity` | `WAITING_SYSTEM_RESULT` | 已唤起系统配网入口 | 系统返回 / 用户取消 | 等待系统结果 |
 | `WifiQrScanActivity` | `VERIFYING_CONNECTION` | 系统返回或发起回退配网 | 验证成功 / 超时失败 | 轮询 SSID |
 | `WifiQrScanActivity` | `CONNECTING_WITH_SPECIFIER` | 回退到 `WifiNetworkSpecifier` | 网络回调 / 超时失败 | 回退链路 |
@@ -62,7 +62,7 @@
 
 ### 页面职责
 
-- 持续读取扫描帧并识别 Wi-Fi 二维码。
+- 拉起 Rokid 自带扫码 SDK 获取 Wi-Fi 二维码内容。
 - 触发系统配网或回退配网流程。
 - 校验目标 SSID 是否已接入。
 - 成功后设置在线模式并跳转下一页。
@@ -82,7 +82,8 @@
 
 ### 页面状态
 
-- `SCANNING`
+- `READY_TO_SCAN`
+- `WAITING_SCAN_RESULT`
 - `WAITING_SYSTEM_RESULT`
 - `VERIFYING_CONNECTION`
 - `CONNECTING_WITH_SPECIFIER`
@@ -90,14 +91,13 @@
 
 ### 关键 UI 元素
 
-- 相机预览和扫码框。
+- Rokid 扫码返回前使用当前扫码页布局承载状态提示。
 - 扫描提示文案。
 - 结果图标与结果态提示卡。
 - 状态栏。
 
 ### 可见性约束
 
-- `debug_snapshot=true` 时不执行真实扫描，只渲染静态态用于截图。
 - 结果态会隐藏扫码框、扫描提示和底部提示。
 - 失败结果态显示 `tvErrorDetail`，成功态隐藏该区域。
 
@@ -107,7 +107,7 @@
 
 ![WifiQrScan scanning](screenshots/WiFi连接/01_wifi_qr_scan_scanning.png)
 
-- 对应状态：`SCANNING`
+- 对应状态：`WAITING_SCAN_RESULT`
 - 采集方式：真机关闭 Wi-Fi 后从应用启动链路进入 `WifiQrScanActivity`
 - 采集设备：`RG_glasses` 真机
 
@@ -123,16 +123,16 @@
 
 | 动作 | 触发器 | 生效状态 | 注册位置 | 结果 |
 | --- | --- | --- | --- | --- |
-| `Confirm` | 单击 | `SCANNING`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.buildInputActions()` | 扫描态重启扫描；成功态进入后续页 |
+| `Confirm` | 单击 | `READY_TO_SCAN`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.buildInputActions()` | 待扫码态拉起 Rokid 扫码；失败结果态重新扫码；成功态进入后续页 |
 | `Cancel` | 返回、双击 | 全状态 | `WifiQrScanActivity.buildInputActions()` | 直接退出应用任务 |
 
 ### 语音指令
 
 | 文本 | 拼音 | 动作 | 生效状态 | 注册位置 |
 | --- | --- | --- | --- | --- |
-| `确认` | `que ren` | `Confirm` | `SCANNING`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.voiceTrigger()` |
-| `确定` | `que ding` | `Confirm` | `SCANNING`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.voiceTrigger()` |
-| `继续` | `ji xu` | `Confirm` | `SCANNING`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.voiceTrigger()` |
+| `确认` | `que ren` | `Confirm` | `READY_TO_SCAN`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.voiceTrigger()` |
+| `确定` | `que ding` | `Confirm` | `READY_TO_SCAN`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.voiceTrigger()` |
+| `继续` | `ji xu` | `Confirm` | `READY_TO_SCAN`、`SHOWING_RESULT/SUCCESS` | `WifiQrScanActivity.voiceTrigger()` |
 | `返回` | `fan hui` | `Cancel` | 全状态 | `WifiQrScanActivity.voiceTrigger()` |
 | `取消` | `qu xiao` | `Cancel` | 全状态 | `WifiQrScanActivity.voiceTrigger()` |
 
@@ -147,8 +147,7 @@
 | --- | --- | --- | --- |
 | `InspectionLoadingActivity` | 企业巡检开启且未连接 Wi-Fi | `WifiQrScanActivity` | 无 |
 | `WifiQrScanActivity` | 合法二维码 + 连接成功 | `EXTRA_NEXT_AFTER_SUCCESS` 指定页 | 当前正式主链为 `EnterpriseQrScanActivity` |
-| `WifiQrScanActivity` | 二维码无效 | 留在 `WifiQrScanActivity` | 冷却后恢复扫描 |
-| `WifiQrScanActivity` | 权限被拒绝 | 留在 `WifiQrScanActivity` | 提示权限不足 |
+| `WifiQrScanActivity` | 二维码无效 | 留在 `WifiQrScanActivity` | 进入失败结果态，确认后重试 |
 | `WifiQrScanActivity` | 连接验证失败 | 留在 `WifiQrScanActivity` | 进入失败结果态，确认后重试 |
 | `WifiQrScanActivity` | 返回 / 取消 | 退出任务 | 无 |
 
@@ -156,26 +155,27 @@
 
 ## 链路 A：Wi-Fi 二维码解析
 
-- 接口用途：从当前帧中解析 Wi-Fi SSID、密码和安全类型。
-- 触发时机：扫描态定时从 `RokidFrameSource.copyLatestScanFrame()` 读取帧后执行。
+- 接口用途：从 Rokid 扫码 SDK 返回的原始文本中解析 Wi-Fi SSID、密码和安全类型。
+- 触发时机：Rokid 扫码 SDK 返回扫码结果后执行。
 - 调用入口代码：
-  - `WifiQrScanActivity.scanRunnable`
-  - `BarcodeScanning.getClient(...)`
+  - `WifiQrScanActivity.launchRokidScanner()`
+  - `GlassScanner.launch(...)`
   - `WifiQrParser`
-- 请求来源数据：共享扫描帧 `NV21` 图像。
+- 请求来源数据：Rokid 扫码 SDK 回传的二维码原文。
 - 关键输入字段：
   - 二维码原始文本。
   - Wi-Fi 安全类型。
   - SSID / password。
 - 成功后的页面 / 会话更新：
-  - 页面停止扫描并进入配网链路。
+  - 页面进入配网链路。
   - 记录 `pendingPayload`。
 - 失败后的降级、回退、提示：
-  - 非法二维码进入冷却窗口后恢复扫描。
-  - 不支持的安全类型提示失败并恢复扫描。
+  - 非法二维码进入失败结果态，可重新扫码。
+  - 不支持的安全类型提示失败并重新扫码。
 - 日志锚点：
-  - `scan failed`
-  - `reset to scanning`
+  - `launch Rokid scanner`
+  - `scan success raw=`
+  - `scan failure error=`
 - 这些锚点及二维码解析、非法二维码、不支持安全类型会同步进入 `AppFileLogger` 文件日志；拉取方式见 `docs/公共能力/日志系统.md`。
 
 ## 链路 B：系统配网与连接验证
@@ -183,7 +183,7 @@
 - 接口用途：把解析出的 Wi-Fi 信息交给系统并确认最终连接成功。
 - 触发时机：二维码解析成功后立即执行。
 - 调用入口代码：
-  - `WifiQrScanActivity.handleScanResult(...)`
+  - `WifiQrScanActivity.handleRawScanResult(...)`
   - `addNetworksLauncher`
   - `startVerification(...)`
   - `handleConnectionVerified(...)`
@@ -224,7 +224,7 @@
   - `activeStrategyName`
   - `resultWasSuccess`
 - 配置来源：
-  - `InspectionLoadingActivity.EXTRA_NEXT_AFTER_SUCCESS`
+  - `WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS`
   - `SystemStateUtils.getCurrentWifiSsid(...)`
 
 ## 10. 代码真相源
@@ -246,22 +246,18 @@
 
 ## 11. 异常与降级分支
 
-- 权限拒绝：
-  - 页面停留当前页。
-  - 提示权限不足。
-  - 开发重点检查 `onRequestPermissionsResult()` 和系统权限弹窗。
 - 非法二维码：
-  - 页面显示无效提示后恢复扫描。
-  - 开发重点检查 `WifiQrParser` 返回值和冷却时间。
+  - 页面进入失败结果态后允许重新扫码。
+  - 开发重点检查 `WifiQrParser` 返回值和 Rokid 扫码返回内容。
 - 系统配网入口不可用：
   - 回退到 `WifiNetworkSpecifier`。
   - 开发重点检查私有入口列表和系统版本差异。
 - 连接验证超时：
   - 页面进入失败结果态。
   - 开发重点检查当前 SSID 和 `VERIFY_TIMEOUT_MS`。
-- 相机或扫描帧不可用：
-  - 页面无法继续扫描。
-  - 开发重点检查 `RokidFrameSource` 和相机恢复日志。
+- Rokid 扫码 SDK 失败或用户取消：
+  - 页面进入失败/取消收口，可重新扫码或退出。
+  - 开发重点检查 `GlassScanner.launch(...)` 回调与系统扫码页返回。
 
 ## 12. 开发检查清单
 
@@ -269,5 +265,5 @@
 - [ ] 成功连接后调用了 `InspectionWorkflowSession.updateMode(connected = true)`
 - [ ] `EXTRA_NEXT_AFTER_SUCCESS` 在正式主链下指向 `EnterpriseQrScanActivity`
 - [ ] `Confirm` / `Cancel` 触发器与 `UnifiedInputSession` 注册一致
-- [ ] 非法二维码、权限拒绝、连接超时都能留在当前页并给出可恢复反馈
+- [ ] 非法二维码、扫码取消、连接超时都能留在当前页并给出可恢复反馈
 - [ ] 真机截图覆盖扫描态和成功结果态
