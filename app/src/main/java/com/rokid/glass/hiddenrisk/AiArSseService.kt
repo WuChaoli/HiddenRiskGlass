@@ -411,10 +411,6 @@ class AiArSseService(
                             "openStream firstEvent lane=$lane taskId=${payload.task_id} uploadToFirstEventMs=${firstEventElapsedMs - requestStartedElapsedMs} id=${id ?: "(none)"} type=${type ?: "(none)"} dataChars=${normalizedData.length}",
                         )
                     }
-                    AppFileLogger.i(
-                        TAG,
-                        "openStream eventData lane=$lane taskId=${payload.task_id} id=${id ?: "(none)"} type=${type ?: "(none)"} data=${summarizeSseLogText(normalizedData)}",
-                    )
                     runCatching {
                         aggregator.append(normalizedData)
                         aggregator.fullText()
