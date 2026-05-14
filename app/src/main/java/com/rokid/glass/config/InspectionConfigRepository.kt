@@ -209,6 +209,7 @@ object InspectionConfigRepository {
             aiGeneralApi = merge(base.aiGeneralApi, override?.aiGeneralApi),
             aiGeneralDeepApi = merge(base.aiGeneralDeepApi, override?.aiGeneralDeepApi),
             aiDeviceApi = merge(base.aiDeviceApi, override?.aiDeviceApi),
+            aiSuggestionChecksApi = merge(base.aiSuggestionChecksApi, override?.aiSuggestionChecksApi),
             saveResultApi = merge(base.saveResultApi, override?.saveResultApi),
             mayHazardVerifyApi = merge(base.mayHazardVerifyApi, override?.mayHazardVerifyApi),
         )

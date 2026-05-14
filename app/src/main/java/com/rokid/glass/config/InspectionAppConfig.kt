@@ -81,6 +81,10 @@ data class NetworkConfig(
         url = "http://183.147.142.133:10010/ai/device",
         detectTimeoutMs = 3_000L,
     ),
+    val aiSuggestionChecksApi: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10010/ai/sug_checks",
+        detectTimeoutMs = 3_000L,
+    ),
     val saveResultApi: SaveResultApiConfig = SaveResultApiConfig(),
     val mayHazardVerifyApi: MayHazardVerifyApiConfig = MayHazardVerifyApiConfig(),
 )
@@ -203,6 +207,7 @@ data class NetworkConfigOverride(
     val aiGeneralApi: AiArApiConfigOverride? = null,
     val aiGeneralDeepApi: AiArApiConfigOverride? = null,
     val aiDeviceApi: AiArApiConfigOverride? = null,
+    val aiSuggestionChecksApi: AiArApiConfigOverride? = null,
     val saveResultApi: SaveResultApiConfigOverride? = null,
     val mayHazardVerifyApi: MayHazardVerifyApiConfigOverride? = null,
 )

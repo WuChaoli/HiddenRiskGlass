@@ -430,6 +430,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var activeHazardContent: ResolvedHazardContent? = null
     private var localResultStage = LocalResultStage.NONE
     private var localSaveSubmitting = false
+    private var localSaveRequestPending = false
+    private var suggestionChecksRequestPending = false
     private var localHazardAlertTtsPlayed = false
     private var pendingHazardAlertTtsPlayed = false
     private var localHazardAdviceTtsPlayed = false
@@ -462,6 +464,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // 手动分析流相关
     private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
+    private var currentSuggestionChecksHandle: AiArSseService.RequestHandle? = null
     private var debugSnapshotState: String? = null
 
     private val cameraRecoveryController by lazy {
@@ -871,6 +874,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         manualDeepAnalysisInProgress = false
         localHazardUploadHandle?.cancel()
         localHazardUploadHandle = null
+        currentSuggestionChecksHandle?.cancel()
+        currentSuggestionChecksHandle = null
         uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         cancelSimulatedStreamRendering()
         OfflineTtsPlayer.release(TAG)
@@ -1152,6 +1157,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun returnToDetecting() {
         localHazardUploadHandle?.cancel()
         localHazardUploadHandle = null
+        currentSuggestionChecksHandle?.cancel()
+        currentSuggestionChecksHandle = null
+        localSaveRequestPending = false
+        suggestionChecksRequestPending = false
+        localSaveSubmitting = false
         uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
@@ -1174,6 +1184,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun returnDirectlyToHome() {
         localHazardUploadHandle?.cancel()
         localHazardUploadHandle = null
+        currentSuggestionChecksHandle?.cancel()
+        currentSuggestionChecksHandle = null
+        localSaveRequestPending = false
+        suggestionChecksRequestPending = false
+        localSaveSubmitting = false
         uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
@@ -2587,7 +2602,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun startSimulatedStreamRendering(fullText: String) {
+    private fun startSimulatedStreamRendering(
+        fullText: String,
+        targetStage: LocalResultStage = LocalResultStage.DESCRIPTION,
+    ) {
         cancelSimulatedStreamRendering()
         val requestId = ++simulatedStreamRequestId
         val chunks = SimulatedStreamTextChunker.prefixChunks(
@@ -2601,7 +2619,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     destroyed ||
                     requestId != simulatedStreamRequestId ||
                     pageState != PageState.STREAM_RESPONSE ||
-                    localResultStage != LocalResultStage.DESCRIPTION
+                    localResultStage != targetStage
                 ) {
                     return
                 }
@@ -2614,7 +2632,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 simulatedStreamRunnable = null
                 streamingInProgress = false
                 streamCallbackActive = false
-                renderLocalDescriptionPrompt()
+                when (targetStage) {
+                    LocalResultStage.DESCRIPTION -> renderLocalDescriptionPrompt()
+                    LocalResultStage.ADVICE -> renderLocalAdvicePrompt()
+                    LocalResultStage.NONE -> hideActionPrompts()
+                }
                 refreshInputActions()
             }
         }
@@ -3551,6 +3573,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             AppFileLogger.w(TAG, "local hazard submit skipped because active content is null")
             return
         }
+        val hazardCode = hazardContent.primaryHazard()?.hidNum?.trim().orEmpty()
+        if (hazardCode.isBlank()) {
+            AppFileLogger.w(TAG, "sug_checks skipped because primary hazard code is blank")
+            returnToDetecting()
+            return
+        }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         val jpegBytes = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
         val uploadItems = buildLocalHazardUploadItems(hazardContent)
@@ -3567,60 +3595,144 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         AppFileLogger.i(
             TAG,
-            "local hazard submit prepare source=${hazardContent.source} title=${hazardContent.displayTitle} jpegBytes=${jpegBytes?.size ?: 0} uploadItems=${uploadItems.size} failure=${failureMessage ?: "none"}",
-        )
-        if (failureMessage != null) {
-            showLocalSaveError(failureMessage)
-            return
-        }
-
-        val recordKey = buildLocalHazardAutoSaveTaskKey(hazardContent)
-        InspectionWorkflowSession.recordSavedHazardAttempt(
-            recordKey = recordKey,
-            jpegBytes = jpegBytes,
-            hazardItems = buildSavedHazardRecordItems(hazardContent),
-            saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
+            "local hazard submit prepare source=${hazardContent.source} title=${hazardContent.displayTitle} hazardCode=$hazardCode jpegBytes=${jpegBytes?.size ?: 0} uploadItems=${uploadItems.size} failure=${failureMessage ?: "none"}",
         )
         localSaveSubmitting = true
+        localSaveRequestPending = false
+        suggestionChecksRequestPending = true
         refreshInputActions()
-        localHazardUploadHandle?.cancel()
-        localHazardUploadHandle = localHazardPushService.pushLocalHazard(
-            baseUrl = enterprisePayload!!.apiBaseUrl,
-            authCode = enterprisePayload.authCode,
-            objectId = enterprisePayload.objectId,
-            userId = enterprisePayload.userId,
-            customParam = enterprisePayload.extraField,
-            jpegBytes = jpegBytes!!,
-            hidDanger = uploadItems,
-            callback = object : LocalHazardPushService.Callback {
-                override fun onSuccess() {
-                    if (destroyed) return
+
+        if (failureMessage != null) {
+            AppFileLogger.e(TAG, "local hazard submit skipped before sug_checks message=$failureMessage")
+        } else {
+            val recordKey = buildLocalHazardAutoSaveTaskKey(hazardContent)
+            InspectionWorkflowSession.recordSavedHazardAttempt(
+                recordKey = recordKey,
+                jpegBytes = jpegBytes,
+                hazardItems = buildSavedHazardRecordItems(hazardContent),
+                saveOutcome = InspectionWorkflowSession.SaveOutcome.PENDING,
+            )
+            localSaveRequestPending = true
+            localHazardUploadHandle?.cancel()
+            localHazardUploadHandle = localHazardPushService.pushLocalHazard(
+                baseUrl = enterprisePayload!!.apiBaseUrl,
+                authCode = enterprisePayload.authCode,
+                objectId = enterprisePayload.objectId,
+                userId = enterprisePayload.userId,
+                customParam = enterprisePayload.extraField,
+                jpegBytes = jpegBytes!!,
+                hidDanger = uploadItems,
+                callback = object : LocalHazardPushService.Callback {
+                    override fun onSuccess() {
+                        if (destroyed) return
+                        AppFileLogger.i(
+                            TAG,
+                            "local hazard submit success source=${hazardContent.source} stage=$localResultStage title=${hazardContent.displayTitle}",
+                        )
+                        localHazardUploadHandle = null
+                        localSaveRequestPending = false
+                        InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                            recordKey = recordKey,
+                            saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
+                        )
+                        pendingUploadSuccessToast = true
+                        finishAdviceSubmitIfIdle()
+                    }
+
+                    override fun onFailure(message: String) {
+                        if (destroyed) return
+                        AppFileLogger.e(TAG, "local hazard submit failure message=$message")
+                        localHazardUploadHandle = null
+                        localSaveRequestPending = false
+                        InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
+                            recordKey = recordKey,
+                            saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
+                        )
+                        finishAdviceSubmitIfIdle()
+                    }
+                },
+            )
+        }
+
+        requestSuggestionChecksAdvice(hazardContent, hazardCode)
+    }
+
+    private fun finishAdviceSubmitIfIdle() {
+        if (!localSaveRequestPending && !suggestionChecksRequestPending) {
+            localSaveSubmitting = false
+            refreshInputActions()
+        }
+    }
+
+    private fun requestSuggestionChecksAdvice(
+        hazardContent: ResolvedHazardContent,
+        hazardCode: String,
+    ) {
+        currentSuggestionChecksHandle?.cancel()
+        currentSuggestionChecksHandle = aiArSseService.fetchSuggestionChecks(
+            hazardCode = hazardCode,
+            callback = object : AiArSseService.SuggestionChecksCallback {
+                override fun onSuccess(handle: AiArSseService.RequestHandle, content: String) {
+                    if (destroyed || currentSuggestionChecksHandle != handle) return
                     AppFileLogger.i(
                         TAG,
-                        "local hazard submit success source=${hazardContent.source} stage=$localResultStage title=${hazardContent.displayTitle}",
+                        "sug_checks advice success taskId=${handle.taskId} hazardCode=$hazardCode contentLength=${content.length}",
                     )
-                    localHazardUploadHandle = null
-                    localSaveSubmitting = false
-                    InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
-                        recordKey = recordKey,
-                        saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
-                    )
-                    pendingUploadSuccessToast = true
-                    advanceToLocalHazardAdvice()
-                    refreshInputActions()
+                    currentSuggestionChecksHandle = null
+                    suggestionChecksRequestPending = false
+                    showSuggestionChecksAdvice(hazardContent, content)
+                    finishAdviceSubmitIfIdle()
                 }
 
-                override fun onFailure(message: String) {
-                    if (destroyed) return
-                    AppFileLogger.e(TAG, "local hazard submit failure message=$message")
-                    localHazardUploadHandle = null
-                    InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
-                        recordKey = recordKey,
-                        saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
+                override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
+                    if (destroyed || currentSuggestionChecksHandle != handle) return
+                    AppFileLogger.e(
+                        TAG,
+                        "sug_checks advice failure taskId=${handle.taskId} hazardCode=$hazardCode message=$message",
                     )
-                    showLocalSaveError(message)
+                    currentSuggestionChecksHandle = null
+                    suggestionChecksRequestPending = false
+                    returnToDetecting()
+                    finishAdviceSubmitIfIdle()
                 }
             },
+        )
+    }
+
+    private fun showSuggestionChecksAdvice(
+        hazardContent: ResolvedHazardContent,
+        adviceText: String,
+    ) {
+        if (pageState != PageState.STREAM_RESPONSE || localResultStage != LocalResultStage.DESCRIPTION) {
+            AppFileLogger.w(TAG, "sug_checks advice ignored because pageState=$pageState stage=$localResultStage")
+            return
+        }
+        localResultStage = LocalResultStage.ADVICE
+        streamPanelAnchoredBelowPreview = true
+        streamingInProgress = true
+        streamCallbackActive = true
+        pendingStreamStart = false
+        setStreamContentAndResetViewport("")
+        if (!localHazardAdviceTtsPlayed) {
+            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
+                context = this,
+                ownerTag = TAG,
+                audioResId = R.raw.hazard_advice_intro,
+            )
+        }
+        val descriptionText = hazardContent.displayDescription()
+        lastAnalysisText = listOf(descriptionText, adviceText)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString("\n\n")
+        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        renderLocalAdvicePrompt()
+        hideActionPrompts()
+        updateFunctionMenuVisibility()
+        refreshInputActions()
+        startSimulatedStreamRendering(
+            fullText = adviceText,
+            targetStage = LocalResultStage.ADVICE,
         )
     }
 

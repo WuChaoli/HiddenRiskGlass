@@ -147,6 +147,14 @@
       "writeTimeoutMs": 30000,
       "detectTimeoutMs": 3000
     },
+    "aiSuggestionChecksApi": {
+      // 隐患整改建议接口地址。
+      "url": "http://183.147.142.133:10010/ai/sug_checks",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 3000
+    },
     "saveResultApi": {
       // 保存类接口 connect timeout，单位 ms。
       "connectTimeoutMs": 30000,

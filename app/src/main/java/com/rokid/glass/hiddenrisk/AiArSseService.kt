@@ -36,6 +36,7 @@ class AiArSseService(
     private val generalDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralApi,
     private val generalDeepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralDeepApi,
     private val deviceGuideConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeviceApi,
+    private val suggestionChecksConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiSuggestionChecksApi,
     private val client: OkHttpClient = createDefaultClient(
         InspectionConfigRepository.get().network.aiAutoApi,
     ),
@@ -51,6 +52,11 @@ class AiArSseService(
     interface DetailCallback {
         fun onOpened(handle: RequestHandle)
         fun onSuccess(handle: RequestHandle, fullText: String)
+        fun onFailure(handle: RequestHandle, message: String)
+    }
+
+    interface SuggestionChecksCallback {
+        fun onSuccess(handle: RequestHandle, content: String)
         fun onFailure(handle: RequestHandle, message: String)
     }
 
@@ -331,6 +337,97 @@ class AiArSseService(
             },
             aggregator = aggregator,
         )
+        return handle
+    }
+
+    fun fetchSuggestionChecks(
+        hazardCode: String,
+        callback: SuggestionChecksCallback,
+    ): RequestHandle {
+        val taskId = System.currentTimeMillis().toString()
+        val handle = RequestHandle(taskId = taskId)
+        val requestStartedElapsedMs = SystemClock.elapsedRealtime()
+        val jsonBodyString = SuggestionChecksProtocol.buildRequestBodyJson(
+            gson = gson,
+            taskId = taskId,
+            hazardCode = hazardCode,
+        )
+        val requestBody = jsonBodyString.toRequestBody(JSON_MEDIA_TYPE)
+        val request = Request.Builder()
+            .url(suggestionChecksConfig.url)
+            .tag(RequestTimingTag::class.java, RequestTimingTag(taskId, "sug_checks", requestStartedElapsedMs))
+            .post(requestBody)
+            .build()
+        AppFileLogger.i(
+            TAG,
+            "sug_checks request taskId=$taskId hazardCode=$hazardCode endpoint=${suggestionChecksConfig.url}",
+        )
+        val call = client.newCall(request)
+        call.enqueue(object : okhttp3.Callback {
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                val responseElapsedMs = SystemClock.elapsedRealtime()
+                AppFileLogger.i(
+                    TAG,
+                    "sug_checks response taskId=$taskId httpCode=${response.code} elapsedMs=${responseElapsedMs - requestStartedElapsedMs}",
+                )
+                if (handle.isCanceled()) {
+                    return
+                }
+                if (!response.isSuccessful) {
+                    val bodySnippet = runCatching {
+                        response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
+                            .replace(Regex("\\s+"), " ").trim()
+                            .take(MAX_ERROR_BODY_LOG_CHARS)
+                    }.getOrDefault("")
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onFailure(handle, "HTTP ${response.code} | ${response.message} | body=$bodySnippet")
+                        }
+                    }
+                    return
+                }
+                val body = runCatching { response.body?.string().orEmpty() }.getOrDefault("")
+                if (body.isBlank()) {
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onFailure(handle, "sug_checks 返回空响应")
+                        }
+                    }
+                    return
+                }
+                runCatching {
+                    SuggestionChecksProtocol.parseContent(body, gson)
+                }.onSuccess { content ->
+                    AppFileLogger.i(TAG, "sug_checks success taskId=$taskId contentLength=${content.length}")
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onSuccess(handle, content)
+                        }
+                    }
+                }.onFailure { error ->
+                    AppFileLogger.e(TAG, "sug_checks parse failed taskId=$taskId body=${body.take(256)}", error)
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onFailure(handle, error.message ?: "sug_checks 响应解析失败")
+                        }
+                    }
+                }
+            }
+
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                AppFileLogger.e(
+                    TAG,
+                    "sug_checks network failed taskId=$taskId error=${e.javaClass.simpleName}:${e.message}",
+                    e,
+                )
+                mainHandler.post {
+                    if (!handle.isCanceled()) {
+                        callback.onFailure(handle, e.message ?: "sug_checks 网络请求失败")
+                    }
+                }
+            }
+        })
+        handle.bind(call)
         return handle
     }
 
