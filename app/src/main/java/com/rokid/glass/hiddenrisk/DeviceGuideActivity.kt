@@ -439,6 +439,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                                 handle: AiArSseService.RequestHandle,
                                 hasHazard: Boolean,
                                 fullText: String,
+                                labels: List<String>,
                             ) {
                                 if (activeDetectHandle != handle) return
                                 activeDetectHandle = null
