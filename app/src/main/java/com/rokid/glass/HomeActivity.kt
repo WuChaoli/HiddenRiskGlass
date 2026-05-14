@@ -21,6 +21,7 @@ class InspectionModeActivity : BaseGlassActivity() {
     private lateinit var itemLightshot: FrameLayout
     private lateinit var itemQrScan: FrameLayout
     private lateinit var itemUnifiedInputDebug: FrameLayout
+    private lateinit var itemRokidWifiDebug: FrameLayout
     private lateinit var tvBottomHint: TextView
 
     private lateinit var items: List<FrameLayout>
@@ -36,6 +37,7 @@ class InspectionModeActivity : BaseGlassActivity() {
         itemLightshot = findViewById(R.id.itemLightshot)
         itemQrScan = findViewById(R.id.itemQrScan)
         itemUnifiedInputDebug = findViewById(R.id.itemUnifiedInputDebug)
+        itemRokidWifiDebug = findViewById(R.id.itemRokidWifiDebug)
         tvBottomHint = findViewById(R.id.tvBottomHint)
         items = listOf(
             itemAiInspection,
@@ -43,6 +45,7 @@ class InspectionModeActivity : BaseGlassActivity() {
             itemLightshot,
             itemQrScan,
             itemUnifiedInputDebug,
+            itemRokidWifiDebug,
         )
         updateSelection()
     }
@@ -144,6 +147,15 @@ class InspectionModeActivity : BaseGlassActivity() {
                 onItemConfirmed(4)
             },
             UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("inspection_mode_rokid_wifi_debug"),
+                label = "Rokid扫码配网调试",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Voice("Rokid扫码配网调试", "rokid sao ma pei wang tiao shi"),
+                ),
+            ) {
+                onItemConfirmed(5)
+            },
+            UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Exit,
                 label = "退出",
                 triggers = listOf(
@@ -182,6 +194,12 @@ class InspectionModeActivity : BaseGlassActivity() {
             })
             3 -> startActivity(Intent(this, WifiQrScanActivity::class.java))
             4 -> startActivity(Intent(this, UnifiedInputDebugActivity::class.java))
+            5 -> startActivity(Intent(this, WifiQrScanActivity::class.java).apply {
+                putExtra(
+                    WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS,
+                    EnterpriseQrScanActivity::class.java.name,
+                )
+            })
         }
     }
 

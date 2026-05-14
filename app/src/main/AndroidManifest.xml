@@ -95,7 +95,7 @@
             android:exported="false" />
         <activity
             android:name="com.rokid.glass.WifiQrScanActivity"
-            android:exported="false"
+            android:exported="true"
             android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.EnterpriseQrScanActivity"

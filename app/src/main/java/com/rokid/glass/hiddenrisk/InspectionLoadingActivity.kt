@@ -54,6 +54,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         private const val COMPLETE_HOLD_DELAY_MS = 400L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
         const val EXTRA_NEXT_HOME_ACTIVITY = "next_home_activity"
+        const val EXTRA_FORCE_LOADING_FLOW = "force_loading_flow"
     }
 
     // 加载阶段枚举
@@ -99,6 +100,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var subtitleFrame = 0
     private var subtitleAnimating = false
     private var batteryReceiver: BroadcastReceiver? = null
+    private var loadingViewsInitialized = false
     private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
@@ -166,6 +168,16 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (shouldRouteToWifiBeforeLoading()) {
+            startActivity(Intent(this, WifiQrScanActivity::class.java).apply {
+                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, InspectionLoadingActivity::class.java.name)
+                intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)?.let { putExtra(EXTRA_NEXT_HOME_ACTIVITY, it) }
+            })
+            finish()
+            return
+        }
+
         setContentView(R.layout.activity_inspection_loading)
 
         initViews()
@@ -226,7 +238,9 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         activityDestroyed = true
         inputSession.release()
         super.onDestroy()
-        stopLoadingUi()
+        if (loadingViewsInitialized) {
+            stopLoadingUi()
+        }
         RokidSdkManager.removeListener(this)
         modelLoadExecutor.shutdownNow()
         InspectionCameraCoordinator.pause(CameraOwner.LOADING, reason = "loading_on_destroy")
@@ -332,6 +346,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         statusBar = findViewById(R.id.statusBar)
         updateCurrentTime()
         updateBatteryLevel()
+        loadingViewsInitialized = true
     }
 
     private fun startStatusBarUpdates() {
@@ -414,6 +429,16 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             animateProgressTo(30)
             startCameraInit()
         }
+    }
+
+    private fun shouldRouteToWifiBeforeLoading(): Boolean {
+        if (intent.getBooleanExtra(EXTRA_FORCE_LOADING_FLOW, false)) {
+            return false
+        }
+        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+            return false
+        }
+        return SystemStateUtils.getCurrentWifiSsid(this) == null
     }
 
     private fun startCameraInit() {
@@ -576,7 +601,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             Intent(this, EnterpriseQrScanActivity::class.java)
         } else {
             Intent(this, WifiQrScanActivity::class.java).apply {
-                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, EnterpriseQrScanActivity::class.java.name)
+                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, InspectionLoadingActivity::class.java.name)
+                putExtra(EXTRA_FORCE_LOADING_FLOW, true)
             }
         }
         // 企业/Wi-Fi 扫码页复用加载页已预热的共享帧流，进入后只检测是否可用。
