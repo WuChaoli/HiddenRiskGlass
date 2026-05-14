@@ -167,7 +167,6 @@ object InspectionConfigRepository {
             gpuProfile = override?.gpuProfile ?: base.gpuProfile,
             targetInputSize = override?.targetInputSize ?: base.targetInputSize,
             enableHitCaptureSave = override?.enableHitCaptureSave ?: base.enableHitCaptureSave,
-            enableOnlineAdvicePage = override?.enableOnlineAdvicePage ?: base.enableOnlineAdvicePage,
             staleFrameThresholdMs =
                 override?.staleFrameThresholdMs ?: base.staleFrameThresholdMs,
             sharedFrameMotionClearThresholdMs =

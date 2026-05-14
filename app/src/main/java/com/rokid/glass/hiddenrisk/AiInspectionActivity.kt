@@ -112,9 +112,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private val ENABLE_HIT_CAPTURE_SAVE: Boolean
             get() = InspectionConfigRepository.get().aiInspection.enableHitCaptureSave
 
-        private val ENABLE_ONLINE_ADVICE_PAGE: Boolean
-            get() = InspectionConfigRepository.get().aiInspection.enableOnlineAdvicePage
-
         private val STALE_FRAME_THRESHOLD_MS: Long
             get() = InspectionConfigRepository.get().aiInspection.staleFrameThresholdMs
 
@@ -432,6 +429,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var localSaveSubmitting = false
     private var localSaveRequestPending = false
     private var suggestionChecksRequestPending = false
+    private var returnToDetectingWhenSubmitIdle = false
     private var localHazardAlertTtsPlayed = false
     private var pendingHazardAlertTtsPlayed = false
     private var localHazardAdviceTtsPlayed = false
@@ -1161,6 +1159,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentSuggestionChecksHandle = null
         localSaveRequestPending = false
         suggestionChecksRequestPending = false
+        returnToDetectingWhenSubmitIdle = false
         localSaveSubmitting = false
         uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
@@ -1188,6 +1187,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentSuggestionChecksHandle = null
         localSaveRequestPending = false
         suggestionChecksRequestPending = false
+        returnToDetectingWhenSubmitIdle = false
         localSaveSubmitting = false
         uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
@@ -3574,11 +3574,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val hazardCode = hazardContent.primaryHazard()?.hidNum?.trim().orEmpty()
-        if (hazardCode.isBlank()) {
-            AppFileLogger.w(TAG, "sug_checks skipped because primary hazard code is blank")
-            returnToDetecting()
-            return
-        }
+        val shouldRequestSuggestionChecks = hazardCode.isNotBlank()
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         val jpegBytes = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
         val uploadItems = buildLocalHazardUploadItems(hazardContent)
@@ -3599,7 +3595,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         localSaveSubmitting = true
         localSaveRequestPending = false
-        suggestionChecksRequestPending = true
+        suggestionChecksRequestPending = shouldRequestSuggestionChecks
+        returnToDetectingWhenSubmitIdle = !shouldRequestSuggestionChecks
         refreshInputActions()
 
         if (failureMessage != null) {
@@ -3654,11 +3651,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
         }
 
-        requestSuggestionChecksAdvice(hazardContent, hazardCode)
+        if (shouldRequestSuggestionChecks) {
+            requestSuggestionChecksAdvice(hazardContent, hazardCode)
+        } else {
+            AppFileLogger.w(TAG, "sug_checks skipped because primary hazard code is blank")
+            finishAdviceSubmitIfIdle()
+        }
     }
 
     private fun finishAdviceSubmitIfIdle() {
         if (!localSaveRequestPending && !suggestionChecksRequestPending) {
+            if (returnToDetectingWhenSubmitIdle) {
+                returnToDetectingWhenSubmitIdle = false
+                returnToDetecting()
+                return
+            }
             localSaveSubmitting = false
             refreshInputActions()
         }
@@ -3736,39 +3743,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    private fun advanceToLocalHazardAdvice() {
-        val hazardContent = activeHazardContent ?: run {
-            Log.w(TAG, "advance advice skipped because active content is null")
-            return
-        }
-        Log.i(
-            TAG,
-            "advance advice start source=${hazardContent.source} stage=$localResultStage onlineAdviceEnabled=$ENABLE_ONLINE_ADVICE_PAGE noHazard=${hazardContent.isOnlineNoHazardResult()} displayAdviceBlank=${hazardContent.displayAdvice().isBlank()}",
-        )
-        if (hazardContent.isOnlineNoHazardResult()) {
-            Log.i(TAG, "advance advice returning detecting because online result is no hazard")
-            returnToDetecting()
-            return
-        }
-        if (hazardContent.source == HazardSource.ONLINE) {
-            if (!ENABLE_ONLINE_ADVICE_PAGE) {
-                Log.i(TAG, "advance advice returning detecting because online advice page disabled")
-                returnToDetecting()
-                return
-            }
-            Log.i(TAG, "advance advice requesting online inspection guide")
-            requestOnlineHazardAdvice(hazardContent)
-            return
-        }
-        if (hazardContent.displayAdvice().isBlank()) {
-            Log.i(TAG, "advance advice returning detecting because local display advice is blank")
-            returnToDetecting()
-            return
-        }
-        Log.i(TAG, "advance advice showing local advice")
-        showLocalHazardAdvice(showSaveSuccessToast = false)
-    }
-
     private fun buildLocalHazardAutoSaveTaskKey(hazardContent: ResolvedHazardContent): String {
         val hazardKey = hazardContent.resolvedHazards()
             .joinToString(separator = "||") { hazard ->
@@ -3788,39 +3762,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             hazardKey,
             hazardContent.jpegBytes.contentHashCode().toString(),
         ).joinToString(separator = "|")
-    }
-
-    private fun showLocalHazardAdvice(showSaveSuccessToast: Boolean) {
-        val hazardContent = activeHazardContent ?: return
-        if (localResultStage != LocalResultStage.DESCRIPTION) return
-        localSaveSubmitting = false
-        localResultStage = LocalResultStage.ADVICE
-        if (!localHazardAdviceTtsPlayed) {
-            logAudioPressureSnapshot(
-                stage = "show_local_hazard_advice:before_tts",
-                extra = "title=${hazardContent.displayTitle} showSaveSuccessToast=$showSaveSuccessToast",
-            )
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
-                context = this,
-                ownerTag = TAG,
-                audioResId = R.raw.hazard_advice_intro,
-            )
-            logAudioPressureSnapshot(
-                stage = "show_local_hazard_advice:after_tts",
-                extra = "title=${hazardContent.displayTitle} ttsPlayed=$localHazardAdviceTtsPlayed",
-            )
-        }
-        val descriptionText = hazardContent.displayDescription()
-        val adviceText = hazardContent.displayAdvice()
-        setStreamContentAndResetViewport(adviceText)
-        lastAnalysisText = listOf(descriptionText, adviceText)
-            .filter { it.isNotBlank() }
-            .distinct()
-            .joinToString("\n\n")
-        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        pendingUploadSuccessToast = pendingUploadSuccessToast || showSaveSuccessToast
-        renderLocalAdvicePrompt()
-        refreshInputActions()
     }
 
     /**
@@ -3854,132 +3795,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
         }
         Log.i(TAG, payload)
-    }
-
-    private fun requestOnlineHazardAdvice(hazardContent: ResolvedHazardContent) {
-        if (localResultStage != LocalResultStage.DESCRIPTION) {
-            Log.w(TAG, "online advice request skipped because stage=$localResultStage")
-            return
-        }
-        val sourceText = hazardContent.rawDetailText.trim()
-            .ifBlank { hazardContent.displayDescription().trim() }
-        if (sourceText.isBlank()) {
-            Log.w(TAG, "online advice request skipped because source text is blank")
-            showLocalHazardAdvice(showSaveSuccessToast = false)
-            return
-        }
-        currentManualAnalysisHandle?.cancel()
-        currentManualAnalysisHandle = null
-        activeStreamRequestId += 1
-        val requestId = activeStreamRequestId
-        Log.i(
-            TAG,
-            "online advice request start requestId=$requestId source=${hazardContent.source} title=${hazardContent.displayTitle} sourceTextLength=${sourceText.length}",
-        )
-        localSaveSubmitting = false
-        localResultStage = LocalResultStage.ADVICE
-        // 在线 advice 文字流也沿用固定结果布局，避免先半屏再下沉。
-        streamPanelAnchoredBelowPreview = true
-        streamingInProgress = true
-        streamCallbackActive = true
-        pendingStreamStart = false
-        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_fetching_advice))
-        renderLocalAdvicePrompt()
-        hideActionPrompts()
-        updateFunctionMenuVisibility()
-        refreshInputActions()
-        if (!localHazardAdviceTtsPlayed) {
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
-                context = this,
-                ownerTag = TAG,
-                audioResId = R.raw.hazard_advice_intro,
-            )
-        }
-        currentManualAnalysisHandle = aiArSseService.fetchInspectionGuide(
-            text = sourceText,
-            onChunk = { partialText ->
-                Log.d(TAG, "inspection guide chunk length=${partialText.length}")
-                uiHandler.post {
-                    if (!shouldDeliverStreamRequest(requestId)) {
-                        return@post
-                    }
-                    updateStreamingText(OnlineHazardAdviceFormatter.format(partialText))
-                }
-            },
-            callback = object : AiArSseService.DetailCallback {
-                override fun onOpened(handle: AiArSseService.RequestHandle) {
-                    Log.d(TAG, "inspection guide opened taskId=${handle.taskId}")
-                }
-
-                override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
-                    Log.i(TAG, "online advice request success requestId=$requestId taskId=${handle.taskId} fullTextLength=${fullText.length}")
-                    uiHandler.post {
-                        if (currentManualAnalysisHandle != handle || requestId != activeStreamRequestId) {
-                            Log.w(
-                                TAG,
-                                "online advice success ignored requestId=$requestId activeRequestId=$activeStreamRequestId currentHandleMatches=${currentManualAnalysisHandle == handle}",
-                            )
-                            return@post
-                        }
-                        currentManualAnalysisHandle = null
-                        handleOnlineAdviceSuccess(
-                            hazardContent = hazardContent,
-                            adviceText = fullText,
-                        )
-                    }
-                }
-
-                override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
-                    Log.e(TAG, "online advice request failed requestId=$requestId taskId=${handle.taskId} message=$message")
-                    uiHandler.post {
-                        if (currentManualAnalysisHandle == handle) {
-                            currentManualAnalysisHandle = null
-                        }
-                        handleOnlineAdviceFailure(message)
-                    }
-                }
-            },
-        )
-    }
-
-    private fun handleOnlineAdviceSuccess(
-        hazardContent: ResolvedHazardContent,
-        adviceText: String,
-    ) {
-        streamCallbackActive = false
-        streamingInProgress = false
-        val displayAdviceText = OnlineHazardAdviceFormatter.format(adviceText)
-            .ifBlank { hazardContent.displayAdvice() }
-        setStreamContentAndResetViewport(displayAdviceText)
-        val descriptionText = hazardContent.displayDescription()
-        lastAnalysisText = listOf(descriptionText, displayAdviceText)
-            .filter { it.isNotBlank() }
-            .distinct()
-            .joinToString("\n\n")
-        InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
-        applyCurrentStreamPanelLayout()
-        updateFunctionMenuVisibility()
-        refreshInputActions()
-    }
-
-    private fun handleOnlineAdviceFailure(message: String) {
-        streamCallbackActive = false
-        streamingInProgress = false
-        pendingStreamStart = false
-        localResultStage = LocalResultStage.DESCRIPTION
-        val fallback = activeHazardContent?.displayDescription().orEmpty()
-        if (fallback.isNotBlank()) {
-            setStreamContentAndResetViewport(fallback)
-        }
-        renderLocalDescriptionPrompt()
-        refreshInputActions()
-        SpriteToastUtil.showSpriteToastOld(
-            this,
-            message.ifBlank { getString(R.string.ai_inspection_online_advice_fetch_failed) },
-            R.drawable.ic_warning_triangle,
-            LOCAL_SAVE_SUCCESS_TOAST_MS,
-            false,
-        )
     }
 
     private fun showLocalSaveError(message: String) {
@@ -4076,6 +3891,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
         localSaveSubmitting = false
+        localSaveRequestPending = false
+        suggestionChecksRequestPending = false
+        returnToDetectingWhenSubmitIdle = false
         pendingUploadSuccessToast = false
         pendingHazardAlertTtsPlayed = false
         localHazardAlertTtsPlayed = false

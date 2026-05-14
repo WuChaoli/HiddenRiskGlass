@@ -57,8 +57,6 @@
     "targetInputSize": 640,
     // 是否在命中隐患时额外保存抓拍图片。开启后会增加存储与 I/O。
     "enableHitCaptureSave": false,
-    // 是否启用在线建议页。关闭时详情展示保持当前默认行为。
-    "enableOnlineAdvicePage": false,
     // 陈旧帧阈值，单位 ms。超过该阈值的共享帧会被视为不可用。
     "staleFrameThresholdMs": 1200,
     // 运动清空阈值，单位 ms。超过该时间会清理共享帧运动状态。
