@@ -919,7 +919,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReadyAtElapsedMs = 0L
         cameraSessionGeneration = 0L
         cameraRecoveryController.stop()
-        InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_on_pause")
+        InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_on_pause")
         super.onPause()
     }
 
@@ -971,7 +971,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         cameraRecoveryController.stop()
-        InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_on_destroy")
+        InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_on_destroy")
         RokidSdkManager.removeListener(this)
         // 注意：不单独释放 RokidFrameSource 和 hiddenRiskNcnn，由 InspectionSession 管理生命周期
         nativeExecutor.shutdown()
@@ -1177,13 +1177,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             frameStreamReady = success
             frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
             if (destroyed) {
-                InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_destroyed_after_ready")
+                InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_destroyed_after_ready")
                 return@acquire
             }
             if (!isActivityResumed || !isWorkflowActive) {
                 frameStreamReady = false
                 frameStreamReadyAtElapsedMs = 0L
-                InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_inactive_after_ready")
+                InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_inactive_after_ready")
                 Log.i(
                     TAG,
                     "release frame stream after late callback resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState",
@@ -2222,7 +2222,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.release(CameraOwner.AI_INSPECTION, reason = "ai_auto_sleep_prompt")
+        InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_auto_sleep_prompt")
         tvDetectingBottomHint.visibility = View.GONE
         operationGuideDetecting.visibility = View.GONE
         statusAlertOverlay.render(

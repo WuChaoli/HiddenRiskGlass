@@ -146,7 +146,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
+        InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
         stopStatusBarUpdates()
         inputSession.detach()
         super.onPause()
@@ -158,7 +158,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "onDestroy pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
         )
         cancelActiveWork()
-        InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
+        InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
         uiHandler.removeCallbacksAndMessages(null)
         inputSession.release()
         RokidSdkManager.removeListener(this)

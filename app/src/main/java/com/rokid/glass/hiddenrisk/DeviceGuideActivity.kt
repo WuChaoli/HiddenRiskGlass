@@ -181,7 +181,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(promptTimeoutRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
-        InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
+        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
         autoSleepController.detach()
         inputSession.detach()
         super.onPause()
@@ -193,7 +193,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         inputSession.release()
         autoSleepController.release()
         RokidSdkManager.removeListener(this)
-        InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
+        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
         super.onDestroy()
     }
@@ -760,7 +760,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(nextDetectRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
-        InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_prompt")
+        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_prompt")
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
         tvDetectingBottomHint.visibility = View.GONE

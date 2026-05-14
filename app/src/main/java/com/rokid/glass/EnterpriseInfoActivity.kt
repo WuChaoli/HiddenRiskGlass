@@ -15,6 +15,7 @@ import android.widget.TextView
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -192,6 +193,7 @@ val info = InspectionWorkflowSession.enterpriseInfo
     }
 
     private fun exitPage() {
+        InspectionCameraCoordinator.releaseAppCamera(reason = "enterprise_info_exit_app")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAffinity()
             finishAndRemoveTask()

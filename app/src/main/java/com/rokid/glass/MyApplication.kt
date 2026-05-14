@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.ToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -86,6 +87,7 @@ class MyApplication : Application() {
         override fun onActivityDestroyed(activity: Activity) {
             activityCount--
             if (activityCount <= 0) {
+                InspectionCameraCoordinator.releaseAppCamera(reason = "app_last_activity_destroyed")
                 // 所有 Activity 均已销毁，应用已退出，清除企业信息和本轮巡检累计结果。
                 InspectionWorkflowSession.clearInspectionAccumulatedResults()
                 InspectionWorkflowSession.clearEnterpriseData()

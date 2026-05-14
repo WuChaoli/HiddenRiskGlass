@@ -229,7 +229,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         stopLoadingUi()
         RokidSdkManager.removeListener(this)
         modelLoadExecutor.shutdownNow()
-        InspectionCameraCoordinator.release(CameraOwner.LOADING, reason = "loading_on_destroy")
+        InspectionCameraCoordinator.pause(CameraOwner.LOADING, reason = "loading_on_destroy")
 
         // 如果初始化未完成且出现错误，清理资源
         if (loadingStage == LoadingStage.ERROR) {
@@ -447,7 +447,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 if (activityDestroyed) return@post
                 cameraSessionGeneration = requestGeneration
                 if (success) {
-                    InspectionCameraCoordinator.release(
+                    InspectionCameraCoordinator.pause(
                         CameraOwner.LOADING,
                         reason = "loading_camera_ready_pause_frame_stream",
                     )

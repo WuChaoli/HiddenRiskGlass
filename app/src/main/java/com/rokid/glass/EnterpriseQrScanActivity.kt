@@ -226,7 +226,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             completed = false
             showScanState(getString(R.string.enterprise_qr_waiting))
         }
-        stopCameraPipeline(reason = "on_pause")
+        pauseCameraPipeline(reason = "on_pause")
         super.onPause()
     }
 
@@ -239,7 +239,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             if (scannerDelegate.isInitialized()) {
                 scanner.close()
             }
-            stopCameraPipeline(reason = "on_destroy")
+            pauseCameraPipeline(reason = "on_destroy")
         }
         super.onDestroy()
     }
@@ -336,6 +336,21 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         isProcessingFrame = false
         cameraSessionGeneration = 0L
         InspectionCameraCoordinator.release(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
+    }
+
+    private fun pauseCameraPipeline(reason: String = "unspecified") {
+        Log.i(
+            TAG,
+            "pauseCameraPipeline reason=$reason owner=${CameraOwner.ENTERPRISE_QR_SCAN} generation=$cameraSessionGeneration completed=$completed frameReady=$isFrameStreamReady processing=$isProcessingFrame",
+        )
+        mainHandler.removeCallbacks(scanRunnable)
+        objectMessageRequest?.cancel()
+        objectMessageRequest = null
+        cameraRecoveryController.stop()
+        isFrameStreamReady = false
+        isProcessingFrame = false
+        cameraSessionGeneration = 0L
+        InspectionCameraCoordinator.pause(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
     }
 
     private fun startScanLoop() {
@@ -638,6 +653,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
     private fun exitAppDirectly() {
         mainHandler.removeCallbacks(scanRunnable)
         stopCameraPipeline(reason = "exit_app_directly")
+        InspectionCameraCoordinator.releaseAppCamera(reason = "enterprise_qr_exit_app_directly")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAffinity()
             finishAndRemoveTask()

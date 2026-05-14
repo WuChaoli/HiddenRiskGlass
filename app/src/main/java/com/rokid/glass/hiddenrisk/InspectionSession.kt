@@ -111,7 +111,7 @@ object InspectionSession {
             TAG,
             "stopFrameStream start initialized=$isInitialized frameReady=$isFrameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
         )
-        InspectionCameraCoordinator.release(CameraOwner.LOADING, reason = "compat_stop_frame_stream")
+        InspectionCameraCoordinator.releaseAppCamera(reason = "compat_stop_frame_stream")
         isFrameStreamReady = false
         Log.i(
             TAG,

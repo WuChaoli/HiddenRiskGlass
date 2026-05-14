@@ -26,6 +26,7 @@ import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -907,6 +908,7 @@ class WifiQrScanActivity : BaseGlassActivity() {
             "exit app directly stage=$connectionStage strategy=$activeStrategyName target=${pendingPayload?.ssid} success=$resultWasSuccess",
         )
         releaseScanResources()
+        InspectionCameraCoordinator.releaseAppCamera(reason = "wifi_qr_exit_app_directly")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAffinity()
             finishAndRemoveTask()

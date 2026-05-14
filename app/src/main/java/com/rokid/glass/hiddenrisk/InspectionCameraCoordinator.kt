@@ -25,6 +25,8 @@ object InspectionCameraCoordinator {
         OPENING,
         READY_NO_PREVIEW,
         READY_WITH_PREVIEW,
+        PAUSED_NO_PREVIEW,
+        PAUSED_WITH_PREVIEW,
         RELEASING,
     }
 
@@ -111,6 +113,26 @@ object InspectionCameraCoordinator {
             return next
         }
 
+        fun beginPause(owner: CameraOwner): SessionSnapshot? {
+            if (snapshot.owner != owner) {
+                return null
+            }
+            val previous = snapshot
+            val next = SessionSnapshot(
+                owner = null,
+                state = if (previous.state == CameraSessionState.READY_WITH_PREVIEW ||
+                    previous.state == CameraSessionState.PAUSED_WITH_PREVIEW
+                ) {
+                    CameraSessionState.PAUSED_WITH_PREVIEW
+                } else {
+                    CameraSessionState.PAUSED_NO_PREVIEW
+                },
+                generation = previous.generation + 1L,
+            )
+            snapshot = next
+            return next
+        }
+
         fun finishRelease(generation: Long) {
             if (snapshot.generation != generation || snapshot.state != CameraSessionState.RELEASING) {
                 return
@@ -186,7 +208,7 @@ object InspectionCameraCoordinator {
         enableRecovery: Boolean = false,
         onReady: (Boolean) -> Unit = {},
     ): Long {
-        val readyNow = isFrameStreamReady()
+        val readyNow = isFrameStreamReady() || RokidFrameSource.isFrameStreamOpen()
         val snapshot = synchronized(lock) {
             activeNeedPreview = needPreview
             if (needPreview) {
@@ -228,6 +250,38 @@ object InspectionCameraCoordinator {
                     reason = "acquire",
                 )
             }
+        }
+        return snapshot.generation
+    }
+
+    fun pause(owner: CameraOwner, reason: String): Long {
+        val snapshot = synchronized(lock) {
+            stateMachine.beginPause(owner)
+        } ?: run {
+            val ignoredGeneration = getGeneration()
+            Log.i(
+                TAG,
+                "ignore pause owner=$owner reason=$reason activeOwner=${getOwner()} generation=$ignoredGeneration",
+            )
+            return ignoredGeneration
+        }
+        val previewToStop = synchronized(lock) {
+            val preview = boundPreviewView
+            boundPreviewView = null
+            activeNeedPreview = false
+            preview
+        }
+        logState(
+            action = "pause",
+            snapshot = snapshot,
+            owner = owner,
+            needPreview = false,
+            previewAttached = previewToStop != null,
+            extra = "reason=$reason",
+        )
+        previewToStop?.let {
+            Log.i(TAG, "previewUnbind owner=$owner generation=${snapshot.generation}")
+            it.stopPreview()
         }
         return snapshot.generation
     }
@@ -284,6 +338,41 @@ object InspectionCameraCoordinator {
             extra = "reason=$reason",
         )
         return snapshot.generation
+    }
+
+    fun releaseAppCamera(reason: String): Long {
+        val previous = synchronized(lock) { stateMachine.snapshot() }
+        val releaseSnapshot = SessionSnapshot(
+            owner = null,
+            state = CameraSessionState.RELEASING,
+            generation = previous.generation + 1L,
+        )
+        synchronized(lock) {
+            activeNeedPreview = false
+            boundPreviewView = null
+        }
+        logState(
+            action = "release_app",
+            snapshot = releaseSnapshot,
+            owner = null,
+            needPreview = false,
+            previewAttached = false,
+            extra = "reason=$reason",
+        )
+        RokidFrameSource.stopSurfacePreview()
+        RokidFrameSource.stopFrameStream()
+        synchronized(lock) {
+            stateMachine.resetForTest()
+        }
+        logState(
+            action = "release_app_complete",
+            snapshot = synchronized(lock) { stateMachine.snapshot() },
+            owner = null,
+            needPreview = false,
+            previewAttached = false,
+            extra = "reason=$reason",
+        )
+        return releaseSnapshot.generation
     }
 
     fun updatePreview(
@@ -427,6 +516,8 @@ object InspectionCameraCoordinator {
         return when (getState()) {
             CameraSessionState.READY_NO_PREVIEW,
             CameraSessionState.READY_WITH_PREVIEW,
+            CameraSessionState.PAUSED_NO_PREVIEW,
+            CameraSessionState.PAUSED_WITH_PREVIEW,
             -> true
 
             CameraSessionState.IDLE,

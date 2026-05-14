@@ -23,6 +23,7 @@ import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
+import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadQueue
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadService
 import com.rokid.glass.input.UnifiedInputSession
@@ -280,6 +281,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private fun exitAppAfterFinishSubmitted() {
         if (isFinishing || isDestroyed) return
         InspectionWorkflowSession.resetAll()
+        InspectionCameraCoordinator.releaseAppCamera(reason = "inspection_end_report_exit_app")
         finishAffinity()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAndRemoveTask()
