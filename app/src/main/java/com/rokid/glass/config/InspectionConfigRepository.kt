@@ -194,6 +194,12 @@ object InspectionConfigRepository {
                 override?.localNetworkProbeIntervalMs ?: base.localNetworkProbeIntervalMs,
             forceOnlineDetailForLocalHazard =
                 override?.forceOnlineDetailForLocalHazard ?: base.forceOnlineDetailForLocalHazard,
+            sleepIdlePromptMs =
+                override?.sleepIdlePromptMs ?: base.sleepIdlePromptMs,
+            sleepPromptTimeoutMs =
+                override?.sleepPromptTimeoutMs ?: base.sleepPromptTimeoutMs,
+            sleepQuietGyroMaxRad =
+                override?.sleepQuietGyroMaxRad ?: base.sleepQuietGyroMaxRad,
         )
     }
 

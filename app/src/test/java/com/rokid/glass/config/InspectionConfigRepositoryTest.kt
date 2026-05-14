@@ -18,6 +18,38 @@ class InspectionConfigRepositoryTest {
     }
 
     @Test
+    fun `auto sleep config uses default timeout values`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = null,
+        )
+
+        assertEquals(60_000L, config.aiInspection.sleepIdlePromptMs)
+        assertEquals(15_000L, config.aiInspection.sleepPromptTimeoutMs)
+        assertEquals(0.20f, config.aiInspection.sleepQuietGyroMaxRad, 0.001f)
+    }
+
+    @Test
+    fun `auto sleep config can be overridden from jsonc`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "aiInspection": {
+                    "sleepIdlePromptMs": 30000,
+                    "sleepPromptTimeoutMs": 10000,
+                    "sleepQuietGyroMaxRad": 0.15
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = null,
+        )
+
+        assertEquals(30_000L, config.aiInspection.sleepIdlePromptMs)
+        assertEquals(10_000L, config.aiInspection.sleepPromptTimeoutMs)
+        assertEquals(0.15f, config.aiInspection.sleepQuietGyroMaxRad, 0.001f)
+    }
+
+    @Test
     fun `head motion stability gate can be enabled from jsonc`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = """

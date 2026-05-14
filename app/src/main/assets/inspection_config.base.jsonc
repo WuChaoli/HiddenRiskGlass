@@ -86,7 +86,13 @@
     // 本地备用链路运行时，系统网络恢复探测间隔，单位 ms。
     "localNetworkProbeIntervalMs": 3000,
     // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
-    "forceOnlineDetailForLocalHazard": false
+    "forceOnlineDetailForLocalHazard": false,
+    // 自动睡眠静止触发时长，单位 ms。检测态长时间无头部移动时弹出确认。
+    "sleepIdlePromptMs": 60000,
+    // 自动睡眠弹窗无输入返回菜单时长，单位 ms。
+    "sleepPromptTimeoutMs": 15000,
+    // 自动睡眠静止判定的俯仰/偏航陀螺仪阈值，单位 rad/s。
+    "sleepQuietGyroMaxRad": 0.20
   },
 
   /* 网络参数。

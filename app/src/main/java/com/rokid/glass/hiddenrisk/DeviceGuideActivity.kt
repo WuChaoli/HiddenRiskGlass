@@ -33,6 +33,8 @@ import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
+import com.rokid.glass.input.AutoSleepController
+import com.rokid.glass.input.AutoSleepStateMachine
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
@@ -69,7 +71,42 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var tvResultBottomHint: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
-    private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val inputSession by lazy {
+        UnifiedInputSession(this, TAG) { event ->
+            if (autoSleepController.isPromptVisible()) {
+                autoSleepController.notifyUserActivity(
+                    when (event.source) {
+                        UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
+                        UnifiedInputSession.InputSource.TOUCH -> AutoSleepStateMachine.UserActivitySource.TOUCH
+                        UnifiedInputSession.InputSource.HEAD_GESTURE -> AutoSleepStateMachine.UserActivitySource.HEAD_MOTION
+                    },
+                )
+            }
+        }
+    }
+    private val autoSleepController by lazy {
+        val config = InspectionConfigRepository.get().aiInspection
+        AutoSleepController(
+            context = this,
+            ownerTag = TAG,
+            idleBeforePromptMs = config.sleepIdlePromptMs,
+            promptTimeoutMs = config.sleepPromptTimeoutMs,
+            quietGyroMaxRad = config.sleepQuietGyroMaxRad,
+            callback = object : AutoSleepController.Callback {
+                override fun onSleepPromptShown() {
+                    handleAutoSleepPromptShown()
+                }
+
+                override fun onSleepResumeRequested(source: AutoSleepStateMachine.UserActivitySource) {
+                    handleAutoSleepResumeRequested(source)
+                }
+
+                override fun onSleepTimeout() {
+                    handleAutoSleepTimeout()
+                }
+            },
+        )
+    }
     private val imageExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val detectSseService by lazy { AiArSseService() }
     private val frameCaptureService by lazy {
@@ -92,6 +129,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var detectInFlight = false
     private var detailInFlight = false
     private var previewRestartAttempted = false
+    private var previewReadyRetryPosted = false
     private var activeDetectHandle: AiArSseService.RequestHandle? = null
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
     private var batteryReceiver: BroadcastReceiver? = null
@@ -128,7 +166,9 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         isActivityResumed = true
         ensureFrameStreamReady()
         inputSession.attach()
+        autoSleepController.attach()
         refreshInputActions()
+        updateAutoSleepEnabled()
         startStatusBarUpdates()
         scheduleNextDetection(immediate = true)
     }
@@ -142,6 +182,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
+        autoSleepController.detach()
         inputSession.detach()
         super.onPause()
     }
@@ -150,6 +191,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cancelActiveRequests()
         uiHandler.removeCallbacksAndMessages(null)
         inputSession.release()
+        autoSleepController.release()
         RokidSdkManager.removeListener(this)
         InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
@@ -157,7 +199,23 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        if (autoSleepController.isPromptVisible()) {
+            autoSleepController.notifyUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH)
+            return true
+        }
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) return
+        if (!isActivityResumed) {
+            Log.i(TAG, "restore resumed state from window focus")
+            isActivityResumed = true
+        }
+        if (pageState == PageState.DETECTING) {
+            ensureFrameStreamReady()
+        }
     }
 
     override fun onSdkStateChanged(state: RokidSdkManager.SdkState) {
@@ -211,10 +269,23 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         return listOf(
             UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("device_guide_auto_sleep_resume"),
+                label = getString(R.string.inspection_auto_sleep_prompt),
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                    UnifiedInputSession.InputTrigger.Voice("确认", "que ren"),
+                    UnifiedInputSession.InputTrigger.Voice("确定", "que ding"),
+                    UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"),
+                ),
+                enabled = { autoSleepController.isPromptVisible() },
+            ) {
+                autoSleepController.notifyUserActivity(it.source.toAutoSleepActivitySource())
+            },
+            UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("device_guide_realtime_analysis"),
                 label = "实时分析",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("实时分析", "shi shi fen xi")),
-                enabled = { pageState == PageState.DETECTING },
+                enabled = { canHandleDetectingInput() },
             ) {
                 startActivity(Intent(this, AiInspectionActivity::class.java))
                 finish()
@@ -223,7 +294,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId("device_guide_hazard_record"),
                 label = "隐患录入",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
-                enabled = { pageState == PageState.DETECTING },
+                enabled = { canHandleDetectingInput() },
             ) {
                 startActivity(Intent(this, HazardRecordActivity::class.java))
                 finish()
@@ -235,6 +306,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     UnifiedInputSession.InputTrigger.Voice("结束任务", "jie shu ren wu"),
                     UnifiedInputSession.InputTrigger.Voice("结速任务", "jie su ren wu"),
                 ),
+                enabled = { !autoSleepController.isPromptVisible() },
             ) {
                 startActivity(
                     InspectionEndReportActivity.createIntent(
@@ -247,7 +319,10 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Confirm,
                 label = "确认",
                 triggers = buildConfirmTriggers(),
-                enabled = { pageState == PageState.PROMPT_PENDING || pageState == PageState.DETAIL },
+                enabled = {
+                    !autoSleepController.isPromptVisible() &&
+                        (pageState == PageState.PROMPT_PENDING || pageState == PageState.DETAIL)
+                },
             ) {
                 when (pageState) {
                     PageState.PROMPT_PENDING -> requestGuideDetails()
@@ -259,6 +334,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Cancel,
                 label = "返回",
                 triggers = buildReturnTriggers(),
+                enabled = { !autoSleepController.isPromptVisible() },
             ) {
                 if (pageState == PageState.DETECTING) {
                     returnToMenuHome()
@@ -291,11 +367,32 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         inputSession.updateActions(buildInputActions())
     }
 
+    private fun canHandleDetectingInput(): Boolean {
+        return pageState == PageState.DETECTING && !autoSleepController.isPromptVisible()
+    }
+
+    private fun UnifiedInputSession.InputSource.toAutoSleepActivitySource(): AutoSleepStateMachine.UserActivitySource {
+        return when (this) {
+            UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
+            UnifiedInputSession.InputSource.TOUCH -> AutoSleepStateMachine.UserActivitySource.TOUCH
+            UnifiedInputSession.InputSource.HEAD_GESTURE -> AutoSleepStateMachine.UserActivitySource.HEAD_MOTION
+        }
+    }
+
     private fun ensureFrameStreamReady() {
+        if (!isActivityResumed) {
+            Log.i(TAG, "skip frame stream because device guide is not resumed")
+            return
+        }
         if (!hasRequiredPermissions()) {
             requestPermissionsIfNeeded()
             return
         }
+        if (pageState == PageState.DETECTING && !isLivePreviewViewReady()) {
+            scheduleFrameStreamAfterPreviewReady()
+            return
+        }
+        previewReadyRetryPosted = false
         if (
             frameStreamReady &&
             InspectionCameraCoordinator.isFrameStreamReady() &&
@@ -339,6 +436,30 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
             }
         }
+    }
+
+    private fun scheduleFrameStreamAfterPreviewReady() {
+        Log.i(
+            TAG,
+            "defer frame stream until preview view ready attached=${viewLivePreview.isAttachedToWindow} width=${viewLivePreview.width} height=${viewLivePreview.height}",
+        )
+        if (previewReadyRetryPosted) return
+        previewReadyRetryPosted = true
+        viewLivePreview.postDelayed(
+            {
+                previewReadyRetryPosted = false
+                if (isActivityResumed && pageState == PageState.DETECTING) {
+                    ensureFrameStreamReady()
+                }
+            },
+            PREVIEW_READY_RETRY_DELAY_MS,
+        )
+    }
+
+    private fun isLivePreviewViewReady(): Boolean {
+        return viewLivePreview.isAttachedToWindow &&
+            viewLivePreview.width > 0 &&
+            viewLivePreview.height > 0
     }
 
     private fun restartFrameStreamForPreview() {
@@ -472,6 +593,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun showPromptPending(payload: InspectionFrameCaptureService.CapturedFramePayload) {
+        autoSleepController.setEnabled(false)
         uiHandler.removeCallbacks(nextDetectRunnable)
         uiHandler.removeCallbacks(promptTimeoutRunnable)
         pageState = PageState.PROMPT_PENDING
@@ -499,6 +621,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun requestGuideDetails() {
+        autoSleepController.setEnabled(false)
         val payload = currentPayload ?: return
         uiHandler.removeCallbacks(promptTimeoutRunnable)
         detailInFlight = true
@@ -596,6 +719,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvDetectingBottomHint.visibility = View.VISIBLE
         refreshFunctionMenuVisibility()
         refreshInputActions()
+        updateAutoSleepEnabled()
         scheduleNextDetection(immediate = false)
     }
 
@@ -604,6 +728,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun returnToMenuHome() {
+        autoSleepController.setEnabled(false)
         cancelActiveRequests()
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -619,6 +744,59 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeDetailHandle?.cancel()
         activeDetectHandle = null
         activeDetailHandle = null
+    }
+
+    private fun updateAutoSleepEnabled() {
+        autoSleepController.setEnabled(isActivityResumed && pageState == PageState.DETECTING)
+    }
+
+    private fun handleAutoSleepPromptShown() {
+        if (pageState != PageState.DETECTING) {
+            autoSleepController.setEnabled(false)
+            return
+        }
+        Log.i(TAG, "device guide auto sleep prompt shown")
+        cancelActiveRequests()
+        uiHandler.removeCallbacks(nextDetectRunnable)
+        frameStreamInitializing = false
+        frameStreamReady = false
+        InspectionCameraCoordinator.release(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_prompt")
+        layoutLivePreviewCard.visibility = View.INVISIBLE
+        viewLivePreview.visibility = View.INVISIBLE
+        tvDetectingBottomHint.visibility = View.GONE
+        operationGuideDetecting.visibility = View.GONE
+        statusAlertOverlay.render(
+            StatusAlertModel(
+                status = AlertStatus.WARNING,
+                titleText = getString(R.string.inspection_auto_sleep_prompt),
+                messageText = getString(R.string.inspection_auto_sleep_hint),
+                behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
+                style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
+            ),
+        )
+    }
+
+    private fun handleAutoSleepResumeRequested(source: AutoSleepStateMachine.UserActivitySource) {
+        Log.i(TAG, "device guide auto sleep resume requested source=$source")
+        statusAlertOverlay.reset()
+        if (!isActivityResumed || pageState != PageState.DETECTING) {
+            updateAutoSleepEnabled()
+            return
+        }
+        layoutLivePreviewCard.visibility = View.VISIBLE
+        viewLivePreview.visibility = View.VISIBLE
+        tvDetectingBottomHint.setText(R.string.device_guide_detecting_bottom_hint)
+        tvDetectingBottomHint.visibility = View.VISIBLE
+        refreshFunctionMenuVisibility()
+        ensureFrameStreamReady()
+        scheduleNextDetection(immediate = true)
+        updateAutoSleepEnabled()
+    }
+
+    private fun handleAutoSleepTimeout() {
+        Log.i(TAG, "device guide auto sleep timeout return to menu")
+        statusAlertOverlay.reset()
+        returnToMenuHome()
     }
 
     private fun clearResultUi() {
@@ -693,5 +871,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val DETECT_INTERVAL_MS = 1000L
         private const val PROMPT_TIMEOUT_MS = 3000L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
+        private const val PREVIEW_READY_RETRY_DELAY_MS = 100L
     }
 }

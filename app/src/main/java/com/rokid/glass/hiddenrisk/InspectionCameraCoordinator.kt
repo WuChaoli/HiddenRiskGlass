@@ -298,8 +298,6 @@ object InspectionCameraCoordinator {
                 activeNeedPreview = needPreview
                 if (needPreview) {
                     boundPreviewView = previewView
-                } else {
-                    boundPreviewView = null
                 }
             }
         } ?: run {

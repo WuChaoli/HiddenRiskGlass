@@ -16,6 +16,7 @@ import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallbac
 class UnifiedInputSession(
     context: Context,
     private val ownerTag: String,
+    private val onInputActivity: ((InputEvent) -> Unit)? = null,
 ) {
 
     private val appContext = context.applicationContext
@@ -65,14 +66,14 @@ class UnifiedInputSession(
             candidate.enabled() && candidate.triggers.any { it.matches(trigger) }
         } ?: return false
 
-        spec.onTrigger(
-            InputEvent(
-                actionId = spec.id,
-                source = trigger.source,
-                trigger = trigger,
-                timestampMillis = System.currentTimeMillis(),
-            ),
+        val event = InputEvent(
+            actionId = spec.id,
+            source = trigger.source,
+            trigger = trigger,
+            timestampMillis = System.currentTimeMillis(),
         )
+        onInputActivity?.invoke(event)
+        spec.onTrigger(event)
         return true
     }
 

@@ -98,6 +98,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var lastStreamText = ""
     private var currentThumbnail: Bitmap? = null
     private var batteryReceiver: BroadcastReceiver? = null
+    private var isActivityResumed = false
     private var navigatingToDeviceGuide = false
 
     private val hideSuccessToastRunnable = Runnable {
@@ -125,6 +126,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onResume() {
         super.onResume()
+        isActivityResumed = true
         Log.i(
             TAG,
             "onResume pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
@@ -136,6 +138,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     override fun onPause() {
+        isActivityResumed = false
         Log.i(
             TAG,
             "onPause pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
@@ -143,11 +146,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         cameraSessionGeneration = 0L
-        if (!navigatingToDeviceGuide) {
-            InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
-        } else {
-            Log.i(TAG, "onPause skip release, navigating to device guide")
-        }
+        InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
         stopStatusBarUpdates()
         inputSession.detach()
         super.onPause()
@@ -159,11 +158,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "onDestroy pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
         )
         cancelActiveWork()
-        if (!navigatingToDeviceGuide) {
-            InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
-        } else {
-            Log.i(TAG, "onDestroy skip release, navigating to device guide")
-        }
+        InspectionCameraCoordinator.release(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
         uiHandler.removeCallbacksAndMessages(null)
         inputSession.release()
         RokidSdkManager.removeListener(this)
@@ -316,6 +311,13 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun ensureFrameStreamReady() {
+        if (!isActivityResumed || navigatingToDeviceGuide || isFinishing || isDestroyed) {
+            Log.i(
+                TAG,
+                "skip ensureFrameStreamReady resumed=$isActivityResumed finishing=$isFinishing destroyed=$isDestroyed navigatingToDeviceGuide=$navigatingToDeviceGuide",
+            )
+            return
+        }
         if (!hasRequiredPermissions()) {
             requestPermissionsIfNeeded()
             return

@@ -60,6 +60,9 @@ data class AiInspectionConfig(
     val enableLocalFallbackLoading: Boolean = false,
     val localNetworkProbeIntervalMs: Long = 3000L,
     val forceOnlineDetailForLocalHazard: Boolean = false,
+    val sleepIdlePromptMs: Long = 60_000L,
+    val sleepPromptTimeoutMs: Long = 15_000L,
+    val sleepQuietGyroMaxRad: Float = 0.20f,
 )
 
 data class NetworkConfig(
@@ -196,6 +199,9 @@ data class AiInspectionConfigOverride(
     val enableLocalFallbackLoading: Boolean? = null,
     val localNetworkProbeIntervalMs: Long? = null,
     val forceOnlineDetailForLocalHazard: Boolean? = null,
+    val sleepIdlePromptMs: Long? = null,
+    val sleepPromptTimeoutMs: Long? = null,
+    val sleepQuietGyroMaxRad: Float? = null,
 )
 
 data class NetworkConfigOverride(
