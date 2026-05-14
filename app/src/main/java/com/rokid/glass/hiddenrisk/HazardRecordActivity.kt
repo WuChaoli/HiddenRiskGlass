@@ -31,6 +31,7 @@ import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
@@ -116,6 +117,11 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_hazard_record)
         initViews()
+        OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.start_hazard_record,
+        )
         shutterSound.load(MediaActionSound.SHUTTER_CLICK)
         RokidSdkManager.initialize(application)
         RokidSdkManager.addListener(this)
@@ -160,6 +166,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cancelActiveWork()
         InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
         uiHandler.removeCallbacksAndMessages(null)
+        OfflineTtsPlayer.release(TAG)
         inputSession.release()
         RokidSdkManager.removeListener(this)
         imageExecutor.shutdownNow()

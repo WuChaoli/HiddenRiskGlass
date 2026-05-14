@@ -14,6 +14,7 @@ import android.os.Looper
 import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.ScrollView
@@ -36,6 +37,7 @@ import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.AutoSleepController
 import com.rokid.glass.input.AutoSleepStateMachine
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -121,7 +123,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var currentPayload: InspectionFrameCaptureService.CapturedFramePayload? = null
     private var detectInFlight = false
     private var detailInFlight = false
-    private var previewRestartAttempted = false
+    private var previewRecreateAttempted = false
     private var previewReadyRetryPosted = false
     private var activeDetectHandle: AiArSseService.RequestHandle? = null
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
@@ -148,6 +150,11 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_device_guide)
         initViews()
+        OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.start_check_guide,
+        )
         RokidSdkManager.initialize(application)
         RokidSdkManager.addListener(this)
         RokidSdkManager.ensureInitialized()
@@ -183,6 +190,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     override fun onDestroy() {
         cancelActiveRequests()
         uiHandler.removeCallbacksAndMessages(null)
+        OfflineTtsPlayer.release(TAG)
         inputSession.release()
         autoSleepController.release()
         RokidSdkManager.removeListener(this)
@@ -417,13 +425,13 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     TAG,
                     "ensureFrameStreamReady end success=$success generation=$requestGeneration previewStarted=${viewLivePreview.isPreviewStarted()} state=${InspectionCameraCoordinator.getState()}",
                 )
-                if (success && !viewLivePreview.isPreviewStarted() && !previewRestartAttempted) {
-                    restartFrameStreamForPreview()
+                if (success && !viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
+                    recreateDeviceGuidePreviewView(reason = "acquire_preview_not_started")
                     return@post
                 }
                 if (success) {
-                    previewRestartAttempted = false
                     scheduleNextDetection(immediate = true)
+                    scheduleDeviceGuidePreviewDrawCheck(requestGeneration)
                 } else {
                     tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
                 }
@@ -455,33 +463,77 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             viewLivePreview.height > 0
     }
 
-    private fun restartFrameStreamForPreview() {
-        previewRestartAttempted = true
-        frameStreamInitializing = true
-        frameStreamReady = false
+    private fun scheduleDeviceGuidePreviewDrawCheck(generation: Long) {
+        uiHandler.postDelayed(
+            {
+                if (
+                    !isActivityResumed ||
+                    pageState != PageState.DETECTING ||
+                    generation != InspectionCameraCoordinator.getGeneration()
+                ) {
+                    return@postDelayed
+                }
+                if (viewLivePreview.isPreviewStarted() && !viewLivePreview.isPreviewFrameDrawn()) {
+                    Log.w(
+                        TAG,
+                        "device guide preview has no drawn frame generation=$generation state=${InspectionCameraCoordinator.getState()}",
+                    )
+                    if (!previewRecreateAttempted) {
+                        recreateDeviceGuidePreviewView(reason = "preview_no_drawn_frame")
+                    }
+                }
+            },
+            PREVIEW_DRAW_CHECK_DELAY_MS,
+        )
+    }
+
+    private fun recreateDeviceGuidePreviewView(reason: String) {
+        previewRecreateAttempted = true
         Log.i(
             TAG,
-            "restartFrameStreamForPreview state=${InspectionCameraCoordinator.getState()} previewStarted=${viewLivePreview.isPreviewStarted()}",
+            "recreateDeviceGuidePreviewView reason=$reason state=${InspectionCameraCoordinator.getState()} previewStarted=${viewLivePreview.isPreviewStarted()} frameDrawn=${viewLivePreview.isPreviewFrameDrawn()} pageState=$pageState",
         )
-        InspectionCameraCoordinator.restart(
+        InspectionCameraCoordinator.updatePreview(
             owner = CameraOwner.DEVICE_GUIDE,
-            reason = "device_guide_preview_not_started",
-            needPreview = true,
-            previewView = viewLivePreview,
-        ) { restartSuccess ->
-            uiHandler.post {
-                frameStreamInitializing = false
-                frameStreamReady = restartSuccess
+            needPreview = false,
+            previewView = null,
+        ) {
+            val oldPreview = viewLivePreview
+            val oldIndex = layoutLivePreviewCard.indexOfChild(oldPreview).takeIf { it >= 0 }
+                ?: layoutLivePreviewCard.childCount
+            val oldLayoutParams = oldPreview.layoutParams
+            val oldVisibility = oldPreview.visibility
+            oldPreview.detachPreview()
+            layoutLivePreviewCard.removeView(oldPreview)
+            val newPreview = RokidCameraPreviewView(this).apply {
+                id = R.id.viewLivePreview
+                visibility = oldVisibility
+                layoutParams = oldLayoutParams ?: FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+            layoutLivePreviewCard.addView(newPreview, oldIndex)
+            viewLivePreview = newPreview
+            layoutLivePreviewCard.visibility = View.VISIBLE
+            viewLivePreview.visibility = View.VISIBLE
+            InspectionCameraCoordinator.updatePreview(
+                owner = CameraOwner.DEVICE_GUIDE,
+                needPreview = pageState == PageState.DETECTING,
+                previewView = viewLivePreview,
+            ) rebindPreview@{ success ->
+                frameStreamReady = success
+                if (!success) {
+                    Log.w(TAG, "recreated device guide preview bind failed reason=$reason")
+                    tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
+                    return@rebindPreview
+                }
                 Log.i(
                     TAG,
-                    "restartFrameStreamForPreview end success=$restartSuccess previewStarted=${viewLivePreview.isPreviewStarted()} state=${InspectionCameraCoordinator.getState()}",
+                    "recreated device guide preview ready reason=$reason generation=${InspectionCameraCoordinator.getGeneration()}",
                 )
-                if (restartSuccess) {
-                    previewRestartAttempted = false
-                    scheduleNextDetection(immediate = true)
-                } else {
-                    tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
-                }
+                scheduleNextDetection(immediate = true)
+                scheduleDeviceGuidePreviewDrawCheck(InspectionCameraCoordinator.getGeneration())
             }
         }
     }
@@ -632,13 +684,21 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         scrollContent.visibility = View.VISIBLE
         tvResultContent.text = getString(R.string.device_guide_fetching_detail)
         refreshFunctionMenuVisibility()
+        OfflineTtsPlayer.release(TAG)
         val base64Image = Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
         activeDetailHandle?.cancel()
-        activeDetailHandle = detectSseService.requestDeepAnalysis(
+        activeDetailHandle = detectSseService.fetchInspectionGuide(
             base64Image = base64Image,
             onChunk = { partialText ->
                 uiHandler.post {
                     if (pageState != PageState.DETAIL) return@post
+                    if (tvResultContent.text.isNullOrBlank() || tvResultContent.text == getString(R.string.device_guide_fetching_detail)) {
+                        OfflineTtsPlayer.play(
+                            context = this@DeviceGuideActivity,
+                            ownerTag = TAG,
+                            audioResId = R.raw.device_guide,
+                        )
+                    }
                     tvResultContent.text = partialText.trim()
                 }
             },
@@ -650,16 +710,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         if (activeDetailHandle != handle) return@post
                         activeDetailHandle = null
                         detailInFlight = false
-                        val resolved = runCatching {
-                            AiArHazardDetailParser.parse(
-                                text = fullText,
-                                jpegBytes = payload.jpegBytes,
-                                displayTitle = getString(R.string.device_guide_title),
-                            )
-                        }.getOrNull()
-                        tvResultContent.text = resolved?.let { formatResolvedGuideText(it) }
-                            ?.ifBlank { fullText.trim() }
-                            ?: fullText.trim().ifBlank { getString(R.string.device_guide_detail_empty) }
+                        tvResultContent.text = fullText.trim()
+                            .ifBlank { getString(R.string.device_guide_detail_empty) }
                         refreshInputActions()
                     }
                 }
@@ -678,23 +730,10 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshInputActions()
     }
 
-    private fun formatResolvedGuideText(resolved: ResolvedHazardContent): String {
-        val primary = resolved.primaryHazard()
-        val description = primary?.description?.trim().orEmpty()
-        val advice = primary?.advice?.trim().orEmpty()
-        return buildList {
-            if (description.isNotBlank()) {
-                add("检查品说明：$description")
-            }
-            if (advice.isNotBlank()) {
-                add("检查重点：$advice")
-            }
-        }.joinToString("\n\n")
-    }
-
     private fun returnToDetecting(message: String? = null) {
         uiHandler.removeCallbacks(promptTimeoutRunnable)
         cancelActiveRequests()
+        OfflineTtsPlayer.release(TAG)
         pageState = PageState.DETECTING
         // 检测态重新显示预览并恢复检测循环
         layoutLivePreviewCard.visibility = View.VISIBLE
@@ -703,7 +742,17 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             owner = CameraOwner.DEVICE_GUIDE,
             needPreview = true,
             previewView = viewLivePreview,
-        )
+        ) { success ->
+            if (!success) {
+                Log.w(TAG, "device guide preview return bind failed")
+                return@updatePreview
+            }
+            if (!viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
+                recreateDeviceGuidePreviewView(reason = "return_preview_not_started")
+                return@updatePreview
+            }
+            scheduleDeviceGuidePreviewDrawCheck(InspectionCameraCoordinator.getGeneration())
+        }
         layoutDetection.visibility = View.VISIBLE
         layoutResult.visibility = View.GONE
         statusAlertOverlay.reset()
@@ -768,6 +817,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(nextDetectRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
+        previewRecreateAttempted = false
         InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_warning")
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
@@ -886,5 +936,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val PROMPT_TIMEOUT_MS = 3000L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
         private const val PREVIEW_READY_RETRY_DELAY_MS = 100L
+        private const val PREVIEW_DRAW_CHECK_DELAY_MS = 700L
     }
 }

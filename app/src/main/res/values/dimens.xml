@@ -19,7 +19,6 @@
     <dimen name="inspection_result_thumbnail_margin_top">24dp</dimen>
     <dimen name="inspection_result_thumbnail_spacing_bottom">12dp</dimen>
     <dimen name="device_guide_result_content_margin_top">132dp</dimen>
-    <dimen name="inspection_advice_card_max_height">200px</dimen>
     <dimen name="inspection_advice_card_float_offset">40dp</dimen>
     <dimen name="inspection_upload_success_toast_margin_bottom">16dp</dimen>
     <dimen name="inspection_bottom_card_margin_horizontal">20dp</dimen>

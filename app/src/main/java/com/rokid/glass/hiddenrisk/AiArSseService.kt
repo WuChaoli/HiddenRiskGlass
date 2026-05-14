@@ -85,6 +85,14 @@ class AiArSseService(
         val inter: Int? = null,
     )
 
+    data class DeviceGuideResponse(
+        val code: Int? = null,
+        val msg: String? = null,
+        val task_id: String? = null,
+        val type: String? = null,
+        val content: String? = null,
+    )
+
     class RequestHandle(
         val taskId: String,
     ) {
@@ -314,29 +322,104 @@ class AiArSseService(
     }
 
     fun fetchInspectionGuide(
-        text: String,
+        base64Image: String,
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
         val taskId = System.currentTimeMillis().toString()
         val handle = RequestHandle(taskId = taskId)
-        val aggregator = AiArEventAggregator(gson)
         val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
-        openStream(
-            handle = handle,
-            payload = RequestPayload(task_id = taskId, text = text, scene = scene),
-            url = deviceGuideConfig.url,
-            lane = "device",
-            onOpened = { callback.onOpened(handle) },
-            onChunk = onChunk,
-            onClosed = { fullText ->
-                callback.onSuccess(handle, fullText)
-            },
-            onFailure = { message ->
-                callback.onFailure(handle, message)
-            },
-            aggregator = aggregator,
+        val payload = RequestPayload(task_id = taskId, image = base64Image, scene = scene)
+        val requestStartedElapsedMs = SystemClock.elapsedRealtime()
+        val jsonBuildStartedElapsedMs = requestStartedElapsedMs
+        val jsonBodyString = gson.toJson(payload)
+        val jsonBuildFinishedElapsedMs = SystemClock.elapsedRealtime()
+        val requestBody = jsonBodyString.toRequestBody(JSON_MEDIA_TYPE)
+        val request = Request.Builder()
+            .url(deviceGuideConfig.url)
+            .tag(RequestTimingTag::class.java, RequestTimingTag(taskId, "device", requestStartedElapsedMs))
+            .post(requestBody)
+            .build()
+        AppFileLogger.i(
+            TAG,
+            "deviceJson request taskId=$taskId endpoint=${deviceGuideConfig.url} imageChars=${payload.image?.length ?: 0} jsonBuildMs=${jsonBuildFinishedElapsedMs - jsonBuildStartedElapsedMs}",
         )
+        val call = client.newCall(request)
+        call.enqueue(object : okhttp3.Callback {
+            override fun onResponse(call: okhttp3.Call, response: okhttp3.Response) {
+                val responseElapsedMs = SystemClock.elapsedRealtime()
+                AppFileLogger.i(
+                    TAG,
+                    "deviceJson response taskId=$taskId httpCode=${response.code} elapsedMs=${responseElapsedMs - requestStartedElapsedMs}",
+                )
+                if (handle.isCanceled()) {
+                    return
+                }
+                if (!response.isSuccessful) {
+                    val bodySnippet = runCatching {
+                        response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
+                            .replace(Regex("\\s+"), " ").trim()
+                            .take(MAX_ERROR_BODY_LOG_CHARS)
+                    }.getOrDefault("")
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onFailure(handle, "HTTP ${response.code} | ${response.message} | body=$bodySnippet")
+                        }
+                    }
+                    return
+                }
+                val body = runCatching { response.body?.string().orEmpty() }.getOrDefault("")
+                if (body.isBlank()) {
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onFailure(handle, "设备指引返回空响应")
+                        }
+                    }
+                    return
+                }
+                runCatching {
+                    parseDeviceGuideBody(body, gson)
+                }.onSuccess { fullText ->
+                    AppFileLogger.i(
+                        TAG,
+                        "deviceJson success taskId=$taskId contentLength=${fullText.length} text=${summarizeSseLogText(fullText)}",
+                    )
+                    mainHandler.post {
+                        if (handle.isCanceled()) {
+                            return@post
+                        }
+                        callback.onOpened(handle)
+                        playbackDeviceGuideContent(
+                            handle = handle,
+                            fullText = fullText,
+                            onChunk = onChunk,
+                            onComplete = { callback.onSuccess(handle, fullText) },
+                        )
+                    }
+                }.onFailure { error ->
+                    AppFileLogger.e(TAG, "deviceJson parse failed taskId=$taskId body=${body.take(256)}", error)
+                    mainHandler.post {
+                        if (!handle.isCanceled()) {
+                            callback.onFailure(handle, error.message ?: "设备指引响应解析失败")
+                        }
+                    }
+                }
+            }
+
+            override fun onFailure(call: okhttp3.Call, e: java.io.IOException) {
+                AppFileLogger.e(
+                    TAG,
+                    "deviceJson network failed taskId=$taskId error=${e.javaClass.simpleName}:${e.message}",
+                    e,
+                )
+                mainHandler.post {
+                    if (!handle.isCanceled()) {
+                        callback.onFailure(handle, e.message ?: "网络请求失败")
+                    }
+                }
+            }
+        })
+        handle.bind(call)
         return handle
     }
 
@@ -651,6 +734,36 @@ class AiArSseService(
         return body.replace(Regex("\\s+"), " ").trim().take(MAX_ERROR_BODY_LOG_CHARS)
     }
 
+    private fun playbackDeviceGuideContent(
+        handle: RequestHandle,
+        fullText: String,
+        onChunk: (String) -> Unit,
+        onComplete: () -> Unit,
+    ) {
+        if (fullText.isBlank()) {
+            onComplete()
+            return
+        }
+        val normalizedText = fullText.trim()
+        val chunkSize = DEVICE_GUIDE_PLAYBACK_CHUNK_SIZE
+        fun emit(nextIndex: Int) {
+            if (handle.isCanceled()) {
+                return
+            }
+            val endIndex = minOf(nextIndex + chunkSize, normalizedText.length)
+            onChunk(normalizedText.substring(0, endIndex))
+            if (endIndex >= normalizedText.length) {
+                onComplete()
+                return
+            }
+            mainHandler.postDelayed(
+                { emit(endIndex) },
+                DEVICE_GUIDE_PLAYBACK_INTERVAL_MS,
+            )
+        }
+        emit(0)
+    }
+
     companion object {
         private const val TAG = "AiArSseService"
         private const val DONE_SENTINEL = "[DONE]"
@@ -659,6 +772,8 @@ class AiArSseService(
         private const val MAX_ERROR_BODY_LOG_BYTES = 4096L
         private const val MAX_ERROR_BODY_LOG_CHARS = 512
         private const val MAX_SSE_BODY_LOG_CHARS = 4096
+        private const val DEVICE_GUIDE_PLAYBACK_CHUNK_SIZE = 12
+        private const val DEVICE_GUIDE_PLAYBACK_INTERVAL_MS = 35L
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
 
         private fun summarizeSseLogText(text: String): String {
@@ -725,6 +840,22 @@ class AiArSseService(
                     throw jsonError
                 }
             }
+        }
+
+        internal fun parseDeviceGuideBody(
+            body: String,
+            gson: Gson = Gson(),
+        ): String {
+            val parsed = runCatching {
+                gson.fromJson(body, DeviceGuideResponse::class.java)
+            }.getOrElse { error ->
+                throw IllegalStateException("设备指引返回不是合法 JSON", error)
+            } ?: throw IllegalStateException("设备指引返回为空")
+            if (parsed.code != 0) {
+                throw IllegalStateException(parsed.msg?.trim().takeUnless { it.isNullOrBlank() } ?: "设备指引接口返回失败")
+            }
+            return parsed.content?.trim().takeUnless { it.isNullOrBlank() }
+                ?: throw IllegalStateException("设备指引返回缺少 content")
         }
 
         private fun parseHazardDetectionObjects(

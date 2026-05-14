@@ -101,6 +101,11 @@ class AutoSleepController(
     }
 
     fun setEnabled(enabled: Boolean) {
+        if (this.enabled == enabled) {
+            syncTrackers()
+            scheduleNextTick()
+            return
+        }
         this.enabled = enabled
         mainHandler.removeCallbacks(tickRunnable)
         val now = SystemClock.elapsedRealtime()

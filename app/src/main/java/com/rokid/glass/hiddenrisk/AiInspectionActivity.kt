@@ -77,11 +77,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
+        private const val ADVICE_DISPLAY_PREFIX = "基于上述隐患，建议您重点关注以下内容："
         private const val ADVICE_CARD_FLOAT_ANIMATION_MS = 260L
         private const val UPLOAD_SUCCESS_TOAST_VISIBLE_MS = 2000L
         private const val UPLOAD_SUCCESS_TOAST_FADE_MS = 300L
         private const val SIMULATED_STREAM_CHUNK_CHARS = 12
         private const val SIMULATED_STREAM_CHUNK_DELAY_MS = 35L
+        private const val DETECTION_PREVIEW_DRAW_CHECK_DELAY_MS = 700L
         private const val MAX_DETAIL_BODY_LOG_CHARS = 4096
 
         private val CAPTURE_WARMUP_MS: Long
@@ -469,6 +471,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var frameStreamInitializing = false
     private var frameStreamReady = false
     private var frameStreamReadyAtElapsedMs = 0L
+    private var previewRecreateAttempted = false
     private var cameraSessionGeneration = 0L
     private var sdkReadyAtElapsedMs = 0L
     private var pendingDetectionStart = false
@@ -828,6 +831,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
+        OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.start_hazard_analysis,
+        )
         modelLoaded = InspectionSession.isModelLoaded
         pendingDetectionStart = true
         Log.i(
@@ -1196,6 +1204,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 TAG,
                 "diagnostic frame_stream_ready generation=$requestGeneration localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} autoInferenceStartRequested=$autoInferenceStartRequested frameStreamReady=$frameStreamReady cameraSessionGeneration=$cameraSessionGeneration",
             )
+            if (!viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
+                recreateDetectionPreviewView(reason = "frame_stream_ready_preview_not_started")
+                return@acquire
+            }
             if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
                 startDetectionPreviewIfNeeded()
             }
@@ -1316,10 +1328,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         autoInferenceStartRequested = true
         if (!shouldRunAutoInferencePipelines()) {
             return
-        }
-        if (frameStreamReady && !RokidFrameSource.isCroppedFrameStreamWarm()) {
-            frameStreamReady = false
-            frameStreamReadyAtElapsedMs = 0L
         }
         if (!frameStreamReady) {
             initFrameStreamAndTransition()
@@ -2203,6 +2211,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun handleAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
+        val previousState = autoSleepSnapshot?.state
         autoSleepSnapshot = snapshot
         refreshInputActions()
         when (snapshot?.state) {
@@ -2212,8 +2221,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 autoSleepController.markSleepHandled()
                 returnDirectlyToHome()
             }
-            AutoSleepStateMachine.State.WAKE,
-            AutoSleepStateMachine.State.WAKING -> resumeFromAutoSleepIfNeeded()
+            AutoSleepStateMachine.State.WAKE -> resumeFromAutoSleepIfNeeded()
+            AutoSleepStateMachine.State.WAKING -> {
+                if (previousState == AutoSleepStateMachine.State.WAKE) {
+                    updateAutoSleepEnabled()
+                }
+            }
             else -> Unit
         }
     }
@@ -2334,11 +2347,90 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 Log.w(TAG, "left-top live preview start failed")
                 return@updatePreview
             }
+            if (!viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
+                recreateDetectionPreviewView(reason = "update_preview_not_started")
+                return@updatePreview
+            }
             applyDetectionPreviewVisibility()
             Log.i(
                 TAG,
                 "left-top live preview ready pageState=$pageState generation=${InspectionCameraCoordinator.getGeneration()}",
             )
+            scheduleDetectionPreviewDrawCheck(InspectionCameraCoordinator.getGeneration())
+        }
+    }
+
+    private fun scheduleDetectionPreviewDrawCheck(generation: Long) {
+        uiHandler.postDelayed(
+            {
+                if (
+                    destroyed ||
+                    !isActivityResumed ||
+                    generation != InspectionCameraCoordinator.getGeneration() ||
+                    !shouldKeepDetectionPreviewRunning()
+                ) {
+                    return@postDelayed
+                }
+                if (viewLivePreview.isPreviewStarted() && !viewLivePreview.isPreviewFrameDrawn()) {
+                    Log.w(
+                        TAG,
+                        "left-top live preview has no drawn frame generation=$generation state=${InspectionCameraCoordinator.getState()}",
+                    )
+                    if (!previewRecreateAttempted) {
+                        recreateDetectionPreviewView(reason = "preview_no_drawn_frame")
+                    }
+                }
+            },
+            DETECTION_PREVIEW_DRAW_CHECK_DELAY_MS,
+        )
+    }
+
+    private fun recreateDetectionPreviewView(reason: String) {
+        previewRecreateAttempted = true
+        Log.i(
+            TAG,
+            "recreateDetectionPreviewView reason=$reason state=${InspectionCameraCoordinator.getState()} previewStarted=${viewLivePreview.isPreviewStarted()} frameDrawn=${viewLivePreview.isPreviewFrameDrawn()} pageState=$pageState",
+        )
+        InspectionCameraCoordinator.updatePreview(
+            owner = CameraOwner.AI_INSPECTION,
+            needPreview = false,
+            previewView = null,
+        ) {
+            val oldPreview = viewLivePreview
+            val oldIndex = layoutLivePreviewCard.indexOfChild(oldPreview).takeIf { it >= 0 }
+                ?: layoutLivePreviewCard.childCount
+            val oldLayoutParams = oldPreview.layoutParams
+            val oldVisibility = oldPreview.visibility
+            oldPreview.detachPreview()
+            layoutLivePreviewCard.removeView(oldPreview)
+            val newPreview = RokidCameraPreviewView(this).apply {
+                id = R.id.viewLivePreview
+                visibility = oldVisibility
+                layoutParams = oldLayoutParams ?: FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+            layoutLivePreviewCard.addView(newPreview, oldIndex)
+            viewLivePreview = newPreview
+            applyDetectionPreviewVisibility()
+            InspectionCameraCoordinator.updatePreview(
+                owner = CameraOwner.AI_INSPECTION,
+                needPreview = shouldKeepDetectionPreviewRunning(),
+                previewView = viewLivePreview,
+            ) rebindPreview@{ success ->
+                frameStreamReady = success
+                frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
+                if (!success) {
+                    Log.w(TAG, "recreated left-top live preview bind failed reason=$reason")
+                    return@rebindPreview
+                }
+                Log.i(
+                    TAG,
+                    "recreated left-top live preview ready reason=$reason generation=${InspectionCameraCoordinator.getGeneration()}",
+                )
+                scheduleDetectionPreviewDrawCheck(InspectionCameraCoordinator.getGeneration())
+            }
         }
     }
 
@@ -2365,6 +2457,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
+        previewRecreateAttempted = false
         InspectionCameraCoordinator.updatePreview(
             owner = CameraOwner.AI_INSPECTION,
             needPreview = false,
@@ -3932,14 +4025,24 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .distinct()
             .joinToString("\n\n")
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText)
+        val displayAdviceText = buildAdviceDisplayText(adviceText)
         renderLocalAdvicePrompt()
         hideActionPrompts()
         updateFunctionMenuVisibility()
         refreshInputActions()
         startSimulatedStreamRendering(
-            fullText = adviceText,
+            fullText = displayAdviceText,
             targetStage = LocalResultStage.ADVICE,
         )
+    }
+
+    private fun buildAdviceDisplayText(adviceText: String): String {
+        val trimmedAdvice = adviceText.trim()
+        return if (trimmedAdvice.isBlank()) {
+            ADVICE_DISPLAY_PREFIX
+        } else {
+            "$ADVICE_DISPLAY_PREFIX\n\n$trimmedAdvice"
+        }
     }
 
     private fun buildLocalHazardAutoSaveTaskKey(hazardContent: ResolvedHazardContent): String {
@@ -4327,7 +4430,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     .takeIf { it > 0 }
                     ?: statusBarStream.measuredHeight
                 if (localResultStage == LocalResultStage.ADVICE) {
-                    resources.getDimensionPixelSize(R.dimen.inspection_advice_card_max_height)
+                    val safetySpacing = resources.getDimensionPixelSize(R.dimen.inspection_bottom_prompt_status_spacing)
+                    (containerHeight - statusHeight - safetySpacing).coerceAtLeast(0)
                 } else {
                     val bottomHintHeight = tvStreamBottomHint.height
                         .takeIf { it > 0 }

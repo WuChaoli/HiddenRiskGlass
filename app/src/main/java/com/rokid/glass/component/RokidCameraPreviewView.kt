@@ -65,6 +65,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             requestRender()
         },
         frameDrawnCallback = {
+            previewFrameDrawn = true
             synchronized(healthLock) {
                 firstFrameReceived = true
                 lastFrameReceivedAtElapsedMs = SystemClock.elapsedRealtime()
@@ -84,6 +85,9 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
     @Volatile
     private var previewStarted = false
+
+    @Volatile
+    private var previewFrameDrawn = false
 
     @Volatile
     private var healthCheckTask: ScheduledFuture<*>? = null
@@ -144,6 +148,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             return
         }
         previewStarted = true
+        previewFrameDrawn = false
         synchronized(healthLock) {
             previewStartedAtElapsedMs = SystemClock.elapsedRealtime()
             resetHealthStateLocked()
@@ -196,6 +201,8 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
     fun isPreviewStarted(): Boolean = previewStarted
 
+    fun isPreviewFrameDrawn(): Boolean = previewFrameDrawn
+
     override fun onDetachedFromWindow() {
         detachPreview()
         healthExecutor.shutdownNow()
@@ -209,6 +216,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
         }
         Log.i(TAG, "stopPreview requested releaseSharedSurface=$releaseSharedSurface")
         previewStarted = false
+        previewFrameDrawn = false
         healthCheckTask?.cancel(true)
         healthCheckTask = null
         synchronized(healthLock) {
@@ -398,10 +406,6 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                 }
             }
             framePending = false
-            if (frameAdvanced) {
-                frameDrawnCallback.invoke()
-            }
-
             if (!hasFrame) {
                 return
             }
@@ -444,6 +448,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             GLES20.glUniform1i(oesTextureHandle, 0)
 
             GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+            frameDrawnCallback.invoke()
 
             GLES20.glDisableVertexAttribArray(positionHandle)
             GLES20.glDisableVertexAttribArray(texCoordHandle)
