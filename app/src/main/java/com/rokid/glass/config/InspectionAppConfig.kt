@@ -45,7 +45,7 @@ data class AiInspectionConfig(
     val gpuProfile: GpuProfile = GpuProfile.BALANCED_FP16,
     val targetInputSize: Int = 640,
     val enableHitCaptureSave: Boolean = false,
-    val enableOnlineAdvicePage: Boolean = true,
+    val enableOnlineAdvicePage: Boolean = false,
     val staleFrameThresholdMs: Long = 1200L,
     val sharedFrameMotionClearThresholdMs: Long = 1000L,
     val enableHeadMotionStabilityGate: Boolean = false,
