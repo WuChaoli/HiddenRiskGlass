@@ -25,3 +25,4 @@ models/
 .tmp_*.jpg
 screen_*.png
 test/
+release/
