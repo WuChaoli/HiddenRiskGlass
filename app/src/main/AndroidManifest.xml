@@ -91,9 +91,6 @@
         <!--            android:name="com.rokid.glass.BarcodeDetectorActivity"-->
         <!--            android:exported="false" />-->
         <activity
-            android:name="com.rokid.glass.CameraActivity"
-            android:exported="false" />
-        <activity
             android:name="com.rokid.glass.WifiQrScanActivity"
             android:exported="true"
             android:theme="@style/Theme.Glessedemo" />
@@ -113,9 +110,7 @@
             android:name="com.rokid.glass.InspectionEndReportActivity"
             android:exported="false"
             android:theme="@style/Theme.Glessedemo" />
-        <activity
-            android:name="com.rokid.glass.SendMessageActivity"
-            android:exported="false" /> <!-- <activity -->
+        <!-- <activity -->
         <!-- android:name="com.rokid.glass.MainActivity" -->
         <!-- android:exported="true" -->
         <!-- android:label="@string/app_name" -->
@@ -130,38 +125,13 @@
             android:exported="true"
             android:label="@string/hidden_risk_probe_label"
             android:theme="@style/Theme.Glessedemo" />
-        <activity
-            android:name="com.rokid.glass.CameraPageActivity"
-            android:exported="true" />
         <!--        <activity-->
         <!--            android:name="com.rokid.glass.MainActivity"-->
         <!--            android:exported="true" />-->
-        <activity
-            android:name="com.rokid.glass.GlassLprTrackActivity"
-            android:exported="true" />
-        <activity
-            android:name="com.rokid.glass.GlassFaceTrackActivity"
-            android:exported="true" />
-        <activity
-            android:name="com.rokid.glass.MessageReceiveActivity"
-            android:exported="true" />
-        <activity
-            android:name="com.rokid.glass.TestNetworkActivity"
-            android:exported="true" />
-
-        <service
-            android:name="com.rokid.glass.AudioService"
-            android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="connectedDevice|location|microphone|dataSync|camera"
-            tools:ignore="ForegroundServicePermission" />
         <service
             android:name="com.rokid.glass.hiddenrisk.InspectionBackgroundUploadService"
             android:enabled="true"
             android:exported="false" />
-        <activity
-            android:name="com.rokid.glass.TestMediaActivity"
-            android:exported="true" />
         <activity
             android:name="com.rokid.glass.InspectionModeActivity"
             android:exported="true"

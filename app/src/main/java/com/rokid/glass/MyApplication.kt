@@ -35,7 +35,6 @@ class MyApplication : Application() {
         const val ACTION_AI_START: String = "com.android.action.ACTION_AI_START"
 
         var gMainHandler: Handler? = null
-        var curIsCameraActivity = false
 
         // 获取全局 Context 的方法
         var sendVideoStatus = false
