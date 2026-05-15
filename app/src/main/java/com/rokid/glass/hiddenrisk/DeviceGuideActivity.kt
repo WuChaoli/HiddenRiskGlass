@@ -135,6 +135,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_device_guide)
         initViews()
+        showDetectingPage()
         OfflineTtsPlayer.play(
             context = this,
             ownerTag = TAG,
@@ -143,7 +144,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         RokidSdkManager.initialize(application)
         RokidSdkManager.addListener(this)
         RokidSdkManager.ensureInitialized()
-        showDetectingPage()
     }
 
     override fun onResume() {
