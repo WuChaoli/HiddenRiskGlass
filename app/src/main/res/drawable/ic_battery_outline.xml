@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="28dp"
+    android:height="14dp"
+    android:viewportWidth="28"
+    android:viewportHeight="14">
+
+    <!-- 电池外框 -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="@color/green"
+        android:strokeWidth="1"
+        android:pathData="M2,1 L24,1 A1,1 0 0 1 25,2 L25,12 A1,1 0 0 1 24,13 L2,13 A1,1 0 0 1 1,12 L1,2 A1,1 0 0 1 2,1 Z" />
+
+    <!-- 电池头部（正极） -->
+    <path
+        android:fillColor="@color/green"
+        android:pathData="M25,4 L26,4 A1,1 0 0 1 27,5 L27,9 A1,1 0 0 1 26,10 L25,10 Z" />
+</vector>

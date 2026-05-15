@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/glass_bottom_scrim" />
+
+    <!-- 右上角操作指引 -->
+    <com.rokid.glass.component.OperationGuideView
+        android:id="@+id/operationGuideEnd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="@dimen/inspection_operation_guide_margin_top"
+        android:layout_marginEnd="@dimen/inspection_operation_guide_margin_end"
+        android:visibility="gone" />
+
+    <!-- 底部区域：卡片 + 底部提示 + 状态栏 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="@dimen/inspection_bottom_card_margin_horizontal"
+            android:background="@drawable/glass_card_outline"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="10dp">
+
+            <!-- 左侧：本次保存的隐患缩略图 -->
+            <ScrollView
+                android:id="@+id/scrollSavedHazardThumbs"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fadingEdgeLength="10dp"
+                android:overScrollMode="never"
+                android:requiresFadingEdge="vertical"
+                android:scrollbars="none">
+
+                <GridLayout
+                    android:id="@+id/gridSavedHazardThumbs"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:columnCount="6" />
+            </ScrollView>
+
+            <!-- 右侧：隐患数量 -->
+            <TextView
+                android:id="@+id/tvHazardCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:text="@string/ai_inspection_end_report_confirm_finish_title"
+                android:textColor="@color/green"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 底部提示 -->
+        <com.rokid.glass.component.BottomPromptView
+            android:id="@+id/bottomPromptEnd"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/inspection_bottom_prompt_margin_top"
+            android:layout_marginBottom="@dimen/inspection_bottom_prompt_status_spacing"
+            android:visibility="gone" />
+
+        <!-- 状态栏 -->
+        <com.rokid.glass.component.GlassStatusBar
+            android:id="@+id/statusBarEnd"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+            android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+    </LinearLayout>
+</FrameLayout>

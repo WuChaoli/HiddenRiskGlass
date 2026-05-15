@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rokid Unified Input"
+  short_description: "统一 Rokid 语音触控陀螺仪事件监听与交互接入规范"
+  default_prompt: "Use $rokid-unified-input to wire a Rokid page into the unified voice, touch, and head-gesture event flow."

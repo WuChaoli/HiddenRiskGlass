@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 主标题 -->
+    <TextView
+        android:id="@+id/tvPromptTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/green"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        tools:text="隐患信息是否同步手机端？" />
+
+    <!-- 副标题（可选） -->
+    <TextView
+        android:id="@+id/tvPromptSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textColor="@color/green"
+        android:textSize="12sp"
+        android:visibility="gone"
+        tools:text="语音指令：确认 | 取消
+触控指令：单击 | 双击" />
+</merge>

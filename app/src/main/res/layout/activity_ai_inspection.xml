@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootContainer"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/black">
+
+    <LinearLayout
+        android:id="@+id/layoutLoading"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/ivLoadingSpinner"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@mipmap/ic_loading" />
+
+        <ImageView
+            android:id="@+id/ivLoadingComplete"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_check_circle"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvLoadingTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/ai_inspection_loading_title"
+            android:textColor="@color/green"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvLoadingSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/ai_inspection_loading_subtitle"
+            android:textColor="@color/green"
+            android:textSize="16sp" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="240dp"
+            android:layout_height="10dp"
+            android:layout_marginTop="24dp"
+            android:max="100"
+            android:progressDrawable="@drawable/progress_bar_fill" />
+
+        <TextView
+            android:id="@+id/tvProgressPercent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="0%"
+            android:textColor="@color/green"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/layoutGuideCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="20dp"
+            android:layout_marginTop="28dp"
+            android:background="@drawable/glass_card_outline"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:padding="22dp">
+
+            <LinearLayout
+                android:id="@+id/layoutGuideContent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <TextView
+                android:id="@+id/tvConfirmPrompt"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/ai_inspection_confirm_prompt"
+                android:textColor="@color/green"
+                android:textSize="18sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvLoadingHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textColor="@color/green"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutDetection"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <!-- 弹性占位，把底部内容推到底部 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvDetectingBottomHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/ai_inspection_detecting_bottom_hint"
+                android:textColor="@color/green"
+                android:textSize="18px"
+                android:textStyle="bold" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarDetecting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+
+        <!-- 右上角功能菜单 -->
+        <com.rokid.glass.component.FunctionMenuView
+            android:id="@+id/operationGuideDetecting"
+            android:layout_width="@dimen/inspection_function_menu_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/inspection_function_menu_margin_top"
+            android:layout_marginEnd="@dimen/inspection_function_menu_margin_end"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <com.rokid.glass.component.StatusAlertOverlayView
+        android:id="@+id/statusAlertOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/layoutStreamResponse"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:id="@+id/layoutStreamThumbnailCard"
+            android:layout_width="@dimen/inspection_result_thumbnail_card_size"
+            android:layout_height="@dimen/inspection_result_thumbnail_card_size"
+            android:layout_gravity="top|center_horizontal"
+            android:layout_marginTop="@dimen/inspection_result_thumbnail_margin_top"
+            android:visibility="gone">
+
+            <FrameLayout
+                android:id="@+id/layoutStreamThumbnailPlaceholder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="visible">
+
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:alpha="0.7"
+                    android:src="@drawable/ic_question_circle" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/ivStreamThumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <!-- 右上角功能菜单 -->
+        <com.rokid.glass.component.FunctionMenuView
+            android:id="@+id/operationGuideStream"
+            android:layout_width="@dimen/inspection_function_menu_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="@dimen/inspection_function_menu_margin_top"
+            android:layout_marginEnd="@dimen/inspection_function_menu_margin_end"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutStreamContentContainer"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <View
+                android:id="@+id/streamTopSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/tvUploadSuccessToast"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="@dimen/inspection_upload_success_toast_margin_bottom"
+                android:background="@drawable/glass_card_outline"
+                android:gravity="center"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:text="@string/ai_inspection_upload_success_tip"
+                android:textColor="@color/green"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <ScrollView
+                android:id="@+id/scrollContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/inspection_bottom_card_margin_horizontal"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/glass_card_outline"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvStreamContent"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:lineSpacingExtra="3dp"
+                        android:padding="12dp"
+                        android:textColor="@color/green"
+                        android:textSize="12sp" />
+                    </LinearLayout>
+            </ScrollView>
+
+            <View
+                android:id="@+id/streamBottomSpacer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/tvStreamBottomHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/ai_inspection_description_bottom_hint"
+                android:textColor="@color/green"
+                android:textSize="18px"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <com.rokid.glass.component.GlassStatusBar
+                android:id="@+id/statusBarStream"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/inspection_status_bar_padding_horizontal"
+                android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutLivePreviewCard"
+        android:layout_width="@dimen/inspection_preview_card_size"
+        android:layout_height="@dimen/inspection_preview_card_size"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="@dimen/inspection_preview_card_margin_start"
+        android:layout_marginTop="@dimen/inspection_preview_card_margin_top"
+        android:visibility="invisible">
+
+        <com.rokid.glass.component.RokidCameraPreviewView
+            android:id="@+id/viewLivePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
+
+</FrameLayout>

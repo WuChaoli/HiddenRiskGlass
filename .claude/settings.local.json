@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(kt|java\\)$\")",
+      "Bash(xargs wc:*)",
+      "Bash(ls D:/repositories/hiddenriskglass/app/src/main/res/mipmap-*/)",
+      "Bash(./gradlew assembleDebug)"
+    ]
+  }
+}

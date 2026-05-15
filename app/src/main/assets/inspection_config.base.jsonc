@@ -1,0 +1,181 @@
+{
+  /* 巡检全局功能开关。
+   * 修改这些字段会影响页面跳转主链路。
+   */
+  "featureFlags": {
+    // 是否启用企业巡检链路。false 时扫码页/企业信息页会被跳过，直接进入 AI 巡检。
+    "enableEnterpriseInspectionFlow": true
+  },
+
+  /* 企业扫码页参数。
+   * 影响 EnterpriseQrScanActivity 的扫码节流、取帧尺寸与相机恢复。
+   */
+  "enterpriseScan": {
+    // 扫码轮询间隔，单位 ms。过小会增加 CPU/相机压力，过大可能降低识别响应速度。
+    "scanIntervalMs": 800,
+    // 扫码取帧目标尺寸，单位 px。过大增加处理成本，过小可能降低二维码识别率。
+    "scanFrameTargetSize": 1080,
+    // 是否启用扫码页相机恢复。关闭后相机异常时不会自动尝试恢复。
+    "enableCameraRecovery": true
+  },
+
+  /* 企业信息页参数。
+   * 影响 EnterpriseInfoActivity 的历史隐患展示。
+   */
+  "enterpriseInfo": {
+    // 最多展示多少条历史隐患。单位：条。
+    "maxHazardHistoryDisplayCount": 3,
+    // 最近巡查时间兜底文案。当前会话没有真实巡查时间时使用该文本。
+    "recentInspectionTimeFallbackText": "最近巡查时间：2026年1月21日"
+  },
+
+  /* AI 隐患识别页参数。
+   * 影响 AiInspectionActivity 的推理模式、取帧阈值、保存策略与在线识别行为。
+   */
+  "aiInspection": {
+    // 自动识别模式。可选值：BOTH | ONLINE_ONLY | LOCAL_ONLY。
+    "autoInferenceMode": "BOTH",
+    // 隐患路由模式。可选值：SEPARATED | ONLINE_ONLY | LOCAL_ONLY。
+    "autoHazardRoutingMode": "SEPARATED",
+    // 抓拍预热时长，单位 ms。过短可能拿到不稳定帧。
+    "captureWarmupMs": 1200,
+    // 自动识别失败后的重试等待，单位 ms。
+    "autoInferenceRetryDelayMs": 80,
+    // 自动弹出隐患详情前的等待时长，单位 ms。
+    "autoHazardPresentDelayMs": 3000,
+    // 同一标签的本地识别冷却时间，单位 ms。过短会重复报同一隐患。
+    "localLabelCooldownMs": 15000,
+    // 流式结果缩略图目标尺寸，单位 px。
+    "streamThumbnailTargetPx": 160,
+    // 本地保存成功 toast 展示时长，单位 ms。
+    "localSaveSuccessToastMs": 1500,
+    // 本地 NCNN 推理后端。可选值：CPU | GPU | TURNIP。
+    "backend": "GPU",
+    // GPU profile。可选值：SAFE_FP32 | BALANCED_FP16 | NO_PACKING_FP32。
+    "gpuProfile": "BALANCED_FP16",
+    // 模型输入尺寸，单位 px。修改会直接影响推理耗时与显存。
+    "targetInputSize": 640,
+    // 是否在命中隐患时额外保存抓拍图片。开启后会增加存储与 I/O。
+    "enableHitCaptureSave": false,
+    // 陈旧帧阈值，单位 ms。超过该阈值的共享帧会被视为不可用。
+    "staleFrameThresholdMs": 1200,
+    // 运动清空阈值，单位 ms。超过该时间会清理共享帧运动状态。
+    "sharedFrameMotionClearThresholdMs": 1000,
+    // 是否启用头部稳态门控。关闭后不等待 500ms 头部稳定即可进入自动识别。
+    "enableHeadMotionStabilityGate": false,
+    // 在线识别 JPEG 压缩质量，范围 0-100。过高会增加上传体积。
+    "onlineJpegQuality": 75,
+    // 在线取样窗口时长，单位 ms。
+    "onlineSelectWindowMs": 240,
+    // 在线取样窗口内最多采样帧数，单位：帧。
+    "onlineSelectMaxFrames": 3,
+    // 在线取样轮询间隔，单位 ms。
+    "onlineSelectPollIntervalMs": 80,
+    // 在线检测最小触发间隔，单位 ms。standard 默认 500，demo overlay 会覆盖。
+    "onlineDetectIntervalMs": 500,
+    // 在线检测最大并发数。超过该数量的新请求会被本地丢弃为 busy。
+    "onlineDetectConcurrencyLimit": 5,
+    // 是否启用场景隐患识别。开启后会按 onlineSceneDetectIntervalMs 调用 /ai/general。
+    "enableOnlineSceneHazardDetection": true,
+    // 场景识别最小触发间隔，单位 ms。
+    "onlineSceneDetectIntervalMs": 3000,
+    // 远程 ctype=3 连续失败达到该次数后，降级到本地 NCNN 备用链路。
+    "remoteFailureFallbackThreshold": 3,
+    // 是否允许远端失败后进入本地 fallback loading。接口联调阶段默认关闭，避免自动切到本地链路干扰验证。
+    "enableLocalFallbackLoading": false,
+    // 本地备用链路运行时，系统网络恢复探测间隔，单位 ms。
+    "localNetworkProbeIntervalMs": 3000,
+    // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
+    "forceOnlineDetailForLocalHazard": false,
+    // 是否启用自动睡眠监测。关闭后隐患识别页和设备指引页不会监听静止/摘镜自动返回菜单。
+    "enableAutoSleepMonitoring": false,
+    // 自动睡眠静止触发时长，单位 ms。检测态长时间无头部移动时弹出确认。
+    "sleepWakingDurationMs": 60000,
+    // 自动睡眠弹窗无输入返回菜单时长，单位 ms。
+    "sleepWarningDurationMs": 15000,
+    // 自动睡眠静止判定的俯仰/偏航陀螺仪阈值，单位 rad/s。
+    "sleepQuietGyroMaxRad": 0.20
+  },
+
+  /* 网络参数。
+   * 统一管理地址与超时；单位均为 ms。
+   */
+  "network": {
+    "enterpriseObjectApi": {
+      // 企业对象信息接口 connect timeout，单位 ms。
+      "connectTimeoutMs": 15000,
+      // 企业对象信息接口 read timeout，单位 ms。
+      "readTimeoutMs": 30000,
+      // 企业对象信息接口 write timeout，单位 ms。
+      "writeTimeoutMs": 30000
+    },
+    "aiAutoApi": {
+      // 隐患物品检测接口地址。
+      "url": "http://183.147.142.133:10010/ai/auto",
+      // AI AR SSE connect timeout，单位 ms。
+      "connectTimeoutMs": 15000,
+      // AI AR SSE read timeout，单位 ms。流式接口一般需要更长读取时间。
+      "readTimeoutMs": 45000,
+      // AI AR SSE write timeout，单位 ms。
+      "writeTimeoutMs": 30000,
+      // 在线检测阶段的业务超时，单位 ms。超时后会主动丢弃请求。
+      "detectTimeoutMs": 1500
+    },
+    "aiDeepApi": {
+      // 深度分析接口地址。
+      "url": "http://183.147.142.133:10010/ai/deep",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 1500
+    },
+    "aiGmApi": {
+      // 缺少 placeCode 时，手动深度分析和隐患录入页使用的兼容接口地址。
+      "url": "http://183.147.142.133:10012/ai/gm",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 1500
+    },
+    "aiGeneralApi": {
+      // 环境隐患识别接口地址。
+      "url": "http://183.147.142.133:10010/ai/general",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 3000
+    },
+    "aiGeneralDeepApi": {
+      // 环境隐患深度分析接口地址。
+      "url": "http://183.147.142.133:10010/ai/general_deep",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 1500
+    },
+    "aiDeviceApi": {
+      // 设备指引接口地址。
+      "url": "http://183.147.142.133:10010/ai/device",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 3000
+    },
+    "aiSuggestionChecksApi": {
+      // 隐患整改建议接口地址。
+      "url": "http://183.147.142.133:10010/ai/sug_checks",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 3000
+    },
+    "saveResultApi": {
+      // 保存类接口 connect timeout，单位 ms。
+      "connectTimeoutMs": 30000,
+      // 保存类接口 read timeout，单位 ms。
+      "readTimeoutMs": 30000,
+      // 保存类接口 write timeout，单位 ms。
+      "writeTimeoutMs": 30000
+    }
+  }
+}
