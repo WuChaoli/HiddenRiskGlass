@@ -106,7 +106,7 @@ data class AiArApiConfig(
     val connectTimeoutMs: Long = 15_000L,
     val readTimeoutMs: Long = 45_000L,
     val writeTimeoutMs: Long = 30_000L,
-    val detectTimeoutMs: Long = 1_500L,
+    val detectTimeoutMs: Long = 4_000L,
 )
 
 data class SaveResultApiConfig(
