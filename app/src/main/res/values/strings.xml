@@ -126,7 +126,7 @@
     <string name="ai_inspection_end_report_title">巡检结束</string>
     <string name="ai_inspection_end_report_hint">触控指令: 单击确认 | 双击返回菜单</string>
     <string name="inspection_function_menu_title">功能菜单</string>
-    <string name="inspection_function_menu_content">隐患录入\n设备指引\n结束任务</string>
+    <string name="inspection_function_menu_content">隐患拍照\n设备指引\n结束任务</string>
     <string name="ai_inspection_operation_guide_title">操作指引</string>
     <string name="ai_inspection_operation_guide_detecting">说出 分析\n说出 返回\n说出 结束\n单击 分析\n双击 返回</string>
     <string name="ai_inspection_operation_guide_confirm_return">说出 确认\n说出 返回\n单击 确认\n双击 返回</string>
@@ -230,11 +230,11 @@
     <string name="enterprise_info_confirm_hint">单击/确认进入 AI 识患菜单，双击/取消返回</string>
     <string name="ai_entry_menu_title">AI识患菜单</string>
     <string name="ai_entry_menu_analysis">实时分析</string>
-    <string name="ai_entry_menu_record">隐患录入</string>
+    <string name="ai_entry_menu_record">隐患拍照</string>
     <string name="ai_entry_menu_guide">设备指引</string>
     <string name="ai_entry_menu_lightshot">闪拍</string>
     <string name="ai_entry_menu_hint">请直接说出功能名称</string>
-    <string name="ai_entry_menu_voice_hint">语音指令：实时分析 | 设备指引 | 隐患录入</string>
+    <string name="ai_entry_menu_voice_hint">语音指令：实时分析 | 设备指引 | 隐患拍照</string>
     <string name="ai_detection_result_sync">是否同步到手机端？</string>
     <string name="ai_detection_result_hint">前后滑动翻页，单击/确认同步，双击/取消返回检测</string>
     <string name="ai_detection_sync_decision_hint">语音：继续 | 结束，触控：单击 | 双击</string>
@@ -265,7 +265,7 @@
     <string name="hazard_record_continue_hint">语音指令：确认 | 取消\n触控操作：单击 | 双击</string>
     <string name="hazard_record_continue_hint_with_gyro">语音指令：确认 | 取消\n触控操作：单击 | 双击</string>
     <string name="device_guide_title">设备指引</string>
-    <string name="device_guide_function_menu_content">实时分析\n隐患录入\n结束任务</string>
+    <string name="device_guide_function_menu_content">实时分析\n隐患拍照\n结束任务</string>
     <string name="device_guide_detecting_bottom_hint">系统正在实时分析，请保持眼镜稳定\n如需切换功能，请说出功能名称</string>
     <string name="device_guide_prompt_message">识别到此处有检查品，是否要提供检查重点？</string>
     <string name="device_guide_fetching_detail">正在获取检查重点...</string>

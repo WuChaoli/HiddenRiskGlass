@@ -264,8 +264,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("device_guide_hazard_record"),
-                label = "隐患录入",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
+                label = "隐患拍照",
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患拍照", "yin huan pai zhao")),
                 enabled = { canHandleDetectingInput() },
             ) {
                 startActivity(Intent(this, HazardRecordActivity::class.java))

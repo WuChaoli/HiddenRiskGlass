@@ -105,8 +105,8 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_menu_record"),
-                label = "隐患录入",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
+                label = "隐患拍照",
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患拍照", "yin huan pai zhao")),
             ) {
                 onItemConfirmed(2)
             },

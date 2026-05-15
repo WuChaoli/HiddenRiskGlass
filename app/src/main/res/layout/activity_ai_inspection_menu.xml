@@ -79,7 +79,7 @@
                 </LinearLayout>
             </FrameLayout>
 
-            <!-- 隐患录入 -->
+            <!-- 隐患拍照 -->
             <FrameLayout
                 android:id="@+id/itemHazardRecord"
                 android:layout_width="0dp"

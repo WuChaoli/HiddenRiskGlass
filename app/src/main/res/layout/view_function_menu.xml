@@ -31,5 +31,5 @@
         android:textColor="@color/green"
         android:textSize="12sp"
         android:textStyle="bold"
-        tools:text="隐患录入&#10;设备指引&#10;结束任务" />
+        tools:text="隐患拍照&#10;设备指引&#10;结束任务" />
 </merge>
