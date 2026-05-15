@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.rokid.glass.config.InspectionConfigRepository
@@ -70,7 +71,7 @@ class EnterpriseInfoActivity : BaseGlassActivity() {
         tvCategory.text = getString(R.string.enterprise_info_category_prefix) + (intent.getStringExtra("debug_category") ?: "")
         tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + (intent.getStringExtra("debug_risk_tags") ?: "")
         tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + (intent.getStringExtra("debug_risk_level") ?: "")
-        tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
+        bindRecentInspectionTime(intent.getStringExtra("debug_last_inspection_date").orEmpty())
 
         val hazards = listOf(
             "三合一住人",
@@ -92,7 +93,7 @@ val info = InspectionWorkflowSession.enterpriseInfo
              tvCategory.text = getString(R.string.enterprise_info_category_prefix)
              tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix)
              tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix)
-             tvRecentInspectionTime.text = RECENT_INSPECTION_TIME
+             bindRecentInspectionTime("")
              hazardListContainer.removeAllViews()
              return
          }
@@ -102,13 +103,21 @@ val info = InspectionWorkflowSession.enterpriseInfo
          tvCategory.text = getString(R.string.enterprise_info_category_prefix) + info.category
          tvRiskTags.text = getString(R.string.enterprise_info_risk_tags_prefix) + info.riskTags
          tvRiskLevel.text = getString(R.string.enterprise_info_risk_level_prefix) + info.riskLevel
-         tvRecentInspectionTime.text = if (info.lastInspectionDate.isNotBlank()) {
-             getString(R.string.enterprise_info_recent_inspection_time_prefix) + info.lastInspectionDate
-         } else {
-             RECENT_INSPECTION_TIME
-         }
+         bindRecentInspectionTime(info.lastInspectionDate)
 
          renderHazardHistory(info.hazardHistory)
+    }
+
+    private fun bindRecentInspectionTime(lastInspectionDate: String) {
+        val normalizedDate = lastInspectionDate.trim()
+        if (normalizedDate.isBlank()) {
+            tvRecentInspectionTime.visibility = View.GONE
+            tvRecentInspectionTime.text = ""
+            return
+        }
+
+        tvRecentInspectionTime.visibility = View.VISIBLE
+        tvRecentInspectionTime.text = getString(R.string.enterprise_info_recent_inspection_time_prefix) + normalizedDate
     }
 
     private fun renderHazardHistory(hazards: List<String>) {
@@ -248,9 +257,6 @@ val info = InspectionWorkflowSession.enterpriseInfo
         private const val TAG = "EnterpriseInfoActivity"
         private val MAX_HAZARD_HISTORY_DISPLAY_COUNT: Int
             get() = InspectionConfigRepository.get().enterpriseInfo.maxHazardHistoryDisplayCount
-
-        private val RECENT_INSPECTION_TIME: String
-            get() = InspectionConfigRepository.get().enterpriseInfo.recentInspectionTimeFallbackText
 
         private const val STATUS_UPDATE_INTERVAL_MS = 1000L
     }
