@@ -1246,6 +1246,36 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         initFrameStreamAndTransition()
     }
 
+    private fun returnToDetectingAfterEmptySuggestionChecks() {
+        currentSuggestionChecksHandle = null
+        suggestionChecksRequestPending = false
+        returnToDetectingWhenSubmitIdle = false
+        localSaveSubmitting = false
+        currentManualAnalysisHandle?.cancel()
+        currentManualAnalysisHandle = null
+        streamCallbackActive = false
+        streamingInProgress = false
+        pendingStreamStart = false
+        manualDeepAnalysisInProgress = false
+        cancelSimulatedStreamRendering()
+        clearPendingAutoHazardPresentation()
+        stopAutoInferencePipelines("empty_sug_checks")
+        streamPanelAnchoredBelowPreview = false
+        activeHazardContent = null
+        localResultStage = LocalResultStage.NONE
+        pendingHazardAlertTtsPlayed = false
+        localHazardAlertTtsPlayed = false
+        localHazardAdviceTtsPlayed = false
+        activeStreamRequestId++
+        hideStatusAlertOverlay()
+        cameraRecoveryController.resetRecoveryAttempts()
+        showPage(PageState.DETECTING)
+        showPendingUploadSuccessToastIfNeeded()
+        applyDefaultDetectionStatus()
+        refreshInputActions()
+        initFrameStreamAndTransition()
+    }
+
     private fun returnDirectlyToHome() {
         localHazardUploadHandle?.cancel()
         localHazardUploadHandle = null
@@ -3898,6 +3928,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
                         )
                         pendingUploadSuccessToast = true
+                        if (pageState == PageState.DETECTING) {
+                            showPendingUploadSuccessToastIfNeeded()
+                        }
                         finishAdviceSubmitIfIdle()
                     }
 
@@ -3952,6 +3985,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     )
                     currentSuggestionChecksHandle = null
                     suggestionChecksRequestPending = false
+                    if (content.isBlank()) {
+                        AppFileLogger.i(
+                            TAG,
+                            "sug_checks advice empty, return detecting without cancel local upload taskId=${handle.taskId} hazardCode=$hazardCode",
+                        )
+                        returnToDetectingAfterEmptySuggestionChecks()
+                        return
+                    }
                     showSuggestionChecksAdvice(hazardContent, content)
                     finishAdviceSubmitIfIdle()
                 }

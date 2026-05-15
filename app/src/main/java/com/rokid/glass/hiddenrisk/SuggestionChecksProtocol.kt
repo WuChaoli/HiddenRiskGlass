@@ -31,9 +31,6 @@ internal object SuggestionChecksProtocol {
             ?.asString
             ?.trim()
             .orEmpty()
-        if (content.isBlank()) {
-            throw IllegalStateException("sug_checks content 为空")
-        }
         return content
     }
 }
