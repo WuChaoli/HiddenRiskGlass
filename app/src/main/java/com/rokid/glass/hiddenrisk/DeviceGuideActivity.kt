@@ -125,9 +125,9 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runDetectionLoop()
     }
 
-    private val promptTimeoutRunnable = Runnable {
-        if (pageState == PageState.PROMPT_PENDING) {
-            returnToDetecting()
+    private val autoGuideDetailRunnable = Runnable {
+        if (pageState == PageState.PROMPT_PENDING && currentPayload != null) {
+            requestGuideDetails()
         }
     }
 
@@ -163,7 +163,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         stopStatusBarUpdates()
         cancelActiveRequests()
         uiHandler.removeCallbacks(nextDetectRunnable)
-        uiHandler.removeCallbacks(promptTimeoutRunnable)
+        uiHandler.removeCallbacks(autoGuideDetailRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
         InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
@@ -603,7 +603,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun showPromptPending(payload: InspectionFrameCaptureService.CapturedFramePayload) {
         autoSleepController.setEnabled(false)
         uiHandler.removeCallbacks(nextDetectRunnable)
-        uiHandler.removeCallbacks(promptTimeoutRunnable)
+        uiHandler.removeCallbacks(autoGuideDetailRunnable)
         pageState = PageState.PROMPT_PENDING
         currentPayload = payload
         layoutDetection.visibility = View.VISIBLE
@@ -619,19 +619,19 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 status = AlertStatus.WARNING,
                 titleText = "",
                 messageText = getString(R.string.device_guide_prompt_message),
-                behavior = AlertBehavior(autoDismissMs = PROMPT_TIMEOUT_MS, showCountdownBar = false),
+                behavior = AlertBehavior(autoDismissMs = PROMPT_AUTO_DETAIL_DELAY_MS, showCountdownBar = false),
                 style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
             ),
         )
         refreshFunctionMenuVisibility()
         refreshInputActions()
-        uiHandler.postDelayed(promptTimeoutRunnable, PROMPT_TIMEOUT_MS)
+        uiHandler.postDelayed(autoGuideDetailRunnable, PROMPT_AUTO_DETAIL_DELAY_MS)
     }
 
     private fun requestGuideDetails() {
         autoSleepController.setEnabled(false)
         val payload = currentPayload ?: return
-        uiHandler.removeCallbacks(promptTimeoutRunnable)
+        uiHandler.removeCallbacks(autoGuideDetailRunnable)
         detailInFlight = true
         pageState = PageState.DETAIL
         statusAlertOverlay.reset()
@@ -662,7 +662,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             audioResId = R.raw.device_guide,
                         )
                     }
-                    tvResultContent.text = partialText.trim()
+                    tvResultContent.text = buildGuideDetailDisplayText(partialText)
                 }
             },
             callback = object : AiArSseService.DetailCallback {
@@ -673,8 +673,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         if (activeDetailHandle != handle) return@post
                         activeDetailHandle = null
                         detailInFlight = false
-                        tvResultContent.text = fullText.trim()
-                            .ifBlank { getString(R.string.device_guide_detail_empty) }
+                        tvResultContent.text = buildGuideDetailDisplayText(fullText)
                         refreshInputActions()
                     }
                 }
@@ -693,8 +692,17 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshInputActions()
     }
 
+    private fun buildGuideDetailDisplayText(detailText: String): String {
+        val trimmedText = detailText.trim()
+        return when {
+            trimmedText.isBlank() -> getString(R.string.device_guide_detail_empty)
+            trimmedText.startsWith(DEVICE_GUIDE_DETAIL_DISPLAY_PREFIX) -> trimmedText
+            else -> "$DEVICE_GUIDE_DETAIL_DISPLAY_PREFIX\n$trimmedText"
+        }
+    }
+
     private fun returnToDetecting(message: String? = null) {
-        uiHandler.removeCallbacks(promptTimeoutRunnable)
+        uiHandler.removeCallbacks(autoGuideDetailRunnable)
         cancelActiveRequests()
         OfflineTtsPlayer.release(TAG)
         pageState = PageState.DETECTING
@@ -742,7 +750,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun cancelActiveRequests() {
-        uiHandler.removeCallbacks(promptTimeoutRunnable)
+        uiHandler.removeCallbacks(autoGuideDetailRunnable)
         detectInFlight = false
         detailInFlight = false
         activeDetectHandle?.cancel()
@@ -891,6 +899,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     companion object {
         private const val TAG = "DeviceGuideActivity"
+        private const val DEVICE_GUIDE_DETAIL_DISPLAY_PREFIX = "识别到此处有设备，建议您重点关注以下问题："
         private const val REQUEST_MEDIA_PERMISSION = 302
         private const val STALE_FRAME_THRESHOLD_MS = 1200L
         private const val SELECT_WINDOW_MS = 240L
@@ -898,7 +907,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val SELECT_POLL_INTERVAL_MS = 80L
         private const val JPEG_QUALITY = 97
         private const val DETECT_INTERVAL_MS = 1000L
-        private const val PROMPT_TIMEOUT_MS = 3000L
+        private const val PROMPT_AUTO_DETAIL_DELAY_MS = 2000L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
         private const val PREVIEW_READY_RETRY_DELAY_MS = 100L
         private const val PREVIEW_DRAW_CHECK_DELAY_MS = 700L
