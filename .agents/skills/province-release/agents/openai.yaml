@@ -1,0 +1,4 @@
+interface:
+  display_name: "Province Release"
+  short_description: "全省版版本发布、打包与双远端推送流程"
+  default_prompt: "Use $province-release to publish a glassdemo 全省版 release, generate changelog, build the APK, move the tag, and push remotes."

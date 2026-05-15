@@ -6,5 +6,9 @@
       "Bash(ls D:/repositories/hiddenriskglass/app/src/main/res/mipmap-*/)",
       "Bash(./gradlew assembleDebug)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "android-adb",
+    "adb-tui"
+  ]
 }
