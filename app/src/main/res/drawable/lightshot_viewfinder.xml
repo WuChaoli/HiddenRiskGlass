@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 闪拍取景框：全屏绿色描边，透明填充 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <stroke
-        android:width="4dp"
-        android:color="#00FF00" />
-    <solid android:color="#00000000" />
-</shape>
