@@ -4,18 +4,13 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.util.Log
 
 /**
  * 自动睡眠控制层。
- * 页面只消费状态快照；陀螺仪、摘镜广播和 tick 推进统一在这里协调。
+ * 页面只消费状态快照；摘镜广播和戴回后的 tick 推进统一在这里协调。
  */
 class AutoSleepController(
     context: Context,
-    private val ownerTag: String,
-    wakingDurationMs: Long,
-    sleepWarningDurationMs: Long,
-    quietGyroMaxRad: Float,
     private val callback: Callback,
 ) {
     interface Callback {
@@ -25,14 +20,8 @@ class AutoSleepController(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val stateMachine = AutoSleepStateMachine(
         config = AutoSleepStateMachine.Config(
-            wakingDurationMs = wakingDurationMs,
-            sleepWarningDurationMs = sleepWarningDurationMs,
+            wakeDurationMs = WAKE_DURATION_MS,
         ),
-    )
-    private val motionTracker = HeadMotionStabilityTracker(
-        context = context,
-        stableDurationMs = wakingDurationMs,
-        quietGyroMaxRad = quietGyroMaxRad,
     )
     private val wearMonitor = GlassesWearMonitor(
         context = context,
@@ -55,17 +44,6 @@ class AutoSleepController(
             scheduleNextTick()
         }
     }
-    private val motionListener = object : HeadMotionStabilityTracker.Listener {
-        override fun onStabilityChanged(isStable: Boolean, stableSinceMillis: Long?) {
-            val now = SystemClock.elapsedRealtime()
-            val snapshots = if (isStable) {
-                listOfNotNull(stateMachine.onIdleQualified(now))
-            } else {
-                stateMachine.onUserActivity(AutoSleepStateMachine.UserActivitySource.HEAD_MOTION, now)
-            }
-            dispatchSnapshots(snapshots)
-        }
-    }
 
     private var attached = false
     private var enabled = false
@@ -73,14 +51,11 @@ class AutoSleepController(
 
     fun attach() {
         if (attached) {
-            syncTrackers()
             scheduleNextTick()
             return
         }
         attached = true
-        motionTracker.addListener(motionListener)
         wearMonitor.attach()
-        syncTrackers()
         scheduleNextTick()
     }
 
@@ -90,8 +65,6 @@ class AutoSleepController(
         }
         attached = false
         mainHandler.removeCallbacks(tickRunnable)
-        motionTracker.removeListener(motionListener)
-        motionTracker.stop()
         wearMonitor.detach()
     }
 
@@ -102,7 +75,6 @@ class AutoSleepController(
 
     fun setEnabled(enabled: Boolean) {
         if (this.enabled == enabled) {
-            syncTrackers()
             scheduleNextTick()
             return
         }
@@ -111,16 +83,6 @@ class AutoSleepController(
         val now = SystemClock.elapsedRealtime()
         lastSnapshot = stateMachine.setEnabled(enabled, now)
         callback.onAutoSleepStateChanged(lastSnapshot)
-        syncTrackers()
-        scheduleNextTick()
-    }
-
-    fun notifyUserActivity(source: AutoSleepStateMachine.UserActivitySource) {
-        val now = SystemClock.elapsedRealtime()
-        dispatchSnapshots(stateMachine.onUserActivity(source, now))
-        if (enabled && source != AutoSleepStateMachine.UserActivitySource.HEAD_MOTION) {
-            motionTracker.reset()
-        }
         scheduleNextTick()
     }
 
@@ -134,16 +96,6 @@ class AutoSleepController(
     }
 
     fun isPromptVisible(): Boolean = currentSnapshot()?.state == AutoSleepStateMachine.State.SLEEP_WARNING
-
-    private fun syncTrackers() {
-        if (!attached || !enabled) {
-            motionTracker.stop()
-            return
-        }
-        if (!motionTracker.start()) {
-            Log.w(ownerTag, "自动睡眠陀螺仪不可用，无法启用睡眠监控")
-        }
-    }
 
     private fun dispatchSnapshots(snapshots: List<AutoSleepStateMachine.Snapshot>) {
         snapshots.forEach { snapshot ->
@@ -159,10 +111,13 @@ class AutoSleepController(
         }
         val snapshot = stateMachine.currentSnapshot(SystemClock.elapsedRealtime()) ?: return
         val delayMs = when (snapshot.state) {
-            AutoSleepStateMachine.State.WAKING,
-            AutoSleepStateMachine.State.SLEEP_WARNING -> 250L
+            AutoSleepStateMachine.State.WAKE -> 250L
             else -> return
         }
         mainHandler.postDelayed(tickRunnable, delayMs)
+    }
+
+    companion object {
+        private const val WAKE_DURATION_MS = 3_000L
     }
 }

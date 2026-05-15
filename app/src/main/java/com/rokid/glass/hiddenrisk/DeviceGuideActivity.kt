@@ -75,26 +75,11 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val uiHandler = Handler(Looper.getMainLooper())
     private var autoSleepSnapshot: AutoSleepStateMachine.Snapshot? = null
     private val inputSession by lazy {
-        UnifiedInputSession(this, TAG) { event ->
-            if (isAutoSleepWarningVisible()) {
-                autoSleepController.notifyUserActivity(
-                    when (event.source) {
-                        UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
-                        UnifiedInputSession.InputSource.TOUCH -> AutoSleepStateMachine.UserActivitySource.TOUCH
-                        UnifiedInputSession.InputSource.HEAD_GESTURE -> AutoSleepStateMachine.UserActivitySource.HEAD_MOTION
-                    },
-                )
-            }
-        }
+        UnifiedInputSession(this, TAG)
     }
     private val autoSleepController by lazy {
-        val config = InspectionConfigRepository.get().aiInspection
         AutoSleepController(
             context = this,
-            ownerTag = TAG,
-            wakingDurationMs = config.sleepWakingDurationMs,
-            sleepWarningDurationMs = config.sleepWarningDurationMs,
-            quietGyroMaxRad = config.sleepQuietGyroMaxRad,
             callback = object : AutoSleepController.Callback {
                 override fun onAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
                     handleAutoSleepStateChanged(snapshot)
@@ -201,7 +186,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
         if (isAutoSleepWarningVisible()) {
-            autoSleepController.notifyUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH)
             return true
         }
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
@@ -269,19 +253,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         return listOf(
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("device_guide_auto_sleep_resume"),
-                label = getString(R.string.inspection_auto_sleep_prompt),
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                    UnifiedInputSession.InputTrigger.Voice("确认", "que ren"),
-                    UnifiedInputSession.InputTrigger.Voice("确定", "que ding"),
-                    UnifiedInputSession.InputTrigger.Voice("继续", "ji xu"),
-                ),
-                enabled = { isAutoSleepWarningVisible() },
-            ) {
-                autoSleepController.notifyUserActivity(it.source.toAutoSleepActivitySource())
-            },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("device_guide_realtime_analysis"),
                 label = "实时分析",
@@ -370,14 +341,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun canHandleDetectingInput(): Boolean {
         return pageState == PageState.DETECTING && !isAutoSleepWarningVisible()
-    }
-
-    private fun UnifiedInputSession.InputSource.toAutoSleepActivitySource(): AutoSleepStateMachine.UserActivitySource {
-        return when (this) {
-            UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
-            UnifiedInputSession.InputSource.TOUCH -> AutoSleepStateMachine.UserActivitySource.TOUCH
-            UnifiedInputSession.InputSource.HEAD_GESTURE -> AutoSleepStateMachine.UserActivitySource.HEAD_MOTION
-        }
     }
 
     private fun ensureFrameStreamReady() {
@@ -805,8 +768,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 autoSleepController.markSleepHandled()
                 returnToMenuHome()
             }
-            AutoSleepStateMachine.State.WAKE,
-            AutoSleepStateMachine.State.WAKING -> resumeFromAutoSleepIfNeeded()
+            AutoSleepStateMachine.State.WAKE -> resumeFromAutoSleepIfNeeded()
+            AutoSleepStateMachine.State.WAKING -> updateAutoSleepEnabled()
             else -> Unit
         }
     }
@@ -858,11 +821,10 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun buildAutoSleepMessage(snapshot: AutoSleepStateMachine.Snapshot): String {
-        val seconds = ((snapshot.remainingMs ?: 0L) / 1000L).coerceAtLeast(0L)
         return if (snapshot.triggerReason == AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED) {
-            "请重新佩戴，${seconds}秒后返回菜单"
+            "请重新佩戴眼镜"
         } else {
-            "单击或说继续恢复使用，${seconds}秒后返回菜单"
+            getString(R.string.inspection_auto_sleep_prompt)
         }
     }
 

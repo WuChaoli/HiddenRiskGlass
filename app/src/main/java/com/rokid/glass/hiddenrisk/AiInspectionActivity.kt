@@ -77,7 +77,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val TAG = "AiInspection"
         private const val REQUEST_MEDIA_PERMISSION = 201
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
-        private const val ADVICE_DISPLAY_PREFIX = "基于上述隐患，建议您重点关注以下内容："
+        private const val ADVICE_DISPLAY_PREFIX = "基于上述隐患，建议您重点关注以下问题："
         private const val ADVICE_CARD_FLOAT_ANIMATION_MS = 260L
         private const val UPLOAD_SUCCESS_TOAST_VISIBLE_MS = 2000L
         private const val UPLOAD_SUCCESS_TOAST_FADE_MS = 300L
@@ -374,12 +374,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         get() = InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard
     private val enableAutoSleepMonitoring: Boolean
         get() = InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring
-    private val sleepWakingDurationMs: Long
-        get() = InspectionConfigRepository.get().aiInspection.sleepWakingDurationMs
-    private val sleepWarningDurationMs: Long
-        get() = InspectionConfigRepository.get().aiInspection.sleepWarningDurationMs
-    private val sleepQuietGyroMaxRad: Float
-        get() = InspectionConfigRepository.get().aiInspection.sleepQuietGyroMaxRad
 
     // --- UI ---
     private lateinit var layoutDetection: FrameLayout
@@ -425,25 +419,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var autoSleepSnapshot: AutoSleepStateMachine.Snapshot? = null
 
     private val inputSession by lazy {
-        UnifiedInputSession(this, TAG) { event ->
-            if (isAutoSleepWarningVisible()) {
-                autoSleepController.notifyUserActivity(
-                    when (event.source) {
-                        UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
-                        UnifiedInputSession.InputSource.TOUCH -> AutoSleepStateMachine.UserActivitySource.TOUCH
-                        UnifiedInputSession.InputSource.HEAD_GESTURE -> AutoSleepStateMachine.UserActivitySource.HEAD_MOTION
-                    },
-                )
-            }
-        }
+        UnifiedInputSession(this, TAG)
     }
     private val autoSleepController by lazy {
         AutoSleepController(
             context = this,
-            ownerTag = TAG,
-            wakingDurationMs = sleepWakingDurationMs,
-            sleepWarningDurationMs = sleepWarningDurationMs,
-            quietGyroMaxRad = sleepQuietGyroMaxRad,
             callback = object : AutoSleepController.Callback {
                 override fun onAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
                     handleAutoSleepStateChanged(snapshot)
@@ -997,7 +977,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
         if (isAutoSleepWarningVisible()) {
-            autoSleepController.notifyUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH)
             return true
         }
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
@@ -2552,19 +2531,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         return listOf(
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_auto_sleep_resume"),
-                label = getString(R.string.inspection_auto_sleep_prompt),
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                    voiceTrigger(R.string.ai_inspection_voice_confirm, "que ren"),
-                    voiceTrigger(R.string.ai_inspection_voice_confirm_alias, "que ding"),
-                    voiceTrigger(R.string.ai_inspection_voice_continue_alias, "ji xu"),
-                ),
-                enabled = { isAutoSleepWarningVisible() },
-            ) {
-                autoSleepController.notifyUserActivity(it.source.toAutoSleepActivitySource())
-            },
-            UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_detecting_stream_analysis"),
                 label = getString(R.string.ai_inspection_input_label_detecting_analysis),
                 triggers = listOf(
@@ -2712,24 +2678,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             !isAutoSleepWarningVisible()
     }
 
-    private fun UnifiedInputSession.InputSource.toAutoSleepActivitySource(): AutoSleepStateMachine.UserActivitySource {
-        return when (this) {
-            UnifiedInputSession.InputSource.VOICE -> AutoSleepStateMachine.UserActivitySource.VOICE
-            UnifiedInputSession.InputSource.TOUCH -> AutoSleepStateMachine.UserActivitySource.TOUCH
-            UnifiedInputSession.InputSource.HEAD_GESTURE -> AutoSleepStateMachine.UserActivitySource.HEAD_MOTION
-        }
-    }
-
     private fun isAutoSleepWarningVisible(): Boolean {
         return autoSleepSnapshot?.state == AutoSleepStateMachine.State.SLEEP_WARNING
     }
 
     private fun buildAutoSleepMessage(snapshot: AutoSleepStateMachine.Snapshot): String {
-        val seconds = ((snapshot.remainingMs ?: 0L) / 1000L).coerceAtLeast(0L)
         return if (snapshot.triggerReason == AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED) {
-            "请重新佩戴，${seconds}秒后返回菜单"
+            "请重新佩戴眼镜"
         } else {
-            "单击或说继续恢复使用，${seconds}秒后返回菜单"
+            getString(R.string.inspection_auto_sleep_prompt)
         }
     }
 
@@ -4044,7 +4001,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         return if (trimmedAdvice.isBlank()) {
             ADVICE_DISPLAY_PREFIX
         } else {
-            "$ADVICE_DISPLAY_PREFIX\n\n$trimmedAdvice"
+            "$ADVICE_DISPLAY_PREFIX\n$trimmedAdvice"
         }
     }
 

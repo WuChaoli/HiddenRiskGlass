@@ -51,59 +51,57 @@ class UnifiedInputSessionTriggerTest {
     fun autoSleepStateMachine_disabledStateDoesNotShowPrompt() {
         val stateMachine = newAutoSleepStateMachine()
 
-        val snapshot = stateMachine.onIdleQualified(nowMillis = 60_000L)
+        val snapshot = stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
         assertEquals(null, snapshot)
         assertFalse(stateMachine.isPromptVisible(60_000L))
     }
 
     @Test
-    fun autoSleepStateMachine_enabledStateShowsPromptWhenIdleQualified() {
+    fun autoSleepStateMachine_enabledStateShowsPromptWhenGlassesRemoved() {
         val stateMachine = newAutoSleepStateMachine()
         stateMachine.setEnabled(true, 0L)
 
-        val snapshot = stateMachine.onIdleQualified(nowMillis = 60_000L)
+        val snapshot = stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
         assertEquals(AutoSleepStateMachine.State.SLEEP_WARNING, snapshot?.state)
         assertTrue(stateMachine.isPromptVisible(60_000L))
     }
 
     @Test
-    fun autoSleepStateMachine_activityDuringPromptResumesAndClearsTimeout() {
+    fun autoSleepStateMachine_glassesWornResumesAfterWakeDelay() {
         val stateMachine = newAutoSleepStateMachine()
         stateMachine.setEnabled(true, 0L)
-        stateMachine.onIdleQualified(nowMillis = 60_000L)
+        stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
-        val events = stateMachine.onUserActivity(AutoSleepStateMachine.UserActivitySource.TOUCH, 61_000L)
-        val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
+        val events = stateMachine.onGlassesWorn(61_000L)
+        val earlyEvents = stateMachine.tick(nowMillis = 63_999L)
+        val wakeCompleteEvents = stateMachine.tick(nowMillis = 64_000L)
 
-        assertEquals(2, events.size)
+        assertEquals(1, events.size)
         assertEquals(AutoSleepStateMachine.State.WAKE, events[0].state)
-        assertEquals(AutoSleepStateMachine.State.WAKING, events[1].state)
-        assertTrue(timeoutEvents.isEmpty())
-        assertFalse(stateMachine.isPromptVisible(75_000L))
+        assertTrue(earlyEvents.isEmpty())
+        assertEquals(AutoSleepStateMachine.State.WAKING, wakeCompleteEvents.single().state)
+        assertFalse(stateMachine.isPromptVisible(64_000L))
     }
 
     @Test
-    fun autoSleepStateMachine_promptTimeoutReturnsToMenu() {
+    fun autoSleepStateMachine_promptDoesNotTimeoutWhileGlassesRemainRemoved() {
         val stateMachine = newAutoSleepStateMachine()
         stateMachine.setEnabled(true, 0L)
-        stateMachine.onIdleQualified(nowMillis = 60_000L)
+        stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
-        val earlyEvents = stateMachine.tick(nowMillis = 74_999L)
         val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
 
-        assertTrue(earlyEvents.isEmpty())
-        assertEquals(1, timeoutEvents.size)
-        assertEquals(AutoSleepStateMachine.State.TO_SLEEP, timeoutEvents.single().state)
-        assertFalse(stateMachine.isPromptVisible(75_000L))
+        assertTrue(timeoutEvents.isEmpty())
+        assertTrue(stateMachine.isPromptVisible(75_000L))
     }
 
     @Test
     fun autoSleepStateMachine_disablingWhilePromptVisibleClearsPrompt() {
         val stateMachine = newAutoSleepStateMachine()
         stateMachine.setEnabled(true, 0L)
-        stateMachine.onIdleQualified(nowMillis = 60_000L)
+        stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
         stateMachine.setEnabled(false, 75_000L)
         val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
@@ -135,8 +133,7 @@ class UnifiedInputSessionTriggerTest {
     private fun newAutoSleepStateMachine(): AutoSleepStateMachine {
         return AutoSleepStateMachine(
             config = AutoSleepStateMachine.Config(
-                wakingDurationMs = 60_000L,
-                sleepWarningDurationMs = 15_000L,
+                wakeDurationMs = 3_000L,
             ),
         )
     }
