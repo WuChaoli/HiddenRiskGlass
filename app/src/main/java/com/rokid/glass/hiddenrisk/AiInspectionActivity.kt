@@ -79,7 +79,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val LOCAL_HAZARD_INFO_ASSET = "info.json"
         private const val ADVICE_DISPLAY_PREFIX = "基于上述隐患，建议您重点关注以下问题："
         private const val ADVICE_CARD_FLOAT_ANIMATION_MS = 260L
-        private const val UPLOAD_SUCCESS_TOAST_VISIBLE_MS = 2000L
+        private const val UPLOAD_SUCCESS_TOAST_VISIBLE_MS = 3000L
         private const val UPLOAD_SUCCESS_TOAST_FADE_MS = 300L
         private const val SIMULATED_STREAM_CHUNK_CHARS = 12
         private const val SIMULATED_STREAM_CHUNK_DELAY_MS = 35L
@@ -1236,11 +1236,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
         stopAutoInferencePipelines("return_to_detecting")
-        clearLocalHazardResultState()
+        clearLocalHazardResultState(clearPendingUploadToast = false)
         activeStreamRequestId++
         hideStatusAlertOverlay()
         cameraRecoveryController.resetRecoveryAttempts()
         showPage(PageState.DETECTING)
+        showPendingUploadSuccessToastIfNeeded()
         applyDefaultDetectionStatus()
         initFrameStreamAndTransition()
     }
@@ -2248,6 +2249,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         cameraRecoveryController.resetRecoveryAttempts()
         showPage(PageState.DETECTING)
+        showPendingUploadSuccessToastIfNeeded()
         applyDefaultDetectionStatus()
         initFrameStreamAndTransition()
         updateAutoSleepEnabled()
@@ -2578,7 +2580,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_detecting_hazard_record"),
                 label = getString(R.string.ai_entry_menu_record),
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患录入", "yin huan lu ru")),
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患拍照", "yin huan pai zhao")),
                 enabled = { canHandleDetectingInput() },
             ) {
                 Log.i(
@@ -2799,7 +2801,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         scrollContent.translationY = 0f
         scrollContent.alpha = 1f
         adviceCardAnimating = false
-        pendingUploadSuccessToast = false
         streamAutoScrollLocked = false
         tvStreamContent.text = ""
         applyDefaultStreamPanelLayout()
@@ -4125,12 +4126,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             .setDuration(ADVICE_CARD_FLOAT_ANIMATION_MS)
             .withEndAction {
                 adviceCardAnimating = false
-                if (pendingUploadSuccessToast) {
-                    pendingUploadSuccessToast = false
-                    showUploadSuccessToast()
-                }
+                showPendingUploadSuccessToastIfNeeded()
             }
             .start()
+    }
+
+    private fun showPendingUploadSuccessToastIfNeeded() {
+        if (!pendingUploadSuccessToast) return
+        if (adviceCardAnimating) return
+        pendingUploadSuccessToast = false
+        showUploadSuccessToast()
     }
 
     private fun showUploadSuccessToast() {
@@ -4158,7 +4163,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvStreamBottomHint.visibility = View.GONE
     }
 
-    private fun clearLocalHazardResultState() {
+    private fun clearLocalHazardResultState(clearPendingUploadToast: Boolean = true) {
         cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
         streamPanelAnchoredBelowPreview = false
@@ -4168,7 +4173,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localSaveRequestPending = false
         suggestionChecksRequestPending = false
         returnToDetectingWhenSubmitIdle = false
-        pendingUploadSuccessToast = false
+        if (clearPendingUploadToast) {
+            pendingUploadSuccessToast = false
+        }
         pendingHazardAlertTtsPlayed = false
         localHazardAlertTtsPlayed = false
         localHazardAdviceTtsPlayed = false

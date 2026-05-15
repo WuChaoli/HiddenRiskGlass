@@ -13,8 +13,10 @@ import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.AppFileLogger
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Call
+import okhttp3.Connection
 import okhttp3.EventListener
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -23,6 +25,9 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import okio.BufferedSink
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -1021,6 +1026,9 @@ class AiArSseService(
     private class TimingEventListener(
         private val tag: RequestTimingTag,
     ) : EventListener() {
+        private var dnsStartedElapsedMs = 0L
+        private var connectStartedElapsedMs = 0L
+        private var connectionAcquiredElapsedMs = 0L
         private var requestBodyStartedElapsedMs = 0L
         private var requestBodyEndedElapsedMs = 0L
 
@@ -1028,9 +1036,89 @@ class AiArSseService(
             logTiming("callStart")
         }
 
+        override fun dnsStart(call: Call, domainName: String) {
+            dnsStartedElapsedMs = SystemClock.elapsedRealtime()
+            logTiming("dnsStart", "domain=$domainName")
+        }
+
+        override fun dnsEnd(call: Call, domainName: String, inetAddressList: List<InetAddress>) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            logTimingAt(
+                event = "dnsEnd",
+                nowElapsedMs = nowElapsedMs,
+                extra = "domain=$domainName dnsMs=${durationOrMinusOne(dnsStartedElapsedMs, nowElapsedMs)} addressCount=${inetAddressList.size}",
+            )
+        }
+
+        override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) {
+            connectStartedElapsedMs = SystemClock.elapsedRealtime()
+            logTiming(
+                event = "connectStart",
+                extra = "address=${inetSocketAddress.hostString}:${inetSocketAddress.port} proxy=${proxy.type()}",
+            )
+        }
+
+        override fun connectEnd(
+            call: Call,
+            inetSocketAddress: InetSocketAddress,
+            proxy: Proxy,
+            protocol: Protocol?,
+        ) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            logTimingAt(
+                event = "connectEnd",
+                nowElapsedMs = nowElapsedMs,
+                extra = "address=${inetSocketAddress.hostString}:${inetSocketAddress.port} proxy=${proxy.type()} protocol=$protocol connectMs=${durationOrMinusOne(connectStartedElapsedMs, nowElapsedMs)}",
+            )
+        }
+
+        override fun connectFailed(
+            call: Call,
+            inetSocketAddress: InetSocketAddress,
+            proxy: Proxy,
+            protocol: Protocol?,
+            ioe: java.io.IOException,
+        ) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            Log.w(
+                TAG,
+                "openStream networkTiming event=connectFailed lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs} address=${inetSocketAddress.hostString}:${inetSocketAddress.port} proxy=${proxy.type()} protocol=$protocol connectMs=${durationOrMinusOne(connectStartedElapsedMs, nowElapsedMs)} error=${ioe.javaClass.simpleName}:${ioe.message}",
+            )
+        }
+
+        override fun connectionAcquired(call: Call, connection: Connection) {
+            connectionAcquiredElapsedMs = SystemClock.elapsedRealtime()
+            logTimingAt(
+                event = "connectionAcquired",
+                nowElapsedMs = connectionAcquiredElapsedMs,
+                extra = "callStartToConnectionAcquiredMs=${connectionAcquiredElapsedMs - tag.requestStartedElapsedMs} route=${connection.route().socketAddress} protocol=${connection.protocol()}",
+            )
+        }
+
+        override fun connectionReleased(call: Call, connection: Connection) {
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            logTimingAt(
+                event = "connectionReleased",
+                nowElapsedMs = nowElapsedMs,
+                extra = "connectionHeldMs=${durationOrMinusOne(connectionAcquiredElapsedMs, nowElapsedMs)} route=${connection.route().socketAddress} protocol=${connection.protocol()}",
+            )
+        }
+
+        override fun requestHeadersStart(call: Call) {
+            logTiming("requestHeadersStart")
+        }
+
+        override fun requestHeadersEnd(call: Call, request: Request) {
+            logTiming("requestHeadersEnd")
+        }
+
         override fun requestBodyStart(call: Call) {
             requestBodyStartedElapsedMs = SystemClock.elapsedRealtime()
-            logTiming("requestBodyStart")
+            logTimingAt(
+                event = "requestBodyStart",
+                nowElapsedMs = requestBodyStartedElapsedMs,
+                extra = "connectionAcquiredToRequestBodyStartMs=${durationOrMinusOne(connectionAcquiredElapsedMs, requestBodyStartedElapsedMs)}",
+            )
         }
 
         override fun requestBodyEnd(call: Call, byteCount: Long) {
@@ -1057,6 +1145,10 @@ class AiArSseService(
             )
         }
 
+        override fun callEnd(call: Call) {
+            logTiming("callEnd")
+        }
+
         override fun callFailed(call: Call, ioe: java.io.IOException) {
             val nowElapsedMs = SystemClock.elapsedRealtime()
             Log.w(
@@ -1065,11 +1157,16 @@ class AiArSseService(
             )
         }
 
-        private fun logTiming(event: String) {
+        private fun logTiming(event: String, extra: String? = null) {
             val nowElapsedMs = SystemClock.elapsedRealtime()
+            logTimingAt(event, nowElapsedMs, extra)
+        }
+
+        private fun logTimingAt(event: String, nowElapsedMs: Long, extra: String? = null) {
+            val suffix = extra?.takeIf { it.isNotBlank() }?.let { " $it" }.orEmpty()
             Log.i(
                 TAG,
-                "openStream networkTiming event=$event lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs}",
+                "openStream networkTiming event=$event lane=${tag.lane} taskId=${tag.taskId} requestStartToEventMs=${nowElapsedMs - tag.requestStartedElapsedMs}$suffix",
             )
         }
     }

@@ -210,22 +210,6 @@
                 android:layout_height="0dp"
                 android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/tvUploadSuccessToast"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="@dimen/inspection_upload_success_toast_margin_bottom"
-                android:background="@drawable/glass_card_outline"
-                android:gravity="center"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="6dp"
-                android:text="@string/ai_inspection_upload_success_tip"
-                android:textColor="@color/green"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                android:visibility="gone" />
-
             <ScrollView
                 android:id="@+id/scrollContent"
                 android:layout_width="match_parent"
@@ -290,5 +274,21 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
     </FrameLayout>
+
+    <TextView
+        android:id="@+id/tvUploadSuccessToast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="@dimen/inspection_upload_success_toast_margin_bottom"
+        android:background="@drawable/glass_card_outline"
+        android:gravity="center"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:text="@string/ai_inspection_upload_success_tip"
+        android:textColor="@color/green"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
 </FrameLayout>
