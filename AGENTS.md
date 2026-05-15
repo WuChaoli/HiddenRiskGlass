@@ -177,7 +177,7 @@ com.rokid.glass/
 - ML Kit (条码扫描)
 - Glide (图片加载)
 - Gson (JSON 序列化)
-- Rokid Glass SDK (`com.rokid.security:glass3.open.sdk:2.1.5-E`)
+- Rokid Glass SDK (`com.rokid.security:glass3.open.sdk:2.1.7-E`)
 
 ## HiddenRisk NCNN 经验
 

@@ -93,6 +93,10 @@ Camera2 API，通过 `QuickCameraManager` 实现 GPU 帧捕获（HardwareBuffer�
 | `bean/` | 数据模型 |
 | `utils/` | 工具类与扩展函数 |
 | `data/` | 全局状态/事件 |
+| `adapter/` | RecyclerView 适配器 |
+| `annotation/` | 注解 |
+| `enum/` | 枚举 |
+| `recycleview/` | RecyclerView 相关 |
 
 ## 代码风格
 
@@ -130,10 +134,15 @@ GPU 稳定性排查顺序：检查 `TARGET_INPUT_SIZE=640` → `GPU_PROFILE=Bala
 
 - `AGENTS.md` — AI Agent 补充行为指南与 NCNN 经验细节
 - `docs/README.md` — 产品文档总导航
-- `docs/公共能力/隐患识别验证与排障.md` — 推理验证与排障详细文档
+- `docs/公共能力/README.md` — 公共能力目录总入口
 - `docs/公共能力/架构总览.md` — 页面层、会话层、输入层与识别链路总览
+- `docs/公共能力/隐患识别验证与排障.md` — 推理验证与排障详细文档
 - `docs/公共能力/隐患识别链路.md` — 隐患识别链路与双轨推理的跨文档真相源
 - `docs/公共能力/头部动作调参与验证.md` — 头部动作识别参数与验证
 - `docs/公共能力/统一输入设计与接入.md` — 统一输入层设计与接入
+- `docs/公共能力/统一输入.md` — 业务接入层统一输入规则
+- `docs/公共能力/会话与生命周期.md` — 会话、生命周期、初始化状态边界
+- `docs/公共能力/页面导航分层.md` — 正式主链与附录/调试页边界
+- `docs/公共能力/日志系统.md` — 日志系统说明
 - `docs/功能模块/` — 各功能模块详细规格
 - `models/README.md` — 模型导出完整指南
