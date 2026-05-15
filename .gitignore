@@ -26,3 +26,4 @@ models/
 screen_*.png
 test/
 release/
+.codex/footprints/
