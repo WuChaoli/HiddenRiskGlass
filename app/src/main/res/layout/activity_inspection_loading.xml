@@ -98,7 +98,7 @@
             android:gravity="center_horizontal"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
-            android:paddingVertical="12dp">
+            android:paddingVertical="10dp">
 
             <LinearLayout
                 android:id="@+id/layoutGuideContent"
@@ -118,7 +118,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
+                    android:layout_marginTop="12dp"
                     android:gravity="center_vertical"
                     android:lineSpacingExtra="1dp"
                     android:text="@string/ai_inspection_guide_step1"
@@ -142,6 +142,16 @@
                     android:gravity="center_vertical"
                     android:lineSpacingExtra="1dp"
                     android:text="@string/ai_inspection_guide_step3"
+                    android:textColor="@color/green"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:lineSpacingExtra="1dp"
+                    android:text="@string/ai_inspection_guide_step4"
                     android:textColor="@color/green"
                     android:textSize="11sp" />
             </LinearLayout>

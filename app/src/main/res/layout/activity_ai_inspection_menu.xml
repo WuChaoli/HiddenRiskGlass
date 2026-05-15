@@ -19,7 +19,7 @@
             android:orientation="horizontal"
             android:paddingHorizontal="12dp">
 
-            <!-- 隐患分析 -->
+            <!-- 实时分析 -->
             <FrameLayout
                 android:id="@+id/itemHazardAnalysis"
                 android:layout_width="0dp"
