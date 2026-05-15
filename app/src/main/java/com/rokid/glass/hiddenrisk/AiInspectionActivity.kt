@@ -2818,7 +2818,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun setStreamContentAndResetViewport(text: String) {
         streamAutoScrollLocked = false
-        tvStreamContent.text = text
+        tvStreamContent.text = ensureAdviceDisplayPrefix(text)
         applyCurrentStreamPanelLayout()
         adjustStreamScrollHeight()
         scrollContent.post {
@@ -2829,7 +2829,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun updateStreamingText(partialText: String) {
         val previousScrollY = scrollContent.scrollY
-        tvStreamContent.text = partialText
+        tvStreamContent.text = ensureAdviceDisplayPrefix(partialText)
         applyCurrentStreamPanelLayout()
         adjustStreamScrollHeight()
         scrollContent.post {
@@ -2848,6 +2848,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     scrollContent.fullScroll(View.FOCUS_DOWN)
                 }
             }
+        }
+    }
+
+    private fun ensureAdviceDisplayPrefix(text: String): String {
+        if (localResultStage != LocalResultStage.ADVICE) {
+            return text
+        }
+        val trimmedText = text.trimStart()
+        return when {
+            trimmedText.isBlank() -> ADVICE_DISPLAY_PREFIX
+            trimmedText.startsWith(ADVICE_DISPLAY_PREFIX) -> text
+            else -> "$ADVICE_DISPLAY_PREFIX\n$trimmedText"
         }
     }
 
