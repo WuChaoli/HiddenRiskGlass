@@ -343,8 +343,6 @@ package com.rokid.glass.camera//package com.rokid.glass.camera
 //            ?: Size(targetWidth, targetHeight)
 //    }
 //
-//    // 添加以下常量和方法到你的 CameraTestManager 类中
-//
 //    /**
 //     * 计算用于 JPEG 图像捕获的正确旋转角度
 //     * @param characteristics 相机特性
