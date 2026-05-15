@@ -119,7 +119,7 @@
       // AI AR SSE write timeout，单位 ms。
       "writeTimeoutMs": 30000,
       // 在线检测阶段的业务超时，单位 ms。超时后会主动丢弃请求。
-      "detectTimeoutMs": 1500
+      "detectTimeoutMs": 3000
     },
     "aiDeepApi": {
       // 深度分析接口地址。
