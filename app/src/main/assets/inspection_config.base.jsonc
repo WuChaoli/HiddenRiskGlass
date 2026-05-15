@@ -87,6 +87,8 @@
     "localNetworkProbeIntervalMs": 3000,
     // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
     "forceOnlineDetailForLocalHazard": false,
+    // 是否启用自动睡眠监测。关闭后隐患识别页和设备指引页不会监听静止/摘镜自动返回菜单。
+    "enableAutoSleepMonitoring": false,
     // 自动睡眠静止触发时长，单位 ms。检测态长时间无头部移动时弹出确认。
     "sleepWakingDurationMs": 60000,
     // 自动睡眠弹窗无输入返回菜单时长，单位 ms。

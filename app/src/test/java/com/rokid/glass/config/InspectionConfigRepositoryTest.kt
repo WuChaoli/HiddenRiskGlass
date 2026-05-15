@@ -49,12 +49,13 @@ class InspectionConfigRepositoryTest {
     }
 
     @Test
-    fun `auto sleep config uses default timeout values`() {
+    fun `auto sleep config defaults to disabled with timeout values`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = null,
             overlayJsonc = null,
         )
 
+        assertFalse(config.aiInspection.enableAutoSleepMonitoring)
         assertEquals(60_000L, config.aiInspection.sleepWakingDurationMs)
         assertEquals(15_000L, config.aiInspection.sleepWarningDurationMs)
         assertEquals(0.20f, config.aiInspection.sleepQuietGyroMaxRad, 0.001f)
@@ -66,6 +67,7 @@ class InspectionConfigRepositoryTest {
             baseJsonc = """
                 {
                   "aiInspection": {
+                    "enableAutoSleepMonitoring": true,
                     "sleepWakingDurationMs": 30000,
                     "sleepWarningDurationMs": 10000,
                     "sleepQuietGyroMaxRad": 0.15
@@ -75,6 +77,7 @@ class InspectionConfigRepositoryTest {
             overlayJsonc = null,
         )
 
+        assertTrue(config.aiInspection.enableAutoSleepMonitoring)
         assertEquals(30_000L, config.aiInspection.sleepWakingDurationMs)
         assertEquals(10_000L, config.aiInspection.sleepWarningDurationMs)
         assertEquals(0.15f, config.aiInspection.sleepQuietGyroMaxRad, 0.001f)

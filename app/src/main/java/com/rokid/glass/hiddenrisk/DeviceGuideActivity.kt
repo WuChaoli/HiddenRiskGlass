@@ -789,7 +789,10 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun updateAutoSleepEnabled() {
-        autoSleepController.setEnabled(isActivityResumed && pageState == PageState.DETECTING)
+        val enabled = InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring &&
+            isActivityResumed &&
+            pageState == PageState.DETECTING
+        autoSleepController.setEnabled(enabled)
     }
 
     private fun handleAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {

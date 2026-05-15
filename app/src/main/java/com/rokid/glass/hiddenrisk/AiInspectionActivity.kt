@@ -372,6 +372,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val forceOnlineDetailForLocalHazard: Boolean
         get() = InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard
+    private val enableAutoSleepMonitoring: Boolean
+        get() = InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring
     private val sleepWakingDurationMs: Long
         get() = InspectionConfigRepository.get().aiInspection.sleepWakingDurationMs
     private val sleepWarningDurationMs: Long
@@ -2202,7 +2204,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun updateAutoSleepEnabled() {
-        val enabled = debugSnapshotState == null &&
+        val enabled = enableAutoSleepMonitoring &&
+            debugSnapshotState == null &&
             isActivityResumed &&
             isWorkflowActive &&
             pageState == PageState.DETECTING &&

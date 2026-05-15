@@ -194,6 +194,8 @@ object InspectionConfigRepository {
                 override?.localNetworkProbeIntervalMs ?: base.localNetworkProbeIntervalMs,
             forceOnlineDetailForLocalHazard =
                 override?.forceOnlineDetailForLocalHazard ?: base.forceOnlineDetailForLocalHazard,
+            enableAutoSleepMonitoring =
+                override?.enableAutoSleepMonitoring ?: base.enableAutoSleepMonitoring,
             sleepWakingDurationMs =
                 override?.sleepWakingDurationMs ?: base.sleepWakingDurationMs,
             sleepWarningDurationMs =
