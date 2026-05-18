@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AttributeSet
 import android.util.TypedValue
 import androidx.appcompat.widget.AppCompatTextView
+import com.rokid.glass.utils.dpToPx
 import com.rokid.glesse.R
 
 class VoiceButton @JvmOverloads constructor(
@@ -22,10 +23,10 @@ class VoiceButton @JvmOverloads constructor(
     private fun init(attrs: AttributeSet?) {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f) // 12sp
         setPadding(
-            dpToPx(2),  //
-            dpToPx(2),  //
-            dpToPx(6),  //
-            dpToPx(2),  //
+            dpToPx(2f).toInt(),  //
+            dpToPx(2f).toInt(),  //
+            dpToPx(6f).toInt(),  //
+            dpToPx(2f).toInt(),  //
         )
         // 设置文本颜色选择器
         setTextColor(resources.getColor(R.color.green))
@@ -37,12 +38,4 @@ class VoiceButton @JvmOverloads constructor(
         isFocusableInTouchMode = true
     }
 
-
-    private fun dpToPx(dp: Int): Int {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            dp.toFloat(),
-            resources.displayMetrics
-        ).toInt()
-    }
 }

@@ -7,6 +7,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.config.EnterpriseObjectApiConfig
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.utils.firstNonBlank
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -228,10 +229,6 @@ data class ObjectMessageData(
         } else {
             "$normalizedBaseUrl/smartGlasses/getObjectMessage"
         }
-    }
-
-    private fun firstNonBlank(vararg values: String?): String? {
-        return values.firstOrNull { !it.isNullOrBlank() }?.trim()
     }
 
     private fun logResponseShape(

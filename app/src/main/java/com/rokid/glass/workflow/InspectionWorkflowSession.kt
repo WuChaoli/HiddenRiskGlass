@@ -4,6 +4,7 @@ import android.net.Uri
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.rokid.glass.utils.firstNonBlank
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -536,10 +537,6 @@ enterpriseInfo = EnterpriseInfo(
     private fun JsonObject.getStringOrNull(key: String): String? {
         if (!has(key) || get(key).isJsonNull) return null
         return runCatching { get(key).asString }.getOrNull()?.trim()
-    }
-
-    private fun firstNonBlank(vararg values: String?): String? {
-        return values.firstOrNull { !it.isNullOrBlank() }?.trim()
     }
 
     private const val DEFAULT_ENTERPRISE_SITE_NAME = "滨江智造园区 3 号车间"
