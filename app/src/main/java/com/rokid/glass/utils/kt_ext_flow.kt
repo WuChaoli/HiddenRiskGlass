@@ -121,13 +121,13 @@ fun <T> MutableStateFlow<List<T>>.recreateList() {
     value = emptyList()
 }
 
-fun <T> Flow<T>.collect(
+fun <T> Flow<T>.collectIn(
     scope: CoroutineScope,
     context: CoroutineContext = EmptyCoroutineContext,
     collector: FlowCollector<T>
 ) {
     scope.launch(context) {
-        this@collect.collect(collector)
+        this@collectIn.collect(collector)
     }
 }
 
@@ -137,7 +137,7 @@ fun <T> Flow<T>.collectJob(scope: CoroutineScope, collector: FlowCollector<T>): 
     }
 }
 
-fun delay(
+fun delayedLaunch(
     scope: CoroutineScope,
     timeMillis: Long,
     context: CoroutineContext = EmptyCoroutineContext,
