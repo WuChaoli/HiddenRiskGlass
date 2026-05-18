@@ -109,10 +109,8 @@ class MotionStabilityTracker(
 
     private fun notifyListeners() {
         val stableSince = stableQualifiedAt
-        listeners.forEach { listener ->
-            mainHandler.post {
-                listener.onStabilityChanged(isStable, stableSince)
-            }
+        mainHandler.post {
+            listeners.forEach { it.onStabilityChanged(isStable, stableSince) }
         }
     }
 }

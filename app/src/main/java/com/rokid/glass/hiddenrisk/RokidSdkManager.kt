@@ -183,8 +183,8 @@ object RokidSdkManager {
     private fun updateState(newState: SdkState, errorMessage: String?) {
         state = newState
         lastErrorMessage = errorMessage
-        listeners.forEach { listener ->
-            mainHandler.post { listener.onSdkStateChanged(newState) }
+        mainHandler.post {
+            listeners.forEach { it.onSdkStateChanged(newState) }
         }
     }
 }

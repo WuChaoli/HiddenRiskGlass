@@ -655,8 +655,8 @@ object HeadGestureManager : SensorEventListener {
                 "gyroPitch=${format3(smoothedGyroValues[0])} gyroYaw=${format3(smoothedGyroValues[2])} " +
                 "accPitch=${format3(angularAccelValues[0])} accYaw=${format3(angularAccelValues[2])}",
         )
-        listeners.forEach { listener ->
-            mainHandler.post { listener.onHeadGesture(event) }
+        mainHandler.post {
+            listeners.forEach { it.onHeadGesture(event) }
         }
     }
 
