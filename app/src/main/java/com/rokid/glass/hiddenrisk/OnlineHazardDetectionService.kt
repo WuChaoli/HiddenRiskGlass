@@ -21,9 +21,8 @@ internal class OnlineHazardDetectionService(
     private val elapsedRealtimeProvider: () -> Long = { SystemClock.elapsedRealtime() },
     private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
     private val encodeExecutor: ExecutorService = Executors.newSingleThreadExecutor(),
-    private val detectTimeoutMs: Long = InspectionConfigRepository.get().network.aiAutoApi.detectTimeoutMs,
-    private val detectConcurrencyLimit: Int = InspectionConfigRepository.get()
-        .aiInspection.onlineDetectConcurrencyLimit,
+    private val detectTimeoutMs: Long = DEFAULTS.detectTimeoutMs,
+    private val detectConcurrencyLimit: Int = DEFAULTS.detectConcurrencyLimit,
     private val infoLogger: (String) -> Unit = { message -> AppFileLogger.i(TAG, message) },
     private val warningLogger: (String) -> Unit = { message -> AppFileLogger.w(TAG, message) },
 ) {
@@ -368,6 +367,12 @@ internal class OnlineHazardDetectionService(
         private const val TAG = "OnlineHazardDetect"
         const val REASON_TIMEOUT = "timeout"
         const val REASON_BUSY = "busy"
+
+        private object DEFAULTS {
+            val cfg = InspectionConfigRepository.get()
+            val detectTimeoutMs = cfg.network.aiAutoApi.detectTimeoutMs
+            val detectConcurrencyLimit = cfg.aiInspection.onlineDetectConcurrencyLimit
+        }
 
         private fun durationOrMinusOne(startElapsedMs: Long, endElapsedMs: Long): Long {
             return if (startElapsedMs > 0L && endElapsedMs >= startElapsedMs) {

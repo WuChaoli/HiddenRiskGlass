@@ -7,6 +7,7 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
+import com.rokid.glass.utils.dpToPx
 
 /**
  * 正方形取景框描边。
@@ -43,11 +44,4 @@ class SquareViewfinderOverlay @JvmOverloads constructor(
         canvas.drawRoundRect(frameRect, cornerRadius, cornerRadius, strokePaint)
     }
 
-    private fun dpToPx(value: Float): Float {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            value,
-            resources.displayMetrics,
-        )
-    }
 }

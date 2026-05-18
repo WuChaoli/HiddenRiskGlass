@@ -6,6 +6,7 @@ import android.graphics.Paint
 import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.View
+import com.rokid.glass.utils.dpToPx
 
 /**
  * 隐患录入倒计时页的四角取景提示框，仅作静态引导，不承载实时预览。
@@ -44,11 +45,4 @@ class HazardRecordFrameOverlay @JvmOverloads constructor(
         canvas.drawLine(right, bottom, right, bottom - cornerLength, paint)
     }
 
-    private fun dpToPx(value: Float): Float {
-        return TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            value,
-            resources.displayMetrics,
-        )
-    }
 }

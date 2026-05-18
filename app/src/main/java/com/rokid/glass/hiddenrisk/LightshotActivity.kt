@@ -16,6 +16,7 @@ import android.view.TextureView
 import android.view.View
 import android.widget.TextView
 import com.rokid.glass.InspectionFeatureFlags
+import com.rokid.glass.camera.PreviewFramingMode
 import com.rokid.glass.camera.QuickCameraManager
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -416,11 +417,11 @@ class LightshotActivity : BaseGlassActivity() {
         val targetCenterY = (source.height * QuickCameraManager.getPreviewTargetCenterYRatio()).toInt()
         val left = (targetCenterX - side / 2).coerceIn(0, source.width - side)
         val top = when (QuickCameraManager.getPreviewFramingMode()) {
-            QuickCameraManager.PreviewFramingMode.TARGET_CENTER -> {
+            PreviewFramingMode.TARGET_CENTER -> {
                 (targetCenterY - side / 2).coerceIn(0, source.height - side)
             }
-            QuickCameraManager.PreviewFramingMode.BOTTOM -> source.height - side
-            QuickCameraManager.PreviewFramingMode.CENTER -> (source.height - side) / 2
+            PreviewFramingMode.BOTTOM -> source.height - side
+            PreviewFramingMode.CENTER -> (source.height - side) / 2
         }
         return Bitmap.createBitmap(source, left, top, side, side)
     }

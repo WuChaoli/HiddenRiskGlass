@@ -55,12 +55,6 @@ import kotlin.coroutines.cancellation.CancellationException
 
 
 object QuickCameraManager {
-    enum class PreviewFramingMode {
-        CENTER,
-        BOTTOM,
-        TARGET_CENTER,
-    }
-
     private const val TAG = "QuickCameraManager"
     private const val VIDEO_FRAME_RATE = 24
     private const val VIDEO_BIT_RATE = 5_000_000

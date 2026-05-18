@@ -19,12 +19,6 @@ import kotlin.math.min
  */
 object RokidFrameSource {
 
-    enum class PreviewFramingMode {
-        CENTER,
-        BOTTOM,
-        TARGET_CENTER,
-    }
-
     data class Nv21Frame(
         val data: ByteArray,
         val width: Int,

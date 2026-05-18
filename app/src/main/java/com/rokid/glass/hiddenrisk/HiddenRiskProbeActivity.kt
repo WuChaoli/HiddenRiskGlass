@@ -24,6 +24,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.utils.BitmapUtils
+import com.rokid.glass.utils.dpToPx
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -1034,18 +1035,14 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val measuredHeight = rootContainer.height.takeIf { it > 0 } ?: metrics.heightPixels
         val measuredWidth = rootContainer.width.takeIf { it > 0 } ?: metrics.widthPixels
         val shortEdge = minOf(measuredHeight, measuredWidth)
-        val safeTopMarginPx = maxOf(dpToPx(28), (shortEdge * RECORDING_DOT_TOP_RATIO).toInt())
-        val safeEndMarginPx = maxOf(dpToPx(20), (measuredWidth * RECORDING_DOT_END_RATIO).toInt())
+        val safeTopMarginPx = maxOf(dpToPx(28f).toInt(), (shortEdge * RECORDING_DOT_TOP_RATIO).toInt())
+        val safeEndMarginPx = maxOf(dpToPx(20f).toInt(), (measuredWidth * RECORDING_DOT_END_RATIO).toInt())
         if (layoutParams.topMargin == safeTopMarginPx && layoutParams.marginEnd == safeEndMarginPx) {
             return
         }
         layoutParams.topMargin = safeTopMarginPx
         layoutParams.marginEnd = safeEndMarginPx
         viewRecordingIndicator.layoutParams = layoutParams
-    }
-
-    private fun dpToPx(valueDp: Int): Int {
-        return (valueDp * resources.displayMetrics.density).toInt()
     }
 
     private fun ensureNativeEngine(): HiddenRiskNcnn? {
