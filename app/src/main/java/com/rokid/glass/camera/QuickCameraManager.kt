@@ -83,6 +83,7 @@ object QuickCameraManager {
     private var backgroundThread: HandlerThread? = null
 
     private var cameraId: String? = null
+    private var cachedCharacteristics: CameraCharacteristics? = null
     private var isInitialized = false
     private var isRecording = false
     private var videoFile: File? = null
@@ -167,14 +168,24 @@ object QuickCameraManager {
                 }
             }
 
+            val id = cameraId ?: run {
+                // 理论上不会到这里，但编译器无法推断 var 的非空性
+                L.e(TAG, "相机ID意外为空")
+                weakCallback.get()?.invoke(false)
+                return
+            }
             cameraManager?.openCamera(
-                cameraId!!,
+                id,
                 object : CameraDevice.StateCallback() {
                     override fun onOpened(camera: CameraDevice) {
                         L.d(TAG, "->相机已打开")
                         setProcessingCaptureState(false)
                         isCameraClosed = false // 标记为已打开
                         cameraDevice = camera
+                        // 缓存 CameraCharacteristics，避免后续重复查询 + !! 断言
+                        cameraId?.let { id ->
+                            cachedCharacteristics = cameraManager?.getCameraCharacteristics(id)
+                        }
                         isInitialized = true
                         setupImageReader(size, quickCapture)
                         if (isQuickCapture) {
@@ -414,7 +425,14 @@ object QuickCameraManager {
 
             try {
                 val surface = imageReader?.surface ?: throw IllegalStateException("ImageReader surface is null")
-                val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
+                val device = cameraDevice ?: run {
+                    Log.e(TAG, "takePicture cameraDevice became null")
+                    imgCallback?.get()?.invoke(null)
+                    setProcessingCaptureState(false)
+                    restorePreviewSessionIfNeeded()
+                    return@launch
+                }
+                val builder = device.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
                     addTarget(surface)
                     set(CaptureRequest.JPEG_ORIENTATION, getJpegOrientation(270))
                     applyAutoExposure(this)
@@ -427,7 +445,7 @@ object QuickCameraManager {
                 }
 
                 DeviceUtil.setSystemProp("vendor.rkd.camera.sensormode", "5")
-                cameraDevice!!.createCaptureSession(
+                device.createCaptureSession(
                     listOf(surface),
                     object : CameraCaptureSession.StateCallback() {
                         override fun onConfigured(session: CameraCaptureSession) {
@@ -728,7 +746,12 @@ object QuickCameraManager {
                     finishRequest(null)
                     return
                 }
-                val builder = cameraDevice!!.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                val device = cameraDevice ?: run {
+                    Log.w(TAG, "takeGpuFrame cameraDevice is null label=$sessionLabel")
+                    finishRequest(null)
+                    return
+                }
+                val builder = device.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
                     applyAutoExposure(this)
                     // 当前会话只承载 quick capture 预览面，使用 PREVIEW 模板更稳定，
                     // 仍保留单次 capture 请求来拿到触发时刻的最新帧。
@@ -860,14 +883,30 @@ object QuickCameraManager {
             }
 
             DeviceUtil.setSystemProp("vendor.rkd.camera.sensormode", "5")
-            val builder = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_RECORD)
-            val recorderSurface = mediaRecorder!!.surface
-            builder?.addTarget(previewSurface!!)
-            builder?.addTarget(recorderSurface)
+            val safePreviewSurface = this.previewSurface ?: run {
+                L.e(TAG, "startRecording previewSurface is null")
+                resetRecordingState()
+                weakCallback.get()?.invoke(null)
+                return
+            }
+            val safeMediaRecorder = this.mediaRecorder ?: run {
+                L.e(TAG, "startRecording mediaRecorder is null")
+                resetRecordingState()
+                weakCallback.get()?.invoke(null)
+                return
+            }
+            val safeBuilder = cameraDevice?.createCaptureRequest(CameraDevice.TEMPLATE_RECORD) ?: run {
+                L.e(TAG, "startRecording cameraDevice is null")
+                resetRecordingState()
+                weakCallback.get()?.invoke(null)
+                return
+            }
+            safeBuilder.addTarget(safePreviewSurface)
+            safeBuilder.addTarget(safeMediaRecorder.surface)
 
             setProcessingCaptureState(true)
             cameraDevice?.createCaptureSession(
-                listOf(previewSurface!!, recorderSurface),
+                listOf(safePreviewSurface, safeMediaRecorder.surface),
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
                         synchronized(sessionLock) {
@@ -884,19 +923,19 @@ object QuickCameraManager {
                                 mediaRecorder?.start()
                                 isRecording = true
                                 weakCallback.get()?.invoke(videoFile)
-                                Handler(backgroundHandler!!.looper).post {
-                                    try {
-                                        builder?.build()?.let {
+                                backgroundHandler?.let { handler ->
+                                    Handler(handler.looper).post {
+                                        try {
                                             synchronized(sessionLock) {
-                                                captureSession?.setRepeatingRequest(it, null, backgroundHandler)
+                                                captureSession?.setRepeatingRequest(safeBuilder.build(), null, backgroundHandler)
                                             }
+                                        } catch (e: IllegalStateException) {
+                                            setProcessingCaptureState(false)
+                                            L.e(TAG, "录像时 session 已关闭", e)
+                                        } catch (e: Exception) {
+                                            setProcessingCaptureState(false)
+                                            L.e(TAG, "录像 setRepeatingRequest 异常", e)
                                         }
-                                    } catch (e: IllegalStateException) {
-                                        setProcessingCaptureState(false)
-                                        L.e(TAG, "录像时 session 已关闭", e)
-                                    } catch (e: Exception) {
-                                        setProcessingCaptureState(false)
-                                        L.e(TAG, "录像 setRepeatingRequest 异常", e)
                                     }
                                 }
                             } catch (e: Exception) {
@@ -958,7 +997,7 @@ object QuickCameraManager {
             return
         }
         L.d(TAG, "setupImageReader->1")
-        val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!)
+        val characteristics = cachedCharacteristics
         val map = characteristics?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val outputSizes: Array<Size>? = map?.getOutputSizes(ImageFormat.JPEG)
         val supportedSizes = outputSizes.orEmpty()
@@ -982,7 +1021,7 @@ object QuickCameraManager {
     }
 
     private fun setupGpuImageReader(mSize: Size? = null) {
-        val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!) ?: return
+        val characteristics = cachedCharacteristics ?: return
         val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val outputSizes = map?.getOutputSizes(ImageFormat.PRIVATE)
             ?: map?.getOutputSizes(SurfaceTexture::class.java)
@@ -1010,7 +1049,7 @@ object QuickCameraManager {
     }
 
     private fun setupQuickCaptureCpuReader(mSize: Size? = null) {
-        val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!) ?: return
+        val characteristics = cachedCharacteristics ?: return
         val map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
         val outputSizes: Array<Size>? = map?.getOutputSizes(ImageFormat.YUV_420_888)
         val supportedSizes = outputSizes.orEmpty()
@@ -1199,7 +1238,7 @@ object QuickCameraManager {
     }
 
     private fun getQuickCaptureRotationDegrees(): Int {
-        val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!) ?: return 0
+        val characteristics = cachedCharacteristics ?: return 0
         val sensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
         return when (((sensorOrientation % 360) + 360) % 360) {
             0, 90, 180, 270 -> sensorOrientation
@@ -1491,7 +1530,7 @@ object QuickCameraManager {
 
     private fun getBestVideoSize(): Size? {
         return try {
-            val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!)
+            val characteristics = cachedCharacteristics
             val map: StreamConfigurationMap? = characteristics?.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
             val sizes: Array<Size>? = map?.getOutputSizes(MediaRecorder::class.java)
             // 设置摄像头录像为横屏
@@ -1506,7 +1545,7 @@ object QuickCameraManager {
     }
 
     private fun getJpegOrientation(rotation: Int): Int {
-        val characteristics = cameraManager?.getCameraCharacteristics(cameraId!!)
+        val characteristics = cachedCharacteristics
         val sensorOrientation = characteristics?.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 0
         return when (rotation) {
             Surface.ROTATION_0 -> (sensorOrientation + 0) % 360
