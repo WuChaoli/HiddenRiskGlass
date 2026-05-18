@@ -27,3 +27,4 @@ screen_*.png
 test/
 release/
 .codex/footprints/
+release/*.apk

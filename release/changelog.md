@@ -1,3 +1,18 @@
+### 2.0.4
+
+#### 重构
+1. **配置属性缓存**: `AiInspectionActivity` 中 28 个配置属性从每次 `get()` 改为 `by lazy` 一次性加载，避免重复遍历配置链。
+2. **服务构造函数优化**: `AiArSseService` / `OnlineHazardDetectionService` 构造函数中多次配置调用合并为 `DEFAULTS` companion object 单次加载。
+3. **Handler 通知批处理**: `HeadGestureManager` / `MotionStabilityTracker` / `RokidSdkManager` 中的每监听器独立 post 改为单次 post 批量通知。
+4. **扩展函数重命名**: `kt_ext_flow.kt` 中的 `collect` → `collectIn`、`delay` → `delayedLaunch`，消除与 Kotlin stdlib 的导入歧义。
+5. **Regex 常量提取**: `AiArSseService` 中重复 `Regex("\\s+")` 编译提取为 companion object 常量。
+6. **工具函数去重**: `dpToPx` / `firstNonBlank` / `PreviewFramingMode` 三组跨文件重复定义提取为 `DisplayUtils` / `StringUtils` / `CameraTypes` 共享工具类。
+7. **InspectionSession 去重**: `release()` 委托给 `reset()` 消除完全相同的实现体。
+8. **OkHttpClient 统一**: 5 处独立 `OkHttpClient` 创建统一为 `HttpClientProvider` 单例，复用连接池。
+9. **QuickCameraManager 空安全**: 消除 14 处 `!!` 强制非空断言，缓存 `CameraCharacteristics` 避免 6 处重复查询。
+10. **YUV 转换提取**: `QuickCameraManager` / `RokidFrameSource` 中 YUV→Bitmap 转换逻辑提取为 `YuvConversionUtils`。
+11. **TTS 状态机**: `AiInspectionActivity` 中 3 个 TTS boolean 标志合并为 `TtsState` 枚举状态机。
+
 ### 2.0.3
 
 #### 新增
