@@ -46,6 +46,33 @@ JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`
 
 `OnlineHazardDetectionService` 管理在线请求调度，`AiArEventAggregator` 聚合 SSE 事件流，`AiArHazardDetailParser` 解析远端结果。本地结果通过 `LocalHazardResultDeduper` 去重后与在线结果合并展示。
 
+## 模块代码地图（AI 快速索引入口）
+
+收到代码定位任务时，先查此表找到对应模块 README.md，再进入具体文件。
+
+| 模块 | 代码 README | 覆盖范围 |
+|------|-------------|----------|
+| 隐患识别/推理 | `app/src/.../hiddenrisk/README.md` | 巡检页面、在线/本地推理、自动链路、隐患上传、设备指引、拍照录入 |
+| 相机/帧流 | `app/src/.../camera/README.md` | 相机管理、帧捕获、预览、恢复控制 |
+| 统一输入 | `app/src/.../input/README.md` | 触控、语音、头部动作映射、自动休眠 |
+| 巡检工作流 | `app/src/.../workflow/README.md` | 跨页面业务上下文、企业信息、QR 解析 |
+| UI 组件 | `app/src/.../component/README.md` | 状态栏、取景器、菜单、弹窗、提示 |
+| 配置系统 | `app/src/.../config/README.md` | 运行时配置、推理参数、API 端点、特性开关 |
+
+## 跨模块文档索引
+
+| 文档 | 路径 | 内容 |
+|------|------|------|
+| 架构总览 | `docs/公共能力/架构总览.md` | 五层架构（页面/会话/输入/相机/识别链路）|
+| 总体旅程图 | `docs/总体旅程图/总体旅程图.md` | 正式巡检主链全景 |
+| 页面导航分层 | `docs/公共能力/页面导航分层.md` | 正式主链与附录/调试页边界 |
+| 会话与生命周期 | `docs/公共能力/会话与生命周期.md` | 会话、初始化状态边界 |
+| 隐患识别链路 | `docs/公共能力/隐患识别链路.md` | 双轨推理的跨文档真相源 |
+| 隐患识别验证与排障 | `docs/公共能力/隐患识别验证与排障.md` | 推理验证与排障详细文档 |
+| 统一输入设计与接入 | `docs/公共能力/统一输入设计与接入.md` | 统一输入层设计与接入 |
+| 头部动作调参与验证 | `docs/公共能力/头部动作调参与验证.md` | 头部动作参数与验证 |
+| 日志系统 | `docs/公共能力/日志系统.md` | 日志系统说明 |
+
 ### UI 层 — Jetpack Compose + XML Layout
 
 - `InspectionLoadingActivity` — **启动入口 (Launcher)**，SDK 初始化、权限、相机预热
