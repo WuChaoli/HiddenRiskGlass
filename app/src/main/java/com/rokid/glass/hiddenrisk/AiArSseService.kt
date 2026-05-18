@@ -36,16 +36,14 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 支持四个独立端点：隐患物品检测(/ai/auto)、深度分析(/ai/deep)、环境隐患识别(/ai/general)、设备指引(/ai/device)。
  */
 class AiArSseService(
-    private val autoDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiAutoApi,
-    private val deepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeepApi,
-    private val gmAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGmApi,
-    private val generalDetectConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralApi,
-    private val generalDeepAnalysisConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiGeneralDeepApi,
-    private val deviceGuideConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiDeviceApi,
-    private val suggestionChecksConfig: AiArApiConfig = InspectionConfigRepository.get().network.aiSuggestionChecksApi,
-    private val client: OkHttpClient = createDefaultClient(
-        InspectionConfigRepository.get().network.aiAutoApi,
-    ),
+    private val autoDetectConfig: AiArApiConfig = DEFAULTS.autoDetectConfig,
+    private val deepAnalysisConfig: AiArApiConfig = DEFAULTS.deepAnalysisConfig,
+    private val gmAnalysisConfig: AiArApiConfig = DEFAULTS.gmAnalysisConfig,
+    private val generalDetectConfig: AiArApiConfig = DEFAULTS.generalDetectConfig,
+    private val generalDeepAnalysisConfig: AiArApiConfig = DEFAULTS.generalDeepAnalysisConfig,
+    private val deviceGuideConfig: AiArApiConfig = DEFAULTS.deviceGuideConfig,
+    private val suggestionChecksConfig: AiArApiConfig = DEFAULTS.suggestionChecksConfig,
+    private val client: OkHttpClient = DEFAULTS.defaultClient,
     private val gson: Gson = Gson(),
     private val mainHandler: Handler = Handler(Looper.getMainLooper()),
 ) {
@@ -205,7 +203,7 @@ class AiArSseService(
                 if (!response.isSuccessful) {
                     val bodySnippet = runCatching {
                         response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
-                            .replace(Regex("\\s+"), " ").trim()
+                            .replace(WHITESPACE_COLLAPSE, " ").trim()
                             .take(MAX_ERROR_BODY_LOG_CHARS)
                     }.getOrDefault("")
                     mainHandler.post {
@@ -375,7 +373,7 @@ class AiArSseService(
                 if (!response.isSuccessful) {
                     val bodySnippet = runCatching {
                         response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
-                            .replace(Regex("\\s+"), " ").trim()
+                            .replace(WHITESPACE_COLLAPSE, " ").trim()
                             .take(MAX_ERROR_BODY_LOG_CHARS)
                     }.getOrDefault("")
                     mainHandler.post {
@@ -476,7 +474,7 @@ class AiArSseService(
                 if (!response.isSuccessful) {
                     val bodySnippet = runCatching {
                         response.peekBody(MAX_ERROR_BODY_LOG_BYTES).string()
-                            .replace(Regex("\\s+"), " ").trim()
+                            .replace(WHITESPACE_COLLAPSE, " ").trim()
                             .take(MAX_ERROR_BODY_LOG_CHARS)
                     }.getOrDefault("")
                     mainHandler.post {
@@ -748,7 +746,7 @@ class AiArSseService(
         if (body.isBlank()) {
             return null
         }
-        return body.replace(Regex("\\s+"), " ").trim().take(MAX_ERROR_BODY_LOG_CHARS)
+        return body.replace(WHITESPACE_COLLAPSE, " ").trim().take(MAX_ERROR_BODY_LOG_CHARS)
     }
 
     private fun playbackDeviceGuideContent(
@@ -791,7 +789,20 @@ class AiArSseService(
         private const val MAX_SSE_BODY_LOG_CHARS = 4096
         private const val DEVICE_GUIDE_PLAYBACK_CHUNK_SIZE = 12
         private const val DEVICE_GUIDE_PLAYBACK_INTERVAL_MS = 35L
+        private val WHITESPACE_COLLAPSE = Regex("\\s+")
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
+
+        private object DEFAULTS {
+            val cfg = InspectionConfigRepository.get()
+            val autoDetectConfig = cfg.network.aiAutoApi
+            val deepAnalysisConfig = cfg.network.aiDeepApi
+            val gmAnalysisConfig = cfg.network.aiGmApi
+            val generalDetectConfig = cfg.network.aiGeneralApi
+            val generalDeepAnalysisConfig = cfg.network.aiGeneralDeepApi
+            val deviceGuideConfig = cfg.network.aiDeviceApi
+            val suggestionChecksConfig = cfg.network.aiSuggestionChecksApi
+            val defaultClient = createDefaultClient(cfg.network.aiAutoApi)
+        }
 
         private fun summarizeSseLogText(text: String): String {
             val normalized = text.replace("\r", "\\r").replace("\n", "\\n")
