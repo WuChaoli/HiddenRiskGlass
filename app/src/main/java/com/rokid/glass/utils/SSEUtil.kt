@@ -9,7 +9,7 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import java.io.IOException
-import java.util.concurrent.TimeUnit
+import com.rokid.glass.network.HttpClientProvider
 
 class SSEUtil {
 
@@ -19,10 +19,7 @@ class SSEUtil {
         private val gson = com.google.gson.Gson()
     }
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(1, TimeUnit.MINUTES)
-        .readTimeout(5, TimeUnit.MINUTES)
-        .build()
+    private val client = HttpClientProvider.sseClient
 
     private val eventSourceFactory = EventSources.createFactory(client)
 
@@ -141,10 +138,7 @@ class SSEUtil {
         authorization: String?,
         listener: SSEListener
     ) {
-        val client = OkHttpClient.Builder()
-            .connectTimeout(1, TimeUnit.MINUTES)
-            .readTimeout(5, TimeUnit.MINUTES)
-            .build()
+        val client = HttpClientProvider.sseClient
 
         val dto = buildImageDetectionDto(imageUrl, snCode, sessionId, timestamp)
         val jsonBody = gson.toJson(dto).toRequestBody("application/json".toMediaType())

@@ -7,14 +7,13 @@ import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.firstNonBlank
 import com.rokid.glass.workflow.InspectionWorkflowSession
+import com.rokid.glass.network.HttpClientProvider
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 /**
  * 结束巡检服务。
@@ -151,14 +150,7 @@ object InspectionFinishService {
         mainHandler.post { callback.onError(message) }
     }
 
-    private fun createClient(): OkHttpClient {
-        val apiConfig = InspectionConfigRepository.get().network.saveResultApi
-        return OkHttpClient.Builder()
-            .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-            .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-            .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-            .build()
-    }
+    private fun createClient() = HttpClientProvider.inspectionClient
 }
 
 internal object InspectionFinishApiProtocol {

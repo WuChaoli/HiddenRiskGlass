@@ -7,15 +7,14 @@ import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.config.MayHazardVerifyApiConfig
+import com.rokid.glass.network.HttpClientProvider
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 private const val TAG = "MayHazardVerify"
 
@@ -62,11 +61,7 @@ class MayHazardDeepVerifyService(
         fun isCanceled(): Boolean = canceled
     }
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-        .build()
+    private val client = HttpClientProvider.inspectionClient
     private val gson = Gson()
     private val mainHandler = Handler(Looper.getMainLooper())
 

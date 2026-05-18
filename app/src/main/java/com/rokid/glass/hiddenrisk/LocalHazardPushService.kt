@@ -8,6 +8,7 @@ import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.config.SaveResultApiConfig
 import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.firstNonBlank
+import com.rokid.glass.network.HttpClientProvider
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -18,7 +19,6 @@ import java.io.IOException
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.util.Base64
-import java.util.concurrent.TimeUnit
 
 /**
  * 本地隐患保存上报服务。
@@ -27,11 +27,7 @@ import java.util.concurrent.TimeUnit
 class LocalHazardPushService(
     private val apiConfig: SaveResultApiConfig =
         InspectionConfigRepository.get().network.saveResultApi,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-        .build(),
+    private val client: OkHttpClient = HttpClientProvider.inspectionClient,
     private val gson: Gson = Gson(),
 ) {
 

@@ -8,6 +8,7 @@ import com.google.gson.Gson
 import com.rokid.glass.config.EnterpriseObjectApiConfig
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.firstNonBlank
+import com.rokid.glass.network.HttpClientProvider
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -15,7 +16,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 /**
@@ -25,11 +25,7 @@ import java.util.UUID
 class EnterpriseObjectMessageService(
     private val apiConfig: EnterpriseObjectApiConfig =
         InspectionConfigRepository.get().network.enterpriseObjectApi,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-        .build(),
+    private val client: OkHttpClient = HttpClientProvider.inspectionClient,
     private val gson: Gson = Gson(),
 ) {
 
