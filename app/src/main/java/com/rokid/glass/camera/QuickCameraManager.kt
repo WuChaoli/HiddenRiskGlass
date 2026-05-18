@@ -9,7 +9,6 @@ import android.graphics.BitmapFactory
 import android.graphics.ColorSpace
 import android.graphics.ImageFormat
 import android.graphics.Rect
-import android.graphics.YuvImage
 import android.graphics.SurfaceTexture
 import android.hardware.HardwareBuffer
 import android.hardware.camera2.CameraCaptureSession
@@ -43,7 +42,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
-import java.io.ByteArrayOutputStream
 import java.io.FileOutputStream
 import java.lang.ref.WeakReference
 import java.nio.ByteBuffer
@@ -1160,14 +1158,8 @@ object QuickCameraManager {
                 Log.w(TAG, "acquirePreviewBitmap unsupported format=${image.format}")
                 return null
             }
-            val nv21 = yuv420888ToNv21(image) ?: return null
-            val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-            val output = ByteArrayOutputStream()
-            if (!yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 95, output)) {
-                return null
-            }
-            val bytes = output.toByteArray()
-            val decodedBitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return null
+            val nv21 = YuvConversionUtils.yuv420888ToNv21(image) ?: return null
+            val decodedBitmap = YuvConversionUtils.nv21ToBitmap(nv21, image.width, image.height, 95) ?: return null
             return rotateBitmapIfNeeded(decodedBitmap, getQuickCaptureRotationDegrees())
         } catch (error: Exception) {
             Log.w(TAG, "decode preview bitmap failed", error)
@@ -1246,81 +1238,6 @@ object QuickCameraManager {
         }
     }
 
-    private fun yuv420888ToNv21(image: android.media.Image): ByteArray? {
-        if (image.planes.size < 3) {
-            return null
-        }
-        val width = image.width
-        val height = image.height
-        val ySize = width * height
-        val uvSize = width * height / 2
-        val nv21 = ByteArray(ySize + uvSize)
-
-        val yPlane = image.planes[0]
-        val uPlane = image.planes[1]
-        val vPlane = image.planes[2]
-
-        copyPlane(
-            plane = yPlane,
-            width = width,
-            height = height,
-            out = nv21,
-            outOffset = 0,
-            outPixelStride = 1,
-        )
-
-        copyPlane(
-            plane = vPlane,
-            width = width / 2,
-            height = height / 2,
-            out = nv21,
-            outOffset = ySize,
-            outPixelStride = 2,
-        )
-        copyPlane(
-            plane = uPlane,
-            width = width / 2,
-            height = height / 2,
-            out = nv21,
-            outOffset = ySize + 1,
-            outPixelStride = 2,
-        )
-
-        return nv21
-    }
-
-    private fun copyPlane(
-        plane: android.media.Image.Plane,
-        width: Int,
-        height: Int,
-        out: ByteArray,
-        outOffset: Int,
-        outPixelStride: Int,
-    ) {
-        val buffer = plane.buffer
-        val rowStride = plane.rowStride
-        val pixelStride = plane.pixelStride
-        val rowData = ByteArray(rowStride)
-        var outputIndex = outOffset
-
-        for (row in 0 until height) {
-            val rowLength = if (pixelStride == 1 && outPixelStride == 1) {
-                width
-            } else {
-                (width - 1) * pixelStride + 1
-            }
-            buffer.get(rowData, 0, rowLength)
-            var inputIndex = 0
-            for (col in 0 until width) {
-                out[outputIndex] = rowData[inputIndex]
-                outputIndex += outPixelStride
-                inputIndex += pixelStride
-            }
-            if (row < height - 1) {
-                buffer.position(buffer.position() + rowStride - rowLength)
-            }
-        }
-    }
 
 
     private fun setupPreviewSurface() {
@@ -1786,43 +1703,10 @@ object QuickCameraManager {
 
     /**
      * 将 YUV_420_888 Image 转换为 Bitmap
-     * 使用 YuvImage 压缩为 JPEG 再解码为 Bitmap（简单可靠的方法）
+     * 使用共享工具类 YuvConversionUtils，通过 YuvImage 压缩为 JPEG 再解码为 Bitmap（简单可靠的方法）
      */
     private fun yuvImageToBitmap(image: android.media.Image): Bitmap? {
-        val yBuffer = image.planes[0].buffer
-        val uBuffer = image.planes[1].buffer
-        val vBuffer = image.planes[2].buffer
-
-        val ySize = yBuffer.remaining()
-        val uSize = uBuffer.remaining()
-        val vSize = vBuffer.remaining()
-
-        // NV21 格式: Y 平面后跟 VU 交错
-        val nv21 = ByteArray(ySize + uSize + vSize)
-        yBuffer.get(nv21, 0, ySize)
-
-        // U/V 平面需要交错存储为 VU
-        val uStride = image.planes[1].rowStride
-        val vStride = image.planes[2].rowStride
-        val uvHeight = image.height / 2
-
-        var pos = ySize
-        for (row in 0 until uvHeight) {
-            for (col in 0 until image.width / 2) {
-                val uIdx = row * uStride + col
-                val vIdx = row * vStride + col
-                nv21[pos++] = vBuffer[vIdx]
-                nv21[pos++] = uBuffer[uIdx]
-            }
-        }
-
-        // 使用 YuvImage 压缩为 JPEG
-        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-        val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, image.width, image.height), 90, out)
-        val jpegBytes = out.toByteArray()
-
-        return BitmapFactory.decodeByteArray(jpegBytes, 0, jpegBytes.size)
+        return YuvConversionUtils.yuvImageToBitmap(image, quality = 90)
     }
 
 
