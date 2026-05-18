@@ -149,16 +149,9 @@ object InspectionSession {
 
     /**
      * 显式彻底释放当前进程内缓存的模型与帧流。
-     * 仅在初始化失败、主动重试等明确需要完全释放时调用。
+     * 委托给 reset() 以消除重复代码。
      */
-    fun release() {
-        hiddenRiskNcnn?.clearFrameState()
-        hiddenRiskNcnn = null
-        isModelLoaded = false
-        stopFrameStream()
-        isInitialized = false
-        errorMessage = null
-    }
+    fun release() = reset()
 
     private const val TAG = "InspectionSession"
 }
