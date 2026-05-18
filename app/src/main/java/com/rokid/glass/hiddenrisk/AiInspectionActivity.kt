@@ -86,53 +86,37 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val DETECTION_PREVIEW_DRAW_CHECK_DELAY_MS = 700L
         private const val MAX_DETAIL_BODY_LOG_CHARS = 4096
 
-        private val CAPTURE_WARMUP_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.captureWarmupMs
+        private val CAPTURE_WARMUP_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.captureWarmupMs }
 
-        private val AUTO_INFERENCE_RETRY_DELAY_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.autoInferenceRetryDelayMs
+        private val AUTO_INFERENCE_RETRY_DELAY_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.autoInferenceRetryDelayMs }
 
-        private val AUTO_HAZARD_PRESENT_DELAY_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.autoHazardPresentDelayMs
+        private val AUTO_HAZARD_PRESENT_DELAY_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.autoHazardPresentDelayMs }
 
-        private val LOCAL_LABEL_COOLDOWN_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.localLabelCooldownMs
+        private val LOCAL_LABEL_COOLDOWN_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.localLabelCooldownMs }
 
-        private val STREAM_THUMBNAIL_TARGET_PX: Int
-            get() = InspectionConfigRepository.get().aiInspection.streamThumbnailTargetPx
+        private val STREAM_THUMBNAIL_TARGET_PX: Int by lazy { InspectionConfigRepository.get().aiInspection.streamThumbnailTargetPx }
 
-        private val LOCAL_SAVE_SUCCESS_TOAST_MS: Int
-            get() = InspectionConfigRepository.get().aiInspection.localSaveSuccessToastMs
+        private val LOCAL_SAVE_SUCCESS_TOAST_MS: Int by lazy { InspectionConfigRepository.get().aiInspection.localSaveSuccessToastMs }
 
-        private val BACKEND_GPU: Int
-            get() = InspectionConfigRepository.get().aiInspection.backend.code
+        private val BACKEND_GPU: Int by lazy { InspectionConfigRepository.get().aiInspection.backend.code }
 
-        private val GPU_PROFILE_BALANCED_FP16: Int
-            get() = InspectionConfigRepository.get().aiInspection.gpuProfile.code
+        private val GPU_PROFILE_BALANCED_FP16: Int by lazy { InspectionConfigRepository.get().aiInspection.gpuProfile.code }
 
-        private val DEFAULT_TARGET_INPUT_SIZE: Int
-            get() = InspectionConfigRepository.get().aiInspection.targetInputSize
+        private val DEFAULT_TARGET_INPUT_SIZE: Int by lazy { InspectionConfigRepository.get().aiInspection.targetInputSize }
 
-        private val ENABLE_HIT_CAPTURE_SAVE: Boolean
-            get() = InspectionConfigRepository.get().aiInspection.enableHitCaptureSave
+        private val ENABLE_HIT_CAPTURE_SAVE: Boolean by lazy { InspectionConfigRepository.get().aiInspection.enableHitCaptureSave }
 
-        private val STALE_FRAME_THRESHOLD_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.staleFrameThresholdMs
+        private val STALE_FRAME_THRESHOLD_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.staleFrameThresholdMs }
 
-        private val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.sharedFrameMotionClearThresholdMs
+        private val SHARED_FRAME_MOTION_CLEAR_THRESHOLD_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.sharedFrameMotionClearThresholdMs }
 
-        private val ENABLE_HEAD_MOTION_STABILITY_GATE: Boolean
-            get() = InspectionConfigRepository.get().aiInspection.enableHeadMotionStabilityGate
+        private val ENABLE_HEAD_MOTION_STABILITY_GATE: Boolean by lazy { InspectionConfigRepository.get().aiInspection.enableHeadMotionStabilityGate }
 
-        private val ONLINE_JPEG_QUALITY: Int
-            get() = InspectionConfigRepository.get().aiInspection.onlineJpegQuality
+        private val ONLINE_JPEG_QUALITY: Int by lazy { InspectionConfigRepository.get().aiInspection.onlineJpegQuality }
 
-        private val ONLINE_SELECT_WINDOW_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.onlineSelectWindowMs
+        private val ONLINE_SELECT_WINDOW_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineSelectWindowMs }
 
-        private val ONLINE_SELECT_MAX_FRAMES: Int
-            get() = InspectionConfigRepository.get().aiInspection.onlineSelectMaxFrames
+        private val ONLINE_SELECT_MAX_FRAMES: Int by lazy { InspectionConfigRepository.get().aiInspection.onlineSelectMaxFrames }
 
         internal fun decideOnlineLabelCooldown(
             labels: List<String>,
@@ -155,15 +139,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
         }
 
-        private val ONLINE_SELECT_POLL_INTERVAL_MS: Long
-            get() = InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs
+        private val ONLINE_SELECT_POLL_INTERVAL_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs }
 
-        private val AUTO_HAZARD_ROUTING_MODE: AutoHazardRoutingMode
-            get() = when (InspectionConfigRepository.get().aiInspection.autoHazardRoutingMode) {
+        private val AUTO_HAZARD_ROUTING_MODE: AutoHazardRoutingMode by lazy {
+            when (InspectionConfigRepository.get().aiInspection.autoHazardRoutingMode) {
                 ConfigAutoHazardRoutingMode.SEPARATED -> AutoHazardRoutingMode.SEPARATED
                 ConfigAutoHazardRoutingMode.ONLINE_ONLY -> AutoHazardRoutingMode.ONLINE_ONLY
                 ConfigAutoHazardRoutingMode.LOCAL_ONLY -> AutoHazardRoutingMode.LOCAL_ONLY
             }
+        }
 
         private fun summarizeLogText(text: String): String {
             val normalized = text.replace("\r", "\\r").replace("\n", "\\n")
@@ -346,34 +330,24 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             get() = activeRequestIds.isNotEmpty()
     }
 
-    private val onlineOnlyRouteEnabled: Boolean
-        get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.ONLINE_ONLY
+    private val onlineOnlyRouteEnabled: Boolean by lazy { AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.ONLINE_ONLY }
 
-    private val localOnlyRouteEnabled: Boolean
-        get() = AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.LOCAL_ONLY
+    private val localOnlyRouteEnabled: Boolean by lazy { AUTO_HAZARD_ROUTING_MODE == AutoHazardRoutingMode.LOCAL_ONLY }
 
-    private val onlineDetectIntervalMs: Long
-        get() = InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs
+    private val onlineDetectIntervalMs: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs }
 
-    private val enableOnlineSceneHazardDetection: Boolean
-        get() = InspectionConfigRepository.get().aiInspection.enableOnlineSceneHazardDetection
+    private val enableOnlineSceneHazardDetection: Boolean by lazy { InspectionConfigRepository.get().aiInspection.enableOnlineSceneHazardDetection }
 
-    private val onlineSceneDetectIntervalMs: Long
-        get() = InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs
+    private val onlineSceneDetectIntervalMs: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs }
 
-    private val remoteFailureFallbackThreshold: Int
-        get() = InspectionConfigRepository.get().aiInspection.remoteFailureFallbackThreshold
+    private val remoteFailureFallbackThreshold: Int by lazy { InspectionConfigRepository.get().aiInspection.remoteFailureFallbackThreshold }
 
-    private val enableLocalFallbackLoading: Boolean
-        get() = InspectionConfigRepository.get().aiInspection.enableLocalFallbackLoading
+    private val enableLocalFallbackLoading: Boolean by lazy { InspectionConfigRepository.get().aiInspection.enableLocalFallbackLoading }
 
-    private val localNetworkProbeIntervalMs: Long
-        get() = InspectionConfigRepository.get().aiInspection.localNetworkProbeIntervalMs
+    private val localNetworkProbeIntervalMs: Long by lazy { InspectionConfigRepository.get().aiInspection.localNetworkProbeIntervalMs }
 
-    private val forceOnlineDetailForLocalHazard: Boolean
-        get() = InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard
-    private val enableAutoSleepMonitoring: Boolean
-        get() = InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring
+    private val forceOnlineDetailForLocalHazard: Boolean by lazy { InspectionConfigRepository.get().aiInspection.forceOnlineDetailForLocalHazard }
+    private val enableAutoSleepMonitoring: Boolean by lazy { InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring }
 
     // --- UI ---
     private lateinit var layoutDetection: FrameLayout
