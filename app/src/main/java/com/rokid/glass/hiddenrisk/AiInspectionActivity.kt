@@ -47,6 +47,7 @@ import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.CapturedFramePayload
 import com.rokid.glass.hiddenrisk.InspectionFrameCaptureService.SquareFramePayload
+import com.rokid.glass.hiddenrisk.state.TtsState
 import com.rokid.glass.input.AutoSleepController
 import com.rokid.glass.input.AutoSleepStateMachine
 import com.rokid.glass.input.HeadMotionStabilityTracker
@@ -447,9 +448,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var localSaveRequestPending = false
     private var suggestionChecksRequestPending = false
     private var returnToDetectingWhenSubmitIdle = false
-    private var localHazardAlertTtsPlayed = false
-    private var pendingHazardAlertTtsPlayed = false
-    private var localHazardAdviceTtsPlayed = false
+    private var ttsState = TtsState.IDLE
     private var streamAutoScrollLocked = false
     private var streamPanelAnchoredBelowPreview = false
     private var simulatedStreamRunnable: Runnable? = null
@@ -1237,9 +1236,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
-        pendingHazardAlertTtsPlayed = false
-        localHazardAlertTtsPlayed = false
-        localHazardAdviceTtsPlayed = false
+        ttsState = TtsState.IDLE
         activeStreamRequestId++
         hideStatusAlertOverlay()
         cameraRecoveryController.resetRecoveryAttempts()
@@ -3779,18 +3776,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun playHazardAlertIfNeeded() {
         logAudioPressureSnapshot(
             stage = "play_hazard_alert_if_needed:enter",
-            extra = "pendingPlayed=$pendingHazardAlertTtsPlayed alreadyPlayed=$localHazardAlertTtsPlayed",
+            extra = "ttsState=$ttsState",
         )
-        if (pendingHazardAlertTtsPlayed || localHazardAlertTtsPlayed) {
+        if (ttsState != TtsState.IDLE) {
             return
         }
-        pendingHazardAlertTtsPlayed = true
-        if (!localHazardAlertTtsPlayed) {
-            localHazardAlertTtsPlayed = OfflineTtsPlayer.play(
-                context = this,
-                ownerTag = TAG,
-                audioResId = R.raw.hazard_alert,
-            )
+        ttsState = TtsState.PLAYING_ALERT
+        val played = OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.hazard_alert,
+        )
+        if (played) {
+            ttsState = TtsState.ALERT_PLAYED
         }
     }
 
@@ -4000,12 +3998,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         streamCallbackActive = true
         pendingStreamStart = false
         setStreamContentAndResetViewport("")
-        if (!localHazardAdviceTtsPlayed) {
-            localHazardAdviceTtsPlayed = OfflineTtsPlayer.play(
+        if (ttsState == TtsState.ALERT_PLAYED) {
+            ttsState = TtsState.PLAYING_ADVICE
+            val played = OfflineTtsPlayer.play(
                 context = this,
                 ownerTag = TAG,
                 audioResId = R.raw.hazard_advice_intro,
             )
+            if (played) {
+                ttsState = TtsState.DONE
+            }
         }
         val descriptionText = hazardContent.displayDescription()
         lastAnalysisText = listOf(descriptionText, adviceText)
@@ -4191,9 +4193,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (clearPendingUploadToast) {
             pendingUploadSuccessToast = false
         }
-        pendingHazardAlertTtsPlayed = false
-        localHazardAlertTtsPlayed = false
-        localHazardAdviceTtsPlayed = false
+        ttsState = TtsState.IDLE
     }
 
     private fun isAutoHazardPresentationPending(): Boolean {
@@ -4203,7 +4203,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun clearPendingAutoHazardPresentation() {
         uiHandler.removeCallbacks(pendingAutoHazardPresentationRunnable)
         pendingAutoHazardPresentation = null
-        pendingHazardAlertTtsPlayed = false
+        if (ttsState == TtsState.PLAYING_ALERT) {
+            ttsState = TtsState.IDLE
+        }
         refreshPendingHazardAlertOverlay()
     }
 
