@@ -28,3 +28,7 @@ test/
 release/
 .codex/footprints/
 release/*.apk
+
+# Local APK update server generated artifacts
+tools/apk_update_server/releases/**/*.apk
+tools/apk_update_server/releases/**/*.json
