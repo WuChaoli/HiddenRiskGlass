@@ -27,7 +27,7 @@ class AppUpdateClient(
     }
 
     companion object {
-        const val DEFAULT_MANIFEST_URL = "http://192.168.x.x:8080/releases/latest/update.json"
+        const val DEFAULT_MANIFEST_URL = "http://192.168.1.152:8080/releases/latest/update.json"
 
         private val defaultHttpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
