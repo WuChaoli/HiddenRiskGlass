@@ -19,8 +19,20 @@ class AppUpdateManager(
     private val client: AppUpdateClient = AppUpdateClient(),
     private val httpClient: OkHttpClient = defaultHttpClient,
 ) {
+    /** 本次 app 期间不再弹出更新提示（非持久化） */
+    private var sessionSkipped = false
+
+    /** 本次 app 期间不再弹出更新提示（非持久化） */
+    fun skipCurrentSession() {
+        sessionSkipped = true
+    }
+
     fun checkForUpdate(ignoreSkipped: Boolean = false): AppUpdateCheckResult {
         val currentVersion = getCurrentVersionCode()
+        // 用户取消后在本次 app 期间不再弹出
+        if (!ignoreSkipped && sessionSkipped) {
+            return AppUpdateCheckResult(null, currentVersion)
+        }
         val latest = client.fetchLatest()
         val effectiveInfo = if (
             latest.versionCode > currentVersion &&

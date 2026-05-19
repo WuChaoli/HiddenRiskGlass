@@ -13,6 +13,10 @@ import com.rokid.glass.MyApplication
 
 open class BaseGlassActivity : AppCompatActivity() {
 
+    /** 子类可覆盖为 false 来禁用自动常亮（如更新弹窗等短暂页面） */
+    protected open val keepScreenOnEnabled: Boolean
+        get() = true
+
     private val buttonReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
@@ -75,11 +79,15 @@ open class BaseGlassActivity : AppCompatActivity() {
     override fun onResume() {
         Log.e("startActivity",this.javaClass.name)
         super.onResume()
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (keepScreenOnEnabled) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
     }
 
     override fun onPause() {
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        if (keepScreenOnEnabled) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
         super.onPause()
     }
 

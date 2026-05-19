@@ -10,6 +10,9 @@ import java.io.IOException
 import java.util.concurrent.Executors
 
 class AppUpdatePromptActivity : BaseGlassActivity() {
+    /** 更新弹窗不需要自动常亮，避免 onPause 清除 FLAG_KEEP_SCREEN_ON 时导致短暂失焦熄灭 */
+    override val keepScreenOnEnabled: Boolean
+        get() = false
     private lateinit var tvUpdateVersion: TextView
     private lateinit var tvUpdateNotes: TextView
     private lateinit var tvUpdateStatus: TextView
@@ -82,7 +85,7 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
                     ),
                     enabled = { !installing },
                 ) {
-                    updateManager.skipVersion(updateInfo.versionCode)
+                    updateManager.skipCurrentSession()
                     finish()
                 },
             ),
