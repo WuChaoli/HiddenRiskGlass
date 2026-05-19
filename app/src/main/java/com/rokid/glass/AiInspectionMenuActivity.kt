@@ -4,6 +4,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Bundle
+import android.util.Log
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.rokid.glass.component.GlassStatusBar
@@ -35,6 +36,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private val updateExecutor = Executors.newSingleThreadExecutor()
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private var checkingUpdate = false
+    private var autoUpdateChecked = false
     private lateinit var items: List<FrameLayout>
     private var selectedIndex = 0
 
@@ -58,6 +60,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         super.onResume()
         inputSession.attach()
         inputSession.updateActions(buildInputActions())
+        startAutoUpdateCheck()
     }
 
     override fun onPause() {
@@ -176,6 +179,26 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
+    private fun startAutoUpdateCheck() {
+        if (autoUpdateChecked) return
+        autoUpdateChecked = true
+        updateExecutor.execute {
+            try {
+                val result = updateManager.checkForUpdate(ignoreSkipped = false)
+                if (!result.hasUpdate || result.info == null) return@execute
+                runOnUiThread {
+                    startActivity(
+                        Intent(this, AppUpdatePromptActivity::class.java).apply {
+                            putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
+                        },
+                    )
+                }
+            } catch (error: IOException) {
+                Log.i(TAG, "auto update check skipped: ${error.message}")
+            }
+        }
+    }
+
     private fun checkUpdateManually() {
         if (checkingUpdate) return
         checkingUpdate = true
@@ -198,6 +221,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                     }
                 }
             } catch (error: IOException) {
+                Log.e(TAG, "检查更新失败", error)
                 runOnUiThread {
                     checkingUpdate = false
                     tvBottomHint.setText(R.string.ai_entry_menu_update_failed)
