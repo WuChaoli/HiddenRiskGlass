@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.rokid.glass.adapter.MenuCardAdapter
 import com.rokid.glass.component.GlassStatusBar
@@ -37,7 +36,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private var checkingUpdate = false
     private var autoUpdateChecked = false
-    private var centeredIndex = 0
+    private var selectedIndex = 0
 
     private val menuAdapter by lazy {
         MenuCardAdapter(
@@ -51,8 +50,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    private val snapHelper = LinearSnapHelper()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ai_inspection_menu)
@@ -65,20 +62,9 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         recyclerMenu.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerMenu.adapter = menuAdapter
         recyclerMenu.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-        snapHelper.attachToRecyclerView(recyclerMenu)
 
-        // 监听滚动位置，同步选中卡片
-        recyclerMenu.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val centerView = snapHelper.findSnapView(recyclerView.layoutManager)
-                    val pos = centerView?.let { recyclerView.getChildAdapterPosition(it) } ?: centeredIndex
-                    if (pos != centeredIndex) {
-                        centeredIndex = pos
-                    }
-                }
-            }
-        })
+        // 初始选中第一张卡片
+        menuAdapter.selectedIndex = 0
     }
 
     override fun onResume() {
@@ -110,26 +96,21 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 label = "上一个",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
             ) {
-                val target = (centeredIndex - 1).coerceAtLeast(0)
-                smoothScrollToPosition(target)
+                moveSelection(-1)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Next,
                 label = "下一个",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
             ) {
-                val target = (centeredIndex + 1).coerceAtMost(menuAdapter.itemCount - 1)
-                smoothScrollToPosition(target)
+                moveSelection(+1)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
                 label = "确认",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK)),
             ) {
-                // 确认时使用当前居中卡片
-                val centerView = snapHelper.findSnapView(recyclerMenu.layoutManager)
-                val pos = centerView?.let { recyclerMenu.getChildAdapterPosition(it) } ?: centeredIndex
-                onItemConfirmed(pos)
+                onItemConfirmed(selectedIndex)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_menu_analysis"),
@@ -163,10 +144,20 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    /** 平滑滚动到指定位置，SnapHelper 自动居中吸附 */
-    private fun smoothScrollToPosition(target: Int) {
-        centeredIndex = target
-        recyclerMenu.smoothScrollToPosition(target)
+    /** 移动选中框：更新高亮，仅在目标卡片不可见时滚动 */
+    private fun moveSelection(delta: Int) {
+        val target = (selectedIndex + delta).coerceIn(0, menuAdapter.itemCount - 1)
+        if (target == selectedIndex) return
+        selectedIndex = target
+        menuAdapter.selectedIndex = target
+
+        // 仅在目标卡片不完全可见时才自动滚动
+        val lm = recyclerMenu.layoutManager as? LinearLayoutManager ?: return
+        val firstVisible = lm.findFirstCompletelyVisibleItemPosition()
+        val lastVisible = lm.findLastCompletelyVisibleItemPosition()
+        if (target < firstVisible || target > lastVisible) {
+            recyclerMenu.smoothScrollToPosition(target)
+        }
     }
 
     private fun onItemConfirmed(index: Int) {

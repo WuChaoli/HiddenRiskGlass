@@ -20,6 +20,18 @@ class MenuCardAdapter(
         val iconChar: String? = null,
     )
 
+    /** 当前选中位置，-1 表示无选中 */
+    var selectedIndex: Int = -1
+        set(value) {
+            val old = field
+            field = value
+            // 刷新旧选中和新选中的卡片背景
+            if (old != value) {
+                if (old in 0 until itemCount) notifyItemChanged(old)
+                if (value in 0 until itemCount) notifyItemChanged(value)
+            }
+        }
+
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val card: FrameLayout = itemView.findViewById(R.id.itemCard)
         val icon: ImageView = itemView.findViewById(R.id.ivCardIcon)
@@ -46,6 +58,12 @@ class MenuCardAdapter(
         }
         holder.label.setText(card.labelResId)
         holder.card.setOnClickListener { onItemClick(position) }
+
+        // 选中态：高亮 vs 普通背景
+        holder.card.setBackgroundResource(
+            if (position == selectedIndex) R.drawable.glass_menu_card_selected
+            else R.drawable.glass_menu_card
+        )
     }
 
     override fun getItemCount(): Int = cards.size
