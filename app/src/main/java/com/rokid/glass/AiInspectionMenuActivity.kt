@@ -5,11 +5,11 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.widget.TextView
-import androidx.viewpager2.widget.ViewPager2
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSnapHelper
+import androidx.recyclerview.widget.RecyclerView
 import com.rokid.glass.adapter.MenuCardAdapter
-import kotlin.math.abs
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
@@ -30,13 +30,15 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private lateinit var tvBottomHint: TextView
     private lateinit var statusBar: GlassStatusBar
-    private lateinit var viewPagerMenu: ViewPager2
+    private lateinit var recyclerMenu: RecyclerView
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val updateExecutor = Executors.newSingleThreadExecutor()
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private var checkingUpdate = false
     private var autoUpdateChecked = false
+    private var centeredIndex = 0
+
     private val menuAdapter by lazy {
         MenuCardAdapter(
             cards = listOf(
@@ -49,6 +51,8 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
+    private val snapHelper = LinearSnapHelper()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ai_inspection_menu)
@@ -57,15 +61,22 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
 
-        viewPagerMenu = findViewById(R.id.viewPagerMenu)
-        viewPagerMenu.adapter = menuAdapter
-        viewPagerMenu.offscreenPageLimit = 1
-        viewPagerMenu.setPageTransformer(CenterZoomPageTransformer())
-        viewPagerMenu.setCurrentItem(0, false)
+        recyclerMenu = findViewById(R.id.recyclerMenu)
+        recyclerMenu.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        recyclerMenu.adapter = menuAdapter
+        recyclerMenu.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+        snapHelper.attachToRecyclerView(recyclerMenu)
 
-        viewPagerMenu.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                updateSelection(position)
+        // 监听滚动位置，同步选中卡片
+        recyclerMenu.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    val centerView = snapHelper.findSnapView(recyclerView.layoutManager)
+                    val pos = centerView?.let { recyclerView.getChildAdapterPosition(it) } ?: centeredIndex
+                    if (pos != centeredIndex) {
+                        centeredIndex = pos
+                    }
+                }
             }
         })
     }
@@ -99,23 +110,26 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 label = "上一个",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
             ) {
-                val current = viewPagerMenu.currentItem
-                if (current > 0) viewPagerMenu.setCurrentItem(current - 1, true)
+                val target = (centeredIndex - 1).coerceAtLeast(0)
+                smoothScrollToPosition(target)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Next,
                 label = "下一个",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
             ) {
-                val current = viewPagerMenu.currentItem
-                if (current < menuAdapter.itemCount - 1) viewPagerMenu.setCurrentItem(current + 1, true)
+                val target = (centeredIndex + 1).coerceAtMost(menuAdapter.itemCount - 1)
+                smoothScrollToPosition(target)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
                 label = "确认",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK)),
             ) {
-                onItemConfirmed(viewPagerMenu.currentItem)
+                // 确认时使用当前居中卡片
+                val centerView = snapHelper.findSnapView(recyclerMenu.layoutManager)
+                val pos = centerView?.let { recyclerMenu.getChildAdapterPosition(it) } ?: centeredIndex
+                onItemConfirmed(pos)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_menu_analysis"),
@@ -149,8 +163,10 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    private fun updateSelection(position: Int) {
-        tvBottomHint.text = getString(R.string.ai_entry_menu_hint)
+    /** 平滑滚动到指定位置，SnapHelper 自动居中吸附 */
+    private fun smoothScrollToPosition(target: Int) {
+        centeredIndex = target
+        recyclerMenu.smoothScrollToPosition(target)
     }
 
     private fun onItemConfirmed(index: Int) {
@@ -251,17 +267,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
                 statusBar.setBatteryPercent(batteryPct)
             }
-        }
-    }
-
-    private class CenterZoomPageTransformer : ViewPager2.PageTransformer {
-        override fun transformPage(page: View, position: Float) {
-            val absPos = abs(position)
-            page.translationX = 0f
-            val scale = 1f - 0.15f * absPos.coerceAtMost(1f)
-            page.scaleX = scale
-            page.scaleY = scale
-            page.alpha = 1f - 0.3f * absPos.coerceAtMost(1f)
         }
     }
 

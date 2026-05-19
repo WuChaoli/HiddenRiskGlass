@@ -11,14 +11,15 @@
         android:orientation="vertical"
         android:paddingTop="80dp">
 
-        <!-- ViewPager2 横向滑动菜单卡片 -->
-        <androidx.viewpager2.widget.ViewPager2
-            android:id="@+id/viewPagerMenu"
+        <!-- 横向滑动菜单卡片（RecyclerView + SnapHelper） -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerMenu"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="140dp"
             android:layout_marginTop="24dp"
             android:clipToPadding="false"
-            android:paddingHorizontal="48dp" />
+            android:paddingHorizontal="20dp"
+            android:overScrollMode="never" />
 
         <!-- 中间提示 -->
         <TextView

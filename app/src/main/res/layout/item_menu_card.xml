@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/itemCard"
-    android:layout_width="match_parent"
+    android:layout_width="100dp"
     android:layout_height="140dp"
+    android:layout_marginHorizontal="4dp"
     android:background="@drawable/glass_menu_card">
 
     <LinearLayout
@@ -10,31 +11,31 @@
         android:layout_height="match_parent"
         android:gravity="center"
         android:orientation="vertical"
-        android:paddingHorizontal="8dp">
+        android:paddingHorizontal="4dp">
 
         <ImageView
             android:id="@+id/ivCardIcon"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:src="@drawable/ic_menu_ai_analysis"
             android:visibility="visible" />
 
         <TextView
             android:id="@+id/tvCardIconText"
-            android:layout_width="52dp"
-            android:layout_height="52dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:gravity="center"
             android:text="↻"
             android:textColor="@color/green"
-            android:textSize="34sp"
+            android:textSize="30sp"
             android:visibility="gone" />
 
         <TextView
             android:id="@+id/tvCardLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
+            android:layout_marginTop="8dp"
             android:textColor="@color/green"
-            android:textSize="16sp" />
+            android:textSize="13sp" />
     </LinearLayout>
 </FrameLayout>
