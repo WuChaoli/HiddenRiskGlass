@@ -112,11 +112,12 @@ def publish_apk(
         raise ValueError("versionName 不能为空")
 
     LATEST_DIR.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(delete=False, dir=LATEST_DIR, suffix=".upload") as temp_file:
-        temp_path = Path(temp_file.name)
-        shutil.copyfileobj(apk_field.file, temp_file)
-
+    temp_path: Path | None = None
     try:
+        with tempfile.NamedTemporaryFile(delete=False, dir=LATEST_DIR, suffix=".upload") as temp_file:
+            temp_path = Path(temp_file.name)
+            shutil.copyfileobj(apk_field.file, temp_file)
+
         if temp_path.stat().st_size <= 0:
             temp_path.unlink(missing_ok=True)
             raise ValueError("上传文件为空")
@@ -134,7 +135,8 @@ def publish_apk(
         write_manifest(manifest)
         return manifest
     except Exception:
-        temp_path.unlink(missing_ok=True)
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
         raise
 
 
@@ -453,7 +455,7 @@ class ApkUpdateRequestHandler(SimpleHTTPRequestHandler):
             # 构造一个与 cgi.FieldStorage 兼容的 apk_field 对象
             class ApkField:
                 filename = apk_filename
-                file = BytesIO(apk_data) if apk_data else None
+                file = BytesIO(apk_data) if apk_data is not None else None
 
             apk_field = ApkField()
 
