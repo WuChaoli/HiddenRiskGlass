@@ -26,7 +26,10 @@ import com.rokid.glass.component.GlassStatusBar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.InspectionFeatureFlags
+import com.google.gson.Gson
 import com.rokid.glass.EnterpriseQrScanActivity
+import com.rokid.glass.updater.AppUpdateManager
+import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glass.WifiQrScanActivity
 import com.rokid.glass.config.AutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
@@ -38,6 +41,7 @@ import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.io.IOException
 import kotlin.math.max
 
 /**
@@ -102,6 +106,9 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var batteryReceiver: BroadcastReceiver? = null
     private var loadingViewsInitialized = false
     private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val updateCheckExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val updateManager by lazy { AppUpdateManager(applicationContext) }
+    private var autoUpdateCheckStarted = false
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     // 转圈动画
@@ -181,6 +188,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         setContentView(R.layout.activity_inspection_loading)
 
         initViews()
+        startAutoUpdateCheck()
         debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
         debugAnimateMode = intent.getBooleanExtra("debug_animate", false)
         if (debugSnapshotMode) {
@@ -220,6 +228,27 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         }
     }
 
+    private fun startAutoUpdateCheck() {
+        if (autoUpdateCheckStarted || debugSnapshotMode) return
+        autoUpdateCheckStarted = true
+        updateCheckExecutor.execute {
+            try {
+                val result = updateManager.checkForUpdate(ignoreSkipped = false)
+                if (!result.hasUpdate || result.info == null) return@execute
+                uiHandler.post {
+                    if (activityDestroyed) return@post
+                    startActivity(
+                        Intent(this, AppUpdatePromptActivity::class.java).apply {
+                            putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
+                        },
+                    )
+                }
+            } catch (error: IOException) {
+                Log.i(TAG, "auto update check skipped: ${error.message}")
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         inputSession.attach()
@@ -243,6 +272,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         }
         RokidSdkManager.removeListener(this)
         modelLoadExecutor.shutdownNow()
+        updateCheckExecutor.shutdownNow()
         InspectionCameraCoordinator.pause(CameraOwner.LOADING, reason = "loading_on_destroy")
 
         // 如果初始化未完成且出现错误，清理资源
