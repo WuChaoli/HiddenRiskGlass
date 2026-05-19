@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/itemCard"
+    android:layout_width="140dp"
+    android:layout_height="140dp"
+    android:background="@drawable/glass_menu_card">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/ivCardIcon"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:src="@drawable/ic_menu_ai_analysis"
+            android:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tvCardIconText"
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:gravity="center"
+            android:text="↻"
+            android:textColor="@color/green"
+            android:textSize="34sp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/tvCardLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:textColor="@color/green"
+            android:textSize="16sp" />
+    </LinearLayout>
+</FrameLayout>

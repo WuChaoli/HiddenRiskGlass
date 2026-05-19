@@ -5,8 +5,11 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Bundle
 import android.util.Log
-import android.widget.FrameLayout
+import android.view.View
 import android.widget.TextView
+import androidx.viewpager2.widget.ViewPager2
+import com.rokid.glass.adapter.MenuCardAdapter
+import kotlin.math.abs
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
@@ -25,35 +28,46 @@ import java.util.concurrent.Executors
 
 class AiInspectionMenuActivity : BaseGlassActivity() {
 
-    private lateinit var itemHazardAnalysis: FrameLayout
-    private lateinit var itemHazardRecord: FrameLayout
-    private lateinit var itemDeviceGuide: FrameLayout
-    private lateinit var itemUpdateCheck: FrameLayout
     private lateinit var tvBottomHint: TextView
     private lateinit var statusBar: GlassStatusBar
+    private lateinit var viewPagerMenu: ViewPager2
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val updateExecutor = Executors.newSingleThreadExecutor()
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private var checkingUpdate = false
     private var autoUpdateChecked = false
-    private lateinit var items: List<FrameLayout>
-    private var selectedIndex = 0
+    private val menuAdapter by lazy {
+        MenuCardAdapter(
+            cards = listOf(
+                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_ai_analysis, R.string.ai_entry_menu_analysis),
+                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_device_guide, R.string.ai_entry_menu_guide),
+                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_hazard_record, R.string.ai_entry_menu_record),
+                MenuCardAdapter.MenuCardData(0, R.string.ai_entry_menu_update, iconChar = "↻"),
+            ),
+            onItemClick = { position -> onItemConfirmed(position) },
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_ai_inspection_menu)
 
-        itemHazardAnalysis = findViewById(R.id.itemHazardAnalysis)
-        itemHazardRecord = findViewById(R.id.itemHazardRecord)
-        itemDeviceGuide = findViewById(R.id.itemDeviceGuide)
-        itemUpdateCheck = findViewById(R.id.itemUpdateCheck)
         tvBottomHint = findViewById(R.id.tvBottomHint)
         statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
 
-        items = listOf(itemHazardAnalysis, itemDeviceGuide, itemHazardRecord, itemUpdateCheck)
-        updateSelection()
+        viewPagerMenu = findViewById(R.id.viewPagerMenu)
+        viewPagerMenu.adapter = menuAdapter
+        viewPagerMenu.offscreenPageLimit = 1
+        viewPagerMenu.setPageTransformer(CenterZoomPageTransformer())
+        viewPagerMenu.setCurrentItem(0, false)
+
+        viewPagerMenu.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                updateSelection(position)
+            }
+        })
     }
 
     override fun onResume() {
@@ -85,23 +99,23 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 label = "上一个",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
             ) {
-                selectedIndex = (selectedIndex - 1).coerceAtLeast(0)
-                updateSelection()
+                val current = viewPagerMenu.currentItem
+                if (current > 0) viewPagerMenu.setCurrentItem(current - 1, true)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Next,
                 label = "下一个",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
             ) {
-                selectedIndex = (selectedIndex + 1).coerceAtMost(items.lastIndex)
-                updateSelection()
+                val current = viewPagerMenu.currentItem
+                if (current < menuAdapter.itemCount - 1) viewPagerMenu.setCurrentItem(current + 1, true)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
                 label = "确认",
                 triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK)),
             ) {
-                onItemConfirmed(selectedIndex)
+                onItemConfirmed(viewPagerMenu.currentItem)
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_menu_analysis"),
@@ -135,13 +149,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    private fun updateSelection() {
-        items.forEachIndexed { index, item ->
-            item.setBackgroundResource(
-                if (index == selectedIndex) R.drawable.glass_menu_card_selected
-                else R.drawable.glass_menu_card,
-            )
-        }
+    private fun updateSelection(position: Int) {
         tvBottomHint.text = getString(R.string.ai_entry_menu_hint)
     }
 
@@ -243,6 +251,17 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 val batteryPct = (level * 100 / scale.toFloat()).toInt()
                 statusBar.setBatteryPercent(batteryPct)
             }
+        }
+    }
+
+    private class CenterZoomPageTransformer : ViewPager2.PageTransformer {
+        override fun transformPage(page: View, position: Float) {
+            val absPos = abs(position)
+            page.translationX = 0f
+            val scale = 1f - 0.15f * absPos.coerceAtMost(1f)
+            page.scaleX = scale
+            page.scaleY = scale
+            page.alpha = 1f - 0.3f * absPos.coerceAtMost(1f)
         }
     }
 
