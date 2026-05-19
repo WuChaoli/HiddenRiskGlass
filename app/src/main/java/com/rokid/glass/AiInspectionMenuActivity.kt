@@ -14,18 +14,27 @@ import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HazardRecordActivity
 import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.InspectionSession
+import com.google.gson.Gson
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.updater.AppUpdateManager
+import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glesse.R
+import java.io.IOException
+import java.util.concurrent.Executors
 
 class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private lateinit var itemHazardAnalysis: FrameLayout
     private lateinit var itemHazardRecord: FrameLayout
     private lateinit var itemDeviceGuide: FrameLayout
+    private lateinit var itemUpdateCheck: FrameLayout
     private lateinit var tvBottomHint: TextView
     private lateinit var statusBar: GlassStatusBar
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val updateExecutor = Executors.newSingleThreadExecutor()
+    private val updateManager by lazy { AppUpdateManager(applicationContext) }
+    private var checkingUpdate = false
     private lateinit var items: List<FrameLayout>
     private var selectedIndex = 0
 
@@ -36,11 +45,12 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         itemHazardAnalysis = findViewById(R.id.itemHazardAnalysis)
         itemHazardRecord = findViewById(R.id.itemHazardRecord)
         itemDeviceGuide = findViewById(R.id.itemDeviceGuide)
+        itemUpdateCheck = findViewById(R.id.itemUpdateCheck)
         tvBottomHint = findViewById(R.id.tvBottomHint)
         statusBar = findViewById(R.id.statusBar)
         updateBatteryLevel()
 
-        items = listOf(itemHazardAnalysis, itemDeviceGuide, itemHazardRecord)
+        items = listOf(itemHazardAnalysis, itemDeviceGuide, itemHazardRecord, itemUpdateCheck)
         updateSelection()
     }
 
@@ -56,6 +66,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
+        updateExecutor.shutdownNow()
         inputSession.release()
         super.onDestroy()
     }
@@ -110,6 +121,14 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             ) {
                 onItemConfirmed(2)
             },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_menu_update"),
+                label = "检查更新",
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("检查更新", "jian cha geng xin")),
+                enabled = { !checkingUpdate },
+            ) {
+                checkUpdateManually()
+            },
         )
     }
 
@@ -128,6 +147,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             0 -> startHazardAnalysis()
             1 -> startDeviceGuide()
             2 -> startActivity(Intent(this, HazardRecordActivity::class.java))
+            3 -> checkUpdateManually()
             else -> Unit
         }
     }
@@ -154,6 +174,37 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 }
             },
         )
+    }
+
+    private fun checkUpdateManually() {
+        if (checkingUpdate) return
+        checkingUpdate = true
+        tvBottomHint.setText(R.string.ai_entry_menu_update_checking)
+        inputSession.updateActions(buildInputActions())
+        updateExecutor.execute {
+            try {
+                val result = updateManager.checkForUpdate(ignoreSkipped = true)
+                runOnUiThread {
+                    checkingUpdate = false
+                    inputSession.updateActions(buildInputActions())
+                    if (result.hasUpdate && result.info != null) {
+                        startActivity(
+                            Intent(this, AppUpdatePromptActivity::class.java).apply {
+                                putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
+                            },
+                        )
+                    } else {
+                        tvBottomHint.setText(R.string.ai_entry_menu_update_latest)
+                    }
+                }
+            } catch (error: IOException) {
+                runOnUiThread {
+                    checkingUpdate = false
+                    tvBottomHint.setText(R.string.ai_entry_menu_update_failed)
+                    inputSession.updateActions(buildInputActions())
+                }
+            }
+        }
     }
 
     /**

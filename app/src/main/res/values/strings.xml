@@ -191,7 +191,7 @@
     <string name="ai_entry_menu_guide">设备指引</string>
     <string name="ai_entry_menu_lightshot">闪拍</string>
     <string name="ai_entry_menu_hint">请直接说出功能名称</string>
-    <string name="ai_entry_menu_voice_hint">语音指令：实时分析 | 设备指引 | 隐患拍照</string>
+    <string name="ai_entry_menu_voice_hint">语音指令：实时分析 | 设备指引 | 隐患拍照 | 检查更新</string>
     <string name="ai_detection_result_sync">是否同步到手机端？</string>
     <string name="ai_detection_result_hint">前后滑动翻页，单击/确认同步，双击/取消返回检测</string>
     <string name="ai_detection_sync_decision_hint">语音：继续 | 结束，触控：单击 | 双击</string>
@@ -235,6 +235,10 @@
     <string name="lightshot_title">闪拍</string>
     <string name="lightshot_hint">说出“拍照”或单击立即保存当前画面</string>
 
+    <string name="ai_entry_menu_update">检查更新</string>
+    <string name="ai_entry_menu_update_checking">正在检查更新...</string>
+    <string name="ai_entry_menu_update_latest">当前已是最新版本</string>
+    <string name="ai_entry_menu_update_failed">检查更新失败</string>
     <string name="app_update_title">发现新版本</string>
     <string name="app_update_version">新版本：%1$s</string>
     <string name="app_update_notes_empty">本次更新未填写说明</string>
