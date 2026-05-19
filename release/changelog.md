@@ -1,3 +1,21 @@
+### 2.0.5
+
+#### 新增
+1. **局域网 APK 热更新**: 实现完整本地更新闭环——Python 本地更新服务器、安卓端版本检查/APK 下载/SHA-256 校验/系统安装器拉起。
+2. **菜单页"检查更新"入口**: `AiInspectionMenuActivity` 新增第四个菜单卡片，支持触控和语音（"检查更新"）手动触发更新检查。
+3. **启动自动更新检查**: 扫码页（`EnterpriseQrScanActivity`）和菜单页（`AiInspectionMenuActivity`）在 `onResume` 时自动检查更新，加载页不弹更新提示。
+
+#### 优化
+1. **菜单页重构**: 4 个固定卡片迁移为 `RecyclerView` + `LinearLayoutManager`（HORIZONTAL）横向滑动，选中框在卡片间移动，仅目标卡片不可见时自动滚动。
+2. **更新弹窗时机控制**: 加载页（`InspectionLoadingActivity`）不触发更新检查，仅在扫码页和菜单页弹窗。
+3. **Session 级跳过**: 更新弹窗取消后，本次 app 进程期间不再弹出（非持久化，下次启动恢复）。
+4. **弹窗防自动消失**: `BaseGlassActivity` 的 `KEEP_SCREEN_ON` 改为子类可控，`AppUpdatePromptActivity` 禁用常亮避免 Glass 自动熄屏。
+5. **菜单卡片尺寸调整**: 卡片宽度缩窄至 80dp，RecyclerView 和父布局禁用嵌套滚动和过度滚动，边缘锁定防止整体偏移。
+
+#### 修复
+1. 修复菜单确认动作和更新弹窗重复触发的问题。
+2. 修复 ViewPager2 `layout_marginHorizontal` 导致扫码后闪退的问题。
+
 ### 2.0.4
 
 #### 重构
