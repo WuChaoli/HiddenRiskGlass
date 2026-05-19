@@ -682,6 +682,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
                 if (!result.hasUpdate || result.info == null) return@execute
                 runOnUiThread {
                     if (destroyed) return@runOnUiThread
+                    if (!updateManager.markAutoPromptShownIfAllowed()) return@runOnUiThread
                     startActivity(
                         Intent(this, AppUpdatePromptActivity::class.java).apply {
                             putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))

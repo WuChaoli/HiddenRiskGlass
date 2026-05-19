@@ -20,17 +20,16 @@ class AppUpdateManager(
     private val httpClient: OkHttpClient = defaultHttpClient,
 ) {
     /** 本次 app 期间不再弹出更新提示（非持久化） */
-    private var sessionSkipped = false
-
-    /** 本次 app 期间不再弹出更新提示（非持久化） */
     fun skipCurrentSession() {
-        sessionSkipped = true
+        synchronized(sessionStateLock) {
+            sessionSkipped = true
+        }
     }
 
     fun checkForUpdate(ignoreSkipped: Boolean = false): AppUpdateCheckResult {
         val currentVersion = getCurrentVersionCode()
         // 用户取消后在本次 app 期间不再弹出
-        if (!ignoreSkipped && sessionSkipped) {
+        if (!ignoreSkipped && isSessionSkipped()) {
             return AppUpdateCheckResult(null, currentVersion)
         }
         val latest = client.fetchLatest()
@@ -43,6 +42,14 @@ class AppUpdateManager(
             null
         }
         return AppUpdateCheckResult(effectiveInfo, currentVersion)
+    }
+
+    fun markAutoPromptShownIfAllowed(): Boolean {
+        synchronized(sessionStateLock) {
+            if (sessionSkipped || autoPromptShown) return false
+            autoPromptShown = true
+            return true
+        }
     }
 
     fun skipVersion(versionCode: Int) {
@@ -158,6 +165,15 @@ class AppUpdateManager(
         private const val KEY_SKIPPED_VERSION_CODE = "skipped_version_code"
         private const val UPDATE_CACHE_DIR = "app_updates"
         private const val UPDATE_APK_NAME = "latest.apk"
+        private val sessionStateLock = Any()
+        private var sessionSkipped = false
+        private var autoPromptShown = false
+
+        private fun isSessionSkipped(): Boolean {
+            synchronized(sessionStateLock) {
+                return sessionSkipped
+            }
+        }
 
         private val defaultHttpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()

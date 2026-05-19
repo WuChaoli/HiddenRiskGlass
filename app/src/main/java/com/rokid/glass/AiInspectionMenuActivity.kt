@@ -46,7 +46,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 MenuCardAdapter.MenuCardData(R.drawable.ic_menu_hazard_record, R.string.ai_entry_menu_record),
                 MenuCardAdapter.MenuCardData(0, R.string.ai_entry_menu_update, iconChar = "↻"),
             ),
-            onItemClick = { position -> onItemConfirmed(position) },
         )
     }
 
@@ -144,19 +143,34 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    /** 移动选中框：更新高亮，仅在目标卡片不可见时滚动 */
+    /** 移动选中框：更新高亮，并确保目标卡片完整停留在可视区域内 */
     private fun moveSelection(delta: Int) {
         val target = (selectedIndex + delta).coerceIn(0, menuAdapter.itemCount - 1)
         if (target == selectedIndex) return
         selectedIndex = target
         menuAdapter.selectedIndex = target
+        ensureSelectedCardVisible(target)
+    }
 
-        // 仅在目标卡片不完全可见时才自动滚动
+    private fun ensureSelectedCardVisible(position: Int, retryAfterLayout: Boolean = true) {
         val lm = recyclerMenu.layoutManager as? LinearLayoutManager ?: return
-        val firstVisible = lm.findFirstVisibleItemPosition()
-        val lastVisible = lm.findLastVisibleItemPosition()
-        if (target < firstVisible || target > lastVisible) {
-            recyclerMenu.smoothScrollToPosition(target)
+        val itemView = lm.findViewByPosition(position)
+        if (itemView == null) {
+            lm.scrollToPositionWithOffset(position, recyclerMenu.paddingLeft)
+            if (retryAfterLayout) {
+                recyclerMenu.post { ensureSelectedCardVisible(position, retryAfterLayout = false) }
+            }
+            return
+        }
+
+        val visibleLeft = recyclerMenu.paddingLeft
+        val visibleRight = recyclerMenu.width - recyclerMenu.paddingRight
+        val itemLeft = lm.getDecoratedLeft(itemView)
+        val itemRight = lm.getDecoratedRight(itemView)
+
+        when {
+            itemLeft < visibleLeft -> recyclerMenu.smoothScrollBy(itemLeft - visibleLeft, 0)
+            itemRight > visibleRight -> recyclerMenu.smoothScrollBy(itemRight - visibleRight, 0)
         }
     }
 
@@ -202,6 +216,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 val result = updateManager.checkForUpdate(ignoreSkipped = false)
                 if (!result.hasUpdate || result.info == null) return@execute
                 runOnUiThread {
+                    if (!updateManager.markAutoPromptShownIfAllowed()) return@runOnUiThread
                     startActivity(
                         Intent(this, AppUpdatePromptActivity::class.java).apply {
                             putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))

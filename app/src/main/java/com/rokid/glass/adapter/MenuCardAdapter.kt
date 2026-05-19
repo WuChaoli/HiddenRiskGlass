@@ -11,7 +11,6 @@ import com.rokid.glesse.R
 
 class MenuCardAdapter(
     private val cards: List<MenuCardData>,
-    private val onItemClick: (Int) -> Unit,
 ) : RecyclerView.Adapter<MenuCardAdapter.ViewHolder>() {
 
     data class MenuCardData(
@@ -57,8 +56,6 @@ class MenuCardAdapter(
             holder.icon.visibility = View.VISIBLE
         }
         holder.label.setText(card.labelResId)
-        holder.card.setOnClickListener { onItemClick(position) }
-
         // 选中态：高亮 vs 普通背景
         holder.card.setBackgroundResource(
             if (position == selectedIndex) R.drawable.glass_menu_card_selected
