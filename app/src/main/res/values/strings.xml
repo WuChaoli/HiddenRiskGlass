@@ -235,4 +235,15 @@
     <string name="lightshot_title">闪拍</string>
     <string name="lightshot_hint">说出“拍照”或单击立即保存当前画面</string>
 
+    <string name="app_update_title">发现新版本</string>
+    <string name="app_update_version">新版本：%1$s</string>
+    <string name="app_update_notes_empty">本次更新未填写说明</string>
+    <string name="app_update_install_now">立即安装</string>
+    <string name="app_update_skip">跳过本次</string>
+    <string name="app_update_downloading">正在下载安装包...</string>
+    <string name="app_update_download_failed">下载安装包失败，请重试</string>
+    <string name="app_update_verify_failed">安装包校验失败，请重新下载</string>
+    <string name="app_update_permission_required">请允许安装未知应用后重试</string>
+    <string name="app_update_installer_failed">无法打开系统安装器</string>
+    <string name="app_update_touch_hint">单击安装，双击跳过</string>
 </resources>
