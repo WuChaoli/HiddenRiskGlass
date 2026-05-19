@@ -14,11 +14,14 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import java.io.IOException
+import java.util.concurrent.Executors
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.gson.Gson
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -30,6 +33,8 @@ import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
+import com.rokid.glass.updater.AppUpdateManager
+import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
@@ -51,6 +56,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private lateinit var infoCard: LinearLayout
     private lateinit var bottomHints: LinearLayout
     private lateinit var statusBar: GlassStatusBar
+    private val updateCheckExecutor = Executors.newSingleThreadExecutor()
+    private val updateManager by lazy { AppUpdateManager(applicationContext) }
+    private var autoUpdateChecked = false
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     private val scannerDelegate: Lazy<BarcodeScanner> = lazy {
@@ -206,6 +214,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         startStatusBarUpdates()
         if (completed) return
         if (debugSnapshotMode) return
+        startAutoUpdateCheck()
         if (skipScanIfEnterpriseQrCached()) return
         cameraRecoveryController.start()
         if (hasRequiredPermissions()) {
@@ -232,6 +241,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     override fun onDestroy() {
         destroyed = true
+        updateCheckExecutor.shutdownNow()
         stopStatusBarUpdates()
         inputSession.release()
         if (!debugSnapshotMode) {
@@ -660,6 +670,27 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         } else {
             finishAffinity()
             finish()
+        }
+    }
+
+    private fun startAutoUpdateCheck() {
+        if (autoUpdateChecked) return
+        autoUpdateChecked = true
+        updateCheckExecutor.execute {
+            try {
+                val result = updateManager.checkForUpdate(ignoreSkipped = false)
+                if (!result.hasUpdate || result.info == null) return@execute
+                runOnUiThread {
+                    if (destroyed) return@runOnUiThread
+                    startActivity(
+                        Intent(this, AppUpdatePromptActivity::class.java).apply {
+                            putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
+                        },
+                    )
+                }
+            } catch (error: IOException) {
+                Log.i(TAG, "auto update check skipped: ${error.message}")
+            }
         }
     }
 
