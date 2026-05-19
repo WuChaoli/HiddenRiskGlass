@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/itemCard"
-    android:layout_width="100dp"
+    android:layout_width="80dp"
     android:layout_height="140dp"
     android:layout_marginHorizontal="4dp"
     android:background="@drawable/glass_menu_card">

@@ -153,8 +153,8 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
         // 仅在目标卡片不完全可见时才自动滚动
         val lm = recyclerMenu.layoutManager as? LinearLayoutManager ?: return
-        val firstVisible = lm.findFirstCompletelyVisibleItemPosition()
-        val lastVisible = lm.findLastCompletelyVisibleItemPosition()
+        val firstVisible = lm.findFirstVisibleItemPosition()
+        val lastVisible = lm.findLastVisibleItemPosition()
         if (target < firstVisible || target > lastVisible) {
             recyclerMenu.smoothScrollToPosition(target)
         }

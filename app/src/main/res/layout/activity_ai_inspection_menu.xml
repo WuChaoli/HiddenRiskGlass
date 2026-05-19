@@ -9,7 +9,8 @@
         android:layout_height="match_parent"
         android:gravity="center_horizontal"
         android:orientation="vertical"
-        android:paddingTop="80dp">
+        android:paddingTop="80dp"
+        android:overScrollMode="never">
 
         <!-- 横向滑动菜单卡片（RecyclerView + SnapHelper） -->
         <androidx.recyclerview.widget.RecyclerView
@@ -19,7 +20,8 @@
             android:layout_marginTop="24dp"
             android:clipToPadding="false"
             android:paddingHorizontal="20dp"
-            android:overScrollMode="never" />
+            android:overScrollMode="never"
+            android:nestedScrollingEnabled="false" />
 
         <!-- 中间提示 -->
         <TextView
