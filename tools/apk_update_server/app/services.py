@@ -4,6 +4,7 @@ import hashlib
 import re
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 from sqlite3 import Row
 from typing import BinaryIO
@@ -38,11 +39,29 @@ def safe_version_dir(version_code: int, version_name: str) -> str:
     return f"{int(version_code)}-{clean_name}"
 
 
-def manifest_from_release(row: Row) -> dict[str, object]:
+def unique_release_dir(settings: Settings, version_code: int, version_name: str) -> Path:
+    prefix = safe_version_dir(version_code, version_name)
+    for _ in range(10):
+        release_dir = settings.releases_dir / f"{prefix}-{uuid.uuid4().hex[:12]}"
+        try:
+            release_dir.mkdir(parents=True, exist_ok=False)
+            return release_dir
+        except FileExistsError:
+            continue
+    raise RuntimeError("failed to allocate release directory")
+
+
+def release_apk_url(row: Row, base_url: str | None = None) -> str:
+    if base_url is None:
+        return row["apk_url"]
+    return f"{base_url.rstrip('/')}/releases/{int(row['id'])}/app.apk"
+
+
+def manifest_from_release(row: Row, base_url: str | None = None) -> dict[str, object]:
     return {
         "versionCode": row["version_code"],
         "versionName": row["version_name"],
-        "apkUrl": row["apk_url"],
+        "apkUrl": release_apk_url(row, base_url),
         "sha256": row["sha256"],
         "sizeBytes": row["size_bytes"],
         "releaseNotes": row["release_notes"],
@@ -70,10 +89,10 @@ def publish_release(
     if not original_name.lower().endswith(".apk"):
         raise ValueError("filename must end with .apk")
 
-    release_dir = settings.releases_dir / safe_version_dir(version_code, version_name)
-    release_dir.mkdir(parents=True, exist_ok=True)
+    release_dir = unique_release_dir(settings, version_code, version_name)
     apk_path = release_dir / "app.apk"
     temp_path: Path | None = None
+    final_apk_written = False
 
     try:
         with tempfile.NamedTemporaryFile(delete=False, dir=release_dir, suffix=".upload") as temp_file:
@@ -86,6 +105,7 @@ def publish_release(
 
         shutil.move(str(temp_path), apk_path)
         temp_path = None
+        final_apk_written = True
 
         digest = sha256_file(apk_path)
         apk_url = f"{base_url.rstrip('/')}/releases/{release_dir.name}/app.apk"
@@ -127,6 +147,12 @@ def publish_release(
     except Exception:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
+        if final_apk_written:
+            apk_path.unlink(missing_ok=True)
+        try:
+            release_dir.rmdir()
+        except OSError:
+            pass
         raise
 
 
@@ -208,6 +234,7 @@ def resolve_update(
     settings: Settings,
     nscode: str,
     current_version_code: int,
+    base_url: str | None = None,
 ) -> dict[str, object]:
     with db_session(settings) as conn:
         release = _find_rule_release(conn, nscode.strip())
@@ -230,11 +257,11 @@ def resolve_update(
 
         _insert_check_event(conn, nscode, current_version_code, release_id, RESULT_UPDATE)
         response = {"updateAvailable": True}
-        response.update(manifest_from_release(release))
+        response.update(manifest_from_release(release, base_url))
         return response
 
 
-def get_latest_manifest(settings: Settings) -> dict[str, object] | None:
+def get_latest_manifest(settings: Settings, base_url: str | None = None) -> dict[str, object] | None:
     with db_session(settings) as conn:
         default_release_id = _get_default_release_id(conn)
         if default_release_id is None:
@@ -245,7 +272,7 @@ def get_latest_manifest(settings: Settings) -> dict[str, object] | None:
         ).fetchone()
         if release is None:
             return None
-        return manifest_from_release(release)
+        return manifest_from_release(release, base_url)
 
 
 def _get_default_release_id(conn) -> int | None:

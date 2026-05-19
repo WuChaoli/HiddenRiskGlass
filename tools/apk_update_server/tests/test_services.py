@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
+import hashlib
 from io import BytesIO
 from pathlib import Path
 import sqlite3
@@ -139,7 +141,8 @@ def test_publish_release_writes_apk_and_manifest_fields(isolated_env):
 
     assert manifest["versionCode"] == 3
     assert manifest["versionName"] == "2.0.6"
-    assert manifest["apkUrl"] == "http://127.0.0.1:8080/releases/3-2.0.6/app.apk"
+    assert manifest["apkUrl"].startswith("http://127.0.0.1:8080/releases/3-2.0.6-")
+    assert manifest["apkUrl"].endswith("/app.apk")
     assert manifest["sizeBytes"] == len(b"apk-content")
     assert manifest["releaseNotes"] == "测试发布"
     assert manifest["mandatory"] is True
@@ -156,6 +159,62 @@ def test_publish_release_writes_apk_and_manifest_fields(isolated_env):
     assert release["release_notes"] == "测试发布"
     assert release["mandatory"] == 1
     assert release["status"] == "active"
+
+
+def test_publish_release_cleans_final_apk_when_db_insert_fails(isolated_env, monkeypatch):
+    from app.config import load_settings
+    from app.db import init_db
+    from app.services import publish_release
+    import app.services
+
+    settings = load_settings()
+    init_db(settings)
+
+    class FailingConnection:
+        def execute(self, *args, **kwargs):
+            raise sqlite3.OperationalError("insert failed")
+
+    @contextmanager
+    def failing_db_session(_settings):
+        yield FailingConnection()
+
+    monkeypatch.setattr(app.services, "db_session", failing_db_session)
+
+    with pytest.raises(sqlite3.OperationalError):
+        publish_release(
+            settings=settings,
+            filename="app-standard-debug.apk",
+            fileobj=BytesIO(b"apk-content"),
+            version_code=3,
+            version_name="2.0.6",
+            release_notes="db failure",
+            mandatory=True,
+            base_url="http://127.0.0.1:8080",
+        )
+
+    assert list(settings.releases_dir.rglob("app.apk")) == []
+
+
+def test_duplicate_version_publish_keeps_release_files_independent(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+
+    settings = load_settings()
+    init_db(settings)
+
+    publish_test_release(settings, 3, "2.0.6", payload=b"first-apk")
+    publish_test_release(settings, 3, "2.0.6", payload=b"second-apk")
+
+    with connect_db(settings) as conn:
+        releases = conn.execute("SELECT * FROM releases ORDER BY id").fetchall()
+
+    assert len(releases) == 2
+    assert releases[0]["apk_path"] != releases[1]["apk_path"]
+    assert Path(releases[0]["apk_path"]).read_bytes() == b"first-apk"
+    assert Path(releases[1]["apk_path"]).read_bytes() == b"second-apk"
+
+    first_digest = hashlib.sha256(Path(releases[0]["apk_path"]).read_bytes()).hexdigest()
+    assert releases[0]["sha256"] == first_digest
 
 
 def test_default_release_resolves_update(isolated_env):
@@ -251,3 +310,38 @@ def test_get_latest_manifest_returns_default_release(isolated_env):
 
     assert manifest["versionCode"] == 3
     assert manifest["versionName"] == "2.0.6"
+
+
+def test_get_latest_manifest_uses_base_url_override(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import get_latest_manifest, set_default_release
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+    with connect_db(settings) as conn:
+        release_id = conn.execute("SELECT id FROM releases").fetchone()["id"]
+    set_default_release(settings, release_id)
+
+    manifest = get_latest_manifest(settings, base_url="http://lan")
+
+    assert manifest["apkUrl"] == f"http://lan/releases/{release_id}/app.apk"
+
+
+def test_resolve_update_uses_base_url_override(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import resolve_update, set_default_release
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+    with connect_db(settings) as conn:
+        release_id = conn.execute("SELECT id FROM releases").fetchone()["id"]
+    set_default_release(settings, release_id)
+
+    response = resolve_update(settings, "NSCODE-001", 2, base_url="http://lan")
+
+    assert response["updateAvailable"] is True
+    assert response["apkUrl"] == f"http://lan/releases/{release_id}/app.apk"
