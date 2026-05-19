@@ -40,3 +40,57 @@ def test_device_rules_release_id_enforces_foreign_key(isolated_env):
                 """,
                 ("NSCODE-001", 999, 1, "missing release"),
             )
+
+
+def test_device_rules_schema_matches_nscode_design(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+
+    settings = load_settings()
+    init_db(settings)
+
+    with connect_db(settings) as conn:
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(device_rules)").fetchall()
+        }
+
+    assert {"nscode", "release_id"} <= columns
+    assert not {
+        "device_id",
+        "channel",
+        "target_version_code",
+        "min_version_code",
+        "max_version_code",
+    } & columns
+
+
+def test_init_db_rolls_back_partial_schema_on_failure(isolated_env, monkeypatch):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    import app.db
+
+    settings = load_settings()
+    monkeypatch.setattr(
+        app.db,
+        "SCHEMA",
+        """
+        CREATE TABLE partial_table (
+            id INTEGER PRIMARY KEY
+        );
+        INVALID SQL;
+        """,
+    )
+
+    with pytest.raises(sqlite3.Error):
+        init_db(settings)
+
+    with connect_db(settings) as conn:
+        partial_table = conn.execute(
+            """
+            SELECT name FROM sqlite_master
+            WHERE type = 'table' AND name = 'partial_table'
+            """
+        ).fetchone()
+
+    assert partial_table is None
