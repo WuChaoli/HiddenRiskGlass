@@ -21,6 +21,7 @@ models/
 .codex/environments/*
 !.codex/environments/environment.toml
 .tmp/
+.worktrees/
 .tmp_*.png
 .tmp_*.jpg
 screen_*.png
