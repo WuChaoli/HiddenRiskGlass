@@ -52,9 +52,16 @@ def unique_release_dir(settings: Settings, version_code: int, version_name: str)
 
 
 def release_apk_url(row: Row, base_url: str | None = None) -> str:
-    if base_url is None:
-        return row["apk_url"]
-    return f"{base_url.rstrip('/')}/releases/{int(row['id'])}/app.apk"
+    effective_base_url = base_url
+    if effective_base_url is None:
+        stored_url = str(row["apk_url"])
+        prefix = "/releases/"
+        marker = stored_url.find(prefix)
+        if marker > 0:
+            effective_base_url = stored_url[:marker]
+        else:
+            return stored_url
+    return f"{effective_base_url.rstrip('/')}/releases/{int(row['id'])}/app.apk"
 
 
 def manifest_from_release(row: Row, base_url: str | None = None) -> dict[str, object]:
@@ -108,7 +115,7 @@ def publish_release(
         final_apk_written = True
 
         digest = sha256_file(apk_path)
-        apk_url = f"{base_url.rstrip('/')}/releases/{release_dir.name}/app.apk"
+        placeholder_apk_url = f"{base_url.rstrip('/')}/releases/pending/app.apk"
 
         with db_session(settings) as conn:
             cursor = conn.execute(
@@ -130,7 +137,7 @@ def publish_release(
                     int(version_code),
                     version_name,
                     str(apk_path),
-                    apk_url,
+                    placeholder_apk_url,
                     digest,
                     size_bytes,
                     release_notes.strip(),
@@ -138,9 +145,15 @@ def publish_release(
                     STATUS_ACTIVE,
                 ),
             )
+            release_id = int(cursor.lastrowid)
+            apk_url = f"{base_url.rstrip('/')}/releases/{release_id}/app.apk"
+            conn.execute(
+                "UPDATE releases SET apk_url = ? WHERE id = ?",
+                (apk_url, release_id),
+            )
             row = conn.execute(
                 "SELECT * FROM releases WHERE id = ?",
-                (cursor.lastrowid,),
+                (release_id,),
             ).fetchone()
 
         return manifest_from_release(row)
@@ -211,14 +224,30 @@ def list_admin_state(settings: Settings) -> dict[str, object]:
             "SELECT * FROM releases ORDER BY created_at DESC, id DESC"
         ).fetchall()
         rules = conn.execute(
-            "SELECT * FROM device_rules ORDER BY created_at DESC, id DESC"
+            """
+            SELECT
+                device_rules.*,
+                releases.version_code,
+                releases.version_name
+            FROM device_rules
+            JOIN releases ON releases.id = device_rules.release_id
+            ORDER BY device_rules.created_at DESC, device_rules.id DESC
+            """
+        ).fetchall()
+        check_events = conn.execute(
+            """
+            SELECT * FROM check_events
+            ORDER BY created_at DESC, id DESC
+            LIMIT 30
+            """
         ).fetchall()
         default_release_id = _get_default_release_id(conn)
 
     return {
-        "defaultReleaseId": default_release_id,
+        "default_release_id": default_release_id,
         "releases": [dict(row) for row in releases],
-        "deviceRules": [dict(row) for row in rules],
+        "device_rules": [dict(row) for row in rules],
+        "check_events": [dict(row) for row in check_events],
     }
 
 
@@ -236,6 +265,9 @@ def resolve_update(
     current_version_code: int,
     base_url: str | None = None,
 ) -> dict[str, object]:
+    if int(current_version_code) <= 0:
+        raise ValueError("current_version_code must be positive")
+
     with db_session(settings) as conn:
         release = _find_rule_release(conn, nscode.strip())
         if release is None:

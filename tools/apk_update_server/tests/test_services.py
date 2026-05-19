@@ -136,13 +136,12 @@ def test_publish_release_writes_apk_and_manifest_fields(isolated_env):
         version_name="2.0.6",
         release_notes="测试发布",
         mandatory=True,
-        base_url="http://127.0.0.1:8080/",
+        base_url="http://updates.test/",
     )
 
     assert manifest["versionCode"] == 3
     assert manifest["versionName"] == "2.0.6"
-    assert manifest["apkUrl"].startswith("http://127.0.0.1:8080/releases/3-2.0.6-")
-    assert manifest["apkUrl"].endswith("/app.apk")
+    assert manifest["apkUrl"] == "http://updates.test/releases/1/app.apk"
     assert manifest["sizeBytes"] == len(b"apk-content")
     assert manifest["releaseNotes"] == "测试发布"
     assert manifest["mandatory"] is True
@@ -202,8 +201,8 @@ def test_duplicate_version_publish_keeps_release_files_independent(isolated_env)
     settings = load_settings()
     init_db(settings)
 
-    publish_test_release(settings, 3, "2.0.6", payload=b"first-apk")
-    publish_test_release(settings, 3, "2.0.6", payload=b"second-apk")
+    first_manifest = publish_test_release(settings, 3, "2.0.6", payload=b"first-apk")
+    second_manifest = publish_test_release(settings, 3, "2.0.6", payload=b"second-apk")
 
     with connect_db(settings) as conn:
         releases = conn.execute("SELECT * FROM releases ORDER BY id").fetchall()
@@ -212,6 +211,10 @@ def test_duplicate_version_publish_keeps_release_files_independent(isolated_env)
     assert releases[0]["apk_path"] != releases[1]["apk_path"]
     assert Path(releases[0]["apk_path"]).read_bytes() == b"first-apk"
     assert Path(releases[1]["apk_path"]).read_bytes() == b"second-apk"
+    assert first_manifest["apkUrl"] == "http://127.0.0.1:8080/releases/1/app.apk"
+    assert second_manifest["apkUrl"] == "http://127.0.0.1:8080/releases/2/app.apk"
+    assert releases[0]["apk_url"] == "http://127.0.0.1:8080/releases/1/app.apk"
+    assert releases[1]["apk_url"] == "http://127.0.0.1:8080/releases/2/app.apk"
 
     first_digest = hashlib.sha256(Path(releases[0]["apk_path"]).read_bytes()).hexdigest()
     assert releases[0]["sha256"] == first_digest
@@ -289,6 +292,49 @@ def test_resolve_update_returns_false_when_current_version_is_new_enough(isolate
         event = conn.execute("SELECT * FROM check_events").fetchone()
     assert event["matched_release_id"] == release_id
     assert event["result"] == RESULT_NO_UPDATE
+
+
+def test_resolve_update_rejects_non_positive_current_version(isolated_env):
+    from app.config import load_settings
+    from app.db import init_db
+    from app.services import resolve_update
+
+    settings = load_settings()
+    init_db(settings)
+
+    with pytest.raises(ValueError):
+        resolve_update(settings, "NSCODE-001", 0)
+
+
+def test_list_admin_state_includes_template_keys_and_recent_events(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import (
+        create_device_rule,
+        list_admin_state,
+        resolve_update,
+        set_default_release,
+    )
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+    with connect_db(settings) as conn:
+        release_id = conn.execute("SELECT id FROM releases").fetchone()["id"]
+
+    set_default_release(settings, release_id)
+    create_device_rule(settings, "NSCODE-001", release_id, note="canary")
+    resolve_update(settings, "NSCODE-001", 2)
+
+    state = list_admin_state(settings)
+
+    assert {"releases", "device_rules", "check_events", "default_release_id"} <= set(state)
+    assert state["default_release_id"] == release_id
+    assert state["device_rules"][0]["release_id"] == release_id
+    assert state["device_rules"][0]["version_code"] == 3
+    assert state["device_rules"][0]["version_name"] == "2.0.6"
+    assert len(state["check_events"]) == 1
+    assert state["check_events"][0]["nscode"] == "NSCODE-001"
 
 
 def test_get_latest_manifest_returns_default_release(isolated_env):
