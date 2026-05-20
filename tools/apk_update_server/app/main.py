@@ -6,7 +6,7 @@ import hmac
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -197,8 +197,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             set_default_release(resolved_settings, release_id)
         return RedirectResponse("/admin", status_code=303)
 
-    @app.post("/admin/releases/{release_id}/default")
-    async def admin_set_default_release(request: Request, release_id: int):
+    @app.post("/admin/default-release")
+    async def admin_set_default_release(
+        request: Request,
+        release_id: int = Form(..., alias="releaseId"),
+    ):
         redirect = require_admin(request)
         if redirect is not None:
             return redirect
@@ -226,18 +229,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         delete_device_rule(resolved_settings, rule_id)
         return RedirectResponse("/admin", status_code=303)
 
-    @app.post("/api/v1/updates/check")
-    async def check_update(request: Request):
-        payload = await request.json()
-        nscode = str(payload.get("nscode", ""))
-        current_version_code = payload.get("currentVersionCode", payload.get("current_version_code"))
-        if current_version_code is None:
-            raise HTTPException(status_code=400, detail="currentVersionCode is required")
+    @app.get("/api/v1/updates/check")
+    async def check_update(
+        request: Request,
+        nscode: str = "",
+        current_version_code: int = Query(..., alias="currentVersionCode"),
+    ):
         try:
             response = resolve_update(
                 resolved_settings,
                 nscode=nscode,
-                current_version_code=int(current_version_code),
+                current_version_code=current_version_code,
                 base_url=build_base_url(request),
             )
         except ValueError as exc:

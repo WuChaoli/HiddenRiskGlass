@@ -107,7 +107,8 @@
             <td class="mono">{{ release.sha256 }}</td>
             <td>{% if release.id == default_release_id %}是{% else %}否{% endif %}</td>
             <td>
-              <form action="/admin/releases/{{ release.id }}/default" method="post">
+              <form action="/admin/default-release" method="post">
+                <input type="hidden" name="releaseId" value="{{ release.id }}">
                 <button class="secondary" type="submit">设为默认</button>
               </form>
             </td>

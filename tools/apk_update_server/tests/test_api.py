@@ -46,10 +46,14 @@ def create_rule(client: TestClient, nscode: str, release_id: int):
 
 
 def check_update(client: TestClient, nscode: str, current_version_code: int):
-    return client.post(
+    return client.get(
         "/api/v1/updates/check",
-        json={"nscode": nscode, "currentVersionCode": current_version_code},
+        params={"nscode": nscode, "currentVersionCode": current_version_code},
     )
+
+
+def set_default_release(client: TestClient, release_id: int):
+    return client.post("/admin/default-release", data={"releaseId": str(release_id)})
 
 
 def test_admin_redirects_to_login_when_unauthenticated(isolated_env):
@@ -96,6 +100,24 @@ def test_nscode_rule_overrides_default_over_api(isolated_env):
     assert create_rule(client, "NSCODE-OVERRIDE", 2).status_code == 200
 
     update = check_update(client, "NSCODE-OVERRIDE", 2)
+
+    assert update.status_code == 200
+    body = update.json()
+    assert body["updateAvailable"] is True
+    assert body["versionCode"] == 5
+    assert body["apkUrl"] == "http://testserver/releases/2/app.apk"
+
+
+def test_default_release_endpoint_sets_default(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 200
+    assert publish_release(client, 5, "2.1.0").status_code == 200
+
+    response = set_default_release(client, 2)
+    assert response.status_code == 200
+
+    update = check_update(client, "NSCODE-001", 2)
 
     assert update.status_code == 200
     body = update.json()
