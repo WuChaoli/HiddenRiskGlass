@@ -19,7 +19,15 @@ class AppUpdateClient(
         return try {
             fetchDynamic(nscode, currentVersionCode)
         } catch (error: Exception) {
-            Log.w(TAG, "dynamic update check failed, fallback to manifest", error)
+            if (nscode.isNotBlank()) {
+                Log.w(TAG, "dynamic update check failed for targeted update; no manifest fallback", error)
+                throw if (error is IOException) {
+                    error
+                } else {
+                    IOException("Dynamic update check failed for targeted update", error)
+                }
+            }
+            Log.w(TAG, "dynamic update check failed without nscode; fallback to manifest", error)
             fetchLatest().takeIf { it.versionCode > currentVersionCode }
         }
     }
