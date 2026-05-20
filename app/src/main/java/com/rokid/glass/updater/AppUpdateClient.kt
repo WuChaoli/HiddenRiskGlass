@@ -55,13 +55,15 @@ class AppUpdateClient(
                 throw IOException("Dynamic update check failed: HTTP ${response.code}")
             }
             val body = response.body?.string() ?: throw IOException("Dynamic update check body is empty")
-            val serverResponse = gson.fromJson(body, AppUpdateServerResponse::class.java)
-                ?: throw IOException("Dynamic update check response is empty")
-            val info = serverResponse.toUpdateInfoOrNull()
-            if (serverResponse.updateAvailable == true && info == null) {
-                throw IOException("Dynamic update check response is incomplete")
+            try {
+                val serverResponse = gson.fromJson(body, AppUpdateServerResponse::class.java)
+                    ?: throw IOException("Dynamic update check response is empty")
+                return serverResponse.toUpdateInfoOrNull()
+            } catch (error: IOException) {
+                throw error
+            } catch (error: RuntimeException) {
+                throw IOException("Dynamic update check response is invalid", error)
             }
-            return info
         }
     }
 

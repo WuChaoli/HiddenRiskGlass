@@ -21,14 +21,17 @@ data class AppUpdateServerResponse(
     val mandatory: Boolean? = null,
 ) {
     fun toUpdateInfoOrNull(): AppUpdateInfo? {
-        if (updateAvailable != true) return null
+        if (updateAvailable == false) return null
+        if (updateAvailable != true) {
+            throw IllegalArgumentException("Dynamic update response missing updateAvailable")
+        }
         return AppUpdateInfo(
-            versionCode = versionCode ?: return null,
-            versionName = versionName ?: return null,
-            apkUrl = apkUrl ?: return null,
-            sha256 = sha256 ?: return null,
-            sizeBytes = sizeBytes ?: return null,
-            releaseNotes = releaseNotes ?: return null,
+            versionCode = requireNotNull(versionCode) { "Dynamic update response missing versionCode" },
+            versionName = requireNotNull(versionName) { "Dynamic update response missing versionName" },
+            apkUrl = requireNotNull(apkUrl) { "Dynamic update response missing apkUrl" },
+            sha256 = requireNotNull(sha256) { "Dynamic update response missing sha256" },
+            sizeBytes = requireNotNull(sizeBytes) { "Dynamic update response missing sizeBytes" },
+            releaseNotes = requireNotNull(releaseNotes) { "Dynamic update response missing releaseNotes" },
             mandatory = mandatory ?: false,
         )
     }

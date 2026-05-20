@@ -20,6 +20,7 @@ class AppUpdateManager(
     private val context: Context,
     private val client: AppUpdateClient = AppUpdateClient(),
     private val httpClient: OkHttpClient = defaultHttpClient,
+    private val serialNumberProvider: () -> String = { RokidSdkManager.getSerialNumber() },
 ) {
     /** 本次 app 期间不再弹出更新提示（非持久化） */
     fun skipCurrentSession() {
@@ -34,7 +35,7 @@ class AppUpdateManager(
         if (!ignoreSkipped && isSessionSkipped()) {
             return AppUpdateCheckResult(null, currentVersion)
         }
-        val nscode = RokidSdkManager.getSerialNumber()
+        val nscode = serialNumberProvider()
         Log.i(TAG, "checkForUpdate nscodeEmpty=${nscode.isBlank()} currentVersionCode=$currentVersion")
         val latest = client.checkUpdate(nscode, currentVersion)
             ?: return AppUpdateCheckResult(null, currentVersion)
