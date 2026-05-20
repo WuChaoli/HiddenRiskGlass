@@ -65,6 +65,15 @@ def test_admin_redirects_to_login_when_unauthenticated(isolated_env):
     assert response.headers["location"] == "/login"
 
 
+def test_root_redirects_to_admin(isolated_env):
+    client = make_client(isolated_env)
+
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin"
+
+
 def test_login_allows_admin_access_and_page_contains_title(isolated_env):
     client = make_client(isolated_env)
 
@@ -73,6 +82,24 @@ def test_login_allows_admin_access_and_page_contains_title(isolated_env):
 
     assert response.status_code == 200
     assert "APK 更新后台" in response.text
+
+
+def test_logout_requires_post_and_clears_admin_session(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+    assert client.get("/admin").status_code == 200
+
+    get_response = client.get("/logout", follow_redirects=False)
+    assert get_response.status_code == 405
+    assert client.get("/admin").status_code == 200
+
+    post_response = client.post("/logout", follow_redirects=False)
+    assert post_response.status_code == 303
+    assert post_response.headers["location"] == "/login"
+
+    admin_response = client.get("/admin", follow_redirects=False)
+    assert admin_response.status_code == 303
+    assert admin_response.headers["location"] == "/login"
 
 
 def test_publishing_with_make_default_returns_update_from_check_api(isolated_env):

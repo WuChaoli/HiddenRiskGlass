@@ -131,6 +131,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         name="static",
     )
 
+    @app.get("/")
+    async def root():
+        return RedirectResponse("/admin", status_code=303)
+
     @app.get("/login")
     async def login_page(request: Request):
         return templates.TemplateResponse(request, "login.html", {"error": ""})
@@ -147,7 +151,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         mark_logged_in(request)
         return RedirectResponse("/admin", status_code=303)
 
-    @app.get("/logout")
+    @app.post("/logout")
     async def logout(request: Request):
         mark_logged_out(request)
         return RedirectResponse("/login", status_code=303)
