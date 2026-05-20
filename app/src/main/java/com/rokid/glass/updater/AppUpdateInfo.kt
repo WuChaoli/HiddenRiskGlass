@@ -22,18 +22,20 @@ data class AppUpdateServerResponse(
 ) {
     fun toUpdateInfoOrNull(): AppUpdateInfo? {
         if (updateAvailable == false) return null
-        if (updateAvailable != true) {
-            throw IllegalArgumentException("Dynamic update response missing updateAvailable")
-        }
+
         return AppUpdateInfo(
-            versionCode = requireNotNull(versionCode) { "Dynamic update response missing versionCode" },
-            versionName = requireNotNull(versionName) { "Dynamic update response missing versionName" },
-            apkUrl = requireNotNull(apkUrl) { "Dynamic update response missing apkUrl" },
-            sha256 = requireNotNull(sha256) { "Dynamic update response missing sha256" },
-            sizeBytes = requireNotNull(sizeBytes) { "Dynamic update response missing sizeBytes" },
-            releaseNotes = requireNotNull(releaseNotes) { "Dynamic update response missing releaseNotes" },
+            versionCode = requireRequiredField(versionCode, "versionCode"),
+            versionName = requireRequiredField(versionName, "versionName"),
+            apkUrl = requireRequiredField(apkUrl, "apkUrl"),
+            sha256 = requireRequiredField(sha256, "sha256"),
+            sizeBytes = requireRequiredField(sizeBytes, "sizeBytes"),
+            releaseNotes = requireRequiredField(releaseNotes, "releaseNotes"),
             mandatory = mandatory ?: false,
         )
+    }
+
+    private fun <T> requireRequiredField(value: T?, fieldName: String): T {
+        return requireNotNull(value) { "Update response missing $fieldName" }
     }
 }
 

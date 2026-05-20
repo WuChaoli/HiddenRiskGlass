@@ -35,7 +35,8 @@ class AppUpdateClient(
                 throw IOException("Update manifest request failed: HTTP ${response.code}")
             }
             val body = response.body?.string() ?: throw IOException("Update manifest body is empty")
-            return gson.fromJson(body, AppUpdateInfo::class.java)
+            return parseUpdateInfoOrNull(body, "Update manifest")
+                ?: throw IOException("Update manifest does not contain an update payload")
         }
     }
 
@@ -55,15 +56,20 @@ class AppUpdateClient(
                 throw IOException("Dynamic update check failed: HTTP ${response.code}")
             }
             val body = response.body?.string() ?: throw IOException("Dynamic update check body is empty")
-            try {
-                val serverResponse = gson.fromJson(body, AppUpdateServerResponse::class.java)
-                    ?: throw IOException("Dynamic update check response is empty")
-                return serverResponse.toUpdateInfoOrNull()
-            } catch (error: IOException) {
-                throw error
-            } catch (error: RuntimeException) {
-                throw IOException("Dynamic update check response is invalid", error)
-            }
+            return parseUpdateInfoOrNull(body, "Dynamic update check")
+        }
+    }
+
+    @Throws(IOException::class)
+    private fun parseUpdateInfoOrNull(body: String, sourceName: String): AppUpdateInfo? {
+        return try {
+            val serverResponse = gson.fromJson(body, AppUpdateServerResponse::class.java)
+                ?: throw IOException("$sourceName response is empty")
+            serverResponse.toUpdateInfoOrNull()
+        } catch (error: IOException) {
+            throw error
+        } catch (error: RuntimeException) {
+            throw IOException("$sourceName response is invalid", error)
         }
     }
 
