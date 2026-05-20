@@ -131,6 +131,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         name="static",
     )
 
+    def render_admin(request: Request, status_code: int = 200, message: str = ""):
+        state = list_admin_state(resolved_settings)
+        return templates.TemplateResponse(
+            request,
+            "admin.html",
+            {
+                "releases": state["releases"],
+                "device_rules": state["device_rules"],
+                "check_events": state["check_events"],
+                "default_release_id": state["default_release_id"],
+                "message": message,
+            },
+            status_code=status_code,
+        )
+
     @app.get("/")
     async def root():
         return RedirectResponse("/admin", status_code=303)
@@ -161,17 +176,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redirect = require_admin(request)
         if redirect is not None:
             return redirect
-        state = list_admin_state(resolved_settings)
-        return templates.TemplateResponse(
-            request,
-            "admin.html",
-            {
-                "releases": state["releases"],
-                "device_rules": state["device_rules"],
-                "check_events": state["check_events"],
-                "default_release_id": state["default_release_id"],
-            },
-        )
+        return render_admin(request)
 
     @app.post("/admin/releases")
     async def admin_publish_release(
@@ -186,19 +191,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redirect = require_admin(request)
         if redirect is not None:
             return redirect
-        manifest = publish_release(
-            settings=resolved_settings,
-            filename=apk.filename or "",
-            fileobj=apk.file,
-            version_code=version_code,
-            version_name=version_name,
-            release_notes=release_notes,
-            mandatory=mandatory is not None,
-            base_url=build_base_url(request),
-        )
-        if make_default is not None:
-            release_id = _release_id_from_manifest(manifest)
-            set_default_release(resolved_settings, release_id)
+        try:
+            manifest = publish_release(
+                settings=resolved_settings,
+                filename=apk.filename or "",
+                fileobj=apk.file,
+                version_code=version_code,
+                version_name=version_name,
+                release_notes=release_notes,
+                mandatory=mandatory is not None,
+                base_url=build_base_url(request),
+            )
+            if make_default is not None:
+                release_id = _release_id_from_manifest(manifest)
+                set_default_release(resolved_settings, release_id)
+        except ValueError as exc:
+            return render_admin(request, status_code=400, message=str(exc))
         return RedirectResponse("/admin", status_code=303)
 
     @app.post("/admin/default-release")
@@ -209,7 +217,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redirect = require_admin(request)
         if redirect is not None:
             return redirect
-        set_default_release(resolved_settings, release_id)
+        try:
+            set_default_release(resolved_settings, release_id)
+        except ValueError as exc:
+            return render_admin(request, status_code=400, message=str(exc))
         return RedirectResponse("/admin", status_code=303)
 
     @app.post("/admin/device-rules")
@@ -222,7 +233,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         redirect = require_admin(request)
         if redirect is not None:
             return redirect
-        create_device_rule(resolved_settings, nscode, release_id, note)
+        try:
+            create_device_rule(resolved_settings, nscode, release_id, note)
+        except ValueError as exc:
+            return render_admin(request, status_code=400, message=str(exc))
         return RedirectResponse("/admin", status_code=303)
 
     @app.post("/admin/device-rules/{rule_id}/delete")

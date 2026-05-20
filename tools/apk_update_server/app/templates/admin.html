@@ -18,6 +18,12 @@
   </header>
 
   <main class="layout">
+    {% if message %}
+    <section class="panel full-width">
+      <p class="alert error">{{ message }}</p>
+    </section>
+    {% endif %}
+
     <section class="panel">
       <h2>发布新 APK</h2>
       <form action="/admin/releases" method="post" enctype="multipart/form-data" class="grid-form">

@@ -21,6 +21,7 @@ def publish_release(
     version_code: int,
     version_name: str,
     payload: bytes = b"apk-bytes",
+    filename: str = "app-standard-debug.apk",
     make_default: bool = False,
 ):
     data = {
@@ -34,7 +35,8 @@ def publish_release(
     return client.post(
         "/admin/releases",
         data=data,
-        files={"apk": ("app-standard-debug.apk", payload, "application/vnd.android.package-archive")},
+        files={"apk": (filename, payload, "application/vnd.android.package-archive")},
+        follow_redirects=False,
     )
 
 
@@ -42,6 +44,7 @@ def create_rule(client: TestClient, nscode: str, release_id: int):
     return client.post(
         "/admin/device-rules",
         data={"nscode": nscode, "releaseId": str(release_id), "note": "canary"},
+        follow_redirects=False,
     )
 
 
@@ -53,7 +56,11 @@ def check_update(client: TestClient, nscode: str, current_version_code: int):
 
 
 def set_default_release(client: TestClient, release_id: int):
-    return client.post("/admin/default-release", data={"releaseId": str(release_id)})
+    return client.post(
+        "/admin/default-release",
+        data={"releaseId": str(release_id)},
+        follow_redirects=False,
+    )
 
 
 def test_admin_redirects_to_login_when_unauthenticated(isolated_env):
@@ -107,7 +114,8 @@ def test_publishing_with_make_default_returns_update_from_check_api(isolated_env
     login(client)
 
     response = publish_release(client, 3, "2.0.6", make_default=True)
-    assert response.status_code == 200
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin"
 
     update = check_update(client, "NSCODE-001", 2)
 
@@ -122,9 +130,15 @@ def test_publishing_with_make_default_returns_update_from_check_api(isolated_env
 def test_nscode_rule_overrides_default_over_api(isolated_env):
     client = make_client(isolated_env)
     login(client)
-    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 200
-    assert publish_release(client, 5, "2.1.0").status_code == 200
-    assert create_rule(client, "NSCODE-OVERRIDE", 2).status_code == 200
+    first_publish = publish_release(client, 3, "2.0.6", make_default=True)
+    second_publish = publish_release(client, 5, "2.1.0")
+    rule_response = create_rule(client, "NSCODE-OVERRIDE", 2)
+    assert first_publish.status_code == 303
+    assert first_publish.headers["location"] == "/admin"
+    assert second_publish.status_code == 303
+    assert second_publish.headers["location"] == "/admin"
+    assert rule_response.status_code == 303
+    assert rule_response.headers["location"] == "/admin"
 
     update = check_update(client, "NSCODE-OVERRIDE", 2)
 
@@ -138,11 +152,12 @@ def test_nscode_rule_overrides_default_over_api(isolated_env):
 def test_default_release_endpoint_sets_default(isolated_env):
     client = make_client(isolated_env)
     login(client)
-    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 200
-    assert publish_release(client, 5, "2.1.0").status_code == 200
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
+    assert publish_release(client, 5, "2.1.0").status_code == 303
 
     response = set_default_release(client, 2)
-    assert response.status_code == 200
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin"
 
     update = check_update(client, "NSCODE-001", 2)
 
@@ -156,7 +171,7 @@ def test_default_release_endpoint_sets_default(isolated_env):
 def test_latest_update_json_returns_default_manifest(isolated_env):
     client = make_client(isolated_env)
     login(client)
-    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 200
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
 
     response = client.get("/releases/latest/update.json")
 
@@ -170,9 +185,60 @@ def test_release_app_apk_downloads_uploaded_bytes(isolated_env):
     client = make_client(isolated_env)
     login(client)
     apk_payload = b"uploaded-apk-content"
-    assert publish_release(client, 3, "2.0.6", payload=apk_payload, make_default=True).status_code == 200
+    assert publish_release(client, 3, "2.0.6", payload=apk_payload, make_default=True).status_code == 303
 
     response = client.get("/releases/1/app.apk")
 
     assert response.status_code == 200
     assert response.content == apk_payload
+
+
+def test_publish_rejects_non_apk_upload_with_admin_error(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    response = publish_release(client, 3, "2.0.6", filename="not-an-apk.txt")
+
+    assert response.status_code == 400
+    assert "filename must end with .apk" in response.text
+
+
+def test_publish_rejects_empty_apk_upload_with_admin_error(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    response = publish_release(client, 3, "2.0.6", payload=b"")
+
+    assert response.status_code == 400
+    assert "uploaded APK is empty" in response.text
+
+
+def test_default_release_rejects_invalid_release_id_with_admin_error(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    response = set_default_release(client, 999)
+
+    assert response.status_code == 400
+    assert "default release must exist and be active" in response.text
+
+
+def test_device_rule_rejects_empty_nscode_with_admin_error(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
+
+    response = create_rule(client, "", 1)
+
+    assert response.status_code == 400
+    assert "nscode is required" in response.text
+
+
+def test_device_rule_rejects_invalid_release_id_with_admin_error(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    response = create_rule(client, "NSCODE-001", 999)
+
+    assert response.status_code == 400
+    assert "rule release must exist and be active" in response.text
