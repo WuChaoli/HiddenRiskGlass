@@ -5,7 +5,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
 import androidx.core.content.FileProvider
+import com.rokid.glass.hiddenrisk.RokidSdkManager
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -32,7 +34,10 @@ class AppUpdateManager(
         if (!ignoreSkipped && isSessionSkipped()) {
             return AppUpdateCheckResult(null, currentVersion)
         }
-        val latest = client.fetchLatest()
+        val nscode = RokidSdkManager.getSerialNumber()
+        Log.i(TAG, "checkForUpdate nscodeEmpty=${nscode.isBlank()} currentVersionCode=$currentVersion")
+        val latest = client.checkUpdate(nscode, currentVersion)
+            ?: return AppUpdateCheckResult(null, currentVersion)
         val effectiveInfo = if (
             latest.versionCode > currentVersion &&
             (ignoreSkipped || latest.mandatory || !isVersionSkipped(latest.versionCode))
@@ -161,6 +166,7 @@ class AppUpdateManager(
     }
 
     companion object {
+        private const val TAG = "AppUpdateManager"
         private const val PREFS_NAME = "app_update"
         private const val KEY_SKIPPED_VERSION_CODE = "skipped_version_code"
         private const val UPDATE_CACHE_DIR = "app_updates"
