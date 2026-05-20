@@ -92,7 +92,7 @@ except ModuleNotFoundError:
             signature = hmac.new(self.secret_key, payload.encode("ascii"), hashlib.sha256).hexdigest()
             return f"{payload}.{signature}"
 
-from app.auth import mark_logged_in, mark_logged_out, require_admin, verify_password
+from app.auth import is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_password
 from app.config import Settings, load_settings
 from app.db import init_db
 from app.services import (
@@ -117,6 +117,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(title="APK Update Server")
     app.state.settings = resolved_settings
+
+    @app.middleware("http")
+    async def require_admin_before_body_parse(request: Request, call_next):
+        if _is_protected_admin_request(request) and not is_logged_in(request):
+            return RedirectResponse("/login", status_code=303)
+        return await call_next(request)
+
     app.add_middleware(
         SessionMiddleware,
         secret_key=resolved_settings.session_secret,
@@ -301,6 +308,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 def _release_id_from_manifest(manifest: dict[str, object]) -> int:
     apk_url = str(manifest["apkUrl"]).rstrip("/")
     return int(apk_url.split("/")[-2])
+
+
+def _is_protected_admin_request(request: Request) -> bool:
+    path = request.url.path
+    method = request.method.upper()
+    if method == "GET":
+        return path == "/admin"
+    if method != "POST":
+        return False
+    if path in {"/admin/releases", "/admin/default-release", "/admin/device-rules"}:
+        return True
+    return path.startswith("/admin/device-rules/") and path.endswith("/delete")
 
 
 app = create_app()

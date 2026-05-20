@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 
@@ -12,8 +14,13 @@ def make_client(isolated_env):
 
 
 def login(client: TestClient) -> None:
-    response = client.post("/login", data={"password": "test-password"})
-    assert response.status_code == 200
+    response = client.post(
+        "/login",
+        data={"password": "test-password"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin"
 
 
 def publish_release(
@@ -89,6 +96,22 @@ def test_login_allows_admin_access_and_page_contains_title(isolated_env):
 
     assert response.status_code == 200
     assert "APK 更新后台" in response.text
+
+
+def test_unauthenticated_upload_redirects_before_creating_release(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db
+
+    client = make_client(isolated_env)
+
+    response = publish_release(client, 3, "2.0.6", payload=b"unauthorized-apk")
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
+    assert not list(Path(isolated_env).rglob("app.apk"))
+    with connect_db(load_settings()) as conn:
+        release_count = conn.execute("SELECT COUNT(*) FROM releases").fetchone()[0]
+    assert release_count == 0
 
 
 def test_logout_requires_post_and_clears_admin_session(isolated_env):
