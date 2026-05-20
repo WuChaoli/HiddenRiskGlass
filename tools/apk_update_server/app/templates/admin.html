@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>APK 更新后台</title>
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>APK 更新后台</h1>
+      <p>发布 APK、设置默认版本，并按 NSCODE 指定灰度版本。</p>
+    </div>
+    <a href="/logout">退出</a>
+  </header>
+
+  <main class="layout">
+    <section class="panel">
+      <h2>发布新 APK</h2>
+      <form action="/admin/releases" method="post" enctype="multipart/form-data" class="grid-form">
+        <label class="full">
+          APK 文件
+          <input type="file" name="apk" accept=".apk" required>
+        </label>
+        <label>
+          versionCode
+          <input type="number" name="versionCode" min="1" step="1" required>
+        </label>
+        <label>
+          versionName
+          <input type="text" name="versionName" required>
+        </label>
+        <label class="full">
+          releaseNotes
+          <textarea name="releaseNotes"></textarea>
+        </label>
+        <label class="check-row">
+          <input type="checkbox" name="mandatory">
+          强制更新
+        </label>
+        <label class="check-row">
+          <input type="checkbox" name="makeDefault">
+          设为默认版本
+        </label>
+        <button type="submit">发布</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>设备规则</h2>
+      <form action="/admin/device-rules" method="post" class="grid-form compact">
+        <label>
+          NSCODE
+          <input type="text" name="nscode" required>
+        </label>
+        <label>
+          目标版本
+          <select name="releaseId" required>
+            {% for release in releases %}
+            <option value="{{ release.id }}">{{ release.version_name }} ({{ release.version_code }})</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="full">
+          备注
+          <input type="text" name="note">
+        </label>
+        <button type="submit">保存规则</button>
+      </form>
+
+      <table>
+        <thead>
+          <tr><th>NSCODE</th><th>版本</th><th>备注</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for rule in device_rules %}
+          <tr>
+            <td>{{ rule.nscode }}</td>
+            <td>{{ rule.version_name }} ({{ rule.version_code }})</td>
+            <td>{{ rule.note }}</td>
+            <td>
+              <form action="/admin/device-rules/{{ rule.id }}/delete" method="post">
+                <button class="secondary" type="submit">删除</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="empty">暂无设备规则</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel full-width">
+      <h2>发布列表</h2>
+      <table>
+        <thead>
+          <tr><th>ID</th><th>版本</th><th>大小</th><th>SHA-256</th><th>默认</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for release in releases %}
+          <tr>
+            <td>{{ release.id }}</td>
+            <td>{{ release.version_name }} ({{ release.version_code }})</td>
+            <td>{{ release.size_bytes }}</td>
+            <td class="mono">{{ release.sha256 }}</td>
+            <td>{% if release.id == default_release_id %}是{% else %}否{% endif %}</td>
+            <td>
+              <form action="/admin/releases/{{ release.id }}/default" method="post">
+                <button class="secondary" type="submit">设为默认</button>
+              </form>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="empty">暂无发布版本</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="panel full-width">
+      <h2>最近检查</h2>
+      <table>
+        <thead>
+          <tr><th>时间</th><th>NSCODE</th><th>当前版本</th><th>命中版本</th><th>结果</th></tr>
+        </thead>
+        <tbody>
+          {% for event in check_events %}
+          <tr>
+            <td>{{ event.created_at }}</td>
+            <td>{{ event.nscode }}</td>
+            <td>{{ event.current_version_code }}</td>
+            <td>{{ event.matched_release_id or "-" }}</td>
+            <td>{{ event.result }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty">暂无检查记录</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+  </main>
+</body>
+</html>
