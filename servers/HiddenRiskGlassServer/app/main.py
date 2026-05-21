@@ -92,14 +92,7 @@ except ModuleNotFoundError:
             signature = hmac.new(self.secret_key, payload.encode("ascii"), hashlib.sha256).hexdigest()
             return f"{payload}.{signature}"
 
-from app.auth import get_current_user_id, has_any_admin, is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_user_password
-from app.user_services import (
-    change_password,
-    get_user_by_id,
-    register_user,
-    reset_password,
-    send_verification_code,
-)
+from app.auth import is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_password
 from app.config import Settings, load_settings
 from app.db import init_db
 from app.services import (
@@ -167,9 +160,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/")
     async def root():
-        if not has_any_admin(resolved_settings):
-            return RedirectResponse("/register", status_code=303)
-        return RedirectResponse("/admin", status_code=303)
+        return RedirectResponse("/login", status_code=303)
 
     @app.get("/login")
     async def login_page(request: Request):
@@ -177,124 +168,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/login")
     async def login_submit(request: Request, email: str = Form(...), password: str = Form(...)):
-        user_id = verify_user_password(resolved_settings, email, password)
-        if user_id is None:
+        # 忽略 email 字段，只验证密码
+        if not verify_password(resolved_settings, password):
             return templates.TemplateResponse(
                 request,
                 "login.html",
-                {"error": "邮箱或密码错误"},
+                {"error": "密码错误"},
                 status_code=401,
             )
-        mark_logged_in(request, user_id)
+        mark_logged_in(request)
         return RedirectResponse("/admin", status_code=303)
 
     @app.post("/logout")
     async def logout(request: Request):
         mark_logged_out(request)
         return RedirectResponse("/login", status_code=303)
-
-    @app.get("/forgot-password")
-    async def forgot_password_page(request: Request):
-        return templates.TemplateResponse(request, "forgot_password.html", {"error": ""})
-
-    @app.post("/forgot-password")
-    async def forgot_password_submit(
-        request: Request,
-        email: str = Form(...),
-        code: str = Form(...),
-        new_password: str = Form(...),
-    ):
-        try:
-            reset_password(resolved_settings, email, code, new_password)
-        except ValueError as exc:
-            return templates.TemplateResponse(
-                request,
-                "forgot_password.html",
-                {"error": str(exc)},
-                status_code=400,
-            )
-        return RedirectResponse("/login", status_code=303)
-
-    @app.get("/profile")
-    async def profile_page(request: Request):
-        redirect = require_admin(request)
-        if redirect is not None:
-            return redirect
-        user_id = get_current_user_id(request)
-        user = get_user_by_id(resolved_settings, user_id) if user_id else None
-        email = user["email"] if user else ""
-        return templates.TemplateResponse(
-            request, "profile.html", {"user_email": email, "error": ""}
-        )
-
-    @app.post("/profile/password")
-    async def profile_change_password(
-        request: Request,
-        old_password: str = Form(..., alias="oldPassword"),
-        new_password: str = Form(..., alias="newPassword"),
-        confirm_password: str = Form(..., alias="confirmPassword"),
-    ):
-        redirect = require_admin(request)
-        if redirect is not None:
-            return redirect
-        if new_password != confirm_password:
-            return templates.TemplateResponse(
-                request,
-                "profile.html",
-                {"user_email": "", "error": "两次输入的密码不一致"},
-                status_code=400,
-            )
-        user_id = get_current_user_id(request)
-        if user_id is None:
-            return RedirectResponse("/login", status_code=303)
-        try:
-            change_password(resolved_settings, user_id, old_password, new_password)
-        except ValueError as exc:
-            user = get_user_by_id(resolved_settings, user_id)
-            return templates.TemplateResponse(
-                request,
-                "profile.html",
-                {"user_email": user["email"] if user else "", "error": str(exc)},
-                status_code=400,
-            )
-        return RedirectResponse("/admin", status_code=303)
-
-    @app.get("/register")
-    async def register_page(request: Request):
-        if has_any_admin(resolved_settings):
-            return RedirectResponse("/login", status_code=303)
-        return templates.TemplateResponse(request, "register.html", {"error": ""})
-
-    @app.post("/register")
-    async def register_submit(
-        request: Request,
-        email: str = Form(...),
-        password: str = Form(...),
-        code: str = Form(...),
-    ):
-        if has_any_admin(resolved_settings):
-            return RedirectResponse("/login", status_code=303)
-        try:
-            user_id = register_user(resolved_settings, email, password, code)
-            mark_logged_in(request, user_id)
-            return RedirectResponse("/admin", status_code=303)
-        except ValueError as exc:
-            return templates.TemplateResponse(
-                request, "register.html", {"error": str(exc)}, status_code=400
-            )
-
-    @app.post("/verify-code")
-    async def api_send_code(request: Request):
-        try:
-            body = await request.json()
-            email = body.get("email", "")
-            purpose = body.get("purpose", "")
-            send_verification_code(resolved_settings, email, purpose)
-            return JSONResponse({"sent": True})
-        except ValueError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=400)
-        except RuntimeError as exc:
-            return JSONResponse({"error": str(exc)}, status_code=500)
 
     @app.get("/admin")
     async def admin_page(request: Request):
