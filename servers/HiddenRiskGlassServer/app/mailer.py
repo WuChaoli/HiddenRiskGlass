@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 from app.config import Settings
 
 
-VERIFICATION_EMAIL_SUBJECT = "APK更新后台 - 您的验证码"
+VERIFICATION_EMAIL_SUBJECT = "{server_name} - 您的验证码"
 VERIFICATION_EMAIL_TEMPLATE = """\
 <!DOCTYPE html>
 <html>
@@ -14,7 +14,7 @@ VERIFICATION_EMAIL_TEMPLATE = """\
 <meta charset="utf-8">
 </head>
 <body style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:20px">
-  <h2 style="color:#0f766e">APK 更新后台</h2>
+  <h2 style="color:#0f766e">{server_name}</h2>
   <p>您的验证码是：</p>
   <p style="font-size:32px;font-weight:bold;letter-spacing:8px;color:#1f2937">{code}</p>
   <p>此验证码将在 15 分钟后失效。</p>
@@ -49,8 +49,9 @@ def send_verification_email(settings: Settings, email: str, code: str) -> None:
         logging.info("=" * 50)
         return
 
-    msg = MIMEText(VERIFICATION_EMAIL_TEMPLATE.format(code=code), "html", "utf-8")
-    msg["Subject"] = f"{VERIFICATION_EMAIL_SUBJECT}是 {code}"
+    server_name = settings.server_name
+    msg = MIMEText(VERIFICATION_EMAIL_TEMPLATE.format(code=code, server_name=server_name), "html", "utf-8")
+    msg["Subject"] = f"{VERIFICATION_EMAIL_SUBJECT.format(server_name=server_name)}是 {code}"
     msg["From"] = settings.smtp_from
     msg["To"] = email
 
