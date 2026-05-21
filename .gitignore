@@ -33,6 +33,9 @@ release/*.apk
 # Claude
 .claude/worktrees/
 
+# Superpowers cache
+.superpowers/
+
 # Logs
 *.log
 
