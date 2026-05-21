@@ -11,8 +11,8 @@
     <h1>HiddenRiskGlassServer</h1>
     <form method="post" action="/login" class="form-stack" data-fetch="true">
       <label>
-        邮箱
-        <input type="email" name="email" required autofocus placeholder="admin@example.com">
+        用户名
+        <input type="text" name="email" required autofocus placeholder="admin">
       </label>
       <label>
         密码
@@ -22,9 +22,6 @@
       <p class="alert error">{{ error }}</p>
       {% endif %}
       <button type="submit">登录</button>
-      <p style="text-align:center;margin-top:10px">
-        <a href="/forgot-password">忘记密码？</a>
-      </p>
     </form>
   </main>
 </body>
