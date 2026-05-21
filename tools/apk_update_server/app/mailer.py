@@ -24,10 +24,14 @@ VERIFICATION_EMAIL_TEMPLATE = """\
 """
 
 
-def _create_smtp_connection(settings: Settings) -> smtplib.SMTP:
-    smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
-    if settings.smtp_tls:
-        smtp.starttls()
+def _create_smtp_connection(settings: Settings) -> smtplib.SMTP | smtplib.SMTP_SSL:
+    # 465/994 端口使用 SSL 直连，其他端口使用 STARTTLS
+    if settings.smtp_port in (465, 994):
+        smtp = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port)
+    else:
+        smtp = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+        if settings.smtp_tls:
+            smtp.starttls()
     if settings.smtp_user:
         smtp.login(settings.smtp_user, settings.smtp_pass)
     return smtp
@@ -35,7 +39,15 @@ def _create_smtp_connection(settings: Settings) -> smtplib.SMTP:
 
 def send_verification_email(settings: Settings, email: str, code: str) -> None:
     if not settings.smtp_host:
-        raise RuntimeError("SMTP_HOST is not configured")
+        # 开发模式：SMTP 未配置时将验证码打印到控制台
+        import logging
+        logging.basicConfig(level=logging.INFO)
+        logging.info("=" * 50)
+        logging.info("[开发模式] SMTP 未配置，验证码直接输出：")
+        logging.info(f"  邮箱: {email}")
+        logging.info(f"  验证码: {code}")
+        logging.info("=" * 50)
+        return
 
     msg = MIMEText(VERIFICATION_EMAIL_TEMPLATE.format(code=code), "html", "utf-8")
     msg["Subject"] = f"{VERIFICATION_EMAIL_SUBJECT}是 {code}"

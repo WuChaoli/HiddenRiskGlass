@@ -47,6 +47,8 @@ def _check_send_cooldown(conn, email: str, purpose: str) -> None:
     ).fetchone()
     if row is not None:
         last_sent = datetime.fromisoformat(row["created_at"])
+        if last_sent.tzinfo is None:
+            last_sent = last_sent.replace(tzinfo=timezone.utc)
         elapsed = (_now() - last_sent).total_seconds()
         if elapsed < CODE_SEND_COOLDOWN_SECONDS:
             raise VerificationError("请稍后再试")
