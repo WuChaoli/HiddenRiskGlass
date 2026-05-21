@@ -92,14 +92,12 @@ except ModuleNotFoundError:
             signature = hmac.new(self.secret_key, payload.encode("ascii"), hashlib.sha256).hexdigest()
             return f"{payload}.{signature}"
 
-from app.auth import has_any_admin, is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_user_password
-from app.user_services import reset_password
+from app.auth import get_current_user_id, has_any_admin, is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_user_password
 from app.user_services import (
+    change_password,
+    get_user_by_id,
     register_user,
-    send_verification_code,
-)
-from app.user_services import (
-    register_user,
+    reset_password,
     send_verification_code,
 )
 from app.config import Settings, load_settings
@@ -162,6 +160,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "check_events": state["check_events"],
                 "default_release_id": state["default_release_id"],
                 "message": message,
+                "base_url": build_base_url(request),
             },
             status_code=status_code,
         )
@@ -213,6 +212,50 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 status_code=400,
             )
         return RedirectResponse("/login", status_code=303)
+
+    @app.get("/profile")
+    async def profile_page(request: Request):
+        redirect = require_admin(request)
+        if redirect is not None:
+            return redirect
+        user_id = get_current_user_id(request)
+        user = get_user_by_id(resolved_settings, user_id) if user_id else None
+        email = user["email"] if user else ""
+        return templates.TemplateResponse(
+            request, "profile.html", {"user_email": email, "error": ""}
+        )
+
+    @app.post("/profile/password")
+    async def profile_change_password(
+        request: Request,
+        old_password: str = Form(..., alias="oldPassword"),
+        new_password: str = Form(..., alias="newPassword"),
+        confirm_password: str = Form(..., alias="confirmPassword"),
+    ):
+        redirect = require_admin(request)
+        if redirect is not None:
+            return redirect
+        if new_password != confirm_password:
+            return templates.TemplateResponse(
+                request,
+                "profile.html",
+                {"user_email": "", "error": "两次输入的密码不一致"},
+                status_code=400,
+            )
+        user_id = get_current_user_id(request)
+        if user_id is None:
+            return RedirectResponse("/login", status_code=303)
+        try:
+            change_password(resolved_settings, user_id, old_password, new_password)
+        except ValueError as exc:
+            user = get_user_by_id(resolved_settings, user_id)
+            return templates.TemplateResponse(
+                request,
+                "profile.html",
+                {"user_email": user["email"] if user else "", "error": str(exc)},
+                status_code=400,
+            )
+        return RedirectResponse("/admin", status_code=303)
 
     @app.get("/register")
     async def register_page(request: Request):

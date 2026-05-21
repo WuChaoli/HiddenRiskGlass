@@ -12,15 +12,19 @@
       <h1>APK 更新后台</h1>
       <p>发布 APK、设置默认版本，并按 NSCODE 指定灰度版本。</p>
     </div>
-    <form action="/logout" method="post">
-      <button class="secondary" type="submit">退出</button>
-    </form>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a href="/profile" style="color:var(--accent);font-weight:700;text-decoration:none">个人中心</a>
+      <form action="/logout" method="post">
+        <button class="secondary" type="submit">退出</button>
+      </form>
+    </div>
   </header>
 
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="apk">APK管理</button>
     <button class="tab-btn" data-tab="device">设备管理</button>
     <button class="tab-btn" data-tab="logs">检查日志</button>
+    <button class="tab-btn" data-tab="endpoints">接口地址</button>
   </nav>
 
   <main class="layout">
@@ -285,6 +289,31 @@
             <button class="secondary" type="button" id="log-next" onclick="changeLogPage(1)">下一页</button>
           </div>
         </div>
+      </section>
+    </div>
+
+    <!-- ===== 接口地址 Tab ===== -->
+    <div class="tab-section" id="tab-endpoints">
+      <section class="panel full-width">
+        <h2>眼镜端更新服务器地址</h2>
+        <p style="color:var(--muted);margin-bottom:16px">将此地址填入眼镜端的更新配置中即可</p>
+
+        <div class="endpoint-row">
+          <input type="text" id="endpoint-url" readonly value="{{ base_url }}">
+          <button type="button" class="secondary" onclick="copyEndpoint()">复制</button>
+        </div>
+
+        <div class="endpoint-custom">
+          <label>
+            手动指定公网地址
+            <input type="text" id="custom-endpoint" placeholder="如 https://update.example.com 或 http://1.2.3.4:8080">
+          </label>
+          <button type="button" class="secondary" onclick="applyCustomEndpoint()">应用</button>
+        </div>
+
+        <p class="hint">
+          <strong>提示：</strong>如果服务器部署在内网，请确保眼镜端可以访问到此地址，或配置端口映射。
+        </p>
       </section>
     </div>
   </main>
