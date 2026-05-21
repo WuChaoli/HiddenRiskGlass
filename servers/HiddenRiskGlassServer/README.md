@@ -129,6 +129,102 @@ Invoke-RestMethod "http://127.0.0.1:8080/api/v1/updates/check?nscode=NSCODE-001&
 
 环境变量的优先级高于 JSON 配置。例如，`SERVER_NAME` 会覆盖 `server_name`。
 
+## Docker 部署
+
+### 快速启动（需本地安装 Docker）
+
+```bash
+cd servers/HiddenRiskGlassServer
+
+# 1. 复制环境变量模板并填写配置
+cp .env.example .env
+# 编辑 .env，设置 ADMIN_PASSWORD 和 SESSION_SECRET
+
+# 2. 构建镜像
+docker build -t hiddenrisk-server:latest .
+
+# 3. 启动服务（前台运行，Ctrl+C 停止）
+docker compose up
+
+# 或后台运行
+docker compose up -d
+```
+
+访问 `http://localhost:8080` 即可使用。
+
+### 离线服务器部署（无外网环境）
+
+适用于 Kylin V10 等无外网 Linux 服务器的一键部署：
+
+**联网机构建打包：**
+
+```bash
+cd servers/HiddenRiskGlassServer
+bash scripts/build-offline.sh
+```
+
+构建完成后生成两个交付物：
+- `hiddenrisk-server.tar` — Docker 镜像导出文件
+- `hiddenrisk-server-deploy.tar.gz` — 完整离线部署包
+
+**离线机部署：**
+
+1. 将 `hiddenrisk-server-deploy.tar.gz` 传输到目标服务器并解压
+2. 复制 `.env.example` 为 `.env`，填写 `ADMIN_PASSWORD` 和 `SESSION_SECRET`
+3. 执行启动脚本：
+
+```bash
+./start-offline.sh
+```
+
+4. 访问 `http://<服务器IP>:8080`
+
+**离线机停止服务：**
+
+```bash
+./stop-offline.sh
+```
+
+### Docker 部署文件说明
+
+| 文件 | 说明 |
+|------|------|
+| `Dockerfile` | 镜像构建定义，基于 `python:3.12-slim-bookworm`，非 root 用户运行 |
+| `.dockerignore` | 排除缓存、测试、运行时数据等不需要打包进镜像的文件 |
+| `docker-compose.yml` | 服务编排：端口映射 8080、数据卷挂载、健康检查 |
+| `.env.example` | 环境变量模板，包含密码、密钥、SMTP 等配置项 |
+| `scripts/build-offline.sh` | 联网机执行：构建镜像 + 导出 tar + 打包交付物 |
+| `scripts/start-offline.sh` | 离线机执行：检查 Docker、加载镜像、启动容器 |
+| `scripts/stop-offline.sh` | 离线机执行：停止并移除容器 |
+
+### 数据持久化
+
+Docker 部署时，数据通过 volume 挂载到宿主机：
+- 容器内路径：`/app/data`
+- 宿主机路径（Linux）：`/data/HiddenRiskGlass/data`
+- 宿主机路径（Windows 本地测试）：`./data`
+
+该目录包含：
+- `apk_update_server.sqlite3` — SQLite 数据库
+- `releases/` — 上传的 APK 文件
+
+### 邮件验证码配置（生产环境）
+
+默认情况下（SMTP 未配置），验证码会输出到容器日志中，适用于开发测试。
+
+生产环境需在 `.env` 中配置 SMTP：
+
+```bash
+SMTP_HOST=smtp.qq.com
+SMTP_PORT=587
+SMTP_USER=your-email@qq.com
+SMTP_PASS=your-auth-code
+SMTP_FROM=your-email@qq.com
+SMTP_TLS=true
+```
+
+配置后重启容器：`docker compose restart`
+
 ## 部署注意事项
 
 - 务必设置强密码的 `ADMIN_PASSWORD` 和稳定的 `SESSION_SECRET`。
