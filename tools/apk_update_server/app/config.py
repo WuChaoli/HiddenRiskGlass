@@ -19,6 +19,13 @@ class Settings:
     admin_password: str
     session_secret: str
     session_cookie_secure: bool
+    # SMTP 配置（新增）
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    smtp_pass: str
+    smtp_from: str
+    smtp_tls: bool
 
 
 def load_settings(require_admin_password: bool = True) -> Settings:
@@ -29,6 +36,13 @@ def load_settings(require_admin_password: bool = True) -> Settings:
 
     session_secret = os.environ.get("SESSION_SECRET") or secrets.token_urlsafe(32)
     cookie_secure = os.environ.get("SESSION_COOKIE_SECURE", "").lower() in {"1", "true", "yes"}
+    # SMTP 配置（新增）
+    smtp_host = os.environ.get("SMTP_HOST", "")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    smtp_from = os.environ.get("SMTP_FROM", "")
+    smtp_tls = os.environ.get("SMTP_TLS", "true").lower() not in {"0", "false", "no"}
     releases_dir = data_dir / "releases"
     return Settings(
         app_root=APP_ROOT,
@@ -38,4 +52,11 @@ def load_settings(require_admin_password: bool = True) -> Settings:
         admin_password=admin_password,
         session_secret=session_secret,
         session_cookie_secure=cookie_secure,
+        # SMTP 配置（新增）
+        smtp_host=smtp_host,
+        smtp_port=smtp_port,
+        smtp_user=smtp_user,
+        smtp_pass=smtp_pass,
+        smtp_from=smtp_from,
+        smtp_tls=smtp_tls,
     )
