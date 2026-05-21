@@ -19,7 +19,7 @@ tabBtns.forEach(btn => {
 // 页面加载时根据 hash 激活对应 tab
 function initTabFromHash() {
   const hash = location.hash.replace('#', '');
-  const validTabs = ['apk', 'device', 'logs'];
+  const validTabs = ['apk', 'device', 'logs', 'endpoints'];
   if (validTabs.includes(hash)) {
     switchTab(hash);
   }
@@ -418,7 +418,7 @@ function batchChangeVersion() {
   fetch('/admin/device-rules/batch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids: ids, action: 'change_version', release_id: parseInt(releaseId, 10) })
+    body: JSON.stringify({ ids: ids, action: 'update_version', release_id: parseInt(releaseId, 10) })
   })
   .then(r => {
     if (r.ok) {
@@ -429,6 +429,32 @@ function batchChangeVersion() {
     }
   })
   .catch(() => showToast('批量改版本失败', 'error'));
+}
+
+// ===== Endpoint address copy =====
+function copyEndpoint() {
+  const el = document.getElementById('endpoint-url');
+  if (!el) return;
+  el.select();
+  document.execCommand('copy');
+  showToast('已复制到剪贴板', 'success');
+}
+
+function applyCustomEndpoint() {
+  const custom = document.getElementById('custom-endpoint');
+  const display = document.getElementById('endpoint-url');
+  if (!custom || !display) return;
+  let url = custom.value.trim();
+  if (!url) {
+    showToast('请输入地址', 'error');
+    return;
+  }
+  // 自动补全协议
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'http://' + url;
+  }
+  display.value = url;
+  showToast('地址已更新', 'success');
 }
 
 // ===== Form submissions via fetch =====
