@@ -40,10 +40,10 @@ release/*.apk
 *.log
 
 # Local APK update server generated artifacts
-tools/apk_update_server/releases/**/*.apk
-tools/apk_update_server/releases/**/*.json
-tools/apk_update_server/releases/**/*.upload
-tools/apk_update_server/apk_update_server.sqlite3
-tools/apk_update_server/smoke-server.*
-tools/apk_update_server/.tmp_*.log
-tools/apk_update_server/**/__pycache__/
+servers/HiddenRiskGlassServer/releases/**/*.apk
+servers/HiddenRiskGlassServer/releases/**/*.json
+servers/HiddenRiskGlassServer/releases/**/*.upload
+servers/HiddenRiskGlassServer/apk_update_server.sqlite3
+servers/HiddenRiskGlassServer/smoke-server.*
+servers/HiddenRiskGlassServer/.tmp_*.log
+servers/HiddenRiskGlassServer/**/__pycache__/
