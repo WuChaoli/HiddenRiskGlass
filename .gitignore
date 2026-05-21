@@ -30,6 +30,12 @@ release/
 .codex/footprints/
 release/*.apk
 
+# Claude
+.claude/worktrees/
+
+# Logs
+*.log
+
 # Local APK update server generated artifacts
 tools/apk_update_server/releases/**/*.apk
 tools/apk_update_server/releases/**/*.json
