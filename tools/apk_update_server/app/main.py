@@ -167,6 +167,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/")
     async def root():
+        if not has_any_admin(resolved_settings):
+            return RedirectResponse("/register", status_code=303)
         return RedirectResponse("/admin", status_code=303)
 
     @app.get("/login")

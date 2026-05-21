@@ -92,8 +92,18 @@ def test_admin_redirects_to_login_when_unauthenticated(isolated_env):
     assert response.headers["location"] == "/login"
 
 
-def test_root_redirects_to_admin(isolated_env):
+def test_root_redirects_to_register_when_no_admin(isolated_env):
     client = make_client(isolated_env)
+
+    response = client.get("/", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/register"
+
+
+def test_root_redirects_to_admin_when_admin_exists(isolated_env):
+    client = make_client(isolated_env)
+    create_test_user(isolated_env)
 
     response = client.get("/", follow_redirects=False)
 
