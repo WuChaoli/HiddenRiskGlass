@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  hiddenrisk-server:
+    image: hiddenrisk-server:latest
+    container_name: hiddenrisk-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - /data/HiddenRiskGlass/data:/app/data
+    env_file:
+      - .env
+    environment:
+      # 强制覆盖数据目录，确保容器内路径正确
+      APK_UPDATE_DATA_DIR: /app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
