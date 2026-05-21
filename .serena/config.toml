@@ -1,0 +1,19 @@
+[indexing]
+exclude_patterns = [
+    "**/node_modules/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/.git/**",
+    "**/.gradle/**",
+    "**/.idea/**",
+    "**/__pycache__/**",
+    "**/.serena/cache/**",
+    "**/app/src/main/jni/**",
+    "**/target/**",
+    "**/coverage/**",
+]
+
+[cache]
+max_size_mb = 200
+prune_after_days = 7
+max_memory_mb = 1024
