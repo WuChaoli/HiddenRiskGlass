@@ -375,6 +375,144 @@ def test_get_latest_manifest_uses_base_url_override(isolated_env):
     assert manifest["apkUrl"] == f"http://lan/releases/{release_id}/app.apk"
 
 
+def test_list_admin_state_excludes_deleted_releases(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import delete_release, list_admin_state
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+    publish_test_release(settings, 5, "2.1.0")
+
+    with connect_db(settings) as conn:
+        release_ids = [
+            row["id"]
+            for row in conn.execute("SELECT id FROM releases ORDER BY id").fetchall()
+        ]
+
+    delete_release(settings, release_ids[0])
+    state = list_admin_state(settings)
+
+    assert len(state["releases"]) == 1
+    assert state["releases"][0]["version_code"] == 5
+
+
+def test_update_release(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import list_admin_state, update_release
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+
+    with connect_db(settings) as conn:
+        release_id = conn.execute("SELECT id FROM releases").fetchone()["id"]
+
+    update_release(
+        settings,
+        release_id,
+        version_name="2.0.7",
+        release_notes="updated notes",
+        mandatory=False,
+    )
+
+    state = list_admin_state(settings)
+    assert state["releases"][0]["version_name"] == "2.0.7"
+    assert state["releases"][0]["release_notes"] == "updated notes"
+    assert state["releases"][0]["mandatory"] == 0
+
+
+def test_update_device_rule(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import create_device_rule, list_admin_state, update_device_rule
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+
+    with connect_db(settings) as conn:
+        release_id = conn.execute("SELECT id FROM releases").fetchone()["id"]
+
+    create_device_rule(settings, "NSCODE-001", release_id, note="original")
+
+    with connect_db(settings) as conn:
+        rule_id = conn.execute("SELECT id FROM device_rules").fetchone()["id"]
+
+    update_device_rule(
+        settings,
+        rule_id,
+        nscode="NSCODE-002",
+        release_id=release_id,
+        note="updated",
+        enabled=False,
+    )
+
+    state = list_admin_state(settings)
+    assert state["device_rules"][0]["nscode"] == "NSCODE-002"
+    assert state["device_rules"][0]["note"] == "updated"
+    assert state["device_rules"][0]["enabled"] == 0
+
+
+def test_batch_device_rules_update_version(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import batch_device_rules, create_device_rule, list_admin_state
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+    publish_test_release(settings, 5, "2.1.0")
+
+    with connect_db(settings) as conn:
+        release_ids = [
+            row["id"]
+            for row in conn.execute("SELECT id FROM releases ORDER BY id").fetchall()
+        ]
+
+    create_device_rule(settings, "NSCODE-001", release_ids[0])
+    create_device_rule(settings, "NSCODE-002", release_ids[0])
+
+    with connect_db(settings) as conn:
+        rule_ids = [
+            row["id"]
+            for row in conn.execute("SELECT id FROM device_rules ORDER BY id").fetchall()
+        ]
+
+    result = batch_device_rules(settings, rule_ids, "update_version", release_id=release_ids[1])
+    assert result == {"processed": 2, "action": "update_version"}
+
+    state = list_admin_state(settings)
+    for rule in state["device_rules"]:
+        assert rule["release_id"] == release_ids[1]
+
+
+def test_batch_device_rules_delete(isolated_env):
+    from app.config import load_settings
+    from app.db import connect_db, init_db
+    from app.services import batch_device_rules, create_device_rule, list_admin_state
+
+    settings = load_settings()
+    init_db(settings)
+    publish_test_release(settings, 3, "2.0.6")
+
+    with connect_db(settings) as conn:
+        release_id = conn.execute("SELECT id FROM releases").fetchone()["id"]
+
+    create_device_rule(settings, "NSCODE-001", release_id)
+
+    with connect_db(settings) as conn:
+        rule_id = conn.execute("SELECT id FROM device_rules").fetchone()["id"]
+
+    result = batch_device_rules(settings, [rule_id], "delete")
+    assert result == {"processed": 1, "action": "delete"}
+
+    state = list_admin_state(settings)
+    assert len(state["device_rules"]) == 0
+
+
 def test_resolve_update_uses_base_url_override(isolated_env):
     from app.config import load_settings
     from app.db import connect_db, init_db

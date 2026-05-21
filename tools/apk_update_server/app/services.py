@@ -221,7 +221,8 @@ def delete_device_rule(settings: Settings, rule_id: int) -> None:
 def list_admin_state(settings: Settings) -> dict[str, object]:
     with db_session(settings) as conn:
         releases = conn.execute(
-            "SELECT * FROM releases ORDER BY created_at DESC, id DESC"
+            "SELECT * FROM releases WHERE status = ? ORDER BY created_at DESC, id DESC",
+            (STATUS_ACTIVE,),
         ).fetchall()
         rules = conn.execute(
             """
@@ -249,6 +250,135 @@ def list_admin_state(settings: Settings) -> dict[str, object]:
         "device_rules": [dict(row) for row in rules],
         "check_events": [dict(row) for row in check_events],
     }
+
+
+def delete_release(settings: Settings, release_id: int) -> None:
+    with db_session(settings) as conn:
+        release = conn.execute(
+            "SELECT * FROM releases WHERE id = ?",
+            (int(release_id),),
+        ).fetchone()
+        if release is None:
+            raise ValueError("release not found")
+        conn.execute(
+            "UPDATE releases SET status = 'deleted' WHERE id = ?",
+            (int(release_id),),
+        )
+    # 清理本地 APK 文件目录
+    apk_path = Path(release["apk_path"])
+    shutil.rmtree(apk_path.parent, ignore_errors=True)
+
+
+def update_release(
+    settings: Settings,
+    release_id: int,
+    version_name: str,
+    release_notes: str,
+    mandatory: bool,
+) -> None:
+    release = get_release_by_id(settings, release_id)
+    if release is None or release["status"] != STATUS_ACTIVE:
+        raise ValueError("release not found or not active")
+
+    version_name = version_name.strip()
+    if not version_name:
+        raise ValueError("version_name is required")
+
+    with db_session(settings) as conn:
+        conn.execute(
+            """
+            UPDATE releases
+            SET version_name = ?, release_notes = ?, mandatory = ?
+            WHERE id = ?
+            """,
+            (version_name, release_notes.strip(), 1 if mandatory else 0, int(release_id)),
+        )
+
+
+def update_device_rule(
+    settings: Settings,
+    rule_id: int,
+    nscode: str,
+    release_id: int,
+    note: str,
+    enabled: bool,
+) -> None:
+    nscode = nscode.strip()
+    if not nscode:
+        raise ValueError("nscode is required")
+
+    release = get_release_by_id(settings, release_id)
+    if release is None or release["status"] != STATUS_ACTIVE:
+        raise ValueError("target release must exist and be active")
+
+    with db_session(settings) as conn:
+        conn.execute(
+            """
+            UPDATE device_rules
+            SET nscode = ?, release_id = ?, note = ?, enabled = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (nscode, int(release_id), note.strip(), 1 if enabled else 0, int(rule_id)),
+        )
+
+
+def batch_device_rules(
+    settings: Settings,
+    rule_ids: list[int],
+    action: str,
+    release_id: int | None = None,
+) -> dict[str, object]:
+    if not rule_ids:
+        raise ValueError("rule_ids is required")
+
+    valid_actions = {"update_version", "enable", "disable", "delete"}
+    if action not in valid_actions:
+        raise ValueError(f"action must be one of: {', '.join(sorted(valid_actions))}")
+
+    if action == "update_version":
+        if release_id is None:
+            raise ValueError("release_id is required for update_version action")
+        release = get_release_by_id(settings, release_id)
+        if release is None or release["status"] != STATUS_ACTIVE:
+            raise ValueError("target release must exist and be active")
+
+    placeholders = ",".join("?" * len(rule_ids))
+
+    with db_session(settings) as conn:
+        if action == "update_version":
+            conn.execute(
+                f"""
+                UPDATE device_rules
+                SET release_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id IN ({placeholders})
+                """,
+                (int(release_id),) + tuple(int(rid) for rid in rule_ids),
+            )
+        elif action == "enable":
+            conn.execute(
+                f"""
+                UPDATE device_rules
+                SET enabled = 1, updated_at = CURRENT_TIMESTAMP
+                WHERE id IN ({placeholders})
+                """,
+                tuple(int(rid) for rid in rule_ids),
+            )
+        elif action == "disable":
+            conn.execute(
+                f"""
+                UPDATE device_rules
+                SET enabled = 0, updated_at = CURRENT_TIMESTAMP
+                WHERE id IN ({placeholders})
+                """,
+                tuple(int(rid) for rid in rule_ids),
+            )
+        elif action == "delete":
+            conn.execute(
+                f"DELETE FROM device_rules WHERE id IN ({placeholders})",
+                tuple(int(rid) for rid in rule_ids),
+            )
+
+    return {"processed": len(rule_ids), "action": action}
 
 
 def get_release_by_id(settings: Settings, release_id: int) -> Row | None:
