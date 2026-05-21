@@ -29,10 +29,10 @@ RUN mkdir -p /app/data/releases && chown -R appuser:appgroup /app/data
 USER appuser
 
 # 暴露服务端口
-EXPOSE 8080
+EXPOSE 10203
 
 # 默认环境变量（可被 docker-compose 覆盖）
 ENV APK_UPDATE_DATA_DIR=/app/data
 
 # 启动命令
-CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["python", "server.py", "--host", "0.0.0.0", "--port", "10203"]
