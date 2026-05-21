@@ -119,7 +119,7 @@ def test_login_allows_admin_access_and_page_contains_title(isolated_env):
     response = client.get("/admin")
 
     assert response.status_code == 200
-    assert "APK 更新后台" in response.text
+    assert "HiddenRiskGlassServer" in response.text
 
 
 def test_unauthenticated_upload_redirects_before_creating_release(isolated_env):
