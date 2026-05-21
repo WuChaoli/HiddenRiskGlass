@@ -18,9 +18,10 @@ def get_current_user_id(request: Request) -> int | None:
     return request.session.get(USER_ID_KEY)
 
 
-def mark_logged_in(request: Request, user_id: int) -> None:
+def mark_logged_in(request: Request, user_id: int | None = None) -> None:
     request.session[SESSION_KEY] = True
-    request.session[USER_ID_KEY] = user_id
+    if user_id is not None:
+        request.session[USER_ID_KEY] = user_id
 
 
 def mark_logged_out(request: Request) -> None:
@@ -32,6 +33,16 @@ def require_admin(request: Request) -> RedirectResponse | None:
     if is_logged_in(request):
         return None
     return RedirectResponse("/login", status_code=303)
+
+
+def verify_password(settings: Settings, password: str) -> bool:
+    """旧版密码验证（基于环境变量），供 /login 路由在 Task 5 升级前继续使用。"""
+    import secrets
+
+    admin_password = getattr(settings, "admin_password", None)
+    if not admin_password:
+        return False
+    return secrets.compare_digest(password, admin_password)
 
 
 def verify_user_password(settings: Settings, email: str, password: str) -> int | None:

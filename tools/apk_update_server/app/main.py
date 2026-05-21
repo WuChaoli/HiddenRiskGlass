@@ -92,7 +92,15 @@ except ModuleNotFoundError:
             signature = hmac.new(self.secret_key, payload.encode("ascii"), hashlib.sha256).hexdigest()
             return f"{payload}.{signature}"
 
-from app.auth import is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_password
+from app.auth import has_any_admin, is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_password
+from app.user_services import (
+    register_user,
+    send_verification_code,
+)
+from app.user_services import (
+    register_user,
+    send_verification_code,
+)
 from app.config import Settings, load_settings
 from app.db import init_db
 from app.services import (
@@ -181,6 +189,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def logout(request: Request):
         mark_logged_out(request)
         return RedirectResponse("/login", status_code=303)
+
+    @app.get("/register")
+    async def register_page(request: Request):
+        if has_any_admin(resolved_settings):
+            return RedirectResponse("/login", status_code=303)
+        return templates.TemplateResponse(request, "register.html", {"error": ""})
+
+    @app.post("/register")
+    async def register_submit(
+        request: Request,
+        email: str = Form(...),
+        password: str = Form(...),
+        code: str = Form(...),
+    ):
+        if has_any_admin(resolved_settings):
+            return RedirectResponse("/login", status_code=303)
+        try:
+            user_id = register_user(resolved_settings, email, password, code)
+            mark_logged_in(request, user_id)
+            return RedirectResponse("/admin", status_code=303)
+        except ValueError as exc:
+            return templates.TemplateResponse(
+                request, "register.html", {"error": str(exc)}, status_code=400
+            )
+
+    @app.post("/verify-code")
+    async def api_send_code(request: Request):
+        try:
+            body = await request.json()
+            email = body.get("email", "")
+            purpose = body.get("purpose", "")
+            send_verification_code(resolved_settings, email, purpose)
+            return JSONResponse({"sent": True})
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=500)
 
     @app.get("/admin")
     async def admin_page(request: Request):

@@ -342,3 +342,22 @@ def test_admin_batch_device_rules(isolated_env):
     assert body["ok"] is True
     assert body["processed"] == 2
     assert body["action"] == "disable"
+
+
+def test_register_page_redirects_when_admin_exists(isolated_env):
+    from app.config import load_settings
+    from app.db import db_session, init_db
+    from app.auth import hash_password
+
+    settings = load_settings()
+    init_db(settings)
+    with db_session(settings) as conn:
+        conn.execute(
+            "INSERT INTO users (email, password_hash, email_verified) VALUES (?, ?, 1)",
+            ("admin@test.com", hash_password("Test1234")),
+        )
+
+    client = make_client(isolated_env)
+    response = client.get("/register", follow_redirects=False)
+    assert response.status_code == 303
+    assert response.headers["location"] == "/login"
