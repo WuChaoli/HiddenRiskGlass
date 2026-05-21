@@ -59,6 +59,57 @@ JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`
 | UI 组件 | `app/src/.../component/README.md` | 状态栏、取景器、菜单、弹窗、提示 |
 | 配置系统 | `app/src/.../config/README.md` | 运行时配置、推理参数、API 端点、特性开关 |
 
+## AI 代码定位工具
+
+本项目配置了两套代码智能工具，根据任务特征选择使用：
+
+### Serena（LSP）
+
+基于 Language Server Protocol 的实时语义分析工具。
+
+**适用场景**：
+- `get_symbols_overview` — 初次接触文件时快速获取类/方法/变量列表
+- `find_declaration` — 精确定位符号定义
+- `find_referencing_symbols` — 查找符号的所有引用（带上下文片段）
+- `find_implementations` — 查找接口/抽象方法的实现
+- `rename_symbol` — 安全的跨文件重命名
+
+**特点**：实时、精确、基于编译器语义，适合精确的符号操作。
+
+### CodeGraph（预索引知识图谱）
+
+基于 Tree-sitter + SQLite 预计算的全库知识图谱，已初始化（`.codegraph/codegraph.db`）。
+
+**适用场景**：
+- `codegraph_explore` — 大范围代码探索，返回入口点 + 相关符号 + 代码片段
+- `codegraph_context` — 获取符号的完整上下文（调用链、依赖关系）
+- `codegraph_callers` — 查找调用者（预计算的调用图）
+- `codegraph_impact` — 影响分析（修改某符号会影响哪些代码）
+- `codegraph_search` — 基于 FTS5 的全文符号搜索
+
+**特点**：预计算、批量返回跨文件上下文、减少工具调用次数。适合理解模块间关系和调用链。
+
+### 工具选择策略
+
+| 任务类型 | 首选工具 | 原因 |
+|----------|----------|------|
+| 初次接触陌生模块 | CodeGraph | 一次调用返回入口点 + 相关符号 + 片段 |
+| 获取文件结构概览 | Serena | `get_symbols_overview` 精确列出所有符号 |
+| 查找函数/类定义 | Serena | LSP 精确跳转，支持重载辨析 |
+| 查找所有引用 | Serena | 语义级引用，过滤字符串同名噪声 |
+| 跨模块调用链分析 | CodeGraph | 预计算调用图，减少多次往返 |
+| 影响半径评估 | CodeGraph | `codegraph_impact` 一键返回影响范围 |
+| 批量文本搜索 | Grep | 简单直接，无需语义分析 |
+| 重命名符号 | Serena | LSP 提供安全的跨文件重构 |
+
+### 维护说明
+
+- **Serena**：无需额外维护，随开发环境自动工作
+- **CodeGraph**：索引文件位于 `.codegraph/`（已加入 `.gitignore`，不提交）。文件变更后自动同步，如索引损坏或需要强制重建：
+  ```bash
+  npx codegraph index
+  ```
+
 ## 跨模块文档索引
 
 | 文档 | 路径 | 内容 |
