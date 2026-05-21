@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run the deployable APK update server.")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind. Default: 0.0.0.0")
-    parser.add_argument("--port", type=int, default=8080, help="Port to bind. Default: 8080")
+    parser.add_argument("--port", type=int, default=10203, help="Port to bind. Default: 10203")
     parser.add_argument("--reload", action="store_true", help="Reload the server when source files change.")
     return parser.parse_args()
 
