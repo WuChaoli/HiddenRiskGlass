@@ -1,0 +1,12 @@
+{
+  "server_name": "HiddenRiskGlassServer",
+  "auth": {
+    "verification_code_length": 6,
+    "verification_code_expires_minutes": 15,
+    "verification_code_send_cooldown_seconds": 60,
+    "password_min_length": 8
+  },
+  "upload": {
+    "chunk_size_bytes": 1048576
+  }
+}
