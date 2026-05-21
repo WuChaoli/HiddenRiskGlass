@@ -296,6 +296,41 @@ com.rokid.glass/
 - 当前项目已限制调试页最多显示前 `20` 条 detection，同时保留总 `detectionCount`。
 - 如果后续仍需要长时间循环压测，优先减少 UI 刷新频率或完全关闭调试页明细渲染。
 
+## AI 代码定位工具使用规范
+
+本项目配置了 Serena（LSP）和 CodeGraph（知识图谱）两套代码智能工具。遵循以下规范可最大化效率、减少 token 浪费：
+
+### 分层使用原则
+
+**第一层：结构探索（优先 CodeGraph）**
+- 当需要理解"某个功能涉及哪些文件/模块"时，使用 `codegraph_explore` 或 `codegraph_context`
+- 避免用 `Read` 逐行扫描陌生文件来获取结构信息
+- CodeGraph 一次返回入口点 + 相关符号 + 代码片段，减少工具调用次数
+
+**第二层：精确定位（优先 Serena）**
+- 当需要修改某个具体函数/类时，使用 `serena find_declaration` 精确定位
+- 当需要确认"修改某处会影响哪些地方"时，使用 `serena find_referencing_symbols`
+- 当需要重命名时，使用 `serena rename_symbol` 而非手动替换
+
+**第三层：简单搜索（使用 Grep）**
+- 搜索特定字符串（如端口号、配置键、硬编码值）时，直接用 `Grep`
+- 不需要语义分析的场景，不必动用 Serena 或 CodeGraph
+
+### 禁止的低效模式
+
+- 不要用 `Read` 逐行阅读大文件来"找函数在哪里"
+- 不要用 `Grep` 搜索符号名然后手动判断哪个是真正的定义
+- 不要用多个 `Read` + `Grep` 组合来拼凑跨文件调用链（改用 CodeGraph）
+
+### 典型场景示例
+
+| 场景 | 错误做法 | 正确做法 |
+|------|----------|----------|
+| 改登录逻辑 | Grep "login" → 逐个 Read 文件找相关代码 | CodeGraph 查 `login_submit` → 返回调用链 |
+| 重命名方法 | Grep + 手动替换所有匹配 | `serena rename_symbol` |
+| 新模块接入 | 逐个 Read 相邻文件猜接口 | `serena get_symbols_overview` 看已有接口 |
+| 排查影响范围 | 手动追踪 import 和调用 | `codegraph_impact` 一键返回 |
+
 ## 调试与验证建议
 
 - 关注以下日志是否出现：
