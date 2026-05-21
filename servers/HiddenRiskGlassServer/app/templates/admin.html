@@ -13,7 +13,6 @@
       <p>发布 APK、设置默认版本，并按 NSCODE 指定灰度版本。</p>
     </div>
     <div style="display:flex;gap:10px;align-items:center">
-      <a href="/profile" style="color:var(--accent);font-weight:700;text-decoration:none">个人中心</a>
       <form action="/logout" method="post">
         <button class="secondary" type="submit">退出</button>
       </form>
@@ -306,7 +305,7 @@
         <div class="endpoint-custom">
           <label>
             手动指定公网地址
-            <input type="text" id="custom-endpoint" placeholder="如 https://update.example.com 或 http://1.2.3.4:8080">
+            <input type="text" id="custom-endpoint" placeholder="如 https://update.example.com 或 http://1.2.3.4:10203">
           </label>
           <button type="button" class="secondary" onclick="applyCustomEndpoint()">应用</button>
         </div>
