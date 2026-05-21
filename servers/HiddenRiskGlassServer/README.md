@@ -1,10 +1,10 @@
 # HiddenRiskGlassServer
 
-This tool runs HiddenRiskGlassServer, a small FastAPI server for LAN or intranet APK update testing. It supports admin login, APK upload, a default release, per-`nscode` release rules, update check logging, and compatibility endpoints used by the Android client.
+HiddenRiskGlassServer 是一个基于 FastAPI 的小型服务器，用于局域网或内网的 APK 更新测试。它支持管理员登录、APK 上传、默认版本管理、按 `nscode` 分配的版本规则、更新检查日志，以及 Android 客户端使用的兼容端点。
 
-## Install Dependencies
+## 安装依赖
 
-Use Python 3.11+ from the repository root:
+从仓库根目录使用 Python 3.11+：
 
 ```powershell
 python -m venv .venv
@@ -12,9 +12,9 @@ python -m venv .venv
 python -m pip install -r .\servers\HiddenRiskGlassServer\requirements.txt
 ```
 
-## Start Locally
+## 本地启动
 
-Set an admin password before starting the server:
+启动服务器前需设置管理员密码：
 
 ```powershell
 $env:ADMIN_PASSWORD = "change-me"
@@ -22,13 +22,13 @@ $env:SESSION_SECRET = "replace-with-a-long-random-secret"
 .\servers\HiddenRiskGlassServer\serve.ps1 -HostName 127.0.0.1 -Port 8080
 ```
 
-For development reload:
+开发热重载：
 
 ```powershell
 .\servers\HiddenRiskGlassServer\serve.ps1 -HostName 127.0.0.1 -Port 8080 -Reload
 ```
 
-The Python entrypoint also works from either the repository root or `servers/HiddenRiskGlassServer`:
+Python 入口点可以从仓库根目录或 `servers/HiddenRiskGlassServer` 目录运行：
 
 ```powershell
 python .\servers\HiddenRiskGlassServer\server.py --host 127.0.0.1 --port 8080
@@ -36,34 +36,34 @@ cd .\servers\HiddenRiskGlassServer
 python .\server.py --host 127.0.0.1 --port 8080 --reload
 ```
 
-Open:
+访问地址：
 
 ```text
 http://127.0.0.1:8080/login
 ```
 
-## Environment Variables
+## 环境变量
 
-- `ADMIN_PASSWORD`: required. Password for the admin UI.
-- `SESSION_SECRET`: recommended. Secret used to sign the admin session cookie. If omitted, a random secret is generated on startup, which invalidates sessions after restart.
-- `SESSION_COOKIE_SECURE`: optional. Set to `1`, `true`, or `yes` when serving only over HTTPS.
-- `APK_UPDATE_DATA_DIR`: optional. Directory for `apk_update_server.sqlite3` and uploaded release files. Defaults to `servers/HiddenRiskGlassServer`.
+- `ADMIN_PASSWORD`：**必填**。管理后台的登录密码。
+- `SESSION_SECRET`：**建议填写**。用于签名管理员会话 Cookie 的密钥。如果留空，每次启动会生成随机密钥，导致重启后会话失效。
+- `SESSION_COOKIE_SECURE`：**可选**。仅通过 HTTPS 提供服务时，设置为 `1`、`true` 或 `yes`。
+- `APK_UPDATE_DATA_DIR`：**可选**。`apk_update_server.sqlite3` 和上传的发布文件的存放目录。默认值为 `servers/HiddenRiskGlassServer`。
 
-## Update Check API
+## 更新检查 API
 
-Android clients should call:
+Android 客户端应调用：
 
 ```text
 GET /api/v1/updates/check?nscode=<nscode>&currentVersionCode=<versionCode>
 ```
 
-Example:
+示例：
 
 ```powershell
 Invoke-RestMethod "http://127.0.0.1:8080/api/v1/updates/check?nscode=NSCODE-001&currentVersionCode=2"
 ```
 
-When an update is available, the response contains:
+当有可用更新时，返回：
 
 ```json
 {
@@ -78,7 +78,7 @@ When an update is available, the response contains:
 }
 ```
 
-When the current version is already new enough:
+当当前版本已是最新时：
 
 ```json
 {
@@ -86,31 +86,31 @@ When the current version is already new enough:
 }
 ```
 
-`currentVersionCode` must be a positive integer. `nscode` can be empty, but per-device rollout rules only match non-empty values.
+`currentVersionCode` 必须是正整数。`nscode` 可以为空，但按设备分配的规则仅匹配非空值。
 
-## Compatibility Endpoints
+## 兼容端点
 
-These endpoints keep older local-update flows working:
+以下端点用于兼容旧的本地更新流程：
 
-- `GET /releases/latest/update.json`: returns the current default release manifest, or `404` when no default release exists.
-- `GET /releases/latest/app.apk`: downloads the current default release APK, or `404` when no default release exists.
-- `GET /releases/{release_id}/app.apk`: downloads a specific uploaded release APK.
+- `GET /releases/latest/update.json`：返回当前默认版本的清单，无默认版本时返回 `404`。
+- `GET /releases/latest/app.apk`：下载当前默认版本的 APK，无默认版本时返回 `404`。
+- `GET /releases/{release_id}/app.apk`：下载指定已上传版本的 APK。
 
-## Admin Capabilities
+## 管理功能
 
-The admin UI is available at `/admin` after login. It can:
+登录后可在 `/admin` 访问管理后台，支持：
 
-- Upload APK releases with `versionCode`, `versionName`, release notes, and mandatory-update flag.
-- Mark an uploaded release as the default release.
-- Create `nscode` rules that route a specific device code to a specific release.
-- Delete `nscode` rules.
-- View recent update-check events.
+- 上传 APK 发布包，填写 `versionCode`、`versionName`、更新说明、是否强制更新。
+- 将已上传的版本设为默认版本。
+- 创建 `nscode` 规则，将指定设备码路由到指定版本。
+- 删除 `nscode` 规则。
+- 查看最近的更新检查事件。
 
-Unauthenticated admin requests redirect to `/login`.
+未登录的管理请求会重定向到 `/login`。
 
-## JSON Configuration
+## JSON 配置
 
-You can customize technical parameters via `servers/HiddenRiskGlassServer/config.json`:
+可以通过 `servers/HiddenRiskGlassServer/config.json` 自定义技术参数：
 
 ```json
 {
@@ -127,13 +127,13 @@ You can customize technical parameters via `servers/HiddenRiskGlassServer/config
 }
 ```
 
-Environment variables take precedence over JSON values. For example, `SERVER_NAME` overrides `server_name`.
+环境变量的优先级高于 JSON 配置。例如，`SERVER_NAME` 会覆盖 `server_name`。
 
-## Deployment Notes
+## 部署注意事项
 
-- Always set a strong `ADMIN_PASSWORD` and stable `SESSION_SECRET`.
-- Set `APK_UPDATE_DATA_DIR` to a persistent directory outside the source tree in production.
-- Put the service behind HTTPS or a trusted intranet reverse proxy when exposed beyond local LAN testing.
-- Use `SESSION_COOKIE_SECURE=1` when HTTPS is enabled.
-- Back up `apk_update_server.sqlite3` and the `releases/` directory together; the database stores metadata and file paths.
-- Do not commit generated `apk_update_server.sqlite3`, uploaded `.apk` files, `.upload` temp files, or `__pycache__`.
+- 务必设置强密码的 `ADMIN_PASSWORD` 和稳定的 `SESSION_SECRET`。
+- 生产环境将 `APK_UPDATE_DATA_DIR` 设置为源码树之外的持久化目录。
+- 当服务暴露到本地局域网测试之外时，通过 HTTPS 或受信任的内网反向代理提供服务。
+- 启用 HTTPS 时，设置 `SESSION_COOKIE_SECURE=1`。
+- 同时备份 `apk_update_server.sqlite3` 和 `releases/` 目录；数据库存储元数据和文件路径。
+- 不要提交生成的 `apk_update_server.sqlite3`、上传的 `.apk` 文件、`.upload` 临时文件或 `__pycache__`。
