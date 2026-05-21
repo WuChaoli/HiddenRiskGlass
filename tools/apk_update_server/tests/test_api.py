@@ -265,3 +265,80 @@ def test_device_rule_rejects_invalid_release_id_with_admin_error(isolated_env):
 
     assert response.status_code == 400
     assert "rule release must exist and be active" in response.text
+
+
+def test_admin_update_release(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
+
+    response = client.put(
+        "/admin/releases/1",
+        data={
+            "versionName": "2.0.7",
+            "releaseNotes": "updated notes",
+            "mandatory": "false",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+
+
+def test_admin_delete_release(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
+
+    response = client.post("/admin/releases/1/delete")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+
+    state = client.get("/admin").context.get("state", {})
+
+
+def test_admin_update_device_rule(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
+    assert create_rule(client, "NSCODE-001", 1).status_code == 303
+
+    response = client.put(
+        "/admin/device-rules/1",
+        data={
+            "nscode": "NSCODE-002",
+            "releaseId": "1",
+            "note": "updated",
+            "enabled": "0",
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+
+
+def test_admin_batch_device_rules(isolated_env):
+    client = make_client(isolated_env)
+    login(client)
+
+    assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
+    assert create_rule(client, "NSCODE-001", 1).status_code == 303
+    assert create_rule(client, "NSCODE-002", 1).status_code == 303
+
+    response = client.post(
+        "/admin/device-rules/batch",
+        json={"ids": [1, 2], "action": "disable"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["ok"] is True
+    assert body["processed"] == 2
+    assert body["action"] == "disable"

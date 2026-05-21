@@ -96,14 +96,18 @@ from app.auth import is_logged_in, mark_logged_in, mark_logged_out, require_admi
 from app.config import Settings, load_settings
 from app.db import init_db
 from app.services import (
+    batch_device_rules,
     create_device_rule,
     delete_device_rule,
+    delete_release,
     get_latest_manifest,
     get_release_by_id,
     list_admin_state,
     publish_release,
     resolve_update,
     set_default_release,
+    update_device_rule,
+    update_release,
 )
 
 
@@ -254,6 +258,91 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         delete_device_rule(resolved_settings, rule_id)
         return RedirectResponse("/admin", status_code=303)
 
+    @app.put("/admin/releases/{release_id}")
+    async def admin_update_release(
+        request: Request,
+        release_id: int,
+        version_name: str = Form(..., alias="versionName"),
+        release_notes: str = Form("", alias="releaseNotes"),
+        mandatory: str = Form(""),
+    ):
+        redirect = require_admin(request)
+        if redirect is not None:
+            return redirect
+        try:
+            update_release(
+                settings=resolved_settings,
+                release_id=release_id,
+                version_name=version_name,
+                release_notes=release_notes,
+                mandatory=mandatory.lower() in {"true", "1", "on", "yes"},
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse({"ok": True})
+
+    @app.post("/admin/releases/{release_id}/delete")
+    async def admin_delete_release(request: Request, release_id: int):
+        redirect = require_admin(request)
+        if redirect is not None:
+            return redirect
+        try:
+            delete_release(resolved_settings, release_id)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse({"ok": True})
+
+    @app.put("/admin/device-rules/{rule_id}")
+    async def admin_update_device_rule(
+        request: Request,
+        rule_id: int,
+        nscode: str = Form(...),
+        release_id: int = Form(..., alias="releaseId"),
+        note: str = Form(""),
+        enabled: str = Form(""),
+    ):
+        redirect = require_admin(request)
+        if redirect is not None:
+            return redirect
+        enabled_bool = enabled.strip().lower() not in {"0", "false", ""}
+        try:
+            update_device_rule(
+                settings=resolved_settings,
+                rule_id=rule_id,
+                nscode=nscode,
+                release_id=release_id,
+                note=note,
+                enabled=enabled_bool,
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse({"ok": True})
+
+    @app.post("/admin/device-rules/batch")
+    async def admin_batch_device_rules(request: Request):
+        redirect = require_admin(request)
+        if redirect is not None:
+            return redirect
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
+        rule_ids = body.get("ids", [])
+        action = body.get("action", "")
+        release_id = body.get("release_id")
+
+        try:
+            result = batch_device_rules(
+                settings=resolved_settings,
+                rule_ids=rule_ids,
+                action=action,
+                release_id=release_id,
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        return JSONResponse({"ok": True, **result})
+
     @app.get("/api/v1/updates/check")
     async def check_update(
         request: Request,
@@ -315,11 +404,15 @@ def _is_protected_admin_request(request: Request) -> bool:
     method = request.method.upper()
     if method == "GET":
         return path == "/admin"
-    if method != "POST":
+    if method not in {"POST", "PUT"}:
         return False
-    if path in {"/admin/releases", "/admin/default-release", "/admin/device-rules"}:
+    if path in {"/admin/releases", "/admin/default-release", "/admin/device-rules", "/admin/device-rules/batch"}:
         return True
-    return path.startswith("/admin/device-rules/") and path.endswith("/delete")
+    if path.startswith("/admin/releases/"):
+        return True
+    if path.startswith("/admin/device-rules/"):
+        return True
+    return False
 
 
 app = create_app()
