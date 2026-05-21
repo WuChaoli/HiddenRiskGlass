@@ -1,0 +1,4 @@
+interface:
+  display_name: "WSL Android Tools"
+  short_description: "Use Windows Android tools from WSL for build, adb, and runtime debug"
+  default_prompt: "Use $wsl-android-tools to build or debug an Android app from WSL with Windows-side adb.exe, gradlew.bat, and JBR."

@@ -2,27 +2,16 @@
 
 ## 用途
 
-这个文件根据 Rokid Glass3 眼镜端官方 API 文档和当前项目经验整理。实现或排查具体 service 调用时再读，不要默认整篇加载。
-
-官方文档来源：
-
-- `https://x-docs.rokid.com/docs/Glass3%20%20SDK(%E7%9C%BC%E9%95%9C%E7%AB%AF)%20API%E6%96%87%E6%A1%A3.html`
-- 本速查按 2026-04-30 可访问页面整理。
+这个文件是根据项目里的 Rokid Glass3 SDK 笔记整理出来的精简接口速查。实现或排查具体 service 调用时再读，不要默认整篇加载。
 
 ## 初始化流程
 
 按这个顺序初始化 SDK：
 
-1. 用 `GlassSdk.isReady()` 跳过重复初始化。
-2. 调用 `GlassSdk.bindSecurityService(context, callback)`。
-3. 在 `onServiceConnected()` 中调用 `GlassSdk.registerClient(clientId, clientCallback)`。
-4. 等注册完成后，再使用 typed `GlassSdk.get...Service()` accessor。
-5. 宿主结束时，根据所有权调用 `GlassSdk.unbindSecurityService()` 或 `GlassSdk.release()`。
-
-官方示例里的关键约束：
-
-- 眼镜端 `clientId` 与手机端注册的 `clientId` 要一致，便于手机端路由消息到正确眼镜端应用。
-- `registerClient()` 会初始化 SDK 日志配置。
+1. Skip repeated work when `GlassSdk.isReady()` is already true.
+2. Call `GlassSdk.bindSecurityService(context, callback)`.
+3. In `onServiceConnected()`, call `GlassSdk.registerClient(clientId, clientCallback)`.
+4. Use typed `GlassSdk.get...Service()` accessors after binding and registration complete.
 
 SDK 日志会落在：
 
@@ -54,22 +43,7 @@ SDK 日志会落在：
 - `getGlassOfflineCmdService()`
 - `getGlassLiveKitRtcService()`
 
-如果这里只知道 accessor 名称，但没有详细接口说明，就先看本地 SDK stub 或 demo 源码，再决定怎么写。不要凭 accessor 名称臆造方法签名。
-
-## 官方文档未展开的服务
-
-官方眼镜端 API 页面列出了这些入口，但当前速查不记录详细方法。实现前必须查本地 SDK stub、AIDL、反编译声明或官方 demo：
-
-- `getGlassNotificationService()`
-- `getGlassAiChatService()`
-- `getGlassFileSystemService()`
-- `getGlassTranslateService()`
-- `getGlassTtsService()`
-- `getGlassOfflineTtsService()`
-- `getGlassAsrService()`
-- `getGlassLiveKitRtcService()`
-
-处理这些服务时只先确认三件事：初始化是否完成、service 是否为 `null`、是否存在成对的 listener/stop/release API。
+如果这里只知道 accessor 名称，但没有详细接口说明，就先看本地 SDK stub 或 demo 源码，再决定怎么写。
 
 ## 离线语音指令
 
@@ -157,7 +131,6 @@ GlassSdk.getGlassOfflineCmdService()?.add(action)
 源文档明确给出的约束：
 
 - `filePath` must point to a file in public external storage that the SDK can access
-- `dir` 是对端接收目录，例如 `"custom"` 或 `"custom/file/"`
 
 `FileReceiveListener` 里常用的回调：
 
@@ -246,16 +219,6 @@ GlassSdk.getGlassOfflineCmdService()?.add(action)
 
 实现时要考虑大约 3 秒的切换延迟。
 
-## 通用信息、采集与 Track 服务
-
-官方文档列出了以下入口，但没有在同页展开完整方法：
-
-- `getGlassCommonService()`
-- `getGlassCollectService()`
-- `getGlassTrackService()`
-
-使用前先查本地 SDK stub 或 demo。不要把在线识别 `IOnlineRecService` 的方法直接套到这些服务上。
-
 ## 蓝牙相关服务
 
 经典蓝牙 `IBTService`：
@@ -280,14 +243,3 @@ GlassSdk.getGlassOfflineCmdService()?.add(action)
 - listener removal methods for every registered listener
 - stop methods for recording, streaming, or detection
 - `GlassSdk.unbindSecurityService()` or `GlassSdk.release()` where appropriate
-- `IOfflineCmdService.release()` when the host owns offline command registration
-- `IBluetoothRingService.release()` when the host owns ring state callbacks
-
-## 排错顺序
-
-1. 看 `GlassSdk.isReady()` 和当前 bind/register 日志。
-2. 确认 `registerClient(clientId, callback)` 已在 `onServiceConnected()` 后执行。
-3. 确认 typed accessor 返回的 service 不为 `null`。
-4. 看 `Downloads/glass3Log/<clientId>.txt`。
-5. 对照当前项目封装和官方 demo 的生命周期顺序。
-6. 检查是否缺少功能前置条件：公有目录文件、离线库包、蓝牙连接、相机/录音权限、网络状态。
