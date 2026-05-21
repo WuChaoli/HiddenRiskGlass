@@ -116,7 +116,7 @@ def publish_test_release(
         version_name=version_name,
         release_notes=f"notes {version_name}",
         mandatory=True,
-        base_url="http://127.0.0.1:8080",
+        base_url="http://127.0.0.1:10203",
     )
 
 
@@ -188,7 +188,7 @@ def test_publish_release_cleans_final_apk_when_db_insert_fails(isolated_env, mon
             version_name="2.0.6",
             release_notes="db failure",
             mandatory=True,
-            base_url="http://127.0.0.1:8080",
+            base_url="http://127.0.0.1:10203",
         )
 
     assert list(settings.releases_dir.rglob("app.apk")) == []
@@ -211,10 +211,10 @@ def test_duplicate_version_publish_keeps_release_files_independent(isolated_env)
     assert releases[0]["apk_path"] != releases[1]["apk_path"]
     assert Path(releases[0]["apk_path"]).read_bytes() == b"first-apk"
     assert Path(releases[1]["apk_path"]).read_bytes() == b"second-apk"
-    assert first_manifest["apkUrl"] == "http://127.0.0.1:8080/releases/1/app.apk"
-    assert second_manifest["apkUrl"] == "http://127.0.0.1:8080/releases/2/app.apk"
-    assert releases[0]["apk_url"] == "http://127.0.0.1:8080/releases/1/app.apk"
-    assert releases[1]["apk_url"] == "http://127.0.0.1:8080/releases/2/app.apk"
+    assert first_manifest["apkUrl"] == "http://127.0.0.1:10203/releases/1/app.apk"
+    assert second_manifest["apkUrl"] == "http://127.0.0.1:10203/releases/2/app.apk"
+    assert releases[0]["apk_url"] == "http://127.0.0.1:10203/releases/1/app.apk"
+    assert releases[1]["apk_url"] == "http://127.0.0.1:10203/releases/2/app.apk"
 
     first_digest = hashlib.sha256(Path(releases[0]["apk_path"]).read_bytes()).hexdigest()
     assert releases[0]["sha256"] == first_digest

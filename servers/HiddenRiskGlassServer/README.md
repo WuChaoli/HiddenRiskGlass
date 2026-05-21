@@ -19,31 +19,32 @@ python -m pip install -r .\servers\HiddenRiskGlassServer\requirements.txt
 ```powershell
 $env:ADMIN_PASSWORD = "change-me"
 $env:SESSION_SECRET = "replace-with-a-long-random-secret"
-.\servers\HiddenRiskGlassServer\serve.ps1 -HostName 127.0.0.1 -Port 8080
+.\servers\HiddenRiskGlassServer\serve.ps1 -HostName 127.0.0.1 -Port 10203
 ```
 
 开发热重载：
 
 ```powershell
-.\servers\HiddenRiskGlassServer\serve.ps1 -HostName 127.0.0.1 -Port 8080 -Reload
+.\servers\HiddenRiskGlassServer\serve.ps1 -HostName 127.0.0.1 -Port 10203 -Reload
 ```
 
 Python 入口点可以从仓库根目录或 `servers/HiddenRiskGlassServer` 目录运行：
 
 ```powershell
-python .\servers\HiddenRiskGlassServer\server.py --host 127.0.0.1 --port 8080
+python .\servers\HiddenRiskGlassServer\server.py --host 127.0.0.1 --port 10203
 cd .\servers\HiddenRiskGlassServer
-python .\server.py --host 127.0.0.1 --port 8080 --reload
+python .\server.py --host 127.0.0.1 --port 10203 --reload
 ```
 
 访问地址：
 
 ```text
-http://127.0.0.1:8080/login
+http://127.0.0.1:10203/login
 ```
 
 ## 环境变量
 
+- `ADMIN_USERNAME`：**可选**。管理后台的登录用户名，默认为 `admin`。
 - `ADMIN_PASSWORD`：**必填**。管理后台的登录密码。
 - `SESSION_SECRET`：**建议填写**。用于签名管理员会话 Cookie 的密钥。如果留空，每次启动会生成随机密钥，导致重启后会话失效。
 - `SESSION_COOKIE_SECURE`：**可选**。仅通过 HTTPS 提供服务时，设置为 `1`、`true` 或 `yes`。
@@ -60,7 +61,7 @@ GET /api/v1/updates/check?nscode=<nscode>&currentVersionCode=<versionCode>
 示例：
 
 ```powershell
-Invoke-RestMethod "http://127.0.0.1:8080/api/v1/updates/check?nscode=NSCODE-001&currentVersionCode=2"
+Invoke-RestMethod "http://127.0.0.1:10203/api/v1/updates/check?nscode=NSCODE-001&currentVersionCode=2"
 ```
 
 当有可用更新时，返回：
@@ -70,7 +71,7 @@ Invoke-RestMethod "http://127.0.0.1:8080/api/v1/updates/check?nscode=NSCODE-001&
   "updateAvailable": true,
   "versionCode": 3,
   "versionName": "2.0.6",
-  "apkUrl": "http://127.0.0.1:8080/releases/1/app.apk",
+  "apkUrl": "http://127.0.0.1:10203/releases/1/app.apk",
   "sha256": "...",
   "sizeBytes": 123,
   "releaseNotes": "notes",
@@ -150,7 +151,7 @@ docker compose up
 docker compose up -d
 ```
 
-访问 `http://localhost:8080` 即可使用。
+访问 `http://localhost:10203` 即可使用。
 
 ### 离线服务器部署（无外网环境）
 
@@ -170,14 +171,14 @@ bash scripts/build-offline.sh
 **离线机部署：**
 
 1. 将 `hiddenrisk-server-deploy.tar.gz` 传输到目标服务器并解压
-2. 复制 `.env.example` 为 `.env`，填写 `ADMIN_PASSWORD` 和 `SESSION_SECRET`
+2. 复制 `.env.example` 为 `.env`，填写 `ADMIN_USERNAME`、`ADMIN_PASSWORD` 和 `SESSION_SECRET`
 3. 执行启动脚本：
 
 ```bash
 ./start-offline.sh
 ```
 
-4. 访问 `http://<服务器IP>:8080`
+4. 访问 `http://<服务器IP>:10203`
 
 **离线机停止服务：**
 
@@ -191,8 +192,8 @@ bash scripts/build-offline.sh
 |------|------|
 | `Dockerfile` | 镜像构建定义，基于 `python:3.12-slim-bookworm`，非 root 用户运行 |
 | `.dockerignore` | 排除缓存、测试、运行时数据等不需要打包进镜像的文件 |
-| `docker-compose.yml` | 服务编排：端口映射 8080、数据卷挂载、健康检查 |
-| `.env.example` | 环境变量模板，包含密码、密钥、SMTP 等配置项 |
+| `docker-compose.yml` | 服务编排：端口映射 10203、数据卷挂载、健康检查 |
+| `.env.example` | 环境变量模板，包含用户名、密码、密钥等配置项 |
 | `scripts/build-offline.sh` | 联网机执行：构建镜像 + 导出 tar + 打包交付物 |
 | `scripts/start-offline.sh` | 离线机执行：检查 Docker、加载镜像、启动容器 |
 | `scripts/stop-offline.sh` | 离线机执行：停止并移除容器 |
@@ -207,23 +208,6 @@ Docker 部署时，数据通过 volume 挂载到宿主机：
 该目录包含：
 - `apk_update_server.sqlite3` — SQLite 数据库
 - `releases/` — 上传的 APK 文件
-
-### 邮件验证码配置（生产环境）
-
-默认情况下（SMTP 未配置），验证码会输出到容器日志中，适用于开发测试。
-
-生产环境需在 `.env` 中配置 SMTP：
-
-```bash
-SMTP_HOST=smtp.qq.com
-SMTP_PORT=587
-SMTP_USER=your-email@qq.com
-SMTP_PASS=your-auth-code
-SMTP_FROM=your-email@qq.com
-SMTP_TLS=true
-```
-
-配置后重启容器：`docker compose restart`
 
 ## 部署注意事项
 
