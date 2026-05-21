@@ -21,13 +21,12 @@ from app.schemas import (
 
 
 DEFAULT_RELEASE_KEY = "default_release_id"
-CHUNK_SIZE = 1024 * 1024
 
 
-def sha256_file(path: Path) -> str:
+def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
-        for chunk in iter(lambda: source.read(CHUNK_SIZE), b""):
+        for chunk in iter(lambda: source.read(chunk_size), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
@@ -104,7 +103,7 @@ def publish_release(
     try:
         with tempfile.NamedTemporaryFile(delete=False, dir=release_dir, suffix=".upload") as temp_file:
             temp_path = Path(temp_file.name)
-            shutil.copyfileobj(fileobj, temp_file, CHUNK_SIZE)
+            shutil.copyfileobj(fileobj, temp_file, settings.chunk_size_bytes)
 
         size_bytes = temp_path.stat().st_size
         if size_bytes <= 0:
@@ -114,7 +113,7 @@ def publish_release(
         temp_path = None
         final_apk_written = True
 
-        digest = sha256_file(apk_path)
+        digest = sha256_file(apk_path, settings.chunk_size_bytes)
         placeholder_apk_url = f"{base_url.rstrip('/')}/releases/pending/app.apk"
 
         with db_session(settings) as conn:
