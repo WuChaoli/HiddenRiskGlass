@@ -201,6 +201,281 @@ th {
   border: 1px solid #fecdca;
 }
 
+/* ---------- Tab navigation ---------- */
+.tab-nav {
+  display: flex;
+  gap: 4px;
+  padding: 0 max(24px, calc((100vw - 1120px) / 2));
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  margin-top: -1px;
+}
+
+.tab-btn {
+  min-width: 96px;
+  padding: 12px 20px;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-btn:hover {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ---------- Tab sections ---------- */
+.tab-section {
+  display: none;
+}
+
+.tab-section.active {
+  display: contents;
+}
+
+/* ---------- Modal overlay ---------- */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 24px;
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal h3 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+/* ---------- Modal content ---------- */
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.form-row {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.error-msg {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* ---------- Batch operation bar ---------- */
+.batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.batch-bar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.batch-bar .count {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.batch-bar .spacer {
+  flex: 1;
+}
+
+/* ---------- Filter bar ---------- */
+.filter-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.filter-bar .field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.filter-bar .field label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.filter-bar .field input,
+.filter-bar .field select {
+  min-width: 140px;
+  padding: 8px 10px;
+}
+
+/* ---------- Status badges ---------- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.status-badge .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-badge.enabled {
+  color: #047857;
+}
+
+.status-badge.enabled .dot {
+  background: #10b981;
+}
+
+.status-badge.disabled {
+  color: var(--danger);
+}
+
+.status-badge.disabled .dot {
+  background: var(--danger);
+}
+
+/* ---------- Row actions ---------- */
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-actions button {
+  min-width: 52px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* ---------- Pagination ---------- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.pagination .info {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pagination .pager {
+  display: flex;
+  gap: 6px;
+}
+
+.pagination .pager button {
+  min-width: 64px;
+}
+
+/* ---------- Stats line ---------- */
+.stats-line {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 10px;
+}
+
+/* ---------- Toast notifications ---------- */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 200;
+  padding: 12px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+  animation: toast-in 0.3s ease-out;
+  max-width: 360px;
+}
+
+.toast.success {
+  background: #047857;
+}
+
+.toast.error {
+  background: var(--danger);
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* ---------- Default version highlight ---------- */
+.default-row {
+  background: #ecfdf5 !important;
+}
+
+/* ---------- Responsive ---------- */
 @media (max-width: 780px) {
   .topbar,
   .layout {
@@ -213,6 +488,42 @@ th {
   }
 
   button {
+    width: 100%;
+  }
+
+  .tab-nav {
+    padding: 0 16px;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    min-width: 80px;
+    padding: 10px 14px;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar .field input,
+  .filter-bar .field select {
+    min-width: 100%;
+  }
+
+  .batch-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pagination {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pagination .pager button {
     width: 100%;
   }
 }

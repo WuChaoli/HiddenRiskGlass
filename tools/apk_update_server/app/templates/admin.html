@@ -17,6 +17,12 @@
     </form>
   </header>
 
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="apk">APK管理</button>
+    <button class="tab-btn" data-tab="device">设备管理</button>
+    <button class="tab-btn" data-tab="logs">检查日志</button>
+  </nav>
+
   <main class="layout">
     {% if message %}
     <section class="panel full-width">
@@ -24,131 +30,364 @@
     </section>
     {% endif %}
 
-    <section class="panel">
-      <h2>发布新 APK</h2>
-      <form action="/admin/releases" method="post" enctype="multipart/form-data" class="grid-form">
-        <label class="full">
-          APK 文件
-          <input type="file" name="apk" accept=".apk" required>
-        </label>
-        <label>
-          versionCode
-          <input type="number" name="versionCode" min="1" step="1" required>
-        </label>
-        <label>
-          versionName
-          <input type="text" name="versionName" required>
-        </label>
-        <label class="full">
-          releaseNotes
-          <textarea name="releaseNotes"></textarea>
-        </label>
-        <label class="check-row">
-          <input type="checkbox" name="mandatory">
-          强制更新
-        </label>
-        <label class="check-row">
-          <input type="checkbox" name="makeDefault">
-          设为默认版本
-        </label>
-        <button type="submit">发布</button>
-      </form>
-    </section>
+    <!-- ===== APK管理 Tab ===== -->
+    <div class="tab-section active" id="tab-apk">
+      <section class="panel">
+        <h2>发布新 APK</h2>
+        <form action="/admin/releases" method="post" enctype="multipart/form-data" class="grid-form" data-fetch="true">
+          <label class="full">
+            基于已有版本
+            <select id="base-release">
+              <option value="">-- 不基于已有版本 --</option>
+              {% for release in releases %}
+              <option value="{{ release.id }}"
+                data-version-code="{{ release.version_code }}"
+                data-version-name="{{ release.version_name }}"
+                data-release-notes="{{ release.release_notes or '' }}"
+                data-mandatory="{{ '1' if release.mandatory else '0' }}">
+                {{ release.version_name }} ({{ release.version_code }})
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            versionCode
+            <input type="number" name="versionCode" id="versionCode" min="1" step="1" required>
+          </label>
+          <label>
+            versionName
+            <input type="text" name="versionName" id="versionName" required>
+          </label>
+          <label class="full">
+            releaseNotes
+            <textarea name="releaseNotes" id="releaseNotes"></textarea>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="mandatory" id="mandatory">
+            强制更新
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="makeDefault" id="makeDefault">
+            设为默认版本
+          </label>
+          <label class="full">
+            APK 文件
+            <input type="file" name="apk" accept=".apk" required>
+          </label>
+          <button type="submit">发布</button>
+        </form>
+      </section>
 
-    <section class="panel">
-      <h2>设备规则</h2>
-      <form action="/admin/device-rules" method="post" class="grid-form compact">
-        <label>
-          NSCODE
-          <input type="text" name="nscode" required>
-        </label>
-        <label>
-          目标版本
-          <select name="releaseId" required>
+      <section class="panel">
+        <h2>版本列表</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>版本</th>
+              <th>大小</th>
+              <th>强制</th>
+              <th>默认</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
             {% for release in releases %}
-            <option value="{{ release.id }}">{{ release.version_name }} ({{ release.version_code }})</option>
+            <tr class="{% if release.id == default_release_id %}default-row{% endif %}"
+                data-release-id="{{ release.id }}"
+                data-version-name="{{ release.version_name }}"
+                data-release-notes="{{ release.release_notes or '' }}"
+                data-mandatory="{{ '1' if release.mandatory else '0' }}">
+              <td>{{ release.version_name }} ({{ release.version_code }})</td>
+              <td>{{ release.size_bytes }}</td>
+              <td>{% if release.mandatory %}是{% else %}否{% endif %}</td>
+              <td>{% if release.id == default_release_id %}<strong style="color:#047857">是</strong>{% else %}否{% endif %}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="secondary" type="button" onclick="openEditReleaseModal({{ release.id }})">编辑</button>
+                  <button class="secondary" type="button" style="background:var(--danger)" onclick="openDeleteReleaseModal({{ release.id }})">删除</button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="empty">暂无发布版本</td></tr>
             {% endfor %}
-          </select>
-        </label>
-        <label class="full">
-          备注
-          <input type="text" name="note">
-        </label>
-        <button type="submit">保存规则</button>
-      </form>
+          </tbody>
+        </table>
+      </section>
+    </div>
 
-      <table>
-        <thead>
-          <tr><th>NSCODE</th><th>版本</th><th>备注</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for rule in device_rules %}
-          <tr>
-            <td>{{ rule.nscode }}</td>
-            <td>{{ rule.version_name }} ({{ rule.version_code }})</td>
-            <td>{{ rule.note }}</td>
-            <td>
-              <form action="/admin/device-rules/{{ rule.id }}/delete" method="post">
-                <button class="secondary" type="submit">删除</button>
-              </form>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="4" class="empty">暂无设备规则</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
+    <!-- ===== 设备管理 Tab ===== -->
+    <div class="tab-section" id="tab-device">
+      <section class="panel full-width">
+        <div class="filter-bar">
+          <div class="field">
+            <label>NSCODE 搜索</label>
+            <input type="text" id="device-search" placeholder="输入 NSCODE...">
+          </div>
+          <div class="field">
+            <label>状态</label>
+            <select id="device-status-filter">
+              <option value="">全部</option>
+              <option value="1">允许</option>
+              <option value="0">拒绝</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>版本</label>
+            <select id="device-version-filter">
+              <option value="">全部版本</option>
+              {% for release in releases %}
+              <option value="{{ release.id }}">{{ release.version_name }} ({{ release.version_code }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="secondary" type="button" onclick="resetDeviceFilters()">重置</button>
+          <div class="spacer"></div>
+          <button type="button" onclick="openAddDeviceModal()">+ 新增设备</button>
+        </div>
 
-    <section class="panel full-width">
-      <h2>发布列表</h2>
-      <table>
-        <thead>
-          <tr><th>ID</th><th>版本</th><th>大小</th><th>SHA-256</th><th>默认</th><th></th></tr>
-        </thead>
-        <tbody>
-          {% for release in releases %}
-          <tr>
-            <td>{{ release.id }}</td>
-            <td>{{ release.version_name }} ({{ release.version_code }})</td>
-            <td>{{ release.size_bytes }}</td>
-            <td class="mono">{{ release.sha256 }}</td>
-            <td>{% if release.id == default_release_id %}是{% else %}否{% endif %}</td>
-            <td>
-              <form action="/admin/default-release" method="post">
-                <input type="hidden" name="releaseId" value="{{ release.id }}">
-                <button class="secondary" type="submit">设为默认</button>
-              </form>
-            </td>
-          </tr>
-          {% else %}
-          <tr><td colspan="6" class="empty">暂无发布版本</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
+        <div class="batch-bar">
+          <label>
+            <input type="checkbox" id="device-select-all">
+            全选
+          </label>
+          <span class="count" id="device-selected-count">已选 0 项</span>
+          <div class="spacer"></div>
+          <button class="secondary" type="button" onclick="batchChangeVersion()">批量改版本</button>
+          <button class="secondary" type="button" onclick="batchAction('enable')">批量允许</button>
+          <button class="secondary" type="button" onclick="batchAction('disable')">批量拒绝</button>
+          <button class="secondary" type="button" style="background:var(--danger)" onclick="batchAction('delete')">批量删除</button>
+        </div>
 
-    <section class="panel full-width">
-      <h2>最近检查</h2>
-      <table>
-        <thead>
-          <tr><th>时间</th><th>NSCODE</th><th>当前版本</th><th>命中版本</th><th>结果</th></tr>
-        </thead>
-        <tbody>
-          {% for event in check_events %}
-          <tr>
-            <td>{{ event.created_at }}</td>
-            <td>{{ event.nscode }}</td>
-            <td>{{ event.current_version_code }}</td>
-            <td>{{ event.matched_release_id or "-" }}</td>
-            <td>{{ event.result }}</td>
-          </tr>
-          {% else %}
-          <tr><td colspan="5" class="empty">暂无检查记录</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </section>
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px"><input type="checkbox" id="device-select-all-header"></th>
+              <th>NSCODE</th>
+              <th>目标版本</th>
+              <th>状态</th>
+              <th>备注</th>
+              <th>更新时间</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="device-rules-body">
+            {% for rule in device_rules %}
+            <tr data-id="{{ rule.id }}"
+                data-search="{{ rule.nscode | lower }}"
+                data-filter0="{{ '1' if rule.enabled else '0' }}"
+                data-filter1="{{ rule.release_id }}">
+              <td><input type="checkbox" class="device-row-checkbox" data-id="{{ rule.id }}"></td>
+              <td class="mono">{{ rule.nscode }}</td>
+              <td>{{ rule.version_name }} ({{ rule.version_code }})</td>
+              <td>
+                <span class="status-badge {% if rule.enabled %}enabled{% else %}disabled{% endif %}">
+                  <span class="dot"></span>
+                  {% if rule.enabled %}允许{% else %}拒绝{% endif %}
+                </span>
+              </td>
+              <td>{{ rule.note or '-' }}</td>
+              <td>{{ rule.updated_at or rule.created_at }}</td>
+              <td>
+                <div class="row-actions">
+                  <button class="secondary" type="button"
+                    onclick="openEditDeviceModal({{ rule.id }}, '{{ rule.nscode }}', {{ rule.release_id }}, '{{ rule.note or '' }}', {{ '1' if rule.enabled else '0' }})">编辑</button>
+                  <button class="secondary" type="button" style="background:var(--danger)"
+                    onclick="deleteDevice({{ rule.id }})">删除</button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="empty">暂无设备规则</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="stats-line" id="device-stats">
+          共 {{ device_rules | length }} 条规则
+          · 允许 {{ device_rules | selectattr('enabled') | list | length }} 条
+          · 拒绝 {{ device_rules | rejectattr('enabled') | list | length }} 条
+          · 显示 {{ device_rules | length }} 条
+        </div>
+      </section>
+    </div>
+
+    <!-- ===== 检查日志 Tab ===== -->
+    <div class="tab-section" id="tab-logs">
+      <section class="panel full-width">
+        <div class="filter-bar">
+          <div class="field">
+            <label>NSCODE 搜索</label>
+            <input type="text" id="log-search" placeholder="输入 NSCODE...">
+          </div>
+          <div class="field">
+            <label>结果</label>
+            <select id="log-result-filter">
+              <option value="">全部</option>
+              <option value="有更新">有更新</option>
+              <option value="无更新">无更新</option>
+              <option value="无版本">无版本</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>每页条数</label>
+            <select id="log-page-size">
+              <option value="30">30</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+          <button class="secondary" type="button" onclick="resetLogFilters()">重置</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>NSCODE</th>
+              <th>当前版本</th>
+              <th>命中版本</th>
+              <th>结果</th>
+            </tr>
+          </thead>
+          <tbody id="log-body">
+            {% for event in check_events %}
+            <tr data-search="{{ event.nscode | lower }}"
+                data-filter0="{{ event.result }}">
+              <td>{{ event.created_at }}</td>
+              <td class="mono">{{ event.nscode }}</td>
+              <td>{{ event.current_version_code }}</td>
+              <td>{{ event.matched_release_id or '-' }}</td>
+              <td>
+                {% if event.result == '有更新' %}
+                <span style="color:#047857;font-weight:700">有更新</span>
+                {% elif event.result == '无更新' %}
+                <span style="color:var(--muted);font-weight:700">无更新</span>
+                {% elif event.result == '无版本' %}
+                <span style="color:var(--danger);font-weight:700">无版本</span>
+                {% else %}
+                <span>{{ event.result }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="empty">暂无检查记录</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="pagination">
+          <div class="info" id="log-pagination-info">
+            共 {{ check_events | length }} 条记录 · 显示 1-{{ [check_events | length, 30] | min }}
+          </div>
+          <div class="pager">
+            <button class="secondary" type="button" id="log-prev" onclick="changeLogPage(-1)">上一页</button>
+            <button class="secondary" type="button" id="log-next" onclick="changeLogPage(1)">下一页</button>
+          </div>
+        </div>
+      </section>
+    </div>
   </main>
+
+  <!-- ===== Modals ===== -->
+
+  <!-- 编辑版本信息 Modal -->
+  <div class="modal-overlay" id="modal-edit-release">
+    <div class="modal">
+      <h3>编辑版本信息</h3>
+      <form id="form-edit-release" data-fetch="true">
+        <input type="hidden" name="_method" value="PUT">
+        <div class="form-row">
+          <label>
+            versionName
+            <input type="text" name="versionName" id="edit-release-versionName" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            releaseNotes
+            <textarea name="releaseNotes" id="edit-release-releaseNotes"></textarea>
+          </label>
+        </div>
+        <div class="form-row">
+          <label class="check-row">
+            <input type="checkbox" name="mandatory" id="edit-release-mandatory">
+            强制更新
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" type="button" onclick="closeModal('modal-edit-release')">取消</button>
+          <button type="submit">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 删除版本确认 Modal -->
+  <div class="modal-overlay" id="modal-delete-release">
+    <div class="modal">
+      <h3>删除版本确认</h3>
+      <p>确定要删除此版本吗？此操作不可恢复。</p>
+      <p class="hint">该版本将不再可用于更新检查，但已下载的设备不受影响。</p>
+      <form id="form-delete-release" data-fetch="true">
+        <input type="hidden" name="_method" value="POST">
+        <div class="modal-actions">
+          <button class="secondary" type="button" onclick="closeModal('modal-delete-release')">取消</button>
+          <button type="submit" style="background:var(--danger)">确认删除</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 新增/编辑设备规则 Modal -->
+  <div class="modal-overlay" id="modal-device">
+    <div class="modal">
+      <h3 id="device-modal-title">新增设备规则</h3>
+      <form id="form-device" data-fetch="true">
+        <div class="form-row">
+          <label>
+            NSCODE
+            <input type="text" name="nscode" id="device-nscode" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            目标版本
+            <select name="releaseId" id="device-releaseId" required>
+              {% for release in releases %}
+              <option value="{{ release.id }}">{{ release.version_name }} ({{ release.version_code }})</option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            备注
+            <input type="text" name="note" id="device-note">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            状态
+            <select name="enabled" id="device-enabled">
+              <option value="1">允许</option>
+              <option value="0">拒绝</option>
+            </select>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" type="button" onclick="closeModal('modal-device')">取消</button>
+          <button type="submit">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hidden releases data for JS -->
+  <script type="application/json" id="releases-data">
+    {{ releases | tojson }}
+  </script>
+
+  <script src="/static/admin.js"></script>
 </body>
 </html>
