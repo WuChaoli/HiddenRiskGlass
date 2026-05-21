@@ -126,7 +126,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     resolved_settings = settings or load_settings()
     init_db(resolved_settings)
 
-    app = FastAPI(title="APK Update Server")
+    app = FastAPI(title=resolved_settings.server_name)
     app.state.settings = resolved_settings
 
     @app.middleware("http")
