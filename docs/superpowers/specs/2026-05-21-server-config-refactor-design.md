@@ -3,8 +3,9 @@
 ## 目标
 
 1. 将服务器名称统一改为 `HiddenRiskGlassServer`
-2. 新增 JSON 配置文件，把代码中写死的技术参数提炼出来
-3. 清理冗余文件
+2. 将目录从 `tools/apk_update_server` 迁移到 `servers/HiddenRiskGlassServer`
+3. 新增 JSON 配置文件，把代码中写死的技术参数提炼出来
+4. 清理冗余文件
 
 ## 方案概述
 
@@ -25,11 +26,25 @@
 | `templates/forgot_password.html` | `<title>` 和 `<h1>` | `APK 更新后台` | `HiddenRiskGlassServer` |
 | `templates/profile.html` | `<title>` | `APK 更新后台` | `HiddenRiskGlassServer` |
 
+## 目录迁移
+
+将项目根目录从 `tools/apk_update_server` 整体迁移到 `servers/HiddenRiskGlassServer`。
+
+### 影响范围
+
+| 文件 | 修改内容 |
+|---|---|
+| `config.py` | `APP_ROOT` 和 `PROJECT_ROOT` 路径计算需要调整 |
+| `.gitignore` | 原 `tools/apk_update_server/...` 路径改为 `servers/HiddenRiskGlassServer/...` |
+| `README.md` | 所有路径引用更新 |
+| `serve.ps1` | 如有硬编码路径则更新 |
+| `tests/` | 测试中的路径引用更新 |
+
 ## JSON 配置文件设计
 
 ### 文件位置
 
-`tools/apk_update_server/config.json`
+`servers/HiddenRiskGlassServer/config.json`
 
 ### 配置结构
 
@@ -98,6 +113,8 @@
 
 ## 边界与约束
 
+- **目录迁移**：使用 `git mv` 保留文件历史，而非手动复制删除。
 - **不提取的内容**：数据库 schema、HTML 结构、API 协议常量（如 `RESULT_UPDATE = "update"`）、邮件模板 HTML 结构。这些属于代码契约，不应可配置。
 - **向后兼容**：`config.json` 是可选的。如果不存在，所有参数使用硬编码默认值，行为与现在完全一致。
 - **环境变量优先**：现有部署脚本不需要修改，环境变量仍然可以覆盖 JSON 中的值。
+- **Python 模块路径**：目录迁移后，`app.main:app` 等模块导入路径在 `servers/HiddenRiskGlassServer` 下保持不变（uvicorn 的 `app_dir` 参数会处理）。
