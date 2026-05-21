@@ -92,7 +92,8 @@ except ModuleNotFoundError:
             signature = hmac.new(self.secret_key, payload.encode("ascii"), hashlib.sha256).hexdigest()
             return f"{payload}.{signature}"
 
-from app.auth import has_any_admin, is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_password
+from app.auth import has_any_admin, is_logged_in, mark_logged_in, mark_logged_out, require_admin, verify_user_password
+from app.user_services import reset_password
 from app.user_services import (
     register_user,
     send_verification_code,
@@ -174,20 +175,43 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return templates.TemplateResponse(request, "login.html", {"error": ""})
 
     @app.post("/login")
-    async def login_submit(request: Request, password: str = Form(...)):
-        if not verify_password(resolved_settings, password):
+    async def login_submit(request: Request, email: str = Form(...), password: str = Form(...)):
+        user_id = verify_user_password(resolved_settings, email, password)
+        if user_id is None:
             return templates.TemplateResponse(
                 request,
                 "login.html",
-                {"error": "密码错误"},
+                {"error": "邮箱或密码错误"},
                 status_code=401,
             )
-        mark_logged_in(request)
+        mark_logged_in(request, user_id)
         return RedirectResponse("/admin", status_code=303)
 
     @app.post("/logout")
     async def logout(request: Request):
         mark_logged_out(request)
+        return RedirectResponse("/login", status_code=303)
+
+    @app.get("/forgot-password")
+    async def forgot_password_page(request: Request):
+        return templates.TemplateResponse(request, "forgot_password.html", {"error": ""})
+
+    @app.post("/forgot-password")
+    async def forgot_password_submit(
+        request: Request,
+        email: str = Form(...),
+        code: str = Form(...),
+        new_password: str = Form(...),
+    ):
+        try:
+            reset_password(resolved_settings, email, code, new_password)
+        except ValueError as exc:
+            return templates.TemplateResponse(
+                request,
+                "forgot_password.html",
+                {"error": str(exc)},
+                status_code=400,
+            )
         return RedirectResponse("/login", status_code=303)
 
     @app.get("/register")

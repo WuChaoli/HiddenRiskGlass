@@ -18,4 +18,11 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("SESSION_SECRET", "test-session-secret")
     monkeypatch.delenv("SESSION_COOKIE_SECURE", raising=False)
 
+    # Initialize database schema
+    from app.config import load_settings
+    from app.db import init_db
+
+    settings = load_settings()
+    init_db(settings)
+
     return tmp_path

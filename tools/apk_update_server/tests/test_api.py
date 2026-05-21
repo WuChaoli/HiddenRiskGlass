@@ -13,10 +13,23 @@ def make_client(isolated_env):
     return TestClient(create_app(settings))
 
 
-def login(client: TestClient) -> None:
+def create_test_user(isolated_env, email: str = "admin@test.com", password: str = "Test1234"):
+    from app.config import load_settings
+    from app.db import db_session
+    from app.auth import hash_password
+
+    settings = load_settings()
+    with db_session(settings) as conn:
+        conn.execute(
+            "INSERT INTO users (email, password_hash, email_verified) VALUES (?, ?, 1)",
+            (email, hash_password(password)),
+        )
+
+
+def login(client: TestClient, email: str = "admin@test.com", password: str = "Test1234") -> None:
     response = client.post(
         "/login",
-        data={"password": "test-password"},
+        data={"email": email, "password": password},
         follow_redirects=False,
     )
     assert response.status_code == 303
@@ -90,6 +103,7 @@ def test_root_redirects_to_admin(isolated_env):
 
 def test_login_allows_admin_access_and_page_contains_title(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
 
     login(client)
     response = client.get("/admin")
@@ -116,6 +130,7 @@ def test_unauthenticated_upload_redirects_before_creating_release(isolated_env):
 
 def test_logout_requires_post_and_clears_admin_session(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
     assert client.get("/admin").status_code == 200
 
@@ -134,6 +149,7 @@ def test_logout_requires_post_and_clears_admin_session(isolated_env):
 
 def test_publishing_with_make_default_returns_update_from_check_api(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     response = publish_release(client, 3, "2.0.6", make_default=True)
@@ -152,6 +168,7 @@ def test_publishing_with_make_default_returns_update_from_check_api(isolated_env
 
 def test_nscode_rule_overrides_default_over_api(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
     first_publish = publish_release(client, 3, "2.0.6", make_default=True)
     second_publish = publish_release(client, 5, "2.1.0")
@@ -174,6 +191,7 @@ def test_nscode_rule_overrides_default_over_api(isolated_env):
 
 def test_default_release_endpoint_sets_default(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
     assert publish_release(client, 5, "2.1.0").status_code == 303
@@ -193,6 +211,7 @@ def test_default_release_endpoint_sets_default(isolated_env):
 
 def test_latest_update_json_returns_default_manifest(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
 
@@ -206,6 +225,7 @@ def test_latest_update_json_returns_default_manifest(isolated_env):
 
 def test_release_app_apk_downloads_uploaded_bytes(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
     apk_payload = b"uploaded-apk-content"
     assert publish_release(client, 3, "2.0.6", payload=apk_payload, make_default=True).status_code == 303
@@ -218,6 +238,7 @@ def test_release_app_apk_downloads_uploaded_bytes(isolated_env):
 
 def test_publish_rejects_non_apk_upload_with_admin_error(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     response = publish_release(client, 3, "2.0.6", filename="not-an-apk.txt")
@@ -228,6 +249,7 @@ def test_publish_rejects_non_apk_upload_with_admin_error(isolated_env):
 
 def test_publish_rejects_empty_apk_upload_with_admin_error(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     response = publish_release(client, 3, "2.0.6", payload=b"")
@@ -238,6 +260,7 @@ def test_publish_rejects_empty_apk_upload_with_admin_error(isolated_env):
 
 def test_default_release_rejects_invalid_release_id_with_admin_error(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     response = set_default_release(client, 999)
@@ -248,6 +271,7 @@ def test_default_release_rejects_invalid_release_id_with_admin_error(isolated_en
 
 def test_device_rule_rejects_empty_nscode_with_admin_error(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
 
@@ -259,6 +283,7 @@ def test_device_rule_rejects_empty_nscode_with_admin_error(isolated_env):
 
 def test_device_rule_rejects_invalid_release_id_with_admin_error(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     response = create_rule(client, "NSCODE-001", 999)
@@ -269,6 +294,7 @@ def test_device_rule_rejects_invalid_release_id_with_admin_error(isolated_env):
 
 def test_admin_update_release(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
@@ -289,6 +315,7 @@ def test_admin_update_release(isolated_env):
 
 def test_admin_delete_release(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
@@ -304,6 +331,7 @@ def test_admin_delete_release(isolated_env):
 
 def test_admin_update_device_rule(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303
@@ -326,6 +354,7 @@ def test_admin_update_device_rule(isolated_env):
 
 def test_admin_batch_device_rules(isolated_env):
     client = make_client(isolated_env)
+    create_test_user(isolated_env)
     login(client)
 
     assert publish_release(client, 3, "2.0.6", make_default=True).status_code == 303

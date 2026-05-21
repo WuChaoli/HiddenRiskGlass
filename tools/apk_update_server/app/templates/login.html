@@ -9,15 +9,22 @@
 <body class="login-page">
   <main class="login-panel">
     <h1>APK 更新后台</h1>
-    <form method="post" action="/login" class="form-stack">
+    <form method="post" action="/login" class="form-stack" data-fetch="true">
       <label>
-        管理密码
-        <input type="password" name="password" autofocus required>
+        邮箱
+        <input type="email" name="email" required autofocus placeholder="admin@example.com">
+      </label>
+      <label>
+        密码
+        <input type="password" name="password" required placeholder="请输入密码">
       </label>
       {% if error %}
       <p class="alert error">{{ error }}</p>
       {% endif %}
       <button type="submit">登录</button>
+      <p style="text-align:center;margin-top:10px">
+        <a href="/forgot-password">忘记密码？</a>
+      </p>
     </form>
   </main>
 </body>
