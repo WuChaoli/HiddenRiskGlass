@@ -74,14 +74,14 @@ def test_password_strength_validation(isolated_env):
     from app.user_services import _validate_password_strength, VerificationError
 
     with pytest.raises(VerificationError):
-        _validate_password_strength("short")
+        _validate_password_strength("short", 8)
     with pytest.raises(VerificationError):
-        _validate_password_strength("12345678")
+        _validate_password_strength("12345678", 8)
     with pytest.raises(VerificationError):
-        _validate_password_strength("abcdefgh")
+        _validate_password_strength("abcdefgh", 8)
 
     # 不抛出异常即通过
-    _validate_password_strength("Test1234")
+    _validate_password_strength("Test1234", 8)
 
 
 def test_change_password(isolated_env):
