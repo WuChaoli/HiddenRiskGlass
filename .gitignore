@@ -15,12 +15,6 @@ app/.cxx/
 .ruff_cache/
 shots/
 debug/
-third_party/
-models/
-/assets/
-!.codex/environments/
-.codex/environments/*
-!.codex/environments/environment.toml
 .tmp/
 .worktrees/
 .tmp_*.png
