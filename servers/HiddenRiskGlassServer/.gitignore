@@ -1,0 +1,7 @@
+releases/**/*.apk
+releases/**/*.json
+releases/**/*.upload
+apk_update_server.sqlite3
+smoke-server.*
+.tmp_*.log
+**/__pycache__/
