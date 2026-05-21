@@ -1,19 +1,18 @@
 ---
 name: rokid-glass3-sdk
-description: Integrate, inspect, migrate, and troubleshoot Rokid Glass3 glasses-side Android SDK usage, including Gradle/Maven setup, com.rokid.security:glass3.open.sdk, GlassSdk lifecycle, bindSecurityService/registerClient, typed service accessors, media/message/file/device/offline-command/online-recognition APIs, listener cleanup, and enterprise demo alignment. Use when Codex needs to接入、迁移、改造或排查 Rokid / Rokid Glass3 / GlassSdk / glass3.open.sdk / 眼镜端 SDK 相关代码、配置或文档。
+description: Integrate, inspect, and troubleshoot Rokid Glass3 Android SDK features in Android projects, including Gradle/Maven setup, GlassSdk initialization, client registration, service binding, media/message/device APIs, offline voice commands, recognition services, and enterprise demo alignment. Use when Codex needs to接入、迁移、改造或排查 Rokid / Rokid Glass3 / GlassSdk / glass3.open.sdk / 眼镜端 SDK 相关代码、配置或文档。
 ---
 
 # Rokid Glass3 SDK
 
 ## 概览
 
-使用这个技能处理 Rokid Glass3 眼镜端 Android SDK 的接入、迁移和排错，并把修改限制在当前任务真正需要的 Gradle、生命周期和服务调用范围内。
+使用这个技能处理 Rokid Glass3 Android SDK 的接入、迁移和排错，并把修改限制在当前任务真正需要的 Gradle、生命周期和服务调用范围内。
 
 主流程保留在这个文件里，详细接口说明按需加载：
 
 - 修改 Gradle、依赖、打包配置前，先读 [references/setup.md](references/setup.md)
 - 实现或调整具体 `GlassSdk` 服务调用前，先读 [references/api.md](references/api.md)
-- 官方文档未展开的服务能力，先查本地 SDK stub、demo 或仓库已有封装，再写代码
 
 ## 快速开始
 
@@ -87,10 +86,9 @@ GlassSdk.bindSecurityService(context, object : IServiceConnectionCallback {
 ### 给现有 Android App 接入 Rokid SDK
 
 1. 先读 [references/setup.md](references/setup.md)
-2. 对齐仓库、依赖、打包配置和现有 Gradle 文件。
-3. 找到正确的生命周期宿主来 bind/register。
-4. 在 `onServiceConnected()` 之后获取类型化 service，不要提前缓存 service。
-5. 只补当前任务真正需要的 service 调用和清理逻辑。
+2. 对齐仓库、依赖、打包配置和现有 Gradle 文件
+3. 找到正确的生命周期宿主来 bind/register
+4. 只补当前任务真正需要的 service 调用
 
 ### 从企业版 demo 迁移行为
 
@@ -105,23 +103,14 @@ GlassSdk.bindSecurityService(context, object : IServiceConnectionCallback {
 1. SDK 还没绑上：`GlassSdk.isReady()` 为 false，或者 service getter 返回 `null`
 2. 没有在 `onServiceConnected()` 里注册 client
 3. `clientId` 错误或两端不一致
-4. 过早调用 service accessor，或拿到 `null` 后没有等待服务就绪。
-5. 缺少功能前置条件，比如公有目录文件路径、离线库资产、蓝牙/网络状态。
-6. listener 没注册、过早移除，或生命周期结束后没释放。
-
-### 新增具体 SDK 能力
-
-1. 先在 [references/api.md](references/api.md) 里定位正确服务面。
-2. 如果 API 速查只列出 accessor，没有列出方法签名，去本地 SDK stub 或官方 demo 查确认后的签名。
-3. 用 typed accessor，例如 `GlassSdk.getGlassMediaService()`、`GlassSdk.getGlassMessageService()`、`GlassSdk.getGlassDeviceService()`。
-4. 为每个注册动作配对清理动作：`remove...Listener()`、`stop...()`、`release()`、`unbindSecurityService()`。
+4. 缺少功能前置条件，比如公有目录文件路径、离线库资产
+5. listener 没注册、过早移除，或生命周期结束后没释放
 
 ## 约束
 
-- 优先相信仓库现有的 Rokid 文档、官方文档和 demo 参考，不要靠记忆硬写
+- 优先相信仓库现有的 Rokid 文档和 demo 参考，不要靠记忆硬写
 - 保持最小修改，不要把一次 SDK 调整扩成无关架构改造
 - 新增 listener 或长生命周期 service 时，保持 Android 生命周期正确
 - 文件传输使用 SDK 可访问的公有目录路径
 - `switchMicScene` 有大约 3 秒切换延迟，UI 和状态机要留余量
 - 涉及离线识别能力时，先确认离线库或特征包真的存在，再假设接口可用
-- 官方文档未展开的方法，不要臆造签名；先查 SDK stub 或 demo，再实现

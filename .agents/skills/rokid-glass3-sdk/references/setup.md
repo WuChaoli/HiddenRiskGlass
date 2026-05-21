@@ -7,8 +7,7 @@
 当前参考资料明确记录了：
 
 - Maven repository: `https://maven.rokid.com/repository/maven-public/`
-- SDK dependency group: `com.rokid.security:glass3.open.sdk`
-- 当前项目可能已经固定了具体版本；先读 `app/build.gradle`，不要盲目覆盖。这个仓库曾使用 `2.1.5-E`，当前 Gradle 里可能已经升级到更高版本。
+- SDK dependency: `com.rokid.security:glass3.open.sdk:2.1.5-E`
 - Packaging note: handle `libr2aud.so` conflicts with `pickFirst` when needed
 
 ## 本地参考工程
@@ -33,7 +32,7 @@
 ## 默认接入清单
 
 1. Add or verify the Rokid Maven repository.
-2. Add or verify `com.rokid.security:glass3.open.sdk:<repo-version>`.
+2. Add or verify `com.rokid.security:glass3.open.sdk:2.1.5-E`.
 3. Resolve packaging conflicts such as `libr2aud.so`.
 4. Implement `GlassSdk.bindSecurityService()`.
 5. Register the client in `onServiceConnected()`.
