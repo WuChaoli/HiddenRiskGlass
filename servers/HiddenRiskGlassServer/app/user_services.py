@@ -10,11 +10,6 @@ from app.db import db_session
 from app.mailer import send_verification_email
 
 
-CODE_LENGTH = 6
-CODE_EXPIRES_MINUTES = 15
-CODE_SEND_COOLDOWN_SECONDS = 60
-
-
 class VerificationError(ValueError):
     pass
 
@@ -23,20 +18,20 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _generate_code() -> str:
-    return "".join(str(random.randint(0, 9)) for _ in range(CODE_LENGTH))
+def _generate_code(length: int) -> str:
+    return "".join(str(random.randint(0, 9)) for _ in range(length))
 
 
-def _validate_password_strength(password: str) -> None:
-    if len(password) < 8:
-        raise VerificationError("密码至少8位")
+def _validate_password_strength(password: str, min_length: int) -> None:
+    if len(password) < min_length:
+        raise VerificationError(f"密码至少{min_length}位")
     if not re.search(r"[A-Za-z]", password):
         raise VerificationError("密码至少包含一个字母")
     if not re.search(r"\d", password):
         raise VerificationError("密码至少包含一个数字")
 
 
-def _check_send_cooldown(conn, email: str, purpose: str) -> None:
+def _check_send_cooldown(conn, email: str, purpose: str, cooldown_seconds: int) -> None:
     row = conn.execute(
         """
         SELECT created_at FROM verification_codes
@@ -50,7 +45,7 @@ def _check_send_cooldown(conn, email: str, purpose: str) -> None:
         if last_sent.tzinfo is None:
             last_sent = last_sent.replace(tzinfo=timezone.utc)
         elapsed = (_now() - last_sent).total_seconds()
-        if elapsed < CODE_SEND_COOLDOWN_SECONDS:
+        if elapsed < cooldown_seconds:
             raise VerificationError("请稍后再试")
 
 
@@ -62,9 +57,9 @@ def send_verification_code(settings: Settings, email: str, purpose: str) -> None
         raise VerificationError("邮箱格式不正确")
 
     with db_session(settings) as conn:
-        _check_send_cooldown(conn, email, purpose)
-        code = _generate_code()
-        expires_at = _now() + timedelta(minutes=CODE_EXPIRES_MINUTES)
+        _check_send_cooldown(conn, email, purpose, settings.verification_code_send_cooldown_seconds)
+        code = _generate_code(settings.verification_code_length)
+        expires_at = _now() + timedelta(minutes=settings.verification_code_expires_minutes)
         conn.execute(
             """
             INSERT INTO verification_codes (email, code, purpose, expires_at)
@@ -105,7 +100,7 @@ def verify_code(settings: Settings, email: str, code: str, purpose: str) -> bool
 
 def register_user(settings: Settings, email: str, password: str, code: str) -> int:
     email = email.strip().lower()
-    _validate_password_strength(password)
+    _validate_password_strength(password, settings.password_min_length)
 
     if not verify_code(settings, email, code, "register"):
         raise VerificationError("验证码错误或已过期")
@@ -129,7 +124,7 @@ def register_user(settings: Settings, email: str, password: str, code: str) -> i
 
 def reset_password(settings: Settings, email: str, code: str, new_password: str) -> None:
     email = email.strip().lower()
-    _validate_password_strength(new_password)
+    _validate_password_strength(new_password, settings.password_min_length)
 
     if not verify_code(settings, email, code, "reset_password"):
         raise VerificationError("验证码错误或已过期")
@@ -150,7 +145,7 @@ def reset_password(settings: Settings, email: str, code: str, new_password: str)
 def change_password(settings: Settings, user_id: int, old_password: str, new_password: str) -> None:
     from app.auth import verify_user_password
 
-    _validate_password_strength(new_password)
+    _validate_password_strength(new_password, settings.password_min_length)
 
     with db_session(settings) as conn:
         row = conn.execute(
