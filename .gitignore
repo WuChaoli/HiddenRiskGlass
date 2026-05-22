@@ -38,3 +38,6 @@ release/*.apk
 *.tar
 *.tar.gz
 
+# Deploy env
+.env.deploy
+
