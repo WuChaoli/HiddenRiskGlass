@@ -6,6 +6,15 @@ import secrets
 from dataclasses import dataclass
 from pathlib import Path
 
+# 自动加载 .env 文件（如果存在）
+try:
+    from dotenv import load_dotenv
+    _dotenv_path = Path(__file__).resolve().parents[1] / ".env"
+    if _dotenv_path.is_file():
+        load_dotenv(dotenv_path=str(_dotenv_path), override=False)
+except ImportError:
+    pass  # python-dotenv 未安装时静默跳过
+
 
 APP_ROOT = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = APP_ROOT.parent.parent
