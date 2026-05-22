@@ -1,5 +1,6 @@
 package com.rokid.glass.hiddenrisk
 
+import com.rokid.glass.config.SaveResultApiConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -23,6 +24,18 @@ class InspectionFinishApiProtocolTest {
 
         assertEquals(
             "http://example.com/hxy/apis/third/smartGlasses/pushHidDangerEnd",
+            url,
+        )
+    }
+
+    @Test
+    fun buildBackupRequestUrl_usesBackupFinishEndpoint() {
+        val url = InspectionFinishApiProtocol.buildBackupRequestUrl(
+            SaveResultApiConfig(backupBaseUrl = "http://183.147.142.133:7443/"),
+        )
+
+        assertEquals(
+            "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/hazardIsEnd",
             url,
         )
     }
