@@ -62,8 +62,11 @@ class AppUpdateManager(
         prefs.edit().putInt(KEY_SKIPPED_VERSION_CODE, versionCode).apply()
     }
 
-    fun downloadAndInstall(info: AppUpdateInfo): File {
-        val apkFile = downloadApk(info)
+    fun downloadAndInstall(
+        info: AppUpdateInfo,
+        onProgress: ((bytesRead: Long, totalBytes: Long) -> Unit)? = null,
+    ): File {
+        val apkFile = downloadApk(info, onProgress)
         val actualSha = sha256(apkFile)
         if (!actualSha.equals(info.sha256, ignoreCase = true)) {
             apkFile.delete()
@@ -88,7 +91,10 @@ class AppUpdateManager(
             context.packageManager.canRequestPackageInstalls()
     }
 
-    private fun downloadApk(info: AppUpdateInfo): File {
+    private fun downloadApk(
+        info: AppUpdateInfo,
+        onProgress: ((bytesRead: Long, totalBytes: Long) -> Unit)? = null,
+    ): File {
         val request = Request.Builder().url(info.apkUrl).get().build()
         val targetDir = File(context.cacheDir, UPDATE_CACHE_DIR).apply { mkdirs() }
         val targetFile = File(targetDir, UPDATE_APK_NAME)
@@ -98,9 +104,18 @@ class AppUpdateManager(
                 throw IOException("APK download failed: HTTP ${response.code}")
             }
             val body = response.body ?: throw IOException("APK download body is empty")
+            val totalBytes = body.contentLength().takeIf { it > 0 } ?: info.sizeBytes
             tempFile.outputStream().use { output ->
                 body.byteStream().use { input ->
-                    input.copyTo(output)
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var bytesRead = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        output.write(buffer, 0, read)
+                        bytesRead += read
+                        onProgress?.invoke(bytesRead, totalBytes)
+                    }
                 }
             }
         }
