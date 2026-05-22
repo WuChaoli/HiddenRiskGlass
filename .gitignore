@@ -34,3 +34,7 @@ release/*.apk
 # Logs
 *.log
 
+# Deployment packages
+*.tar
+*.tar.gz
+
