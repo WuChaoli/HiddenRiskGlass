@@ -249,5 +249,9 @@
     <string name="app_update_verify_failed">安装包校验失败，请重新下载</string>
     <string name="app_update_permission_required">请允许安装未知应用后重试</string>
     <string name="app_update_installer_failed">无法打开系统安装器</string>
+    <string name="app_update_button_update">更新</string>
+    <string name="app_update_button_skip">跳过本次</string>
+    <string name="app_update_button_cancel">取消</string>
+    <string name="app_update_progress_percent">%1$d%%</string>
     <string name="app_update_touch_hint">单击安装，双击跳过</string>
 </resources>
