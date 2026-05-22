@@ -1,116 +1,188 @@
 ---
 name: rokid-glass3-sdk
-description: Integrate, inspect, and troubleshoot Rokid Glass3 Android SDK features in Android projects, including Gradle/Maven setup, GlassSdk initialization, client registration, service binding, media/message/device APIs, offline voice commands, recognition services, and enterprise demo alignment. Use when Codex needs to接入、迁移、改造或排查 Rokid / Rokid Glass3 / GlassSdk / glass3.open.sdk / 眼镜端 SDK 相关代码、配置或文档。
+description: Single Rokid skill for this repo. Use when Codex needs to inspect, integrate, upgrade, or troubleshoot `com.rokid.security:glass3.open.sdk`, compare SDK and OTA compatibility, debug shared camera preview, or wire pages into the repo's unified Rokid input flow.
 ---
 
 # Rokid Glass3 SDK
 
-## 概览
+这是当前仓库唯一的 Rokid 主技能。
+处理 Rokid SDK 接入、版本审计、OTA 兼容、共享相机预览、统一输入接入与设备侧排障时，统一从这里进入，不再切到其他 Rokid 子技能。
 
-使用这个技能处理 Rokid Glass3 Android SDK 的接入、迁移和排错，并把修改限制在当前任务真正需要的 Gradle、生命周期和服务调用范围内。
+## 仓库基线
 
-主流程保留在这个文件里，详细接口说明按需加载：
+- 当前 Gradle 依赖基线：`app/build.gradle` 中为 `com.rokid.security:glass3.open.sdk:2.1.8-E`
+- 共享预览主链路：
+  - `app/src/main/java/com/rokid/glass/camera/RokidFrameSource.kt`
+  - `app/src/main/java/com/rokid/glass/component/RokidCameraPreviewView.kt`
+  - `app/src/main/java/com/rokid/glass/hiddenrisk/InspectionCameraCoordinator.kt`
+- 统一输入主链路：
+  - `app/src/main/java/com/rokid/glass/input/UnifiedInput.kt`
+  - 业务页示例：`HomeActivity`、`AiInspectionActivity`、`DeviceGuideActivity`、`HazardRecordActivity`
 
-- 修改 Gradle、依赖、打包配置前，先读 [references/setup.md](references/setup.md)
-- 实现或调整具体 `GlassSdk` 服务调用前，先读 [references/api.md](references/api.md)
+## 先做什么
 
-## 快速开始
+不要直接改 SDK 或页面代码。先按这个顺序做：
 
-1. 先检查当前仓库，不要凭记忆直接改。
-2. 先确认项目里是否已经有 Rokid 文档、demo 代码或现成的 `GlassSdk` 接入。
-3. 按这个顺序接入 SDK：Maven 仓库 -> 依赖 -> `GlassSdk.bindSecurityService()` -> `GlassSdk.registerClient()` -> 类型化 service accessor -> 生命周期清理。
-4. 涉及眼镜端和手机端联动时，保持 `clientId` 一致。
-5. 在宿主生命周期结束时显式释放或解绑服务，不要把 SDK 状态留成隐式行为。
+1. 读代码，确认当前仓库真实接法。
+2. 读官方 changelog，确认目标 SDK / OTA 是否真的要求改动。
+3. 用 changelog 条目映射本仓库 call site，再决定改依赖、改代码，还是只补排障信息。
 
-## 集成流程
+按需加载 references：
 
-### 1. 确认构建接线
+- 改 Gradle / 接入顺序前，先读 [references/setup.md](references/setup.md)
+- 看 SDK service / `CameraShareHelper` 能力面前，先读 [references/api.md](references/api.md)
+- 做版本、OTA、共享预览兼容判断前，先读 [references/version-compatibility.md](references/version-compatibility.md)
 
-用 [references/setup.md](references/setup.md) 核对这些点：
+## 主流程
 
-- Rokid Maven 仓库是否已经配置
-- 目标 SDK 依赖是否已经存在
-- `libr2aud.so` 这类打包冲突是否已经处理
-- 本地 demo 或参考工程是否可用于对照
+### 1. 版本与 changelog 审计
 
-如果仓库里已经有等价配置，复用它，不要重复新增一套 Gradle 片段。
+先确认三件事，不要只看其中一项：
 
-### 2. 安全地绑定与注册
+- 仓库当前依赖版本
+- 官方 changelog 对应的目标 SDK 版本
+- 该版本要求或推荐的 OTA 基线
 
-用 `GlassSdk.isReady()` 防重复初始化，并且只在服务连接完成之后注册 client。
+然后再把变化映射到本仓库真实 call site。优先检查：
 
-```kotlin
-if (GlassSdk.isReady()) return
+- `GlassSdk.bindSecurityService(...)`
+- `GlassSdk.registerClient(...)`
+- `GlassSdk.getGlass...Service()`
+- `CameraShareHelper`
+- `UnifiedInputSession`
+- 任意 `Stub()` listener / callback 实现
 
-GlassSdk.bindSecurityService(context, object : IServiceConnectionCallback {
-    override fun onServiceConnected() {
-        GlassSdk.registerClient(clientId, clientCallback)
-    }
-})
-```
+如果 changelog 只是新增 getter 或回调，而仓库并未用到对应能力，不要为了“对齐最新”而扩大改动。
 
-实现时遵守这些规则：
+### 2. SDK 接入 / 升级
 
-- 只要功能依赖跨端路由，眼镜端和手机端就使用同一个 `clientId`
-- 优先使用 `GlassSdk.getGlassMediaService()` 这类类型化 accessor，而不是直接调用 `getService()`
-- 如果拿到的 service 是 `null`，优先按生命周期问题排查：绑定、注册、服务可用性
+处理 SDK 接入或升级时：
 
-### 3. 选对服务面
+- 先核对 Maven、依赖、`pickFirst 'libr2aud.so'` 等构建接线
+- 再核对 `GlassSdk.isReady()`、`bindSecurityService()`、`registerClient()` 的生命周期顺序
+- 最后才改具体 service 调用
 
-写代码前先把任务路由到正确模块：
+默认优先复用已有接线，不要在仓库里再造第二套 Rokid 初始化流程。
 
-- 媒体采集、录像、变焦、录音：看 [references/api.md](references/api.md) 里的 `IMediaServer`
-- 文本、音频、视频、二进制传输和文件收发：看 [references/api.md](references/api.md) 里的 `IMessageServer` 与 `IGlassFileOperate`
-- 设备信息、亮度、音量、麦克风场景、重启：看 [references/api.md](references/api.md) 里的 `IDeviceService`
-- 离线语音指令：看 [references/api.md](references/api.md) 里的 `IOfflineCmdService`
-- 在线人脸 / 车牌检测：看 [references/api.md](references/api.md) 里的 `IOnlineRecService` 与 `IGlassDetectionListener`
-- 离线特征识别：看 [references/api.md](references/api.md) 里的 `IOfflineFeatureRecService` 与 `IGlassRecListener`
-- 经典蓝牙和指环：看 [references/api.md](references/api.md) 里的 `IBTService` 与 `IBluetoothRingService`
+### 3. 共享相机预览
 
-如果任务提到的 service wrapper 在 `GlassSdk` 里存在，但参考文件里没有详细接口，就先去看本地 SDK stub 或 demo 再动手。
+本仓库的共享预览不是单一路径，而是同一个 `CameraShareHelper` 同时承担两条链路：
 
-### 4. 补齐清理与可观测性
+- NV21 帧流：
+  - `RokidFrameSource.startFrameStream()` -> `initNv21ExportWithConfig(...)`
+  - 关键回调：`onNv21Frame(...)`、`onNv21ExportResolutionChanged(...)`、`onNv21ExportRuntimeParamsChanged(...)`
+- Surface 预览：
+  - `RokidCameraPreviewView.startPreview()` -> `initSurfaceWithConfig(...)`
+  - 关键回调：`onFrameAvailable()`、`onSurfaceShareConfigChanged(...)`、`onZoomLevelChanged(...)`
 
-不要只写 happy path，要补或核对 teardown：
+预览裁剪与方向判断依赖这些数据：
 
-- 宿主生命周期结束时移除 listener
-- 显式停止录制、推流、检测
-- 由宿主持有 SDK 生命周期时，调用 `release()` / `unbindSecurityService()`
+- `transformMatrix`
+- `onSurfaceShareConfigChanged(...)` 返回的 `width/height/appliedPreviewFps/videoStabilizationEnabled`
+- `onNv21ExportResolutionChanged(...)` 返回的 `width/height/appliedPreviewFps`
 
-排错时优先看内置日志路径：
+排查旧 OTA / 新 OTA 差异时，重点不是“有没有打开相机”，而是这些回调和矩阵语义是否与当前代码假设一致：
 
-- `Downloads/glass3Log/<clientId>.txt`
+- 如果 `shared surface first frame available` 已出现，但没有 `first preview draw`，优先怀疑 GL / Surface 绑定层
+- 如果 `preview crop updated ... swapped=... matrix=...` 明显不合理，优先怀疑系统版本差异导致的方向 / 裁剪语义变化
+- 如果 NV21 与 Surface 的 `width/height`、`appliedPreviewFps` 长期不更新，优先怀疑 SDK / OTA 兼容矩阵
 
-## 常见任务模式
+### 4. 共享预览恢复边界
 
-### 给现有 Android App 接入 Rokid SDK
+正常黑屏恢复、息屏唤醒恢复、页面重入恢复，默认边界如下：
 
-1. 先读 [references/setup.md](references/setup.md)
-2. 对齐仓库、依赖、打包配置和现有 Gradle 文件
-3. 找到正确的生命周期宿主来 bind/register
-4. 只补当前任务真正需要的 service 调用
+- 不要轻易 `releaseAppCamera`
+- 不要把问题默认升级成 `InspectionCameraCoordinator.restart(...)`
+- 不要把 `restartFrameStream...` 当成预览恢复首选
 
-### 从企业版 demo 迁移行为
+默认先走软恢复：
 
-1. 先对比 build 文件和 SDK 生命周期接线
-2. 再对比 service 使用方式
-3. 除非任务明确要求大迁移，否则只借用模式，不整块搬 demo 模块
+- `InspectionCameraCoordinator.pause(...)`
+- `InspectionCameraCoordinator.acquire(...)`
+- `InspectionCameraCoordinator.updatePreview(...)`
+- 必要时仅重建 `RokidCameraPreviewView`
 
-### 排查接入异常
+只有在日志证明底层帧流或相机已死，而不是仅仅预览 View / Surface 没画出来时，才讨论 release / restart。
 
-按这个顺序排查：
+### 5. 统一输入接入
 
-1. SDK 还没绑上：`GlassSdk.isReady()` 为 false，或者 service getter 返回 `null`
-2. 没有在 `onServiceConnected()` 里注册 client
-3. `clientId` 错误或两端不一致
-4. 缺少功能前置条件，比如公有目录文件路径、离线库资产
-5. listener 没注册、过早移除，或生命周期结束后没释放
+页面层默认入口是 `UnifiedInputSession`，不是页面自己散落注册：
+
+- `VoiceAction`
+- `GlassSdk.getGlassOfflineCmdService().add/remove(...)`
+- `HeadGestureManager.addListener/removeListener(...)`
+
+页面层做法固定为：
+
+- 生命周期里 `attach()` / `detach()` / `release()`
+- 状态切换时 `updateActions()`
+- `onGlassKeyEvent()` 只做 `dispatchTouch(...)`
+
+确认 / 取消语义默认保持：
+
+- `NOD` = 主确认
+- `SHAKE` = 次动作或取消
+
+补充说明：
+
+- 头部动作能力保留在统一输入模型里，但当前 `UnifiedInputSession` 代码默认 `HEAD_GESTURE_LISTENING_ENABLED = false`
+- 因此页面接入时应先沿用统一输入骨架和动作语义，再按任务需要判断是否真的要打开头部动作监听
+
+### 6. 设备侧排障顺序
+
+排查设备问题时，先看矩阵，再看日志：
+
+1. 当前 app 依赖的 SDK 版本
+2. 目标 / 实机 OTA 版本是否满足 changelog 推荐基线
+3. 当前页面是否走了共享预览主链路还是其他相机链路
+4. 再抓日志，不要先改代码
+
+优先关注：
+
+- `RokidCameraPreview`
+- `RokidFrameSource`
+- `InspectionCameraCoordinator`
+
+关键字：
+
+- `shared surface first frame available`
+- `shared surface texture id still 0 after frame update`
+- `first preview draw`
+- `surface share config changed`
+- `nv21 export resolution changed`
+- `preview crop updated`
+- `pause owner=`
+- `acquire owner=`
+- `updatePreview owner=`
+- `preview_ready owner=`
+- `auto_sleep_warning`
+- `resumeFromAutoSleep`
+
+## 常见任务路由
+
+### 调 SDK 版本 / 对 changelog
+
+先读 [references/version-compatibility.md](references/version-compatibility.md)，确认当前基线和历史切片，再去代码里查 call site。
+
+### 接新 service 或补 listener
+
+先读 [references/api.md](references/api.md)，再定位本仓库已有 `GlassSdk.getGlass...Service()` 调用，避免凭印象补接口。
+
+### 排查黑屏 / 裁剪错误 / 方向不对
+
+先看共享预览日志，区分：
+
+- 帧流没起来
+- Surface 收到帧但没画出来
+- 画出来了，但 `transformMatrix` / crop 语义变了
+
+### 接业务页输入
+
+先看 `UnifiedInputSession` 和现有页面示例，默认走统一输入，不要直接在页面里堆 Rokid 语音或头部动作注册。
 
 ## 约束
 
-- 优先相信仓库现有的 Rokid 文档和 demo 参考，不要靠记忆硬写
-- 保持最小修改，不要把一次 SDK 调整扩成无关架构改造
-- 新增 listener 或长生命周期 service 时，保持 Android 生命周期正确
-- 文件传输使用 SDK 可访问的公有目录路径
-- `switchMicScene` 有大约 3 秒切换延迟，UI 和状态机要留余量
-- 涉及离线识别能力时，先确认离线库或特征包真的存在，再假设接口可用
+- 先看代码与 changelog，再决定是否改 SDK / 代码
+- 优先最小修改，不把一次 Rokid 任务扩成整仓库改造
+- 不要同时维护多套 Rokid 基线说法
+- 不再引用已删除的旧 Rokid 技能作为前置入口

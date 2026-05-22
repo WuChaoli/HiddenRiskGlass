@@ -1,7 +1,0 @@
-interface:
-  display_name: "Rokid Preview Recovery"
-  short_description: "Diagnose and softly recover Rokid camera preview"
-  default_prompt: "Use $rokid-camera-preview-recovery to debug a Rokid camera preview black screen without release or restart."
-
-policy:
-  allow_implicit_invocation: true

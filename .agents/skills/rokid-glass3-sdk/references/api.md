@@ -2,54 +2,79 @@
 
 ## 用途
 
-这个文件是根据项目里的 Rokid Glass3 SDK 笔记整理出来的精简接口速查。实现或排查具体 service 调用时再读，不要默认整篇加载。
+实现或排查具体 Rokid service、`CameraShareHelper` 或离线指令能力时再读本文件。
 
-## 初始化流程
+## 初始化顺序
 
-按这个顺序初始化 SDK：
+1. `GlassSdk.isReady()`
+2. `GlassSdk.bindSecurityService(context, callback)`
+3. `onServiceConnected()` 中执行 `GlassSdk.registerClient(clientId, clientCallback)`
+4. 再获取类型化 service
 
-1. Skip repeated work when `GlassSdk.isReady()` is already true.
-2. Call `GlassSdk.bindSecurityService(context, callback)`.
-3. In `onServiceConnected()`, call `GlassSdk.registerClient(clientId, clientCallback)`.
-4. Use typed `GlassSdk.get...Service()` accessors after binding and registration complete.
-
-SDK 日志会落在：
+SDK 日志默认可在以下路径查找：
 
 - `Downloads/glass3Log/<clientId>.txt`
 
-## `GlassSdk` 暴露的 service accessor
+## `GlassSdk` 常用 service accessor
 
-源文档里提到的常见类型化 accessor：
-
-- `getClassicBluetoothService()`
-- `getP2PGoService()`
-- `getGlassMessageService()`
-- `getGlassCommonService()`
 - `getGlassMediaService()`
-- `getGlassOfflineFeatureRecService()`
-- `getGlassOfflineRecService()`
-- `getGlassOnlineRecService()`
-- `getGlassCollectService()`
-- `getGlassTrackService()`
+- `getGlassMessageService()`
 - `getGlassDeviceService()`
-- `getGlassBluetoothRingService()`
-- `getGlassNotificationService()`
-- `getGlassAiChatService()`
-- `getGlassFileSystemService()`
-- `getGlassTranslateService()`
-- `getGlassTtsService()`
-- `getGlassOfflineTtsService()`
-- `getGlassAsrService()`
 - `getGlassOfflineCmdService()`
-- `getGlassLiveKitRtcService()`
+- `getGlassOnlineRecService()`
+- `getGlassOfflineFeatureRecService()`
+- `getGlassCollectService()`
+- `getGlassOfflineTtsService()`
+- `getGlassTrackService()`
+- `getGlassNotificationService()`
+- `getGlassFileSystemService()`
 
-如果这里只知道 accessor 名称，但没有详细接口说明，就先看本地 SDK stub 或 demo 源码，再决定怎么写。
+如果任务提到的 service 在这里没有展开，先查本地 SDK stub、现有 call site 或官方 changelog，再决定怎么写。
+
+## `CameraShareHelper` 共享预览接口
+
+本仓库实际同时使用两套入口：
+
+### NV21 导出
+
+- `initNv21ExportWithConfig(enableFrontCamera, CameraShareConfig(), Nv21Callback)`
+- `releaseNv21Export()`
+- `updateTexture()`
+- `getTextureId()`
+- `getTransformMatrix()`
+
+当前仓库依赖的关键回调：
+
+- `onCameraOpened(width, height)`
+- `onNv21Frame(nv21, width, height, timestamp)`
+- `onNv21ExportResolutionChanged(width, height, appliedPreviewFps)`
+- `onNv21ExportRuntimeParamsChanged(appliedPreviewFps, videoStabilizationEnabled)`
+- `onZoomLevelChanged(zoomLevel)`
+- `onError(code, msg)`
+
+### Surface 共享预览
+
+- `initSurfaceWithConfig(CameraShareConfig(), SurfaceCallback)`
+- `releaseSurface()`
+
+当前仓库依赖的关键回调：
+
+- `onCameraOpened(width, height)`
+- `onFrameAvailable()`
+- `onSurfaceShareConfigChanged(width, height, appliedPreviewFps, videoStabilizationEnabled)`
+- `onZoomLevelChanged(zoomLevel)`
+- `onError(code, msg)`
+
+补充说明：
+
+- `RokidCameraPreviewView` 用 `transformMatrix` 判断是否发生横竖轴交换，再决定 crop 方向
+- `RokidFrameSource` 统一维护 NV21 / Surface 的 `width`、`height`、`appliedPreviewFps`、`videoStabilizationEnabled`
 
 ## 离线语音指令
 
-离线指令词使用 `GlassSdk.getGlassOfflineCmdService()`。
+页面层默认不要直接操作这个 service，统一输入基础设施才是默认入口。
 
-关键方法：
+涉及底层接入或排查时，关注：
 
 - `init()`
 - `restore()`
@@ -59,12 +84,12 @@ SDK 日志会落在：
 - `removeAll()`
 - `release()`
 
-示例：
+典型底层调用形态：
 
 ```kotlin
-val action = VoiceAction("下雪了", "xia xue le", object : IVoiceCallback.Stub() {
+val action = VoiceAction("确认", "que ren", object : IVoiceCallback.Stub() {
     override fun onVoiceTriggered() {
-        Log.e(TAG, "下雪了")
+        // 回调到统一输入或宿主逻辑
     }
 })
 
@@ -73,173 +98,74 @@ GlassSdk.getGlassOfflineCmdService()?.add(action)
 
 ## 媒体服务
 
-相机、录音、录像相关能力走 `GlassSdk.getGlassMediaService()`。
+`GlassSdk.getGlassMediaService()` 常见能力：
 
-`IMediaServer` 常用方法：
-
-- `startRecord(callback, recordConfig)`
+- `takePhoto(...)`
+- `startRecord(...)`
 - `stopRecord()`
-- `takePhoto(photoResolution, path)`
-- `addPhotoCallback(photoFileCallback)`
-- `removePhotoCallback(photoFileCallback)`
-- `getMaxZoomLevel()`
-- `getZoomLevel()`
+- `startAudioRecord(...)`
+- `stopAudioRecord(...)`
 - `zoomCamera(level)`
-- `startAudioRecord(callback)`
-- `stopAudioRecord(callback)`
+- `getZoomLevel()`
+- `getMaxZoomLevel()`
 - `setMediaStateLister(listener)`
 - `removeMediaStateLister(listener)`
 
-## 消息服务
+如果任务改到 zoom、录制或预览联动，注意同时核对共享预览链路。
 
-文本消息、音视频流、二进制传输走 `GlassSdk.getGlassMessageService()`。
+## 消息 / 文件服务
 
-`IMessageServer` 常用方法：
+`GlassSdk.getGlassMessageService()` 常见能力：
 
 - `setMessageListener(listener)`
 - `removeMessageListener(listener)`
-- `sendTextMessageByP2P(message)`
-- `sendTextMessageByP2PWithClient(message, clientId)`
-- `sendTextMessageByClassicBT(message)`
-- `sendTextMessageByClassicBTWithClient(message, clientId)`
-- `sendAudioStreamData()`
-- `stopAudioStreamData()`
-- `sendVideoStreamData()`
-- `stopVideoStreamData()`
-- `sendStreamData(tag, data, clientId, callback)`
+- `sendTextMessageByP2P(...)`
+- `sendTextMessageByClassicBT(...)`
+- `sendStreamData(...)`
 - `getGlassFileOperater()`
 - `getGlassBtFileOperater()`
 
-`IMessageListener` 关键回调：
+`IGlassFileOperate` 常见能力：
 
-- `onTextMessage(msg)`
-- `onAudioStream(buffer)`
-- `onStreamDataReceived(tag, data)`
-
-## 文件传输
-
-文件传输通过 `glassFileOperater` 或 `glassBtFileOperater` 返回的 `IGlassFileOperate` 完成。
-
-关键方法：
-
-- `sendFile(dir, filePath, listener, resultCallback)`
+- `sendFile(...)`
 - `stopSendFile()`
 - `isSendingFile()`
 - `setFileReceiveListener(listener)`
 - `removeFileReceiveListener(listener)`
 
-源文档明确给出的约束：
+文件路径要放在 SDK 可访问的公有目录。
 
-- `filePath` must point to a file in public external storage that the SDK can access
+## 在线检测 / 离线识别
 
-`FileReceiveListener` 里常用的回调：
+在线检测：
 
-- `onStart()`
-- `onProgressChanged(progress)`
-- `onComplete(filePath)`
-- `onFail()`
-- `onCancel()`
-
-## 在线检测与识别
-
-在线人脸 / 车牌检测使用 `GlassSdk.getGlassOnlineRecService()`。
-
-`IOnlineRecService` 常用方法：
-
+- `GlassSdk.getGlassOnlineRecService()`
 - `startDetection(mode)`
 - `stopDetection()`
 - `setGlassOnlineRecListener(listener)`
 - `removeGlassOnlineRecListener(listener)`
-- `recognizeFace(param, callback)`
-- `getFaceSamllBitmap(trackId)`
-- `getFaceRoundCornerSamllBitmap(trackId)`
-- `getLprSamllBitmap(plateNo)`
 
-文档里给出的模式：
+离线特征识别：
 
-- `MODE_NONE = 0`
-- `MODE_FACE = 1`
-- `MODE_LPR = 2`
-- `MODE_MIX = 3`
-- `MODE_MOTOR_LPR = 4`
+- `GlassSdk.getGlassOfflineFeatureRecService()`
+- `addFaceFeatureFile(...)`
+- `startRecognition(...)`
+- `stopRecognition(...)`
 
-`IGlassDetectionListener` 关键回调：
+如果任务要求“采集”或“离线播报”，顺手核对：
 
-- `onModeChange(mode)`
-- `onFaceTrack(faceModels)`
-- `onProcessedFaceModels(processedFaceModels)`
-- `onLPRTrack(lprModel)`
-
-## 离线特征识别
-
-需要本地人脸特征库时，使用 `GlassSdk.getGlassOfflineFeatureRecService()`。
-
-`IOfflineFeatureRecService` 常用方法：
-
-- `addFaceFeatureFile(featureName, featurePath)`
-- `removeFaceFeature(featureName)`
-- `startRecognition(mode, listener)`
-- `stopRecognition(listener)`
-- `getFaceSamllBitmap(frameId)`
-- `getFaceRoundCornerSamllBitmap(frameId)`
-
-`IGlassRecListener` 关键回调：
-
-- `onModeChange(mode)`
-- `onFaceTrack(faceModels)`
-- `onLPRTrack(lprModel)`
-- `onFaceRecognize(result)`
-- `onFaceRecognizeNotInLib(result)`
-
-源文档明确说明：这个能力依赖对应的离线库包。
+- `getGlassCollectService()`
+- `getGlassOfflineTtsService()`
 
 ## 设备服务
 
-设备信息和系统控制走 `GlassSdk.getGlassDeviceService()`。
+`GlassSdk.getGlassDeviceService()` 常见能力：
 
-`IDeviceService` 常用方法：
-
-- `getDeviceName()`
-- `getSerialNumber()`
 - `getSystemVersion()`
 - `getDeviceStatusInfo()`
 - `switchMicScene(state)`
 - `setVolume(value)`
 - `setBrighing(value)`
 - `reboot()`
-- `sendCusEvent(eventCode, extra)`
-- `setDeviceEventListener(listener)`
-- `setBatteryUpdateListener(listener)`
 
-源文档给出的麦克风场景值：
-
-- `0`: near-field directional
-- `1`: far-field directional
-- `3`: omnidirectional
-
-实现时要考虑大约 3 秒的切换延迟。
-
-## 蓝牙相关服务
-
-经典蓝牙 `IBTService`：
-
-- `getConnectDevices()`
-- `makeDeviceDiscoverable()`
-- `setClassicBTListener(listener)`
-- `removeBlueToothServerListener(listener)`
-- `isConnect()`
-
-蓝牙指环 `IBluetoothRingService`：
-
-- `setBluetoothRingState(listener)`
-- `isRingConnect()`
-- `getRingConnectDevice()`
-- `release()`
-
-## 清理
-
-如果宿主组件持有 SDK 生命周期，最终要补齐这些清理动作：
-
-- listener removal methods for every registered listener
-- stop methods for recording, streaming, or detection
-- `GlassSdk.unbindSecurityService()` or `GlassSdk.release()` where appropriate
+设备侧问题先读系统版本，再判断是不是 SDK / OTA 兼容问题。

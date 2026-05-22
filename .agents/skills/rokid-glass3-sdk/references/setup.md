@@ -1,45 +1,50 @@
-# Rokid Glass3 SDK 接入说明
+# Rokid Glass3 SDK 接入基线
 
 ## 用途
 
-修改 Gradle 接线、依赖配置或本地 demo 对齐时，先读这个文件。
+当任务涉及 Gradle、Maven、打包配置、`GlassSdk` 初始化顺序时，先读这个文件。
 
-当前参考资料明确记录了：
+## 当前仓库基线
 
 - Maven repository: `https://maven.rokid.com/repository/maven-public/`
-- SDK dependency: `com.rokid.security:glass3.open.sdk:2.1.5-E`
-- Packaging note: handle `libr2aud.so` conflicts with `pickFirst` when needed
+- SDK dependency: `com.rokid.security:glass3.open.sdk:2.1.8-E`
+- 二维码能力依赖：`com.rokid.security.glass3.qrcode:scanner:1.0.0`
+- 打包冲突处理：`pickFirst 'lib/*/libr2aud.so'`
 
-## 本地参考工程
+基线来源：
 
-这些内容在源文档里被记录为对照参考，不参与当前工程构建：
-
-- `references/rokid/glass3_enterprise_demo.zip`
-- `references/rokid/glass3_enterprise_demo_extracted/glassdemo`
-- `references/rokid/glass3_enterprise_demo_extracted/glass3sdkphonedemo`
-
-如果当前仓库已经放了这些文件或等价 demo，优先对照：
-
-- `settings.gradle`
 - `app/build.gradle`
-- `app/src/main/`
 
-## 源文档提到的官方来源
+## 默认接入顺序
 
-- Quick start: `https://x-docs.rokid.com/docs/快速开始.html`
-- Demo download: `https://tatooine.rokidcdn.com/security/sdk/glass3_企业版.zip`
+1. 确认或补齐 Rokid Maven 仓库。
+2. 确认当前任务目标是否真的需要改动 `glass3.open.sdk` 版本。
+3. 复用仓库现有 `pickFirst 'libr2aud.so'` 处理，不要重复堆新的 packaging 片段。
+4. 先完成 `GlassSdk.bindSecurityService(...)`。
+5. 只在 `onServiceConnected()` 之后执行 `GlassSdk.registerClient(...)`。
+6. 服务绑定完成后，再拿 `GlassSdk.getGlass...Service()`。
 
-## 默认接入清单
+## 升级前检查
 
-1. Add or verify the Rokid Maven repository.
-2. Add or verify `com.rokid.security:glass3.open.sdk:2.1.5-E`.
-3. Resolve packaging conflicts such as `libr2aud.so`.
-4. Implement `GlassSdk.bindSecurityService()`.
-5. Register the client in `onServiceConnected()`.
-6. Fetch the required typed services, usually starting with media, message, or device.
+不要因为 changelog 有新条目就直接 bump 版本。先确认：
+
+- 当前 `app/build.gradle` 依赖版本
+- 官方 changelog 对应的目标 SDK 版本
+- 目标版本推荐的 OTA 基线
+- 本仓库是否真的使用了会受影响的 service / listener / callback
+
+如果结论只是“当前版本已满足任务”，就不要改 Gradle。
+
+## 本地对照点
+
+对齐或补接线时，优先对照当前仓库已有模式：
+
+- `app/build.gradle`
+- `app/src/main/java/com/rokid/glass/utils/GlassSdkUtils.kt`
+- `app/src/main/java/com/rokid/glass/hiddenrisk/RokidSdkManager.kt`
 
 ## 实践建议
 
-- 优先复用仓库里现有的依赖接线，不要重复新增一套配置块。
-- 如果仓库已经有 Rokid 接入文档，先以仓库文档为准，再去改 Gradle。
-- 如果行为和预期不一致，先对比企业版 demo 的生命周期顺序和 service 注册方式，再决定是否改代码。
+- 先复用仓库现有接法，不要新增第二套 SDK 生命周期
+- 如果行为异常，先检查 bind/register 顺序，再怀疑具体 service
+- 如果任务同时涉及共享预览或统一输入，回主技能再读对应章节，不要只停留在 Gradle 视角
