@@ -97,7 +97,7 @@ class LocalHazardPushService(
         )
         AppFileLogger.i(
             TAG,
-            "pushLocalHazard start objectId=$objectId jpegBytes=${jpegBytes.size} hazardCount=${hidDanger.size} url=$primaryUrl",
+            "pushLocalHazard start objectId=$objectId jpegBytes=${jpegBytes.size} hazardCount=${hidDanger.size} url=$primaryUrl backupEnabled=${apiConfig.enableBackupUpload}",
         )
         if (primaryUrl == null) {
             callback.onFailure("本地隐患保存失败，请重试")
@@ -108,6 +108,17 @@ class LocalHazardPushService(
             hazardCount = hidDanger.size,
             requestBodyBytes = requestBodyJson.toByteArray(Charsets.UTF_8).size,
         )
+        if (apiConfig.enableBackupUpload) {
+            submitDualEndpoint(
+                primaryUrl = primaryUrl,
+                backupUrl = LocalHazardPushApiProtocol.buildBackupRequestUrl(apiConfig),
+                requestBodyJson = requestBodyJson,
+                handle = handle,
+                requestContext = requestContext,
+                callback = callback,
+            )
+            return handle
+        }
         submitSingleEndpoint(
             label = "primary",
             requestUrl = primaryUrl,
@@ -127,6 +138,53 @@ class LocalHazardPushService(
             }
         }
         return handle
+    }
+
+    private fun submitDualEndpoint(
+        primaryUrl: String,
+        backupUrl: String,
+        requestBodyJson: String,
+        handle: RetryRequestHandle,
+        requestContext: RequestContext,
+        callback: Callback,
+    ) {
+        val coordinator = DualEndpointSubmitCoordinator(
+            labels = listOf("primary", "backup"),
+        ) { outcomes ->
+            val primaryOutcome = outcomes.getValue("primary")
+            val backupOutcome = outcomes.getValue("backup")
+            if (primaryOutcome.success && backupOutcome.success) {
+                AppFileLogger.i(
+                    TAG,
+                    "pushLocalHazard success primaryAttempts=${primaryOutcome.attemptCount} backupAttempts=${backupOutcome.attemptCount}",
+                )
+                mainHandler.post { callback.onSuccess() }
+            } else {
+                AppFileLogger.w(
+                    TAG,
+                    "pushLocalHazard failed primarySuccess=${primaryOutcome.success} backupSuccess=${backupOutcome.success}",
+                )
+                deliverFailure(callback, normalizeFailureMessage(firstFailureMessage(primaryOutcome, backupOutcome)))
+            }
+        }
+        submitSingleEndpoint(
+            label = "primary",
+            requestUrl = primaryUrl,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+            requestContext = requestContext,
+        ) { outcome ->
+            coordinator.record(label = "primary", outcome = outcome)
+        }
+        submitSingleEndpoint(
+            label = "backup",
+            requestUrl = backupUrl,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+            requestContext = requestContext,
+        ) { outcome ->
+            coordinator.record(label = "backup", outcome = outcome)
+        }
     }
 
     private fun submitSingleEndpoint(
@@ -226,6 +284,10 @@ class LocalHazardPushService(
         }
     }
 
+    private fun firstFailureMessage(vararg outcomes: RetryOutcome): String {
+        return outcomes.firstOrNull { !it.success }?.message ?: DEFAULT_FAILURE_MESSAGE
+    }
+
     companion object {
         private const val TAG = "LocalHazardPushApi"
         private const val DEFAULT_FAILURE_MESSAGE = "本地隐患保存失败，请重试"
@@ -278,6 +340,10 @@ internal object LocalHazardPushApiProtocol {
         } else {
             "$normalizedBaseUrl/smartGlasses/pushHidDanger"
         }
+    }
+
+    fun buildBackupRequestUrl(apiConfig: SaveResultApiConfig): String {
+        return apiConfig.backupSaveResultUrl
     }
 
     fun buildRequestBodyJson(
