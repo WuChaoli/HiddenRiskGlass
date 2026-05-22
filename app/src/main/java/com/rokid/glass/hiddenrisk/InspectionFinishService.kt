@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.config.SaveResultApiConfig
 import com.rokid.glass.utils.firstNonBlank
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glass.network.HttpClientProvider
@@ -55,6 +56,17 @@ object InspectionFinishService {
             deliverFailure(callback, InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE)
             return handle
         }
+        val apiConfig = InspectionConfigRepository.get().network.saveResultApi
+        if (apiConfig.enableBackupUpload) {
+            submitDualEndpoint(
+                primaryUrl = primaryUrl,
+                backupUrl = InspectionFinishApiProtocol.buildBackupRequestUrl(apiConfig),
+                requestBodyJson = requestBodyJson,
+                handle = handle,
+                callback = callback,
+            )
+            return handle
+        }
         submitSingleEndpoint(
             label = "primary",
             requestUrl = primaryUrl,
@@ -76,6 +88,54 @@ object InspectionFinishService {
             }
         }
         return handle
+    }
+
+    private fun submitDualEndpoint(
+        primaryUrl: String,
+        backupUrl: String,
+        requestBodyJson: String,
+        handle: RetryRequestHandle,
+        callback: Callback,
+    ) {
+        val coordinator = DualEndpointSubmitCoordinator(
+            labels = listOf("primary", "backup"),
+        ) { outcomes ->
+            val primaryOutcome = outcomes.getValue("primary")
+            val backupOutcome = outcomes.getValue("backup")
+            InspectionWorkflowSession.clearFinishSubmitProgress()
+            if (primaryOutcome.success && backupOutcome.success) {
+                Log.i(
+                    TAG,
+                    "finish success primaryAttempts=${primaryOutcome.attemptCount} backupAttempts=${backupOutcome.attemptCount}",
+                )
+                mainHandler.post { callback.onSuccess() }
+            } else {
+                Log.w(
+                    TAG,
+                    "finish failed primarySuccess=${primaryOutcome.success} backupSuccess=${backupOutcome.success}",
+                )
+                deliverFailure(callback, firstFailureMessage(primaryOutcome, backupOutcome))
+            }
+        }
+        submitSingleEndpoint(
+            label = "primary",
+            requestUrl = primaryUrl,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+        ) { outcome ->
+            if (outcome.success) {
+                InspectionWorkflowSession.markFinishSubmitPrimaryDone()
+            }
+            coordinator.record(label = "primary", outcome = outcome)
+        }
+        submitSingleEndpoint(
+            label = "backup",
+            requestUrl = backupUrl,
+            requestBodyJson = requestBodyJson,
+            handle = handle,
+        ) { outcome ->
+            coordinator.record(label = "backup", outcome = outcome)
+        }
     }
 
     private fun submitSingleEndpoint(
@@ -151,6 +211,11 @@ object InspectionFinishService {
     }
 
     private fun createClient() = HttpClientProvider.inspectionClient
+
+    private fun firstFailureMessage(vararg outcomes: RetryOutcome): String {
+        return outcomes.firstOrNull { !it.success }?.message
+            ?: InspectionFinishApiProtocol.DEFAULT_FAILURE_MESSAGE
+    }
 }
 
 internal object InspectionFinishApiProtocol {
@@ -188,6 +253,10 @@ internal object InspectionFinishApiProtocol {
         } else {
             "$normalizedBaseUrl/smartGlasses/pushHidDangerEnd"
         }
+    }
+
+    fun buildBackupRequestUrl(apiConfig: SaveResultApiConfig): String {
+        return apiConfig.backupFinishResultUrl
     }
 
     fun buildRequestBodyJson(
