@@ -36,53 +36,10 @@
     <!-- ===== APK管理 Tab ===== -->
     <div class="tab-section active" id="tab-apk">
       <section class="panel">
-        <h2>发布新 APK</h2>
-        <form action="/admin/releases" method="post" enctype="multipart/form-data" class="grid-form" data-fetch="true">
-          <label class="full">
-            基于已有版本
-            <select id="base-release">
-              <option value="">-- 不基于已有版本 --</option>
-              {% for release in releases %}
-              <option value="{{ release.id }}"
-                data-version-code="{{ release.version_code }}"
-                data-version-name="{{ release.version_name }}"
-                data-release-notes="{{ release.release_notes or '' }}"
-                data-mandatory="{{ '1' if release.mandatory else '0' }}">
-                {{ release.version_name }} ({{ release.version_code }})
-              </option>
-              {% endfor %}
-            </select>
-          </label>
-          <label>
-            versionCode
-            <input type="number" name="versionCode" id="versionCode" min="1" step="1" required>
-          </label>
-          <label>
-            versionName
-            <input type="text" name="versionName" id="versionName" required>
-          </label>
-          <label class="full">
-            releaseNotes
-            <textarea name="releaseNotes" id="releaseNotes"></textarea>
-          </label>
-          <label class="check-row">
-            <input type="checkbox" name="mandatory" id="mandatory">
-            强制更新
-          </label>
-          <label class="check-row">
-            <input type="checkbox" name="makeDefault" id="makeDefault">
-            设为默认版本
-          </label>
-          <label class="full">
-            APK 文件
-            <input type="file" name="apk" accept=".apk" required>
-          </label>
-          <button type="submit">发布</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <h2>版本列表</h2>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <h2>版本列表</h2>
+          <button type="button" onclick="openPublishModal()">发布新版本</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -101,7 +58,7 @@
                 data-release-notes="{{ release.release_notes or '' }}"
                 data-mandatory="{{ '1' if release.mandatory else '0' }}">
               <td>{{ release.version_name }} ({{ release.version_code }})</td>
-              <td>{{ release.size_bytes }}</td>
+              <td data-size-bytes="{{ release.size_bytes }}">{{ release.size_bytes }}</td>
               <td>{% if release.mandatory %}是{% else %}否{% endif %}</td>
               <td>{% if release.id == default_release_id %}<strong style="color:#047857">是</strong>{% else %}否{% endif %}</td>
               <td>
@@ -318,6 +275,74 @@
   </main>
 
   <!-- ===== Modals ===== -->
+
+  <!-- 发布新版本 Modal -->
+  <div class="modal-overlay" id="modal-publish-release">
+    <div class="modal">
+      <h3>发布新版本</h3>
+      <form id="form-publish-release" action="/admin/releases" method="post" enctype="multipart/form-data">
+        <div class="form-row">
+          <label>
+            基于已有版本
+            <select id="base-release">
+              <option value="">-- 不基于已有版本 --</option>
+              {% for release in releases %}
+              <option value="{{ release.id }}"
+                data-version-code="{{ release.version_code }}"
+                data-version-name="{{ release.version_name }}"
+                data-release-notes="{{ release.release_notes or '' }}"
+                data-mandatory="{{ '1' if release.mandatory else '0' }}">
+                {{ release.version_name }} ({{ release.version_code }})
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <label>
+            versionCode
+            <input type="number" name="versionCode" id="versionCode" min="1" step="1" required>
+          </label>
+          <label>
+            versionName
+            <input type="text" name="versionName" id="versionName" required>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            releaseNotes
+            <textarea name="releaseNotes" id="releaseNotes"></textarea>
+          </label>
+        </div>
+        <div class="form-row" style="display:flex;gap:16px">
+          <label class="check-row">
+            <input type="checkbox" name="mandatory" id="mandatory">
+            强制更新
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="makeDefault" id="makeDefault">
+            设为默认版本
+          </label>
+        </div>
+        <div class="form-row">
+          <label>
+            APK 文件
+            <input type="file" name="apk" id="publish-apk-file" accept=".apk" required>
+          </label>
+        </div>
+        <div class="progress-area" id="publish-progress-area">
+          <div class="progress-bar">
+            <div class="progress-fill" id="publish-progress-fill"></div>
+          </div>
+          <div class="progress-info" id="publish-progress-info">准备上传...</div>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary" type="button" onclick="closeModal('modal-publish-release')">取消</button>
+          <button type="submit" id="publish-submit-btn">发布</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- 编辑版本信息 Modal -->
   <div class="modal-overlay" id="modal-edit-release">
