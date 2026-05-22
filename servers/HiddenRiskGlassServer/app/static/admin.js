@@ -1,3 +1,23 @@
+// ===== Utility: format bytes =====
+function formatBytes(bytes, decimals = 2) {
+  if (bytes === 0 || bytes === undefined || bytes === null) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.max(0, Math.min(sizes.length - 1, Math.floor(Math.log(bytes) / Math.log(k))));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+}
+
+// ===== Format size_bytes in version list =====
+function formatVersionSizes() {
+  document.querySelectorAll('td[data-size-bytes]').forEach(td => {
+    const bytes = parseInt(td.dataset.sizeBytes, 10);
+    if (!isNaN(bytes)) {
+      td.textContent = formatBytes(bytes);
+    }
+  });
+}
+document.addEventListener('DOMContentLoaded', formatVersionSizes);
+
 // ===== Tab switching =====
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabSections = document.querySelectorAll('.tab-section');
@@ -87,6 +107,24 @@ document.addEventListener('keydown', function(e) {
     document.querySelectorAll('.modal-overlay.active').forEach(o => o.classList.remove('active'));
   }
 });
+
+function openPublishModal() {
+  const form = document.getElementById('form-publish-release');
+  form.reset();
+  document.getElementById('versionCode').value = '';
+  document.getElementById('versionName').value = '';
+  document.getElementById('releaseNotes').value = '';
+  document.getElementById('mandatory').checked = false;
+  document.getElementById('makeDefault').checked = false;
+
+  const progressArea = document.getElementById('publish-progress-area');
+  progressArea.classList.remove('active', 'error');
+  document.getElementById('publish-progress-fill').style.width = '0%';
+  document.getElementById('publish-progress-info').textContent = '准备上传...';
+  document.getElementById('publish-submit-btn').disabled = false;
+
+  openModal('modal-publish-release');
+}
 
 // ===== 编辑版本信息 Modal =====
 function openEditReleaseModal(releaseId) {
@@ -455,6 +493,98 @@ function applyCustomEndpoint() {
   }
   display.value = url;
   showToast('地址已更新', 'success');
+}
+
+// ===== Publish release form with upload progress =====
+const publishForm = document.getElementById('form-publish-release');
+if (publishForm) {
+  publishForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(publishForm);
+    const url = publishForm.action;
+
+    const progressArea = document.getElementById('publish-progress-area');
+    const progressFill = document.getElementById('publish-progress-fill');
+    const progressInfo = document.getElementById('publish-progress-info');
+    const submitBtn = document.getElementById('publish-submit-btn');
+
+    progressArea.classList.add('active');
+    progressArea.classList.remove('error');
+    submitBtn.disabled = true;
+
+    let lastLoaded = 0;
+    let lastTime = Date.now();
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', function(e) {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        progressFill.style.width = percent + '%';
+
+        const now = Date.now();
+        const dt = (now - lastTime) / 1000;
+        let speedText = '';
+        let etaText = '';
+
+        if (dt > 0.5) {
+          const speed = (e.loaded - lastLoaded) / dt;
+          lastLoaded = e.loaded;
+          lastTime = now;
+
+          if (speed > 0) {
+            speedText = ' · ' + formatBytes(speed) + '/s';
+            const remaining = e.total - e.loaded;
+            const eta = remaining / speed;
+            if (eta >= 1) {
+              etaText = ' · 约 ' + Math.ceil(eta) + ' 秒剩余';
+            } else if (eta > 0) {
+              etaText = ' · 即将完成';
+            }
+          }
+        }
+
+        progressInfo.textContent = percent + '% · ' +
+          formatBytes(e.loaded) + ' / ' + formatBytes(e.total) +
+          speedText + etaText;
+      }
+    });
+
+    xhr.addEventListener('load', function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        progressFill.style.width = '100%';
+        progressInfo.textContent = '发布成功，刷新中...';
+        showToast('发布成功', 'success');
+        setTimeout(function() {
+          location.reload();
+        }, 500);
+      } else {
+        progressArea.classList.add('error');
+        let msg = '发布失败';
+        try {
+          const resp = JSON.parse(xhr.responseText);
+          if (resp.error) msg = resp.error;
+        } catch (_) {}
+        progressInfo.textContent = msg;
+        submitBtn.disabled = false;
+      }
+    });
+
+    xhr.addEventListener('error', function() {
+      progressArea.classList.add('error');
+      progressInfo.textContent = '上传失败，请检查网络后重试';
+      submitBtn.disabled = false;
+    });
+
+    xhr.addEventListener('abort', function() {
+      progressArea.classList.add('error');
+      progressInfo.textContent = '上传已取消';
+      submitBtn.disabled = false;
+    });
+
+    xhr.open('POST', url);
+    xhr.send(formData);
+  });
 }
 
 // ===== Form submissions via fetch =====
