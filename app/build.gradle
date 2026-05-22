@@ -31,6 +31,9 @@ android {
         standard {
             dimension "edition"
         }
+        dataBackup {
+            dimension "edition"
+        }
     }
 
     externalNativeBuild {

@@ -1,0 +1,8 @@
+{
+  "network": {
+    "saveResultApi": {
+      "enableBackupUpload": true,
+      "backupBaseUrl": "http://183.147.142.133:7443"
+    }
+  }
+}
