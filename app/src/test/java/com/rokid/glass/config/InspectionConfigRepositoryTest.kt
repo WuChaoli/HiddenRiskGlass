@@ -142,4 +142,25 @@ class InspectionConfigRepositoryTest {
         assertEquals("http://example.test/ai/general_deep", config.network.aiGeneralDeepApi.url)
         assertEquals(2500L, config.network.aiGeneralDeepApi.detectTimeoutMs)
     }
+
+    @Test
+    fun `data backup save config can be enabled from overlay`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = """
+                {
+                  "network": {
+                    "saveResultApi": {
+                      "enableBackupUpload": true,
+                      "backupBaseUrl": "http://backup.test"
+                    }
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertTrue(config.network.saveResultApi.enableBackupUpload)
+        assertEquals("http://backup.test/hxy/apis/hazardCheckRecord/saveHazard", config.network.saveResultApi.backupSaveResultUrl)
+        assertEquals("http://backup.test/hxy/apis/hazardCheckRecord/hazardIsEnd", config.network.saveResultApi.backupFinishResultUrl)
+    }
 }

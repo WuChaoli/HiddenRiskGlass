@@ -1,6 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 import com.google.gson.Gson
+import com.rokid.glass.config.SaveResultApiConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -24,6 +25,18 @@ class LocalHazardPushApiProtocolTest {
 
         assertEquals(
             "http://example.com/hxy/apis/third/smartGlasses/pushHidDanger",
+            url,
+        )
+    }
+
+    @Test
+    fun buildBackupRequestUrl_usesBackupSaveEndpoint() {
+        val url = LocalHazardPushApiProtocol.buildBackupRequestUrl(
+            SaveResultApiConfig(backupBaseUrl = "http://183.147.142.133:7443/"),
+        )
+
+        assertEquals(
+            "http://183.147.142.133:7443/hxy/apis/hazardCheckRecord/saveHazard",
             url,
         )
     }
