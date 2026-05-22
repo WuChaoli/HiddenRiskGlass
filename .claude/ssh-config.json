@@ -1,0 +1,26 @@
+[
+  {
+    "name": "腾讯云",
+    "host": "43.161.218.130",
+    "port": 22,
+    "username": "ubuntu"
+  },
+  {
+    "name": "岱山60",
+    "host": "172.16.11.60",
+    "port": 22,
+    "username": "server02"
+  },
+  {
+    "name": "武义H800",
+    "host": "10.24.180.1",
+    "port": 10003,
+    "username": "root"
+  },
+  {
+    "name": "峰景4090服务器",
+    "host": "183.147.142.133",
+    "port": 9000,
+    "username": "root"
+  }
+]
