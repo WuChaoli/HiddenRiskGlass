@@ -11,13 +11,13 @@ import org.junit.Test
 class RokidFrameSourceTest {
 
     @Test
-    fun `shared frame stream zoom stays at two x`() {
-        assertEquals(2.0f, RokidFrameSource.SHARED_FRAME_STREAM_ZOOM_RATIO, 0.0f)
+    fun `shared frame stream zoom keeps widest one x view`() {
+        assertEquals(1.0f, RokidFrameSource.SHARED_FRAME_STREAM_ZOOM_RATIO, 0.0f)
     }
 
     @Test
-    fun `shared two x zoom maps to sdk level two`() {
-        assertEquals(2, RokidFrameSource.sdkZoomLevelFor(RokidFrameSource.SHARED_FRAME_STREAM_ZOOM_RATIO))
+    fun `shared one x zoom maps to sdk level one`() {
+        assertEquals(1, RokidFrameSource.sdkZoomLevelFor(RokidFrameSource.SHARED_FRAME_STREAM_ZOOM_RATIO))
     }
 
     @Test
@@ -32,6 +32,79 @@ class RokidFrameSourceTest {
         assertEquals(false, RokidFrameSource.isHelperCallbackStale(activeGeneration = 7L, callbackGeneration = 7L))
         assertEquals(true, RokidFrameSource.isHelperCallbackStale(activeGeneration = 8L, callbackGeneration = 7L))
         assertEquals(true, RokidFrameSource.isHelperCallbackStale(activeGeneration = 0L, callbackGeneration = 7L))
+    }
+
+    @Test
+    fun `portrait surface keeps landscape frame square roi proportions`() {
+        val mapping = RokidFrameSource.mapFrameCropToSurfaceTexture(
+            surfaceWidth = 1080,
+            surfaceHeight = 1920,
+            frameWidth = 1920,
+            frameHeight = 1080,
+            frameCrop = RokidFrameSource.NormalizedCropRect(
+                left = 420f / 1920f,
+                top = 0f,
+                width = 1080f / 1920f,
+                height = 1f,
+            ),
+            matrixSwapped = false,
+        )!!
+
+        assertEquals("frame_roi", mapping.mode)
+        assertEquals(0.21875f, mapping.textureCrop.left, 0.0001f)
+        assertEquals(0f, mapping.textureCrop.top, 0.0001f)
+        assertEquals(0.5625f, mapping.textureCrop.width, 0.0001f)
+        assertEquals(1f, mapping.textureCrop.height, 0.0001f)
+    }
+
+    @Test
+    fun `same orientation surface uses direct roi mapping`() {
+        val expected = RokidFrameSource.NormalizedCropRect(0.2f, 0.1f, 0.5f, 0.5f)
+        val mapping = RokidFrameSource.mapFrameCropToSurfaceTexture(
+            surfaceWidth = 1920,
+            surfaceHeight = 1080,
+            frameWidth = 1920,
+            frameHeight = 1080,
+            frameCrop = expected,
+            matrixSwapped = false,
+        )!!
+
+        assertEquals("direct", mapping.mode)
+        assertEquals(expected, mapping.textureCrop)
+    }
+
+    @Test
+    fun `matrix swapped orientation does not transpose roi twice`() {
+        val expected = RokidFrameSource.NormalizedCropRect(0.1f, 0.2f, 0.7f, 0.6f)
+        val mapping = RokidFrameSource.mapFrameCropToSurfaceTexture(
+            surfaceWidth = 1080,
+            surfaceHeight = 1920,
+            frameWidth = 1920,
+            frameHeight = 1080,
+            frameCrop = expected,
+            matrixSwapped = true,
+        )!!
+
+        assertEquals("direct", mapping.mode)
+        assertEquals(expected, mapping.textureCrop)
+    }
+
+    @Test
+    fun `frame roi mapping does not alter offset proportions`() {
+        val mapping = RokidFrameSource.mapFrameCropToSurfaceTexture(
+            surfaceWidth = 1080,
+            surfaceHeight = 1920,
+            frameWidth = 1920,
+            frameHeight = 1080,
+            frameCrop = RokidFrameSource.NormalizedCropRect(0.15f, 0.25f, 0.5f, 0.5f),
+            matrixSwapped = false,
+        )!!
+
+        assertEquals("frame_roi", mapping.mode)
+        assertEquals(0.15f, mapping.textureCrop.left, 0.0001f)
+        assertEquals(0.25f, mapping.textureCrop.top, 0.0001f)
+        assertEquals(0.5f, mapping.textureCrop.width, 0.0001f)
+        assertEquals(0.5f, mapping.textureCrop.height, 0.0001f)
     }
 
     @Test

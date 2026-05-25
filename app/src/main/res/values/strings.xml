@@ -157,6 +157,10 @@
     <string name="unified_input_debug_events_empty">等待输入触发…</string>
     <string name="unified_input_debug_hint_full">FULL: 单击或说“确认”切到 GESTURE_ONLY；双击/返回或说“取消”退出；前后滑也可验证。</string>
     <string name="unified_input_debug_hint_gesture_only">GESTURE_ONLY: 仅保留确认、取消。再触发一次确认可切回 FULL。</string>
+    <string name="raw_camera_debug_title">原始相机输出诊断</string>
+    <string name="raw_camera_debug_hint">单击切换 RAW / 方形对照，双击退出</string>
+    <string name="raw_camera_debug_starting">正在初始化相机...</string>
+    <string name="raw_camera_debug_failed">相机初始化失败</string>
     <string name="common_feature_in_development">功能开发中，后续接入</string>
     <string name="enterprise_qr_title">扫企业码</string>
     <string name="enterprise_qr_frame_hint">请扫描企业巡检二维码</string>

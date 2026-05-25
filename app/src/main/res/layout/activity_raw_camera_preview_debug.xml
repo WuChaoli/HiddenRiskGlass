@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <FrameLayout
+        android:id="@+id/layoutRawPreviewViewport"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center">
+
+        <com.rokid.glass.component.RokidCameraPreviewView
+            android:id="@+id/viewRawSurfacePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.rokid.glass.component.RokidDemoSurfacePreviewView
+            android:id="@+id/viewDemoSurfacePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/imageRawNv21Preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000000"
+            android:contentDescription="@string/raw_camera_debug_title"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/textRawCameraDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#99000000"
+        android:padding="10dp"
+        android:text="@string/raw_camera_debug_starting"
+        android:textColor="#FFFFFFFF"
+        android:textSize="11sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#99000000"
+        android:gravity="center"
+        android:padding="10dp"
+        android:text="@string/raw_camera_debug_hint"
+        android:textColor="#FFFFFFFF"
+        android:textSize="12sp" />
+
+</FrameLayout>

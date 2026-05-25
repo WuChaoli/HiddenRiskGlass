@@ -167,6 +167,11 @@
             android:name="com.rokid.glass.hiddenrisk.UnifiedInputDebugActivity"
             android:exported="true"
             android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.RawCameraPreviewDebugActivity"
+            android:exported="true"
+            android:label="@string/raw_camera_debug_title"
+            android:theme="@style/Theme.Glessedemo" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

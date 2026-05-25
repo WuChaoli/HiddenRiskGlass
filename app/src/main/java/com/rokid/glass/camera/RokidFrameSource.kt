@@ -11,6 +11,7 @@ import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
+import com.rokid.security.glass3.sdk.base.data.media.CameraShareConfig
 import kotlin.math.min
 
 /**
@@ -18,6 +19,18 @@ import kotlin.math.min
  * 只保留最近一帧原始 NV21，业务侧按需裁切，避免每帧预处理和排队。
  */
 object RokidFrameSource {
+
+    internal data class NormalizedCropRect(
+        val left: Float,
+        val top: Float,
+        val width: Float,
+        val height: Float,
+    )
+
+    internal data class SurfaceTextureCropMapping(
+        val mode: String,
+        val textureCrop: NormalizedCropRect,
+    )
 
     data class Nv21Frame(
         val data: ByteArray,
@@ -49,12 +62,16 @@ object RokidFrameSource {
     )
 
     private const val TAG = "RokidFrameSource"
-    // 共享 NV21 帧流统一固定为 2x，避免各业务页出现不同视野。
-    internal const val SHARED_FRAME_STREAM_ZOOM_RATIO = 2.0f
+    // 共享帧流保持 1x 最大视野，预览与识别再统一截取方形 ROI。
+    internal const val SHARED_FRAME_STREAM_ZOOM_RATIO = 1.0f
     private const val DEFAULT_TARGET_CENTER_X_RATIO = 0.50f
     private const val DEFAULT_TARGET_CENTER_Y_RATIO = 0.64f
     private const val CROPPED_TARGET_SIZE = 640
     private const val FRAME_STREAM_RESTART_RELEASE_DELAY_MS = 500L
+    private const val SHARED_PREVIEW_WIDTH = 1920
+    private const val SHARED_PREVIEW_HEIGHT = 1080
+    private const val SHARED_PREVIEW_TARGET_FPS = 15
+    private const val SHARED_PREVIEW_ZOOM_LEVEL = 1
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -69,6 +86,27 @@ object RokidFrameSource {
 
     @Volatile
     private var frameSize: Size? = null
+
+    @Volatile
+    private var surfacePreviewSize: Size? = null
+
+    @Volatile
+    private var surfaceAppliedPreviewFps: Int? = null
+
+    @Volatile
+    private var surfaceVideoStabilizationEnabled: Boolean? = null
+
+    @Volatile
+    private var surfaceZoomLevel: Int? = null
+
+    @Volatile
+    private var nv21ExportAppliedPreviewFps: Int? = null
+
+    @Volatile
+    private var nv21ExportVideoStabilizationEnabled: Boolean? = null
+
+    @Volatile
+    private var nv21ExportZoomLevel: Int? = null
 
     @Volatile
     private var latestFrame: Nv21Frame? = null
@@ -110,78 +148,126 @@ object RokidFrameSource {
             val helperGeneration = ++helperGenerationCounter
             activeHelperGeneration = helperGeneration
             nv21Helper = CameraShareHelper().apply {
-                initNv21Export(enableMix = false, callback = object : CameraShareHelper.Nv21Callback {
-                    override fun onCameraOpened(width: Int, height: Int) {
-                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                initNv21ExportWithConfig(
+                    false,
+                    sharedCameraConfig(),
+                    object : CameraShareHelper.Nv21Callback {
+                        override fun onCameraOpened(width: Int, height: Int) {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                AppFileLogger.i(
+                                    TAG,
+                                    "ignore stale onCameraOpened callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
+                                )
+                                return
+                            }
+                            frameStreamOpened = true
+                            frameSize = Size(width, height)
+                            nv21ExportAppliedPreviewFps = null
+                            nv21ExportVideoStabilizationEnabled = null
+                            enforceSharedPreviewZoom(applyImmediately = true)
+                            notifyFrameReady(true)
+                        }
+
+                        override fun onNv21Frame(nv21: ByteArray, width: Int, height: Int, timestamp: Long) {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                return
+                            }
+                            synchronized(lock) {
+                                val buffer = latestFrameBuffer
+                                    ?.takeIf { it.size == nv21.size }
+                                    ?: ByteArray(nv21.size).also { latestFrameBuffer = it }
+                                System.arraycopy(nv21, 0, buffer, 0, nv21.size)
+                                latestFrame = Nv21Frame(
+                                    data = buffer,
+                                    width = width,
+                                    height = height,
+                                    timestamp = timestamp,
+                                    receivedAtElapsedMs = SystemClock.elapsedRealtime(),
+                                )
+                            }
+                        }
+
+                        override fun onCameraClosed() {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                AppFileLogger.i(
+                                    TAG,
+                                    "ignore stale onCameraClosed callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
+                                )
+                                return
+                            }
+                            synchronized(lock) {
+                                frameStreamOpened = false
+                                frameSize = null
+                                latestFrame = null
+                                latestFrameBuffer = null
+                                nv21Helper = null
+                                activeHelperGeneration = 0L
+                            }
+                        }
+
+                        override fun onError(code: Int, msg: String) {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                AppFileLogger.i(
+                                    TAG,
+                                    "ignore stale onError callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration code=$code",
+                                )
+                                return
+                            }
+                            AppFileLogger.e(TAG, "frame stream error code=$code msg=$msg")
+                            synchronized(lock) {
+                                frameStreamOpened = false
+                                frameSize = null
+                                surfacePreviewSize = null
+                                surfaceAppliedPreviewFps = null
+                                surfaceVideoStabilizationEnabled = null
+                                surfaceZoomLevel = null
+                                nv21ExportAppliedPreviewFps = null
+                                nv21ExportVideoStabilizationEnabled = null
+                                nv21ExportZoomLevel = null
+                                latestFrame = null
+                                latestFrameBuffer = null
+                                nv21Helper = null
+                                activeHelperGeneration = 0L
+                            }
+                            notifyFrameReady(false)
+                        }
+
+                        override fun onNv21ExportResolutionChanged(width: Int, height: Int, appliedPreviewFps: Int) {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                return
+                            }
+                            frameSize = Size(width, height)
+                            nv21ExportAppliedPreviewFps = appliedPreviewFps
                             AppFileLogger.i(
                                 TAG,
-                                "ignore stale onCameraOpened callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
-                            )
-                            return
-                        }
-                        frameStreamOpened = true
-                        frameSize = Size(width, height)
-                        enforceSharedPreviewZoom(applyImmediately = true)
-                        notifyFrameReady(true)
-                    }
-
-                    override fun onNv21Frame(nv21: ByteArray, width: Int, height: Int, timestamp: Long) {
-                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
-                            return
-                        }
-                        synchronized(lock) {
-                            val buffer = latestFrameBuffer
-                                ?.takeIf { it.size == nv21.size }
-                                ?: ByteArray(nv21.size).also { latestFrameBuffer = it }
-                            System.arraycopy(nv21, 0, buffer, 0, nv21.size)
-                            latestFrame = Nv21Frame(
-                                data = buffer,
-                                width = width,
-                                height = height,
-                                timestamp = timestamp,
-                                receivedAtElapsedMs = SystemClock.elapsedRealtime(),
+                                "nv21 export resolution changed width=$width height=$height appliedPreviewFps=$appliedPreviewFps",
                             )
                         }
-                    }
 
-                    override fun onCameraClosed() {
-                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                        override fun onNv21ExportRuntimeParamsChanged(
+                            appliedPreviewFps: Int,
+                            videoStabilizationEnabled: Boolean,
+                        ) {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                return
+                            }
+                            nv21ExportAppliedPreviewFps = appliedPreviewFps
+                            nv21ExportVideoStabilizationEnabled = videoStabilizationEnabled
                             AppFileLogger.i(
                                 TAG,
-                                "ignore stale onCameraClosed callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration",
+                                "nv21 export params changed appliedPreviewFps=$appliedPreviewFps videoStabilizationEnabled=$videoStabilizationEnabled",
                             )
-                            return
                         }
-                        synchronized(lock) {
-                            frameStreamOpened = false
-                            frameSize = null
-                            latestFrame = null
-                            latestFrameBuffer = null
-                            nv21Helper = null
-                            activeHelperGeneration = 0L
-                        }
-                    }
 
-                    override fun onError(code: Int, msg: String) {
-                        if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
-                            AppFileLogger.i(
-                                TAG,
-                                "ignore stale onError callbackGeneration=$helperGeneration activeGeneration=$activeHelperGeneration code=$code",
-                            )
-                            return
+                        override fun onZoomLevelChanged(zoomLevel: Int) {
+                            if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
+                                return
+                            }
+                            nv21ExportZoomLevel = zoomLevel
+                            AppFileLogger.i(TAG, "nv21 export zoom changed zoomLevel=$zoomLevel")
                         }
-                        AppFileLogger.e(TAG, "frame stream error code=$code msg=$msg")
-                        synchronized(lock) {
-                            frameStreamOpened = false
-                            frameSize = null
-                            latestFrame = null
-                            latestFrameBuffer = null
-                            nv21Helper = null
-                            activeHelperGeneration = 0L
-                        }
-                        notifyFrameReady(false)
-                    }
-                })
+                    },
+                )
             }
         }
     }
@@ -192,6 +278,13 @@ object RokidFrameSource {
             frameReadyCallbacks.clear()
             frameStreamOpened = false
             frameSize = null
+            surfacePreviewSize = null
+            surfaceAppliedPreviewFps = null
+            surfaceVideoStabilizationEnabled = null
+            surfaceZoomLevel = null
+            nv21ExportAppliedPreviewFps = null
+            nv21ExportVideoStabilizationEnabled = null
+            nv21ExportZoomLevel = null
             latestFrame = null
             latestFrameBuffer = null
             activeHelperGeneration = 0L
@@ -320,18 +413,6 @@ object RokidFrameSource {
         )
     }
 
-    fun startSurfacePreview(callback: CameraShareHelper.SurfaceCallback): Boolean {
-        val helper = synchronized(lock) {
-            nv21Helper
-        } ?: return false
-        return runCatching {
-            helper.initSurface(callback)
-            true
-        }.onFailure { error ->
-            Log.e(TAG, "startSurfacePreview failed: ${error.message}", error)
-        }.getOrDefault(false)
-    }
-
     fun updateSurfaceTexture() {
         synchronized(lock) {
             nv21Helper
@@ -351,21 +432,71 @@ object RokidFrameSource {
     }
 
     fun getSurfaceCameraWidth(): Int {
-        return synchronized(lock) {
+        return surfacePreviewSize?.width ?: synchronized(lock) {
             nv21Helper
         }?.getCameraWidth() ?: 0
     }
 
     fun getSurfaceCameraHeight(): Int {
-        return synchronized(lock) {
+        return surfacePreviewSize?.height ?: synchronized(lock) {
             nv21Helper
         }?.getCameraHeight() ?: 0
+    }
+
+    fun getSurfaceAppliedPreviewFps(): Int? = surfaceAppliedPreviewFps
+
+    fun isSurfaceVideoStabilizationEnabled(): Boolean? = surfaceVideoStabilizationEnabled
+
+    fun updateSurfacePreviewConfig(
+        width: Int,
+        height: Int,
+        appliedPreviewFps: Int? = null,
+        videoStabilizationEnabled: Boolean? = null,
+    ) {
+        if (width > 0 && height > 0) {
+            surfacePreviewSize = Size(width, height)
+        }
+        surfaceAppliedPreviewFps = appliedPreviewFps
+        surfaceVideoStabilizationEnabled = videoStabilizationEnabled
+    }
+
+    fun updateSurfaceZoomLevel(zoomLevel: Int) {
+        surfaceZoomLevel = zoomLevel
+    }
+
+    fun clearSurfacePreviewConfig() {
+        surfacePreviewSize = null
+        surfaceAppliedPreviewFps = null
+        surfaceVideoStabilizationEnabled = null
+        surfaceZoomLevel = null
     }
 
     fun stopSurfacePreview() {
         synchronized(lock) {
             nv21Helper
         }?.releaseSurface()
+    }
+
+    fun startSurfacePreview(callback: CameraShareHelper.SurfaceCallback): Boolean {
+        val helper = synchronized(lock) {
+            nv21Helper
+        } ?: return false
+        return runCatching {
+            helper.initSurfaceWithConfig(sharedCameraConfig(), callback)
+            true
+        }.onFailure { error ->
+            Log.e(TAG, "startSurfacePreview failed: ${error.message}", error)
+        }.getOrDefault(false)
+    }
+
+    private fun sharedCameraConfig(): CameraShareConfig {
+        return CameraShareConfig(
+            previewWidth = SHARED_PREVIEW_WIDTH,
+            previewHeight = SHARED_PREVIEW_HEIGHT,
+            previewTargetFps = SHARED_PREVIEW_TARGET_FPS,
+            enableVideoStabilization = false,
+            zoomLevel = SHARED_PREVIEW_ZOOM_LEVEL,
+        )
     }
 
     /**
@@ -408,6 +539,42 @@ object RokidFrameSource {
         val left = ((width - side) / 2) and -2
         val top = ((height - side) / 2) and -2
         return Rect(left, top, left + side, top + side)
+    }
+
+    /**
+     * 将 NV21 使用的 ROI 映射到共享 Surface 的纹理坐标。
+     * SurfaceTexture 坐标保持原始 camera 画幅，直接采样 NV21 使用的方形 ROI。
+     * 不能按方形 viewport 再计算归一化正方形，否则会将 16:9 内容压进方形 View。
+     */
+    internal fun mapFrameCropToSurfaceTexture(
+        surfaceWidth: Int,
+        surfaceHeight: Int,
+        frameWidth: Int,
+        frameHeight: Int,
+        frameCrop: NormalizedCropRect,
+        matrixSwapped: Boolean,
+    ): SurfaceTextureCropMapping? {
+        if (
+            surfaceWidth <= 0 ||
+            surfaceHeight <= 0 ||
+            frameWidth <= 0 ||
+            frameHeight <= 0
+        ) {
+            return null
+        }
+        val orientationMismatch =
+            (surfaceWidth > surfaceHeight) != (frameWidth > frameHeight)
+        if (!orientationMismatch || matrixSwapped) {
+            return SurfaceTextureCropMapping(
+                mode = "direct",
+                textureCrop = frameCrop,
+            )
+        }
+
+        return SurfaceTextureCropMapping(
+            mode = "frame_roi",
+            textureCrop = frameCrop,
+        )
     }
 
     fun setPreviewZoomRatio(zoomRatio: Float): Float {
