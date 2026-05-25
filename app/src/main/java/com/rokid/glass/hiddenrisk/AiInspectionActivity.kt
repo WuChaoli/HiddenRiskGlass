@@ -1219,11 +1219,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         initFrameStreamAndTransition()
     }
 
-    private fun returnToDetectingAfterEmptySuggestionChecks() {
+    private fun returnToDetectingPreservingLocalUpload(stopReason: String) {
+        currentSuggestionChecksHandle?.cancel()
         currentSuggestionChecksHandle = null
         suggestionChecksRequestPending = false
         returnToDetectingWhenSubmitIdle = false
         localSaveSubmitting = false
+        uiHandler.removeCallbacks(hideUploadSuccessToastRunnable)
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         streamCallbackActive = false
@@ -1232,7 +1234,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         manualDeepAnalysisInProgress = false
         cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
-        stopAutoInferencePipelines("empty_sug_checks")
+        stopAutoInferencePipelines(stopReason)
         streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
         localResultStage = LocalResultStage.NONE
@@ -1245,6 +1247,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         applyDefaultDetectionStatus()
         refreshInputActions()
         initFrameStreamAndTransition()
+    }
+
+    private fun returnToDetectingAfterEmptySuggestionChecks() {
+        returnToDetectingPreservingLocalUpload(stopReason = "empty_sug_checks")
+    }
+
+    private fun returnToDetectingFromAdvice() {
+        if (localSaveRequestPending) {
+            AppFileLogger.i(TAG, "advice confirm returns to detecting while local upload keeps running")
+            returnToDetectingPreservingLocalUpload(stopReason = "return_to_detecting_keep_local_upload")
+            return
+        }
+        returnToDetecting()
     }
 
     private fun returnDirectlyToHome() {
@@ -2624,11 +2639,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
-                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.ADVICE
                 },
             ) {
-                returnToDetecting()
+                returnToDetectingFromAdvice()
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Cancel,
@@ -2662,11 +2676,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 enabled = {
                     pageState == PageState.STREAM_RESPONSE &&
                         !streamingInProgress &&
-                        !localSaveSubmitting &&
                         localResultStage == LocalResultStage.ADVICE
                 },
             ) {
-                returnToDetecting()
+                returnToDetectingFromAdvice()
             },
         )
     }
