@@ -123,6 +123,7 @@ JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`
 | 统一输入设计与接入 | `docs/公共能力/统一输入设计与接入.md` | 统一输入层设计与接入 |
 | 头部动作调参与验证 | `docs/公共能力/头部动作调参与验证.md` | 头部动作参数与验证 |
 | 日志系统 | `docs/公共能力/日志系统.md` | 日志系统说明 |
+| Rokid 新系统相机预览 Surface 输出经验 | `docs/Lessions/rokid_camera_preview_new_system_surface_output.md` | 新 OTA 后 Surface/NV21 预览差异、诊断证据与底部方形裁剪方案 |
 
 ### UI 层 — Jetpack Compose + XML Layout
 
@@ -218,6 +219,7 @@ GPU 稳定性排查顺序：检查 `TARGET_INPUT_SIZE=640` → `GPU_PROFILE=Bala
 - `docs/公共能力/隐患识别链路.md` — 隐患识别链路与双轨推理的跨文档真相源
 - `docs/公共能力/头部动作调参与验证.md` — 头部动作识别参数与验证
 - `docs/公共能力/统一输入设计与接入.md` — 统一输入层设计与接入
+- `docs/Lessions/rokid_camera_preview_new_system_surface_output.md` — Rokid 新系统相机预览 Surface 输出经验
 - `docs/公共能力/统一输入.md` — 业务接入层统一输入规则
 - `docs/公共能力/会话与生命周期.md` — 会话、生命周期、初始化状态边界
 - `docs/公共能力/页面导航分层.md` — 正式主链与附录/调试页边界
