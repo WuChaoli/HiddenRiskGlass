@@ -12,7 +12,6 @@ import com.rokid.glass.utils.BitmapUtils
 import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
 import com.rokid.security.glass3.sdk.base.data.media.CameraShareConfig
-import kotlin.math.min
 
 /**
  * 基于 Rokid CameraShareHelper 的统一 NV21 帧源。
@@ -64,8 +63,6 @@ object RokidFrameSource {
     private const val TAG = "RokidFrameSource"
     // 共享帧流保持 1x 最大视野，预览与识别再统一截取方形 ROI。
     internal const val SHARED_FRAME_STREAM_ZOOM_RATIO = 1.0f
-    private const val DEFAULT_TARGET_CENTER_X_RATIO = 0.50f
-    private const val DEFAULT_TARGET_CENTER_Y_RATIO = 0.64f
     private const val CROPPED_TARGET_SIZE = 640
     private const val FRAME_STREAM_RESTART_RELEASE_DELAY_MS = 500L
     private const val SHARED_PREVIEW_WIDTH = 1920
@@ -114,15 +111,6 @@ object RokidFrameSource {
 
     @Volatile
     private var currentZoomRatio = SHARED_FRAME_STREAM_ZOOM_RATIO
-
-    @Volatile
-    private var currentFramingMode = PreviewFramingMode.CENTER
-
-    @Volatile
-    private var currentTargetCenterXRatio = DEFAULT_TARGET_CENTER_X_RATIO
-
-    @Volatile
-    private var currentTargetCenterYRatio = DEFAULT_TARGET_CENTER_Y_RATIO
 
     fun startFrameStream(onReady: (Boolean) -> Unit = {}) {
         synchronized(lock) {
@@ -336,18 +324,14 @@ object RokidFrameSource {
         }
     }
 
-    fun copyLatestSquareFrame(): SquareNv21Frame? {
-        return copyLatestSquareFrame(::calculateSquareCropRect)
+    fun copyLatestValidatedSquareFrame(): SquareNv21Frame? {
+        return copyLatestSquareFrame(SharedCameraViewportPolicy::calculateValidatedNv21SquareCropRect)
     }
 
-    fun copyLatestScanSquareFrame(): SquareNv21Frame? {
-        return copyLatestSquareFrame(::calculateScanCropRect)
-    }
-
-    fun copyLatestScanFrame(targetSize: Int): CroppedNv21Frame? {
+    fun copyLatestValidatedFrame(targetSize: Int = CROPPED_TARGET_SIZE): CroppedNv21Frame? {
         return copyLatestResizedSquareFrame(
             targetSize = targetSize,
-            cropRectProvider = ::calculateScanCropRect,
+            cropRectProvider = SharedCameraViewportPolicy::calculateValidatedNv21SquareCropRect,
         )
     }
 
@@ -375,13 +359,6 @@ object RokidFrameSource {
                 receivedAtElapsedMs = frame.receivedAtElapsedMs,
             )
         }
-    }
-
-    fun copyLatestCroppedFrame(targetSize: Int = CROPPED_TARGET_SIZE): CroppedNv21Frame? {
-        return copyLatestResizedSquareFrame(
-            targetSize = targetSize,
-            cropRectProvider = ::calculateSquareCropRect,
-        )
     }
 
     private fun copyLatestResizedSquareFrame(
@@ -500,48 +477,6 @@ object RokidFrameSource {
     }
 
     /**
-     * 自动检测主链路使用的统一方形裁剪矩形。
-     * AiInspectionActivity 中本地推理方图与自动在线上传方图都依赖这里，后续若调整取景策略，
-     * 必须同步评估本地与在线两条自动检测链路，避免只改其中一侧。
-     */
-    fun calculateSquareCropRect(width: Int, height: Int): Rect {
-        if (width <= 0 || height <= 0) {
-            return Rect(0, 0, 0, 0)
-        }
-        val framingMode = currentFramingMode
-        val targetCenterXRatio = currentTargetCenterXRatio
-        val targetCenterYRatio = currentTargetCenterYRatio
-        val side = min(width, height) and -2
-        if (side <= 0) {
-            return Rect(0, 0, width, height)
-        }
-        val targetCenterX = (width * targetCenterXRatio).toInt()
-        val targetCenterY = (height * targetCenterYRatio).toInt()
-        val left = ((targetCenterX - side / 2).coerceIn(0, width - side)) and -2
-        val top = when (framingMode) {
-            PreviewFramingMode.TARGET_CENTER -> {
-                (targetCenterY - side / 2).coerceIn(0, height - side)
-            }
-            PreviewFramingMode.BOTTOM -> height - side
-            PreviewFramingMode.CENTER -> (height - side) / 2
-        } and -2
-        return Rect(left, top, left + side, top + side)
-    }
-
-    fun calculateScanCropRect(width: Int, height: Int): Rect {
-        if (width <= 0 || height <= 0) {
-            return Rect(0, 0, 0, 0)
-        }
-        val side = min(width, height) and -2
-        if (side <= 0) {
-            return Rect(0, 0, width, height)
-        }
-        val left = ((width - side) / 2) and -2
-        val top = ((height - side) / 2) and -2
-        return Rect(left, top, left + side, top + side)
-    }
-
-    /**
      * 将 NV21 使用的 ROI 映射到共享 Surface 的纹理坐标。
      * SurfaceTexture 坐标保持原始 camera 画幅，直接采样 NV21 使用的方形 ROI。
      * 不能按方形 viewport 再计算归一化正方形，否则会将 16:9 内容压进方形 View。
@@ -590,21 +525,6 @@ object RokidFrameSource {
     fun getAppliedPreviewZoomRatio(): Float = currentZoomRatio
 
     fun getPreferredPreviewZoomRatio(): Float = currentZoomRatio
-
-    fun setPreviewFramingMode(framingMode: PreviewFramingMode) {
-        currentFramingMode = framingMode
-    }
-
-    fun getPreviewFramingMode(): PreviewFramingMode = currentFramingMode
-
-    fun setPreviewTargetCenter(xRatio: Float, yRatio: Float) {
-        currentTargetCenterXRatio = xRatio.coerceIn(0.1f, 0.9f)
-        currentTargetCenterYRatio = yRatio.coerceIn(0.1f, 0.9f)
-    }
-
-    fun getPreviewTargetCenterXRatio(): Float = currentTargetCenterXRatio
-
-    fun getPreviewTargetCenterYRatio(): Float = currentTargetCenterYRatio
 
     fun getFrameSize(): Size? = frameSize
 

@@ -28,6 +28,31 @@ class RokidFrameSourceTest {
     }
 
     @Test
+    fun `validated nv21 square crop matches verified field of view`() {
+        val crop = SharedCameraViewportPolicy.calculateValidatedNv21SquareCropRect(1920, 1080)
+
+        assertEquals(420, crop.left)
+        assertEquals(0, crop.top)
+        assertEquals(1500, crop.right)
+        assertEquals(1080, crop.bottom)
+    }
+
+    @Test
+    fun `validated nv21 square crop remains centered and even aligned`() {
+        val portraitCrop = SharedCameraViewportPolicy.calculateValidatedNv21SquareCropRect(720, 1041)
+        val emptyCrop = SharedCameraViewportPolicy.calculateValidatedNv21SquareCropRect(0, 1080)
+
+        assertEquals(0, portraitCrop.left)
+        assertEquals(160, portraitCrop.top)
+        assertEquals(720, portraitCrop.right)
+        assertEquals(880, portraitCrop.bottom)
+        assertEquals(0, emptyCrop.left)
+        assertEquals(0, emptyCrop.top)
+        assertEquals(0, emptyCrop.right)
+        assertEquals(0, emptyCrop.bottom)
+    }
+
+    @Test
     fun `stale helper callback is rejected after generation switch`() {
         assertEquals(false, RokidFrameSource.isHelperCallbackStale(activeGeneration = 7L, callbackGeneration = 7L))
         assertEquals(true, RokidFrameSource.isHelperCallbackStale(activeGeneration = 8L, callbackGeneration = 7L))

@@ -43,6 +43,11 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         }
     }
 
+    fun setCenterSquareCropEnabled(enabled: Boolean) {
+        renderer.setCenterSquareCropEnabled(enabled)
+        requestRender()
+    }
+
     fun stopDemoPreview() {
         val latch = CountDownLatch(1)
         queueEvent {
@@ -88,12 +93,13 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             ),
         )
 
-        private var helper: CameraShareHelper? = null
+        private val helper = CameraShareHelper()
         private var program = 0
         private var positionHandle = 0
         private var texCoordHandle = 0
         private var textureHandle = 0
         private var matrixHandle = 0
+        private var cropRectHandle = 0
         private var viewportWidth = 0
         private var viewportHeight = 0
         private var cameraWidth = 0
@@ -110,6 +116,9 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         @Volatile
         private var matrixSummary = "-"
 
+        @Volatile
+        private var centerSquareCropEnabled = false
+
         override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
             GLES20.glClearColor(0f, 0f, 0f, 1f)
             program = createProgram(VERTEX_SHADER, FRAGMENT_SHADER)
@@ -117,6 +126,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             texCoordHandle = GLES20.glGetAttribLocation(program, "aTexCoord")
             textureHandle = GLES20.glGetUniformLocation(program, "uTexture")
             matrixHandle = GLES20.glGetUniformLocation(program, "uMatrix")
+            cropRectHandle = GLES20.glGetUniformLocation(program, "uCropRect")
             Log.i(TAG, "demo gl surface created program=$program")
         }
 
@@ -129,19 +139,22 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
 
         override fun onDrawFrame(gl: GL10?) {
             GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
-            val activeHelper = helper ?: return
-            val textureId = activeHelper.getTextureId()
+            if (!helper.isSurfaceActive()) return
+            val textureId = helper.getTextureId()
             if (textureId <= 0) {
                 return
             }
 
-            activeHelper.updateTexture()
-            val matrix = activeHelper.getTransformMatrix()
+            helper.updateTexture()
+            val matrix = helper.getTransformMatrix()
             matrixSummary = textureMatrixSummary(matrix)
 
             if (!firstDrawLogged) {
                 firstDrawLogged = true
-                Log.i(TAG, "first demo preview draw textureId=$textureId matrix=$matrixSummary")
+                Log.i(
+                    TAG,
+                    "first demo preview draw textureId=$textureId roi=${if (centerSquareCropEnabled) "center_1080" else "raw"} matrix=$matrixSummary",
+                )
             }
 
             GLES20.glUseProgram(program)
@@ -155,6 +168,11 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             GLES20.glEnableVertexAttribArray(texCoordHandle)
 
             GLES20.glUniformMatrix4fv(matrixHandle, 1, false, matrix, 0)
+            if (centerSquareCropEnabled) {
+                GLES20.glUniform4f(cropRectHandle, CENTER_CROP_LEFT, 0f, CENTER_CROP_WIDTH, 1f)
+            } else {
+                GLES20.glUniform4f(cropRectHandle, 0f, 0f, 1f, 1f)
+            }
 
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
             GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, textureId)
@@ -169,10 +187,13 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         }
 
         fun startSurfaceShare(onReady: (Boolean) -> Unit) {
-            releaseSurfaceShare()
             if (!GlassSdk.isReady()) {
                 Log.e(TAG, "GlassSdk not ready for demo surface")
                 onReady(false)
+                return
+            }
+            if (helper.isSurfaceActive()) {
+                onReady(true)
                 return
             }
             startCallback = onReady
@@ -194,8 +215,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
                 enableVideoStabilization = false,
                 zoomLevel = 1,
             )
-            helper = CameraShareHelper().apply {
-                initSurfaceWithConfig(config, object : CameraShareHelper.SurfaceCallback {
+            helper.initSurfaceWithConfig(config, object : CameraShareHelper.SurfaceCallback {
                     override fun onCameraOpened(width: Int, height: Int) {
                         cameraWidth = width
                         cameraHeight = height
@@ -243,18 +263,22 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
                         Log.i(TAG, "Zoom level changed: $zoomLevel")
                     }
                 })
-            }
+        }
+
+        fun setCenterSquareCropEnabled(enabled: Boolean) {
+            centerSquareCropEnabled = enabled
         }
 
         fun releaseSurfaceShare() {
             startCallback = null
             surfaceActive = false
             runCatching {
-                helper?.releaseSurface()
+                if (helper.isSurfaceActive()) {
+                    helper.releaseSurface()
+                }
             }.onFailure { error ->
                 Log.e(TAG, "releaseSurface on GL thread failed", error)
             }
-            helper = null
         }
 
         fun release() {
@@ -270,7 +294,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
                 "View: ${viewportWidth}x${viewportHeight}  Surface: ${cameraWidth}x${cameraHeight}\n" +
                 "FPS: $appliedPreviewFps  EIS: $videoStabilizationEnabled  Zoom: $zoomLevel\n" +
                 "Frames: $frameCount  Active: $surfaceActive\n" +
-                "Matrix: $matrixSummary"
+                "ROI: ${if (centerSquareCropEnabled) "center 1080x1080" else "raw"}  Matrix: $matrixSummary"
         }
 
         private fun dispatchReady(success: Boolean) {
@@ -300,15 +324,22 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
     companion object {
         private const val TAG = "RokidDemoSurfacePreview"
         private const val RELEASE_WAIT_TIMEOUT_MS = 500L
+        private const val CENTER_CROP_LEFT = 420f / 1920f
+        private const val CENTER_CROP_WIDTH = 1080f / 1920f
 
         private const val VERTEX_SHADER = """
             attribute vec4 aPosition;
             attribute vec2 aTexCoord;
             uniform mat4 uMatrix;
+            uniform vec4 uCropRect;
             varying vec2 vTexCoord;
             void main() {
                 gl_Position = aPosition;
-                vTexCoord = (uMatrix * vec4(aTexCoord, 0.0, 1.0)).xy;
+                vec2 transformedTexCoord = (uMatrix * vec4(aTexCoord, 0.0, 1.0)).xy;
+                vTexCoord = vec2(
+                    uCropRect.x + transformedTexCoord.x * uCropRect.z,
+                    uCropRect.y + transformedTexCoord.y * uCropRect.w
+                );
             }
         """
 

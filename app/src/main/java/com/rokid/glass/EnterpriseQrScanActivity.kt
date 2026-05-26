@@ -143,7 +143,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
-            val frame = RokidFrameSource.copyLatestScanFrame(SCAN_FRAME_TARGET_SIZE)
+            val frame = RokidFrameSource.copyLatestValidatedFrame(SCAN_FRAME_TARGET_SIZE)
             if (frame == null) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return

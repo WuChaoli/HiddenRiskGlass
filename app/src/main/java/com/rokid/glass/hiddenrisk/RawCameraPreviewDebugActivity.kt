@@ -16,8 +16,10 @@ import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.camera.RokidFrameSource
-import com.rokid.glass.component.RokidDemoSurfacePreviewView
+import com.rokid.glass.camera.SharedCameraViewportPolicy
 import com.rokid.glass.component.RokidCameraPreviewView
+import com.rokid.glass.component.RokidDemoNv21PreviewView
+import com.rokid.glass.component.RokidDemoSurfacePreviewView
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.dpToPx
@@ -47,8 +49,10 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     )
 
     private enum class DisplayMode {
+        SDK_DEMO_COMPARE,
         SURFACE_DEMO_RAW,
         SURFACE_RAW,
+        SURFACE_VALIDATED_CENTER,
         SURFACE_BOTTOM_SQUARE,
         NV21_RAW,
         NV21_SQUARE_BASELINE,
@@ -60,6 +64,9 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private lateinit var previewViewport: FrameLayout
     private lateinit var surfacePreview: RokidCameraPreviewView
     private lateinit var demoSurfacePreview: RokidDemoSurfacePreviewView
+    private lateinit var demoCompareLayout: View
+    private lateinit var compareSurfacePreview: RokidDemoSurfacePreviewView
+    private lateinit var compareNv21Preview: RokidDemoNv21PreviewView
     private lateinit var nv21Preview: ImageView
     private lateinit var diagnostics: TextView
     private val uiHandler = Handler(Looper.getMainLooper())
@@ -69,7 +76,9 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private var resumed = false
     private var cameraAcquiring = false
     private var cameraReady = false
-    private var mode = DisplayMode.SURFACE_RAW
+    private var mode = DisplayMode.SDK_DEMO_COMPARE
+    private var compareSurfaceResult: Boolean? = null
+    private var compareNv21Result: Boolean? = null
     private var lastNv21Timestamp = 0L
     private var candidateCropSummary = "-"
     private var lastCandidateCropSummary: String? = null
@@ -94,9 +103,14 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         previewViewport = findViewById(R.id.layoutRawPreviewViewport)
         surfacePreview = findViewById(R.id.viewRawSurfacePreview)
         demoSurfacePreview = findViewById(R.id.viewDemoSurfacePreview)
+        demoCompareLayout = findViewById(R.id.layoutSdkDemoCompare)
+        compareSurfacePreview = findViewById(R.id.viewCompareSurfacePreview)
+        compareNv21Preview = findViewById(R.id.viewCompareNv21Preview)
         nv21Preview = findViewById(R.id.imageRawNv21Preview)
         diagnostics = findViewById(R.id.textRawCameraDiagnostics)
         surfacePreview.setPreviewRenderMode(RokidCameraPreviewView.PreviewRenderMode.RAW_ASPECT_FIT)
+        demoSurfacePreview.setCenterSquareCropEnabled(false)
+        compareSurfacePreview.setCenterSquareCropEnabled(true)
         RokidSdkManager.initialize(application as Application)
         RokidSdkManager.addListener(this)
         RokidSdkManager.ensureInitialized()
@@ -104,10 +118,12 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
 
     private fun resolveInitialMode(): DisplayMode {
         return when (intent?.getStringExtra(EXTRA_MODE)) {
+            MODE_SDK_DEMO_COMPARE -> DisplayMode.SDK_DEMO_COMPARE
             MODE_SURFACE_DEMO_RAW -> DisplayMode.SURFACE_DEMO_RAW
             MODE_SURFACE_RAW -> DisplayMode.SURFACE_RAW
+            MODE_SURFACE_VALIDATED_CENTER -> DisplayMode.SURFACE_VALIDATED_CENTER
             MODE_SURFACE_BOTTOM_SQUARE -> DisplayMode.SURFACE_BOTTOM_SQUARE
-            else -> DisplayMode.SURFACE_RAW
+            else -> DisplayMode.SDK_DEMO_COMPARE
         }
     }
 
@@ -125,6 +141,8 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         cameraAcquiring = false
         cameraReady = false
         demoSurfacePreview.stopDemoPreview()
+        compareSurfacePreview.stopDemoPreview()
+        compareNv21Preview.stopDemoPreview()
         InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_on_pause")
         super.onPause()
     }
@@ -133,6 +151,8 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         uiHandler.removeCallbacksAndMessages(null)
         RokidSdkManager.removeListener(this)
         demoSurfacePreview.stopDemoPreview()
+        compareSurfacePreview.stopDemoPreview()
+        compareNv21Preview.stopDemoPreview()
         InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_on_destroy")
         bitmapExecutor.shutdownNow()
         displayedBitmap?.recycle()
@@ -151,14 +171,16 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
         if (keyEvent == GlassKeyEvent.KEYCODE_CLICK) {
             mode = when (mode) {
+                DisplayMode.SDK_DEMO_COMPARE -> DisplayMode.SURFACE_DEMO_RAW
                 DisplayMode.SURFACE_DEMO_RAW -> DisplayMode.SURFACE_RAW
-                DisplayMode.SURFACE_RAW -> DisplayMode.SURFACE_BOTTOM_SQUARE
+                DisplayMode.SURFACE_RAW -> DisplayMode.SURFACE_VALIDATED_CENTER
+                DisplayMode.SURFACE_VALIDATED_CENTER -> DisplayMode.SURFACE_BOTTOM_SQUARE
                 DisplayMode.SURFACE_BOTTOM_SQUARE -> DisplayMode.NV21_RAW
                 DisplayMode.NV21_RAW -> DisplayMode.NV21_SQUARE_BASELINE
                 DisplayMode.NV21_SQUARE_BASELINE -> DisplayMode.SURFACE_SQUARE_DIRECT
                 DisplayMode.SURFACE_SQUARE_DIRECT -> DisplayMode.SURFACE_SQUARE_FITTED
                 DisplayMode.SURFACE_SQUARE_FITTED -> DisplayMode.SURFACE_SQUARE_TRANSPOSED
-                DisplayMode.SURFACE_SQUARE_TRANSPOSED -> DisplayMode.SURFACE_DEMO_RAW
+                DisplayMode.SURFACE_SQUARE_TRANSPOSED -> DisplayMode.SDK_DEMO_COMPARE
             }
             applyDisplayMode()
             refreshDiagnostics()
@@ -182,6 +204,10 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
 
     private fun startCameraWhenReady() {
         if (!resumed || cameraReady || cameraAcquiring) return
+        if (mode == DisplayMode.SDK_DEMO_COMPARE) {
+            startDemoCompareWhenReady()
+            return
+        }
         if (mode == DisplayMode.SURFACE_DEMO_RAW) {
             startDemoSurfaceWhenReady()
             return
@@ -227,9 +253,52 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         }
     }
 
+    private fun startDemoCompareWhenReady() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), REQUEST_CAMERA_PERMISSION)
+            return
+        }
+        if (RokidSdkManager.state != RokidSdkManager.SdkState.READY) return
+        cameraAcquiring = true
+        compareSurfaceResult = null
+        compareNv21Result = null
+        diagnostics.setText(R.string.raw_camera_debug_starting)
+        compareSurfacePreview.startDemoPreview { success ->
+            uiHandler.post {
+                compareSurfaceResult = success
+                updateDemoCompareReadyState()
+            }
+        }
+        compareNv21Preview.startDemoPreview { success ->
+            uiHandler.post {
+                compareNv21Result = success
+                updateDemoCompareReadyState()
+            }
+        }
+    }
+
+    private fun updateDemoCompareReadyState() {
+        if (mode != DisplayMode.SDK_DEMO_COMPARE) return
+        if (compareSurfaceResult == false || compareNv21Result == false) {
+            cameraAcquiring = false
+            cameraReady = false
+            diagnostics.setText(R.string.raw_camera_debug_failed)
+            Log.e(TAG, "demo compare camera failed surface=$compareSurfaceResult nv21=$compareNv21Result")
+            return
+        }
+        if (compareSurfaceResult == true && compareNv21Result == true) {
+            cameraAcquiring = false
+            cameraReady = true
+            Log.i(TAG, "demo compare camera ready surface=true nv21=true")
+            return
+        }
+        refreshDiagnostics()
+    }
+
     private fun applyDisplayMode() {
         stopInactivePreviewForMode()
         val squareMode = mode == DisplayMode.NV21_SQUARE_BASELINE ||
+            mode == DisplayMode.SURFACE_VALIDATED_CENTER ||
             mode == DisplayMode.SURFACE_BOTTOM_SQUARE ||
             mode.isSurfaceSquareCandidate()
         previewViewport.layoutParams = if (mode == DisplayMode.SURFACE_DEMO_RAW) {
@@ -242,6 +311,8 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             }
             FrameLayout.LayoutParams(size, size, Gravity.CENTER)
         }
+        previewViewport.visibility = if (mode == DisplayMode.SDK_DEMO_COMPARE) View.GONE else View.VISIBLE
+        demoCompareLayout.visibility = if (mode == DisplayMode.SDK_DEMO_COMPARE) View.VISIBLE else View.GONE
         demoSurfacePreview.visibility = if (mode == DisplayMode.SURFACE_DEMO_RAW) {
             View.VISIBLE
         } else {
@@ -261,6 +332,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         }
         surfacePreview.setPreviewRenderMode(
             when (mode) {
+                DisplayMode.SURFACE_VALIDATED_CENTER -> RokidCameraPreviewView.PreviewRenderMode.AUTO_SURFACE_SQUARE
                 DisplayMode.SURFACE_BOTTOM_SQUARE -> RokidCameraPreviewView.PreviewRenderMode.SURFACE_BOTTOM_SQUARE
                 DisplayMode.SURFACE_SQUARE_DIRECT,
                 DisplayMode.SURFACE_SQUARE_FITTED,
@@ -273,22 +345,31 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             updateSquareCandidate(forceApply = true)
         }
         lastNv21Timestamp = 0L
+        compareSurfaceResult = null
+        compareNv21Result = null
         cameraReady = false
         cameraAcquiring = false
         startCameraWhenReady()
     }
 
     private fun stopInactivePreviewForMode() {
-        if (mode == DisplayMode.SURFACE_DEMO_RAW) {
+        if (mode == DisplayMode.SDK_DEMO_COMPARE) {
+            demoSurfacePreview.stopDemoPreview()
+            InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_switch_to_demo_compare")
+        } else if (mode == DisplayMode.SURFACE_DEMO_RAW) {
+            compareSurfacePreview.stopDemoPreview()
+            compareNv21Preview.stopDemoPreview()
             InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_switch_to_demo_surface")
         } else {
             demoSurfacePreview.stopDemoPreview()
+            compareSurfacePreview.stopDemoPreview()
+            compareNv21Preview.stopDemoPreview()
         }
     }
 
     private fun renderLatestNv21() {
         val frame = if (mode == DisplayMode.NV21_SQUARE_BASELINE) {
-            RokidFrameSource.copyLatestScanSquareFrame()?.let {
+            RokidFrameSource.copyLatestValidatedSquareFrame()?.let {
                 DisplayFrame(it.data, it.width, it.height, it.timestamp)
             }
         } else {
@@ -320,7 +401,10 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
 
     private fun updateSquareCandidate(forceApply: Boolean = false) {
         val frameSize = RokidFrameSource.getLatestFrameSize() ?: return
-        val crop = RokidFrameSource.calculateScanCropRect(frameSize.width, frameSize.height)
+        val crop = SharedCameraViewportPolicy.calculateValidatedNv21SquareCropRect(
+            frameSize.width,
+            frameSize.height,
+        )
         if (crop.width() <= 0 || crop.height() <= 0) return
         val candidate = buildSurfaceCropCandidate(crop, frameSize.width, frameSize.height)
         val left = candidate.left
@@ -379,6 +463,13 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         diagnostics.text = buildString {
             append("Mode: ")
             append(mode.name)
+            if (mode == DisplayMode.SDK_DEMO_COMPARE) {
+                append("\n")
+                append(compareSurfacePreview.diagnosticsText())
+                append("\n")
+                append(compareNv21Preview.diagnosticsText())
+                return@buildString
+            }
             if (mode == DisplayMode.SURFACE_DEMO_RAW) {
                 append('\n')
                 append(demoSurfacePreview.diagnosticsText())
@@ -419,8 +510,10 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     companion object {
         private const val TAG = "RawCameraPreviewDebug"
         private const val EXTRA_MODE = "mode"
+        private const val MODE_SDK_DEMO_COMPARE = "sdk_demo_compare"
         private const val MODE_SURFACE_DEMO_RAW = "surface_demo_raw"
         private const val MODE_SURFACE_RAW = "surface_raw"
+        private const val MODE_SURFACE_VALIDATED_CENTER = "surface_validated_center"
         private const val MODE_SURFACE_BOTTOM_SQUARE = "surface_bottom_square"
         private const val REFRESH_INTERVAL_MS = 300L
         private const val REQUEST_CAMERA_PERMISSION = 2011

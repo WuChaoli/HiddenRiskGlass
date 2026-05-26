@@ -12,6 +12,7 @@ import android.os.SystemClock
 import android.util.AttributeSet
 import android.util.Log
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.camera.SharedCameraViewportPolicy
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -59,7 +60,6 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
     enum class PreviewRenderMode {
         AUTO_SURFACE_SQUARE,
-        BUSINESS_ROI,
         RAW_ASPECT_FIT,
         SURFACE_BOTTOM_SQUARE,
         DEBUG_TEXTURE_CROP_FILL,
@@ -634,14 +634,10 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
         private fun updateRenderState() {
             when (previewRenderMode) {
-                PreviewRenderMode.AUTO_SURFACE_SQUARE -> updateAutoSurfaceSquare()
+                PreviewRenderMode.AUTO_SURFACE_SQUARE -> updateValidatedSurfaceCrop()
                 PreviewRenderMode.RAW_ASPECT_FIT -> updateRawAspectFit()
                 PreviewRenderMode.SURFACE_BOTTOM_SQUARE -> updateSurfaceBottomSquare()
                 PreviewRenderMode.DEBUG_TEXTURE_CROP_FILL -> updateDebugTextureCropFill()
-                PreviewRenderMode.BUSINESS_ROI -> {
-                    updateVertexScale(1f, 1f)
-                    updateCropRect()
-                }
             }
         }
 
@@ -683,24 +679,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             }
         }
 
-        /**
-         * 正式业务预览的兼容模式：新系统裁底部方形，旧系统保留原业务 ROI 映射。
-         */
-        private fun updateAutoSurfaceSquare() {
-            if (shouldUseBottomSquareCrop()) {
-                updateSurfaceBottomSquare(logLabel = "auto surface bottom square")
-                return
-            }
-            if (firstFrameLogged && !cropLogged) {
-                Log.i(
-                    TAG,
-                    "preview auto square fallback to business roi configured=${RokidFrameSource.getSurfaceCameraWidth()}x${RokidFrameSource.getSurfaceCameraHeight()} viewport=${surfaceWidth}x${surfaceHeight} matrix=${textureMatrixSummary(textureMatrix)}",
-                )
-            }
-            updateVertexScale(1f, 1f)
-            updateCropRect()
-        }
-
+        /** 旧 SDK Surface 异常的调试复测模式，不作为正式业务渲染策略。 */
         private fun updateSurfaceBottomSquare(logLabel: String = "surface bottom square") {
             val configuredWidth = RokidFrameSource.getSurfaceCameraWidth()
             val configuredHeight = RokidFrameSource.getSurfaceCameraHeight()
@@ -712,12 +691,11 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                 updateVertexScale(1f, 1f)
                 return
             }
-            val squareSize = minOf(configuredWidth, configuredHeight).toFloat()
-            val cropHeight = squareSize / configuredHeight.toFloat()
-            cropRect[0] = 0f
-            cropRect[1] = 1f - cropHeight
-            cropRect[2] = 1f
-            cropRect[3] = cropHeight
+            val side = minOf(configuredWidth, configuredHeight).toFloat()
+            cropRect[0] = (1f - side / configuredWidth.toFloat()) / 2f
+            cropRect[1] = 1f - side / configuredHeight.toFloat()
+            cropRect[2] = side / configuredWidth.toFloat()
+            cropRect[3] = side / configuredHeight.toFloat()
             updateVertexScale(1f, 1f)
             if (firstFrameLogged && !cropLogged) {
                 cropLogged = true
@@ -726,27 +704,6 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                     "preview $logLabel configured=${configuredWidth}x${configuredHeight} viewport=${surfaceWidth}x${surfaceHeight} crop=[${cropRect[0]},${cropRect[1]},${cropRect[2]},${cropRect[3]}] matrix=${textureMatrixSummary(textureMatrix)}",
                 )
             }
-        }
-
-        private fun shouldUseBottomSquareCrop(): Boolean {
-            val configuredWidth = RokidFrameSource.getSurfaceCameraWidth()
-            val configuredHeight = RokidFrameSource.getSurfaceCameraHeight()
-            if (configuredWidth <= 0 || configuredHeight <= 0) {
-                return false
-            }
-            val shortestSide = minOf(configuredWidth, configuredHeight)
-            val longestSide = maxOf(configuredWidth, configuredHeight)
-            if (shortestSide < MIN_BOTTOM_SQUARE_SURFACE_SHORT_SIDE) {
-                return false
-            }
-            if (configuredHeight <= configuredWidth) {
-                return false
-            }
-            val ratio = longestSide.toFloat() / shortestSide.toFloat()
-            if (ratio !in BOTTOM_SQUARE_MIN_ASPECT_RATIO..BOTTOM_SQUARE_MAX_ASPECT_RATIO) {
-                return false
-            }
-            return !isAxisSwapped(textureMatrix)
         }
 
         private fun updateVertexScale(scaleX: Float, scaleY: Float) {
@@ -780,7 +737,10 @@ class RokidCameraPreviewView @JvmOverloads constructor(
             }
         }
 
-        private fun updateCropRect() {
+        /**
+         * 正式预览与算法链统一采样 NV21 中心方形 ROI。
+         */
+        private fun updateValidatedSurfaceCrop() {
             val configuredWidth = RokidFrameSource.getSurfaceCameraWidth()
             val configuredHeight = RokidFrameSource.getSurfaceCameraHeight()
             val appliedPreviewFps = RokidFrameSource.getSurfaceAppliedPreviewFps()
@@ -803,19 +763,20 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                 cropRect[3] = 1f
                 return
             }
-            val resolvedPreviewWidth = if (axisSwappedFromMatrix) latestFrameHeight else latestFrameWidth
-            val resolvedPreviewHeight = if (axisSwappedFromMatrix) latestFrameWidth else latestFrameHeight
-            val squareRect = RokidFrameSource.calculateSquareCropRect(resolvedPreviewWidth, resolvedPreviewHeight)
+            val squareRect = SharedCameraViewportPolicy.calculateValidatedNv21SquareCropRect(
+                latestFrameWidth,
+                latestFrameHeight,
+            )
             val mapping = RokidFrameSource.mapFrameCropToSurfaceTexture(
                 surfaceWidth = configuredWidth,
                 surfaceHeight = configuredHeight,
                 frameWidth = latestFrameWidth,
                 frameHeight = latestFrameHeight,
                 frameCrop = RokidFrameSource.NormalizedCropRect(
-                    left = squareRect.left.toFloat() / resolvedPreviewWidth.toFloat(),
-                    top = squareRect.top.toFloat() / resolvedPreviewHeight.toFloat(),
-                    width = squareRect.width().toFloat() / resolvedPreviewWidth.toFloat(),
-                    height = squareRect.height().toFloat() / resolvedPreviewHeight.toFloat(),
+                    left = squareRect.left.toFloat() / latestFrameWidth.toFloat(),
+                    top = squareRect.top.toFloat() / latestFrameHeight.toFloat(),
+                    width = squareRect.width().toFloat() / latestFrameWidth.toFloat(),
+                    height = squareRect.height().toFloat() / latestFrameHeight.toFloat(),
                 ),
                 matrixSwapped = axisSwappedFromMatrix,
             ) ?: return
@@ -827,7 +788,7 @@ class RokidCameraPreviewView @JvmOverloads constructor(
                 cropLogged = true
                 Log.i(
                     TAG,
-                    "preview crop updated configured=${configuredWidth}x${configuredHeight} viewport=${surfaceWidth}x${surfaceHeight} latestFrame=${latestFrameWidth}x${latestFrameHeight} resolved=${resolvedPreviewWidth}x${resolvedPreviewHeight} mode=${mapping.mode} matrixSwapped=$axisSwappedFromMatrix appliedPreviewFps=$appliedPreviewFps videoStabilizationEnabled=$videoStabilizationEnabled roi=$squareRect textureCrop=${mapping.textureCrop} matrix=${textureMatrixSummary(textureMatrix)}",
+                    "preview validated center roi configured=${configuredWidth}x${configuredHeight} viewport=${surfaceWidth}x${surfaceHeight} latestFrame=${latestFrameWidth}x${latestFrameHeight} mode=${mapping.mode} matrixSwapped=$axisSwappedFromMatrix appliedPreviewFps=$appliedPreviewFps videoStabilizationEnabled=$videoStabilizationEnabled roi=$squareRect textureCrop=${mapping.textureCrop} matrix=${textureMatrixSummary(textureMatrix)}",
                 )
             }
         }
@@ -851,10 +812,6 @@ class RokidCameraPreviewView @JvmOverloads constructor(
 
         companion object {
             private const val TAG = "RokidCameraPreview"
-            private const val MIN_BOTTOM_SQUARE_SURFACE_SHORT_SIDE = 1080
-            private const val BOTTOM_SQUARE_MIN_ASPECT_RATIO = 1.70f
-            private const val BOTTOM_SQUARE_MAX_ASPECT_RATIO = 1.85f
-
             private const val VERTEX_SHADER = """
                 attribute vec4 aPosition;
                 attribute vec2 aTexCoord;

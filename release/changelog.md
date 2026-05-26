@@ -1,3 +1,15 @@
+### 2.0.6
+
+#### 变更
+1. **SDK 升级**: `com.rokid.security:glass3.open.sdk` 从 `2.1.8-E` 升级至 `2.1.9-E`，新版本已修复 Surface 输出异常
+2. **统一中心方形 ROI**: 提取 `SharedCameraViewportPolicy` 管理共享相机视野策略，正式 Surface 预览、NV21 检测、上传、扫码、探针链路统一使用同一个中心方形 ROI（`Rect(420,0,1500,1080)`）
+3. **移除临时方案**: 清理 `PreviewFramingMode`、`BUSINESS_ROI`、底部方形裁剪等旧 SDK 异常时期的临时兼容逻辑
+4. **调试页增强**: `RawCameraPreviewDebugActivity` 新增 SDK Demo 同屏对比模式（`SDK_DEMO_COMPARE`），真机并排展示 Surface / NV21 中心方图用于验证 ROI 一致性；新增 `SURFACE_VALIDATED_CENTER` 正式渲染验证模式
+5. **新增组件**: `RokidDemoNv21PreviewView`（NV21 GL 渲染诊断预览）、`SharedCameraViewportPolicy`（共享视野策略）
+6. **Demo Surface 增强**: `RokidDemoSurfacePreviewView` 支持中心方形裁剪 uniform，`CameraShareHelper` 改为持久实例
+7. **测试覆盖**: 新增 `SharedCameraViewportPolicy` 单元测试
+8. **文档更新**: 更新相机预览 Surface 输出经验文档，标记旧方案为历史，记录当前正式策略
+
 ### 2.0.5
 
 #### 新增

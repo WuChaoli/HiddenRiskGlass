@@ -775,7 +775,7 @@ class HiddenRiskProbeActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!frameStreamReady || !RokidFrameSource.isFrameStreamWarm()) {
             return null
         }
-        val frame = RokidFrameSource.copyLatestCroppedFrame() ?: return null
+        val frame = RokidFrameSource.copyLatestValidatedFrame() ?: return null
         if (frame.timestamp <= lastConsumedFrameTimestamp) {
             Log.w(TAG, "drop frame reason=duplicate timestamp=${frame.timestamp} last=$lastConsumedFrameTimestamp")
             return null
