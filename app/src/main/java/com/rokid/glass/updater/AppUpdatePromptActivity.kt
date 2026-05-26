@@ -12,6 +12,10 @@ import com.rokid.glesse.R
 import java.io.IOException
 import java.util.concurrent.Executors
 
+internal fun moveUpdatePromptSelection(currentIndex: Int, delta: Int, lastIndex: Int): Int {
+    return (currentIndex + delta).coerceIn(0, lastIndex)
+}
+
 /**
  * 版本更新提示弹窗 Activity。
  *
@@ -113,8 +117,7 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
                     ),
                     enabled = { !installing },
                 ) {
-                    selectedIndex = (selectedIndex - 1 + actionButtons.size) % actionButtons.size
-                    updateSelection()
+                    moveSelection(-1)
                 },
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Next,
@@ -124,8 +127,7 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
                     ),
                     enabled = { !installing },
                 ) {
-                    selectedIndex = (selectedIndex + 1) % actionButtons.size
-                    updateSelection()
+                    moveSelection(1)
                 },
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Confirm,
@@ -171,6 +173,13 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
                 },
             ),
         )
+    }
+
+    private fun moveSelection(delta: Int) {
+        val targetIndex = moveUpdatePromptSelection(selectedIndex, delta, actionButtons.lastIndex)
+        if (targetIndex == selectedIndex) return
+        selectedIndex = targetIndex
+        updateSelection()
     }
 
     private fun updateSelection() {
