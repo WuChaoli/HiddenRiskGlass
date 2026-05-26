@@ -202,6 +202,8 @@ object InspectionConfigRepository {
                 override?.sleepWarningDurationMs ?: base.sleepWarningDurationMs,
             sleepQuietGyroMaxRad =
                 override?.sleepQuietGyroMaxRad ?: base.sleepQuietGyroMaxRad,
+            sharedCameraZoomRatio =
+                override?.sharedCameraZoomRatio ?: base.sharedCameraZoomRatio,
         )
     }
 

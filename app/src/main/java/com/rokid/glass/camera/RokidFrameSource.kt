@@ -7,6 +7,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.util.Size
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.security.glass3.open.sdk.GlassSdk
@@ -61,14 +62,11 @@ object RokidFrameSource {
     )
 
     private const val TAG = "RokidFrameSource"
-    // 共享帧流保持 1x 最大视野，预览与识别再统一截取方形 ROI。
-    internal const val SHARED_FRAME_STREAM_ZOOM_RATIO = 1.0f
     private const val CROPPED_TARGET_SIZE = 640
     private const val FRAME_STREAM_RESTART_RELEASE_DELAY_MS = 500L
     private const val SHARED_PREVIEW_WIDTH = 1920
     private const val SHARED_PREVIEW_HEIGHT = 1080
     private const val SHARED_PREVIEW_TARGET_FPS = 15
-    private const val SHARED_PREVIEW_ZOOM_LEVEL = 1
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -110,7 +108,7 @@ object RokidFrameSource {
     private var latestFrameBuffer: ByteArray? = null
 
     @Volatile
-    private var currentZoomRatio = SHARED_FRAME_STREAM_ZOOM_RATIO
+    private var currentZoomRatio = 1.0f
 
     fun startFrameStream(onReady: (Boolean) -> Unit = {}) {
         synchronized(lock) {
@@ -119,11 +117,11 @@ object RokidFrameSource {
                 mainHandler.post { onReady(false) }
                 return
             }
-            enforceSharedPreviewZoom(applyImmediately = frameStreamOpened)
+            syncCachedZoomRatio()
             if (nv21Helper != null) {
                 AppFileLogger.i(TAG, "startFrameStream reuse helper opened=$frameStreamOpened")
                 if (frameStreamOpened) {
-                    enforceSharedPreviewZoom(applyImmediately = true)
+                    syncCachedZoomRatio()
                     mainHandler.post { onReady(true) }
                 } else {
                     frameReadyCallbacks += onReady
@@ -152,7 +150,7 @@ object RokidFrameSource {
                             frameSize = Size(width, height)
                             nv21ExportAppliedPreviewFps = null
                             nv21ExportVideoStabilizationEnabled = null
-                            enforceSharedPreviewZoom(applyImmediately = true)
+                            syncCachedZoomRatio()
                             notifyFrameReady(true)
                         }
 
@@ -467,12 +465,15 @@ object RokidFrameSource {
     }
 
     private fun sharedCameraConfig(): CameraShareConfig {
+        val zoomRatio = runCatching {
+            InspectionConfigRepository.get().aiInspection.sharedCameraZoomRatio
+        }.getOrDefault(1.0f)
         return CameraShareConfig(
             previewWidth = SHARED_PREVIEW_WIDTH,
             previewHeight = SHARED_PREVIEW_HEIGHT,
             previewTargetFps = SHARED_PREVIEW_TARGET_FPS,
             enableVideoStabilization = false,
-            zoomLevel = SHARED_PREVIEW_ZOOM_LEVEL,
+            zoomLevel = sdkZoomLevelFor(zoomRatio),
         )
     }
 
@@ -513,13 +514,14 @@ object RokidFrameSource {
     }
 
     fun setPreviewZoomRatio(zoomRatio: Float): Float {
-        if (kotlin.math.abs(zoomRatio - SHARED_FRAME_STREAM_ZOOM_RATIO) > 0.001f) {
+        val configuredZoom = syncCachedZoomRatio()
+        if (kotlin.math.abs(zoomRatio - configuredZoom) > 0.001f) {
             Log.i(
                 TAG,
-                "ignore custom preview zoom request requested=$zoomRatio enforceShared=$SHARED_FRAME_STREAM_ZOOM_RATIO",
+                "ignore custom preview zoom request requested=$zoomRatio configured=$configuredZoom",
             )
         }
-        return enforceSharedPreviewZoom(applyImmediately = frameStreamOpened)
+        return configuredZoom
     }
 
     fun getAppliedPreviewZoomRatio(): Float = currentZoomRatio
@@ -528,25 +530,13 @@ object RokidFrameSource {
 
     fun getFrameSize(): Size? = frameSize
 
-    private fun enforceSharedPreviewZoom(applyImmediately: Boolean): Float {
-        currentZoomRatio = SHARED_FRAME_STREAM_ZOOM_RATIO
-        if (applyImmediately) {
-            applySdkZoom(currentZoomRatio)
-        }
-        return currentZoomRatio
-    }
-
-    private fun applySdkZoom(zoomRatio: Float) {
-        if (!GlassSdk.isReady()) {
-            return
-        }
-        val level = zoomLevelFor(zoomRatio)
-        Log.i(TAG, "applySdkZoom zoomRatio=$zoomRatio level=$level")
-        runCatching {
-            GlassSdk.getGlassMediaService()?.zoomCamera(level)
-        }.onFailure { error ->
-            Log.w(TAG, "set zoom failed level=$level error=${error.message}")
-        }
+    // zoom 的唯一配置入口是 sharedCameraConfig()，此处仅同步缓存值供外部查询
+    private fun syncCachedZoomRatio(): Float {
+        val zoomRatio = runCatching {
+            InspectionConfigRepository.get().aiInspection.sharedCameraZoomRatio.coerceIn(1.0f, 3.0f)
+        }.getOrDefault(1.0f)
+        currentZoomRatio = zoomRatio
+        return zoomRatio
     }
 
     internal fun sdkZoomLevelFor(zoomRatio: Float): Int {
@@ -560,8 +550,6 @@ object RokidFrameSource {
     internal fun isHelperCallbackStale(activeGeneration: Long, callbackGeneration: Long): Boolean {
         return activeGeneration != callbackGeneration
     }
-
-    private fun zoomLevelFor(zoomRatio: Float): Int = sdkZoomLevelFor(zoomRatio)
 
     private fun notifyFrameReady(success: Boolean) {
         val callbacks = synchronized(lock) {

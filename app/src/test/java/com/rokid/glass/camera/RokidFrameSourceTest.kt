@@ -11,13 +11,8 @@ import org.junit.Test
 class RokidFrameSourceTest {
 
     @Test
-    fun `shared frame stream zoom keeps widest one x view`() {
-        assertEquals(1.0f, RokidFrameSource.SHARED_FRAME_STREAM_ZOOM_RATIO, 0.0f)
-    }
-
-    @Test
-    fun `shared one x zoom maps to sdk level one`() {
-        assertEquals(1, RokidFrameSource.sdkZoomLevelFor(RokidFrameSource.SHARED_FRAME_STREAM_ZOOM_RATIO))
+    fun `sdk zoom level one maps to lowest zoom`() {
+        assertEquals(1, RokidFrameSource.sdkZoomLevelFor(1.0f))
     }
 
     @Test

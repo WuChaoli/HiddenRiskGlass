@@ -94,7 +94,10 @@
     // 自动睡眠弹窗无输入返回菜单时长，单位 ms。
     "sleepWarningDurationMs": 15000,
     // 自动睡眠静止判定的俯仰/偏航陀螺仪阈值，单位 rad/s。
-    "sleepQuietGyroMaxRad": 0.20
+    "sleepQuietGyroMaxRad": 0.20,
+    // 共享相机 zoom 倍率（NV21 帧流），控制 AI 推理视野范围。
+    // 1.0 = 最大视野，2.0 = 约 2x 放大。SDK 分 3 档：<1.9→level1, 1.9~2.5→level2, >2.5→level3。
+    "sharedCameraZoomRatio": 2.0
   },
 
   /* 网络参数。

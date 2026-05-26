@@ -64,6 +64,9 @@ data class AiInspectionConfig(
     val sleepWakingDurationMs: Long = 60_000L,
     val sleepWarningDurationMs: Long = 15_000L,
     val sleepQuietGyroMaxRad: Float = 0.20f,
+    // 共享相机 zoom 倍率，控制 NV21 帧流的视野范围。1.0=最大视野，值越大画面越近。
+    // SDK zoom 分 3 档：<1.9→level1, 1.9~2.5→level2, >2.5→level3
+    val sharedCameraZoomRatio: Float = 1.0f,
 )
 
 data class NetworkConfig(
@@ -215,6 +218,7 @@ data class AiInspectionConfigOverride(
     val sleepWakingDurationMs: Long? = null,
     val sleepWarningDurationMs: Long? = null,
     val sleepQuietGyroMaxRad: Float? = null,
+    val sharedCameraZoomRatio: Float? = null,
 )
 
 data class NetworkConfigOverride(
