@@ -33,6 +33,7 @@ import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.AppFileLogger
+import com.rokid.glass.utils.DeviceUtil
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -82,6 +83,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private lateinit var tvErrorMessage: TextView
     private lateinit var layoutError: LinearLayout
     private lateinit var statusBar: GlassStatusBar
+    private lateinit var tvVersion: TextView
+    private lateinit var tvVersionError: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var currentProgress = 0
@@ -344,6 +347,10 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         layoutError = findViewById(R.id.layoutError)
 
         statusBar = findViewById(R.id.statusBar)
+        tvVersion = findViewById(R.id.tvVersion)
+        tvVersion.text = "本应用由浙江省应科院开发-v${DeviceUtil.getVersionName(this)}"
+        tvVersionError = findViewById(R.id.tvVersionError)
+        tvVersionError.text = tvVersion.text
         updateCurrentTime()
         updateBatteryLevel()
         loadingViewsInitialized = true
