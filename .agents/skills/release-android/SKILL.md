@@ -19,7 +19,7 @@ description: "Use when bumping the app version, creating a release tag, building
 
 ### Step 1: 确定版本号
 
-向用户确认新版本号，自动计算 `versionCode`（`2.0.6` → `206`）。
+向用户确认新版本号，同时读取当前 `app/build.gradle` 的 `versionCode`。新版本的 `versionCode` 必须为当前整数值 `+1`，不得从 `versionName` 推导。
 
 ### Step 2: 更新 `app/build.gradle`
 
@@ -53,8 +53,10 @@ git push origin vX.X.X && git push gitee vX.X.X
 
 ## 版本号规则
 
-- `versionCode` = 整数，versionName 去点号（`2.0.6` → `206`）
-- `versionName` = `"X.Y.Z"`
+- `versionCode` = 当前 `versionCode + 1`，与 `versionName` 格式无关
+- 禁止将 `versionName` 去点号或拼接版本段作为 `versionCode`（例如 `2.0.6.2` 不等于 `2062`）
+- 示例：当前 `versionCode=7`、`versionName="2.0.6.1"`，发布 `versionName="2.0.6.2"` 时应设置 `versionCode=8`
+- `versionName` = 用户确认的新版本字符串
 - tag = `vX.Y.Z`
 
 ## Common Mistakes

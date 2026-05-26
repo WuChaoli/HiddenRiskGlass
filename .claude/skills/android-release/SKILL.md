@@ -37,7 +37,7 @@ git remote -v
 
 ## Step 1: 确认版本号
 
-读取当前 `app/build.gradle` 中的 `versionName`，自动推导下一个 patch 版本号。
+读取当前 `app/build.gradle` 中的 `versionName` 与 `versionCode`。`versionName` 用于确认目标发布版本；`versionCode` 只依据当前整数值递增。
 
 **推导规则**：
 - `X.Y.Z` → `X.Y.Z+1`（如 `2.0.6` → `2.0.6.1`）
@@ -45,10 +45,16 @@ git remote -v
 
 ```bash
 # 读取当前版本
-grep 'versionName' app/build.gradle | head -1
+grep -E 'versionCode|versionName' app/build.gradle | head -2
 ```
 
 向用户确认目标版本号后再继续。
+
+**强制规则**：
+- `versionCode = 当前 versionCode + 1`
+- `versionCode` 与 `versionName` 的格式相互独立
+- 禁止通过移除 `versionName` 中的点号或拼接版本段来计算 `versionCode`
+- 例：当前为 `versionCode 7` / `versionName "2.0.6.1"`，发布 `2.0.6.2` 时必须写为 `versionCode 8`，而不是 `2062`
 
 ## Step 2: 修改版本号
 
@@ -59,7 +65,7 @@ versionCode <当前值+1>
 versionName "<目标版本号>"
 ```
 
-同时 `versionCode` 自增 1。
+无论目标 `versionName` 的段数或内容如何变化，`versionCode` 均只在当前数值基础上自增 1。
 
 ## Step 3: Git Commit
 
@@ -155,5 +161,6 @@ cp app/build/outputs/apk/standard/debug/app-standard-debug.apk "release/全省�
 - 始终先推 gitee 再推 GitHub，gitee 失败则中止后续步骤
 - GitHub 推送失败不阻塞流程，但需在报告中明确标注
 - `release/` 目录在 `.gitignore` 中，changelog 需 `-f` 强制添加，APK 不提交
+- 提交或构建前复核 `versionCode` 是否等于发布前当前值加 `1`，不得由 `versionName` 映射生成
 - 构建前确认 WSL 本地 JDK + Android SDK 环境已配置（见 `wsl-android-tools` skill）
 - 如果工作区不干净，先引导用户使用 `git-checkpoint` 清理
