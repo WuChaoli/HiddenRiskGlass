@@ -355,7 +355,7 @@ Manifest 中声明了相机、录音、蓝牙、Wi-Fi、存储、前台服务、
 
 ### Rokid SDK
 
-- `app/build.gradle` 引入 `com.rokid.security:glass3.open.sdk:2.1.7-E`
+- `app/build.gradle` 引入 `com.rokid.security:glass3.open.sdk:2.1.9-E`，推荐 OTA `1.17.e002-20260509-150201` 及以上
 - `RokidSdkManager.kt` 封装：
   - `GlassSdk.bindSecurityService(...)`
   - `GlassSdk.registerClient(...)`

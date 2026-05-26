@@ -39,6 +39,9 @@ SDK 日志默认可在以下路径查找：
 
 - `initNv21ExportWithConfig(enableFrontCamera, CameraShareConfig(), Nv21Callback)`
 - `releaseNv21Export()`
+- `restartNv21ExportWithConfig(enableMix, CameraShareConfig(), Nv21Callback)`：恢复或配置切换时复用既有 session
+- `isNv21Active()` / `isSurfaceActive()`：诊断共享状态
+- `getSupportedPreviewSizes()`：诊断支持尺寸，不用于业务自动选分辨率
 - `updateTexture()`
 - `getTextureId()`
 - `getTransformMatrix()`
@@ -83,6 +86,8 @@ SDK 日志默认可在以下路径查找：
 - `remove(VoiceAction)`
 - `removeAll()`
 - `release()`
+- `getLanguage()`：读取设备当前离线指令语言键
+- `GlassSdk.setOfflineCmdWords(language, actions)` / `clearOfflineCmdWords(language)`：按当前语言整体覆盖或清空词表
 
 典型底层调用形态：
 

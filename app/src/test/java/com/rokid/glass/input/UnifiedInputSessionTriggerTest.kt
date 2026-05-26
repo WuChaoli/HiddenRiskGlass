@@ -9,6 +9,18 @@ import org.junit.Test
 class UnifiedInputSessionTriggerTest {
 
     @Test
+    fun voiceOwnerState_oldOwnerDetachDoesNotReleaseNewOwner() {
+        val state = VoiceVocabularyOwnerState<String>()
+
+        assertEquals(null, state.activate("old"))
+        assertEquals("old", state.activate("new"))
+        assertFalse(state.release("old"))
+        assertTrue(state.isOwner("new"))
+        assertTrue(state.release("new"))
+        assertFalse(state.isOwner("new"))
+    }
+
+    @Test
     fun buildConfirmTriggers_withoutHeadGesture_containsClickAndConfirmOnly() {
         val triggers = UnifiedInputSession.buildConfirmTriggers(enableHeadGesture = false)
 

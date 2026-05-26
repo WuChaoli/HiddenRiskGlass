@@ -24,7 +24,7 @@ Rokid Glass 系统更新后，业务预览页出现画面被压缩、只在 View
 - Surface 预览回调：`1080x1920`
 - NV21 帧：`1920x1080`
 - Surface transform matrix 摘要：`[1.0, 0.0, 0.0, -1.0, 0.0, 1.0]`
-- SDK zoom：`1.0`
+- SDK Demo 对比模式 zoom：`zoomLevel=1`（隔离验证值，不是正式业务默认值）
 
 此前旧 SDK/系统组合在测试页中曾观察到：
 
@@ -78,9 +78,10 @@ preview surface bottom square configured=1080x1920 viewport=330x330 crop=[0.0,0.
 
 - 正式 Surface 预览、NV21 检测、上传、扫码与探针链固定使用同一个中心方形 ROI。
 - `1920x1080` NV21 的统一 ROI 为 `Rect(420,0,1500,1080)`。
-- NV21 帧流保持 SDK `zoom=1.0`，不通过放大改变视野。
+- 正式 NV21 与 Surface 的 zoom 统一由 `inspection_config.base.jsonc` 的 `sharedCameraZoomRatio` 控制，当前默认值为 `2.0`；中心方形 ROI 策略不变。
 - 正式代码以已修复 SDK/系统组合为部署基线，不维护旧 Surface 异常的固件回退分支。
 - SDK Demo 同屏模式把 Surface 与 NV21 都裁为中心 `1080x1080`，用于真机直接核对正式 ROI 视野。
+- `2.1.9-E` 下 NV21 故障恢复优先复用已有 `CameraShareHelper` session；调试页显示 NV21/Surface active、配置回调结果与支持分辨率，正式分辨率仍固定 `1920x1080@15fps`。
 
 ## 后续修改准则
 
@@ -110,7 +111,7 @@ preview surface bottom square configured=1080x1920 viewport=330x330 crop=[0.0,0.
 - 代码来源基线为 `glass3sdkdemo` 的 `76e17c6fb98f7c84aa621d01236d9f7a1218dade`，其中拉伸修复来自 `33483b2442875013ffd36db059b3f6d4b1ab4d93`。
 - 应用依赖基线升级到 `com.rokid.security:glass3.open.sdk:2.1.9-E`。
 - 上半屏走 SDK Demo Surface 共享渲染，下半屏走 SDK Demo NV21 GL 渲染。
-- 两路都固定使用 `1920x1080@15fps`、`EIS=false`、`zoomLevel=1`，并显示中心 `1080x1080` 方图，用于直接核对正式 ROI 的边界与物体比例。
+- 两路都固定使用 `1920x1080@15fps`、`EIS=false`、`zoomLevel=1`，并显示中心 `1080x1080` 方图，用于隔离核对 ROI 边界；正式链路默认 `sharedCameraZoomRatio=2.0`，不得由该验证值反推。
 - 该模式用于验证；正式链路仍由 `RokidFrameSource`、`RokidCameraPreviewView` 和相机协调/恢复层管理。
 
 构建：

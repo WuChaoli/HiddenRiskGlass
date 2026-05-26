@@ -61,6 +61,30 @@ object RokidFrameSource {
         val receivedAtElapsedMs: Long,
     )
 
+    data class DiagnosticsSnapshot(
+        val nv21Active: Boolean?,
+        val surfaceActive: Boolean?,
+        val requestedWidth: Int,
+        val requestedHeight: Int,
+        val requestedFps: Int,
+        val requestedEis: Boolean,
+        val requestedZoomLevel: Int,
+        val nv21Size: Size?,
+        val nv21AppliedFps: Int?,
+        val nv21Eis: Boolean?,
+        val nv21ZoomLevel: Int?,
+        val surfaceSize: Size?,
+        val surfaceAppliedFps: Int?,
+        val surfaceEis: Boolean?,
+        val surfaceZoomLevel: Int?,
+        val supportedPreviewSizes: List<String>,
+    )
+
+    internal enum class FrameRestartPath {
+        REUSE_EXISTING_HELPER,
+        REBUILD_HELPER,
+    }
+
     private const val TAG = "RokidFrameSource"
     private const val CROPPED_TARGET_SIZE = 640
     private const val FRAME_STREAM_RESTART_RELEASE_DELAY_MS = 500L
@@ -73,8 +97,12 @@ object RokidFrameSource {
     private val frameReadyCallbacks = mutableListOf<(Boolean) -> Unit>()
 
     private var nv21Helper: CameraShareHelper? = null
+    private var nv21Callback: CameraShareHelper.Nv21Callback? = null
     private var helperGenerationCounter = 0L
     private var activeHelperGeneration = 0L
+    private var reuseRestartPending = false
+    private var supportedPreviewSizesRead = false
+    private var supportedPreviewSizes: List<String> = emptyList()
 
     @Volatile
     private var frameStreamOpened = false
@@ -133,11 +161,7 @@ object RokidFrameSource {
             latestFrame = null
             val helperGeneration = ++helperGenerationCounter
             activeHelperGeneration = helperGeneration
-            nv21Helper = CameraShareHelper().apply {
-                initNv21ExportWithConfig(
-                    false,
-                    sharedCameraConfig(),
-                    object : CameraShareHelper.Nv21Callback {
+            val callback = object : CameraShareHelper.Nv21Callback {
                         override fun onCameraOpened(width: Int, height: Int) {
                             if (isHelperCallbackStale(activeHelperGeneration, helperGeneration)) {
                                 AppFileLogger.i(
@@ -146,11 +170,14 @@ object RokidFrameSource {
                                 )
                                 return
                             }
+                            val helperReused = reuseRestartPending
                             frameStreamOpened = true
+                            reuseRestartPending = false
                             frameSize = Size(width, height)
                             nv21ExportAppliedPreviewFps = null
                             nv21ExportVideoStabilizationEnabled = null
                             syncCachedZoomRatio()
+                            AppFileLogger.i(TAG, "frame stream opened active=${isNv21Active()} helperReused=$helperReused")
                             notifyFrameReady(true)
                         }
 
@@ -181,6 +208,13 @@ object RokidFrameSource {
                                 )
                                 return
                             }
+                            if (reuseRestartPending) {
+                                frameStreamOpened = false
+                                latestFrame = null
+                                latestFrameBuffer = null
+                                AppFileLogger.i(TAG, "ignore restart release close callback helperReused=true")
+                                return
+                            }
                             synchronized(lock) {
                                 frameStreamOpened = false
                                 frameSize = null
@@ -200,6 +234,9 @@ object RokidFrameSource {
                                 return
                             }
                             AppFileLogger.e(TAG, "frame stream error code=$code msg=$msg")
+                            val shouldFallback = synchronized(lock) {
+                                reuseRestartPending.also { reuseRestartPending = false }
+                            }
                             synchronized(lock) {
                                 frameStreamOpened = false
                                 frameSize = null
@@ -212,10 +249,18 @@ object RokidFrameSource {
                                 nv21ExportZoomLevel = null
                                 latestFrame = null
                                 latestFrameBuffer = null
-                                nv21Helper = null
-                                activeHelperGeneration = 0L
+                                if (!shouldFallback) {
+                                    nv21Helper = null
+                                    nv21Callback = null
+                                    activeHelperGeneration = 0L
+                                }
                             }
-                            notifyFrameReady(false)
+                            if (shouldFallback) {
+                                AppFileLogger.w(TAG, "reuse restart failed code=$code; rebuild helper")
+                                rebuildAfterReuseFailure()
+                            } else {
+                                notifyFrameReady(false)
+                            }
                         }
 
                         override fun onNv21ExportResolutionChanged(width: Int, height: Int, appliedPreviewFps: Int) {
@@ -252,8 +297,11 @@ object RokidFrameSource {
                             nv21ExportZoomLevel = zoomLevel
                             AppFileLogger.i(TAG, "nv21 export zoom changed zoomLevel=$zoomLevel")
                         }
-                    },
-                )
+                    }
+            nv21Callback = callback
+            nv21Helper = CameraShareHelper().apply {
+                readSupportedPreviewSizesOnce(this)
+                initNv21ExportWithConfig(false, sharedCameraConfig(), callback)
             }
         }
     }
@@ -273,6 +321,8 @@ object RokidFrameSource {
             nv21ExportZoomLevel = null
             latestFrame = null
             latestFrameBuffer = null
+            reuseRestartPending = false
+            nv21Callback = null
             activeHelperGeneration = 0L
             nv21Helper.also { nv21Helper = null }
         }
@@ -283,18 +333,35 @@ object RokidFrameSource {
         releaseDelayMs: Long = FRAME_STREAM_RESTART_RELEASE_DELAY_MS,
         onReady: (Boolean) -> Unit = {},
     ) {
-        AppFileLogger.i(TAG, "restartFrameStream begin releaseDelayMs=$releaseDelayMs")
-        stopFrameStream()
-        mainHandler.postDelayed(
-            {
-                AppFileLogger.i(TAG, "restartFrameStream relaunch")
-                startFrameStream { success ->
-                    AppFileLogger.i(TAG, "restartFrameStream finished success=$success")
-                    onReady(success)
-                }
-            },
-            releaseDelayMs.coerceAtLeast(0L),
+        val helper: CameraShareHelper?
+        val callback: CameraShareHelper.Nv21Callback?
+        synchronized(lock) {
+            helper = nv21Helper
+            callback = nv21Callback
+        }
+        val path = chooseFrameRestartPath(helper != null && callback != null, GlassSdk.isReady())
+        AppFileLogger.i(
+            TAG,
+            "restartFrameStream begin path=$path releaseDelayMs=$releaseDelayMs before=${diagnosticsSummary()}",
         )
+        if (path == FrameRestartPath.REUSE_EXISTING_HELPER && helper != null && callback != null) {
+            synchronized(lock) {
+                frameStreamOpened = false
+                frameSize = null
+                latestFrame = null
+                latestFrameBuffer = null
+                reuseRestartPending = true
+                frameReadyCallbacks += onReady
+            }
+            runCatching {
+                helper.restartNv21ExportWithConfig(false, sharedCameraConfig(), callback)
+            }.onFailure { error ->
+                AppFileLogger.w(TAG, "reuse restart threw ${error.message}; rebuild helper")
+                rebuildAfterReuseFailure()
+            }
+            return
+        }
+        rebuildFrameStream(releaseDelayMs, listOf(onReady))
     }
 
     fun releaseAll() {
@@ -530,6 +597,29 @@ object RokidFrameSource {
 
     fun getFrameSize(): Size? = frameSize
 
+    fun diagnosticsSnapshot(): DiagnosticsSnapshot {
+        val config = sharedCameraConfig()
+        val helper = synchronized(lock) { nv21Helper }
+        return DiagnosticsSnapshot(
+            nv21Active = helper?.let { runCatching { it.isNv21Active() }.getOrNull() },
+            surfaceActive = helper?.let { runCatching { it.isSurfaceActive() }.getOrNull() },
+            requestedWidth = config.previewWidth,
+            requestedHeight = config.previewHeight,
+            requestedFps = config.previewTargetFps,
+            requestedEis = config.enableVideoStabilization,
+            requestedZoomLevel = config.zoomLevel,
+            nv21Size = frameSize,
+            nv21AppliedFps = nv21ExportAppliedPreviewFps,
+            nv21Eis = nv21ExportVideoStabilizationEnabled,
+            nv21ZoomLevel = nv21ExportZoomLevel,
+            surfaceSize = surfacePreviewSize,
+            surfaceAppliedFps = surfaceAppliedPreviewFps,
+            surfaceEis = surfaceVideoStabilizationEnabled,
+            surfaceZoomLevel = surfaceZoomLevel,
+            supportedPreviewSizes = supportedPreviewSizes,
+        )
+    }
+
     // zoom 的唯一配置入口是 sharedCameraConfig()，此处仅同步缓存值供外部查询
     private fun syncCachedZoomRatio(): Float {
         val zoomRatio = runCatching {
@@ -549,6 +639,61 @@ object RokidFrameSource {
 
     internal fun isHelperCallbackStale(activeGeneration: Long, callbackGeneration: Long): Boolean {
         return activeGeneration != callbackGeneration
+    }
+
+    internal fun chooseFrameRestartPath(helperExists: Boolean, sdkReady: Boolean): FrameRestartPath {
+        return if (helperExists && sdkReady) {
+            FrameRestartPath.REUSE_EXISTING_HELPER
+        } else {
+            FrameRestartPath.REBUILD_HELPER
+        }
+    }
+
+    private fun isNv21Active(): Boolean? {
+        return synchronized(lock) { nv21Helper }?.let { helper ->
+            runCatching { helper.isNv21Active() }.getOrNull()
+        }
+    }
+
+    private fun readSupportedPreviewSizesOnce(helper: CameraShareHelper) {
+        if (supportedPreviewSizesRead) return
+        supportedPreviewSizesRead = true
+        supportedPreviewSizes = runCatching {
+            helper.getSupportedPreviewSizes().map { (width, height, supported) ->
+                "${width}x$height:$supported"
+            }
+        }.onFailure { error ->
+            AppFileLogger.w(TAG, "read supported preview sizes failed: ${error.message}")
+        }.getOrDefault(emptyList())
+        AppFileLogger.i(TAG, "supported preview sizes=${supportedPreviewSizes.joinToString()}")
+    }
+
+    private fun diagnosticsSummary(): String {
+        val snapshot = diagnosticsSnapshot()
+        return "nv21Active=${snapshot.nv21Active} surfaceActive=${snapshot.surfaceActive} " +
+            "requested=${snapshot.requestedWidth}x${snapshot.requestedHeight}@${snapshot.requestedFps} " +
+            "zoom=${snapshot.requestedZoomLevel}"
+    }
+
+    private fun rebuildAfterReuseFailure() {
+        val callbacks = synchronized(lock) {
+            frameReadyCallbacks.toList().also { frameReadyCallbacks.clear() }
+        }
+        rebuildFrameStream(FRAME_STREAM_RESTART_RELEASE_DELAY_MS, callbacks)
+    }
+
+    private fun rebuildFrameStream(releaseDelayMs: Long, callbacks: List<(Boolean) -> Unit>) {
+        stopFrameStream()
+        mainHandler.postDelayed(
+            {
+                AppFileLogger.i(TAG, "restartFrameStream rebuild relaunch")
+                startFrameStream { success ->
+                    AppFileLogger.i(TAG, "restartFrameStream finished success=$success after=${diagnosticsSummary()}")
+                    callbacks.forEach { it(success) }
+                }
+            },
+            releaseDelayMs.coerceAtLeast(0L),
+        )
     }
 
     private fun notifyFrameReady(success: Boolean) {

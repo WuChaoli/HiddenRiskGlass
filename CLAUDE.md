@@ -196,7 +196,7 @@ Camera2 API，通过 `QuickCameraManager` 实现 GPU 帧捕获（HardwareBuffer�
 
 ## 关键依赖
 
-- Rokid Glass SDK `2.1.7-E`、NCNN (Vulkan)、OpenCV Mobile 4.13.0
+- Rokid Glass SDK `2.1.9-E`（推荐 OTA `1.17.e002-20260509-150201` 及以上）、NCNN (Vulkan)、OpenCV Mobile 4.13.0
 - ML Kit（条码扫描）、Jetpack Compose、Glide、Gson
 - OkHttp 4.12.0（HTTP + SSE）
 

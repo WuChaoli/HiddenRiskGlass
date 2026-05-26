@@ -3,12 +3,29 @@ package com.rokid.glass.hiddenrisk
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraSessionState
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class InspectionCameraCoordinatorStateMachineTest {
+
+    @Test
+    fun restartKeepsOwnerAndRejectsPreviousGenerationReadyCallback() {
+        val stateMachine = InspectionCameraCoordinator.StateMachine()
+        val acquired = stateMachine.beginAcquire(CameraOwner.AI_INSPECTION, readyNow = true, needPreview = true)
+        assertTrue(stateMachine.finishReady(CameraOwner.AI_INSPECTION, acquired.generation, needPreview = true))
+
+        val restarted = stateMachine.beginRestart(CameraOwner.AI_INSPECTION)
+            ?: error("当前 owner 应允许恢复")
+
+        assertEquals(CameraOwner.AI_INSPECTION, restarted.owner)
+        assertEquals(CameraSessionState.OPENING, restarted.state)
+        assertEquals(acquired.generation + 1L, restarted.generation)
+        assertFalse(stateMachine.finishReady(CameraOwner.AI_INSPECTION, acquired.generation, needPreview = true))
+        assertTrue(stateMachine.finishReady(CameraOwner.AI_INSPECTION, restarted.generation, needPreview = true))
+    }
 
     @Test
     fun beginRelease_ignoresOldOwnerAfterTransfer() {

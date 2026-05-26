@@ -55,6 +55,22 @@ class RokidFrameSourceTest {
     }
 
     @Test
+    fun `restart reuses existing helper only while sdk is ready`() {
+        assertEquals(
+            RokidFrameSource.FrameRestartPath.REUSE_EXISTING_HELPER,
+            RokidFrameSource.chooseFrameRestartPath(helperExists = true, sdkReady = true),
+        )
+        assertEquals(
+            RokidFrameSource.FrameRestartPath.REBUILD_HELPER,
+            RokidFrameSource.chooseFrameRestartPath(helperExists = false, sdkReady = true),
+        )
+        assertEquals(
+            RokidFrameSource.FrameRestartPath.REBUILD_HELPER,
+            RokidFrameSource.chooseFrameRestartPath(helperExists = true, sdkReady = false),
+        )
+    }
+
+    @Test
     fun `portrait surface keeps landscape frame square roi proportions`() {
         val mapping = RokidFrameSource.mapFrameCropToSurfaceTexture(
             surfaceWidth = 1080,

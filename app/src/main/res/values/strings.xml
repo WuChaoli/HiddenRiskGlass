@@ -259,5 +259,5 @@
     <string name="app_update_button_skip">跳过本次</string>
     <string name="app_update_button_cancel">取消</string>
     <string name="app_update_progress_percent">%1$d%%</string>
-    <string name="app_update_touch_hint">单击安装，双击跳过</string>
+    <string name="app_update_touch_hint">前后滑动选择，单击确认，双击/返回取消</string>
 </resources>

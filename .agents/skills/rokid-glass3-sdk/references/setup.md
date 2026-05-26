@@ -7,7 +7,8 @@
 ## 当前仓库基线
 
 - Maven repository: `https://maven.rokid.com/repository/maven-public/`
-- SDK dependency: `com.rokid.security:glass3.open.sdk:2.1.8-E`
+- SDK dependency: `com.rokid.security:glass3.open.sdk:2.1.9-E`
+- 推荐 OTA：`1.17.e002-20260509-150201` 及以上
 - 二维码能力依赖：`com.rokid.security.glass3.qrcode:scanner:1.0.0`
 - 打包冲突处理：`pickFirst 'lib/*/libr2aud.so'`
 

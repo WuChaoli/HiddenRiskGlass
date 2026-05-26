@@ -4,7 +4,8 @@
 
 这是当前主技能的版本真相源。
 
-- 当前仓库 SDK 基线：`com.rokid.security:glass3.open.sdk:2.1.8-E`
+- 当前仓库 SDK 基线：`com.rokid.security:glass3.open.sdk:2.1.9-E`
+- 当前推荐 OTA 基线：`1.17.e002-20260509-150201` 及以上
 - 来源：`app/build.gradle`
 - 当前技能判断优先级：代码现状 > 官方 changelog > 历史摘录
 
@@ -29,6 +30,14 @@
 - NV21 路径会给出 `onNv21ExportResolutionChanged(...)`
 - `transformMatrix` 可用于判断横竖轴是否交换
 - `width/height/appliedPreviewFps/videoStabilizationEnabled` 变化能反映系统当前真实预览配置
+- 正式 NV21 故障恢复通过 `restartNv21ExportWithConfig(...)` 优先复用现有 helper/session；Surface 只诊断 active 状态，本阶段不变更页面恢复生命周期
+- `isNv21Active()`、`isSurfaceActive()` 和 `getSupportedPreviewSizes()` 纳入调试页诊断
+
+## `2.1.9-E` 能力采用范围
+
+- 已采用：配置变更回调、NV21 session 复用重启、NV21/Surface active 和支持分辨率诊断
+- 已采用：按设备当前离线语言键覆盖统一输入词表，并保留逐条注册兼容回退
+- 暂不采用：`restartSurfaceWithConfig()` 的业务恢复迁移、`LeqiInterceptor`、灯光/网络类型/应用可见性/时间服务接口
 
 如果系统或 OTA 行为和这些假设不一致，常见表现是：
 

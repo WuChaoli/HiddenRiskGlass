@@ -82,6 +82,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private var lastNv21Timestamp = 0L
     private var candidateCropSummary = "-"
     private var lastCandidateCropSummary: String? = null
+    private var diagnosticsLogged = false
     private var displayedBitmap: Bitmap? = null
 
     private val refreshRunnable = object : Runnable {
@@ -230,6 +231,10 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 diagnostics.setText(R.string.raw_camera_debug_failed)
             }
             Log.i(TAG, "raw debug camera ready success=$success")
+            if (success && !diagnosticsLogged) {
+                diagnosticsLogged = true
+                Log.i(TAG, "shared camera diagnostics ${RokidFrameSource.diagnosticsSnapshot()}")
+            }
         }
     }
 
@@ -459,6 +464,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         val surfaceWidth = RokidFrameSource.getSurfaceCameraWidth()
         val surfaceHeight = RokidFrameSource.getSurfaceCameraHeight()
         val nv21Size = RokidFrameSource.getLatestFrameSize()
+        val cameraDiagnostics = RokidFrameSource.diagnosticsSnapshot()
         val matrix = RokidFrameSource.getSurfaceTransformMatrix()
         diagnostics.text = buildString {
             append("Mode: ")
@@ -485,8 +491,32 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             append(surfaceHeight)
             append("\nNV21: ")
             append(nv21Size?.let { "${it.width}x${it.height}" } ?: "-")
-            append("  Zoom: ")
+            append("  Zoom ratio: ")
             append(RokidFrameSource.getAppliedPreviewZoomRatio())
+            append("\nActive: NV21=")
+            append(cameraDiagnostics.nv21Active)
+            append(" Surface=")
+            append(cameraDiagnostics.surfaceActive)
+            append("\nRequested: ")
+            append("${cameraDiagnostics.requestedWidth}x${cameraDiagnostics.requestedHeight}@${cameraDiagnostics.requestedFps}")
+            append(" EIS=")
+            append(cameraDiagnostics.requestedEis)
+            append(" zoomLevel=")
+            append(cameraDiagnostics.requestedZoomLevel)
+            append("\nApplied NV21: fps=")
+            append(cameraDiagnostics.nv21AppliedFps ?: "-")
+            append(" EIS=")
+            append(cameraDiagnostics.nv21Eis ?: "-")
+            append(" zoom=")
+            append(cameraDiagnostics.nv21ZoomLevel ?: "-")
+            append("\nApplied Surface: fps=")
+            append(cameraDiagnostics.surfaceAppliedFps ?: "-")
+            append(" EIS=")
+            append(cameraDiagnostics.surfaceEis ?: "-")
+            append(" zoom=")
+            append(cameraDiagnostics.surfaceZoomLevel ?: "-")
+            append("\nSupported: ")
+            append(cameraDiagnostics.supportedPreviewSizes.joinToString().ifBlank { "-" })
             append("\nMatrix: ")
             append(matrixSummary(matrix))
             if (mode == DisplayMode.NV21_SQUARE_BASELINE || mode.isSurfaceSquareCandidate()) {

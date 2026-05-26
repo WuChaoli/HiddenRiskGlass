@@ -24,6 +24,7 @@ test/
 release/
 .codex/footprints/
 release/*.apk
+!release/changelog.md
 
 # Claude
 .claude/worktrees/

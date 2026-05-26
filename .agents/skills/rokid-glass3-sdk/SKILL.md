@@ -10,7 +10,8 @@ description: Single Rokid skill for this repo. Use when Codex needs to inspect, 
 
 ## 仓库基线
 
-- 当前 Gradle 依赖基线：`app/build.gradle` 中为 `com.rokid.security:glass3.open.sdk:2.1.8-E`
+- 当前 Gradle 依赖基线：`app/build.gradle` 中为 `com.rokid.security:glass3.open.sdk:2.1.9-E`
+- 当前推荐 OTA 基线：`1.17.e002-20260509-150201` 及以上
 - 共享预览主链路：
   - `app/src/main/java/com/rokid/glass/camera/RokidFrameSource.kt`
   - `app/src/main/java/com/rokid/glass/component/RokidCameraPreviewView.kt`
@@ -86,6 +87,7 @@ description: Single Rokid skill for this repo. Use when Codex needs to inspect, 
 - 如果 `shared surface first frame available` 已出现，但没有 `first preview draw`，优先怀疑 GL / Surface 绑定层
 - 如果 `preview crop updated ... swapped=... matrix=...` 明显不合理，优先怀疑系统版本差异导致的方向 / 裁剪语义变化
 - 如果 NV21 与 Surface 的 `width/height`、`appliedPreviewFps` 长期不更新，优先怀疑 SDK / OTA 兼容矩阵
+- `2.1.9-E` 正式恢复优先通过 `restartNv21ExportWithConfig(...)` 复用 NV21 helper/session，并记录 `isNv21Active()` / `isSurfaceActive()` 与支持分辨率；Surface restart 暂不接入业务页面生命周期
 
 ### 4. 共享预览恢复边界
 
@@ -126,6 +128,8 @@ description: Single Rokid skill for this repo. Use when Codex needs to inspect, 
 补充说明：
 
 - 头部动作能力保留在统一输入模型里，但当前 `UnifiedInputSession` 代码默认 `HEAD_GESTURE_LISTENING_ENABLED = false`
+- 当前语音词表由 `UnifiedInputSession` 的前台 owner 按 `getLanguage()` 返回语言键通过 `setOfflineCmdWords(...)` 原子覆盖；不可用时回退旧 `add/remove` 路径
+- `LeqiInterceptor` 本次明确不接入
 - 因此页面接入时应先沿用统一输入骨架和动作语义，再按任务需要判断是否真的要打开头部动作监听
 
 ### 6. 设备侧排障顺序
