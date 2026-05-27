@@ -18,6 +18,9 @@
 | `QuickCameraManager.kt` | **相机管理器**，打开相机、预览、拍照 | `initialize()`, `attachPreviewTexture()`, `takePicture()`, `GpuFrame` |
 | `RokidCameraRecoveryController.kt` | **相机恢复控制器**，检测异常并自动重连 | `start()`, `onRecoveryStarted()`, `onRecoverySucceeded()` |
 | `RokidFrameSource.kt` | **帧源抽象**，提供统一帧获取接口 | |
+| `CameraTypes.kt` | **相机类型定义**，预览取景模式枚举 `PreviewFramingMode` 等 | |
+| `SharedCameraViewportPolicy.kt` | **共享相机视野策略**，计算统一中心方形 ROI（Surface/NV21 链路公用） | `calculateValidatedNv21SquareCropRect()` |
+| `YuvConversionUtils.kt` | **YUV 转换工具**，YUV_420_888 / NV21 转 Bitmap | `yuv420888ToNv21()`, `nv21ToBitmap()`, `yuv420888ToBitmap()` |
 
 ## 核心调用链
 

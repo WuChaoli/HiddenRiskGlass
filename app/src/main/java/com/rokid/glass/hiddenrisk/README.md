@@ -54,7 +54,7 @@ DeviceGuideActivity:
 
 ## 文件索引
 
-### 页面 Activity（6 个）
+### 页面 Activity（7 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
@@ -65,8 +65,9 @@ DeviceGuideActivity:
 | `HiddenRiskProbeActivity.kt` | **探针/调试页**，NCNN 推理验证（非正式功能）| |
 | `LightshotActivity.kt` | 历史调试页（非产品基线）| |
 | `UnifiedInputDebugActivity.kt` | 统一输入调试页 | |
+| `RawCameraPreviewDebugActivity.kt` | 原始相机预览调试页 | |
 
-### 在线推理/SSE 服务（5 个）
+### 在线推理/SSE 服务（6 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
@@ -75,6 +76,7 @@ DeviceGuideActivity:
 | `AiArEventAggregator.kt` | 聚合 SSE 事件流 | |
 | `AiArHazardDetailParser.kt` | 解析远端隐患详情 → `ResolvedHazardContent` | `parse()` |
 | `OnlineHazardAdviceFormatter.kt` | 格式化在线建议文案 | |
+| `DualEndpointSubmitCoordinator.kt` | 双端点提交协调器，聚合主备双端点提交结果 | `record()` |
 
 ### 本地推理/后处理（4 个）
 
@@ -86,13 +88,14 @@ DeviceGuideActivity:
 | `DetectionResult.java` | 检测结果数据模型 | |
 | `NativeInferenceStats.java` | 原生推理统计 | |
 
-### 自动链路决策（3 个）
+### 自动链路决策（4 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `AutoHazardPipelineDecider.kt` | **链路调度核心**，决定使用远端/本地链路 | `decideStart()`, `decideAfterRemoteFailure()`, `decideAfterLocalModelLoaded()` |
 | `AutoInferenceLoopDecider.kt` | 自动推理循环决策 | |
 | `OnlineHazardCompetitionDecider.kt` | 在线识别竞争决策 | |
+| `SharedInferenceFrameDecider.kt` | 共享推理帧决策器，判断在线链路是否复用本地推理缓存 | `decide()` |
 
 ### 会话与会话管理（4 个）
 
@@ -103,7 +106,7 @@ DeviceGuideActivity:
 | `InspectionFrameCaptureService.kt` | 帧捕获服务 | |
 | `InspectionBackendSessionId.kt` | 后端 session 管理 | |
 
-### 隐患上传/保存（5 个）
+### 隐患上传/保存（6 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
@@ -113,6 +116,7 @@ DeviceGuideActivity:
 | `InspectionBackgroundUploadService.kt` | 后台上传服务 | |
 | `InspectionFinishService.kt` | 结束巡检提交 | |
 | `HazardCaptureService.kt` | 隐患截图服务 | |
+| `HazardRecordUploadService.kt` | 隐患录入上传服务，当前使用 mock 结果打通 UI | `uploadHazardRecord()` |
 
 ### 深度分析/验证（3 个）
 
