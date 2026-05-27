@@ -8,8 +8,6 @@
     ]
   },
   "enabledMcpjsonServers": [
-    "android-adb",
-    "adb-tui"
   ],
   "enableAllProjectMcpServers": true
 }
