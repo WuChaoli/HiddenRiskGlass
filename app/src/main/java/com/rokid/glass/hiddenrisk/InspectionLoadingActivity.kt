@@ -25,9 +25,7 @@ import androidx.annotation.StringRes
 import com.rokid.glass.component.GlassStatusBar
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.rokid.glass.InspectionFeatureFlags
-import com.rokid.glass.EnterpriseQrScanActivity
-import com.rokid.glass.WifiQrScanActivity
+import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.config.AutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
@@ -55,7 +53,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         private const val COMPLETE_HOLD_DELAY_MS = 400L
         private const val STATUS_UPDATE_DELAY_MS = 1000L
         const val EXTRA_NEXT_HOME_ACTIVITY = "next_home_activity"
-        const val EXTRA_FORCE_LOADING_FLOW = "force_loading_flow"
     }
 
     // 加载阶段枚举
@@ -171,15 +168,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        if (shouldRouteToWifiBeforeLoading()) {
-            startActivity(Intent(this, WifiQrScanActivity::class.java).apply {
-                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, InspectionLoadingActivity::class.java.name)
-                intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)?.let { putExtra(EXTRA_NEXT_HOME_ACTIVITY, it) }
-            })
-            finish()
-            return
-        }
 
         setContentView(R.layout.activity_inspection_loading)
 
@@ -438,16 +426,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         }
     }
 
-    private fun shouldRouteToWifiBeforeLoading(): Boolean {
-        if (intent.getBooleanExtra(EXTRA_FORCE_LOADING_FLOW, false)) {
-            return false
-        }
-        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            return false
-        }
-        return SystemStateUtils.getCurrentWifiSsid(this) == null
-    }
-
     private fun startCameraInit() {
         if (activityDestroyed || cameraInitStarted || initializationCompleted || loadingStage == LoadingStage.ERROR) {
             Log.i(
@@ -596,24 +574,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         InspectionWorkflowSession.beginInspection(
             InspectionBackendSessionId.create(RokidSdkManager.getSerialNumber(), prefix = "inspection"),
         )
-        val wifiConnected = SystemStateUtils.getCurrentWifiSsid(this) != null
-        InspectionWorkflowSession.updateMode(wifiConnected)
+        InspectionWorkflowSession.updateMode(SystemStateUtils.getCurrentWifiSsid(this) != null)
         val nextHomeClassName = intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)
         val nextHomeActivityClass = runCatching {
             nextHomeClassName?.takeIf { it.isNotBlank() }?.let { Class.forName(it) }
         }.getOrNull()
-        val targetIntent = if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            Intent(this, nextHomeActivityClass ?: AiInspectionActivity::class.java)
-        } else if (wifiConnected) {
-            Intent(this, EnterpriseQrScanActivity::class.java)
-        } else {
-            Intent(this, WifiQrScanActivity::class.java).apply {
-                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, InspectionLoadingActivity::class.java.name)
-                putExtra(EXTRA_FORCE_LOADING_FLOW, true)
-            }
-        }
-        // 企业/Wi-Fi 扫码页复用加载页已预热的共享帧流，进入后只检测是否可用。
-        startActivity(targetIntent)
+        startActivity(Intent(this, nextHomeActivityClass ?: AiInspectionMenuActivity::class.java))
         finish()
     }
 
