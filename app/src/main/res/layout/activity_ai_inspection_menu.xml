@@ -63,4 +63,40 @@
             android:paddingHorizontal="16dp"
             android:paddingBottom="10dp" />
     </LinearLayout>
+
+    <!-- WiFi 未连接时的提示覆盖层 -->
+    <LinearLayout
+        android:id="@+id/layoutWifiRequiredDialog"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/glass_status_panel"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="18dp"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/tvWifiRequiredMessage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/ai_entry_wifi_required_message"
+            android:textColor="@color/green"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tvWifiRequiredConfirm"
+            android:layout_width="120dp"
+            android:layout_height="42dp"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/inspection_mode_item_bg_selected"
+            android:gravity="center"
+            android:text="@string/ai_entry_wifi_required_confirm"
+            android:textColor="@color/green"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 </FrameLayout>
