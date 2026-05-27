@@ -87,14 +87,8 @@
     "localNetworkProbeIntervalMs": 3000,
     // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
     "forceOnlineDetailForLocalHazard": false,
-    // 是否启用自动睡眠监测。关闭后隐患识别页和设备指引页不会监听静止/摘镜自动返回菜单。
-    "enableAutoSleepMonitoring": false,
-    // 自动睡眠静止触发时长，单位 ms。检测态长时间无头部移动时弹出确认。
-    "sleepWakingDurationMs": 60000,
-    // 自动睡眠弹窗无输入返回菜单时长，单位 ms。
-    "sleepWarningDurationMs": 15000,
-    // 自动睡眠静止判定的俯仰/偏航陀螺仪阈值，单位 rad/s。
-    "sleepQuietGyroMaxRad": 0.20,
+    // 是否启用佩戴检测。关闭后隐患识别页和设备指引页不会因摘镜暂停、戴回恢复。
+    "enableAutoSleepMonitoring": true,
     // 共享相机 zoom 倍率（NV21 帧流），控制 AI 推理视野范围。
     // 1.0 = 最大视野，2.0 = 约 2x 放大。SDK 分 3 档：<1.9→level1, 1.9~2.5→level2, >2.5→level3。
     "sharedCameraZoomRatio": 2.0

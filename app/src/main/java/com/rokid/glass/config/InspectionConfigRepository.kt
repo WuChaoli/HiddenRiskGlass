@@ -196,12 +196,6 @@ object InspectionConfigRepository {
                 override?.forceOnlineDetailForLocalHazard ?: base.forceOnlineDetailForLocalHazard,
             enableAutoSleepMonitoring =
                 override?.enableAutoSleepMonitoring ?: base.enableAutoSleepMonitoring,
-            sleepWakingDurationMs =
-                override?.sleepWakingDurationMs ?: base.sleepWakingDurationMs,
-            sleepWarningDurationMs =
-                override?.sleepWarningDurationMs ?: base.sleepWarningDurationMs,
-            sleepQuietGyroMaxRad =
-                override?.sleepQuietGyroMaxRad ?: base.sleepQuietGyroMaxRad,
             sharedCameraZoomRatio =
                 override?.sharedCameraZoomRatio ?: base.sharedCameraZoomRatio,
         )
