@@ -1,0 +1,6 @@
+{
+  "eval_id": 1,
+  "eval_name": "init-codemaps",
+  "prompt": "我需要为这个仓库初始化 CODEMAPS 文档体系。当前仓库没有 docs/CODEMAPS.md，但已有 CLAUDE.md 和各模块的 README.md。请帮我分析现有模块结构，创建 docs/CODEMAPS.md，并检查 CLAUDE.md 是否需要同步精简。完成后输出你做了哪些变更的摘要。",
+  "assertions": []
+}

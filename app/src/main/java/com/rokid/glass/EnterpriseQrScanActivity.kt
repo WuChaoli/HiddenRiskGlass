@@ -38,11 +38,15 @@ import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
+import com.rokid.glass.input.GlassesWearStateMachine
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 
 class EnterpriseQrScanActivity : BaseGlassActivity() {
+
+    override val wearSleepEnabled: Boolean
+        get() = true
 
     private lateinit var cameraPreviewView: RokidCameraPreviewView
     private lateinit var tvStatus: TextView
@@ -81,6 +85,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private var cameraSessionGeneration = 0L
     private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
     private var batteryReceiver: BroadcastReceiver? = null
+    private var isActivityResumed = false
+    private var wearSnapshot: GlassesWearStateMachine.Snapshot? = null
+    private var wearRecoveryInProgress = false
 
     private val statusUpdateRunnable = object : Runnable {
         override fun run() {
@@ -139,7 +146,10 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     private val scanRunnable = object : Runnable {
         override fun run() {
-            if (completed || !isFrameStreamReady || isProcessingFrame) {
+            if (completed || isWearStateInteractionBlocked()) {
+                return
+            }
+            if (!isFrameStreamReady || isProcessingFrame) {
                 mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                 return
             }
@@ -162,7 +172,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                 }
                 .addOnCompleteListener {
                     isProcessingFrame = false
-                    if (!completed) {
+                    if (!completed && !isWearStateInteractionBlocked()) {
                         mainHandler.postDelayed(this, SCAN_INTERVAL_MS)
                     }
                 }
@@ -208,6 +218,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onResume() {
+        isActivityResumed = true
         super.onResume()
         inputSession.attach()
         refreshInputActions()
@@ -225,6 +236,8 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     override fun onPause() {
+        isActivityResumed = false
+        wearRecoveryInProgress = false
         stopStatusBarUpdates()
         inputSession.detach()
         if (debugSnapshotMode) {
@@ -252,6 +265,26 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             pauseCameraPipeline(reason = "on_destroy")
         }
         super.onDestroy()
+    }
+
+    override fun shouldEnableWearSleepNow(): Boolean {
+        return super.shouldEnableWearSleepNow() && shouldMonitorWearState()
+    }
+
+    override fun onWearStateChanged(snapshot: GlassesWearStateMachine.Snapshot?) {
+        val previousState = wearSnapshot?.state
+        wearSnapshot = snapshot
+        refreshInputActions()
+        when (snapshot?.state) {
+            GlassesWearStateMachine.State.SLEEP -> showWearSleep()
+            GlassesWearStateMachine.State.WAKE -> beginWearRecovery()
+            GlassesWearStateMachine.State.ACTIVE -> {
+                if (previousState == GlassesWearStateMachine.State.WAKE) {
+                    finishWearRecovery()
+                }
+            }
+            else -> Unit
+        }
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
@@ -328,6 +361,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             }
             tvStatus.text = statusMessage
             startScanLoop()
+            if (wearRecoveryInProgress) {
+                reportWearRecoveryReady()
+            }
         }
         cameraSessionGeneration = requestGeneration
         Log.i(TAG, "startCameraPipeline requestGeneration=$requestGeneration owner=${InspectionCameraCoordinator.getOwner()}")
@@ -376,7 +412,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun handleScanResult(barcodes: List<Barcode>) {
-        if (completed) {
+        if (completed || isWearStateInteractionBlocked()) {
             return
         }
         val rawValue = barcodes.firstOrNull { !it.rawValue.isNullOrBlank() }?.rawValue ?: return
@@ -387,6 +423,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             return
         }
         completed = true
+        updateWearSleepEligibility(false)
         enterObjectFetchLoadingState()
         refreshInputActions()
         mainHandler.removeCallbacks(scanRunnable)
@@ -476,6 +513,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
 
     private fun restoreScanStateForRetry(message: String) {
         completed = false
+        updateWearSleepEligibility(shouldMonitorWearState())
         showScanState(message)
         refreshInputActions()
         if (hasRequiredPermissions()) {
@@ -498,11 +536,48 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         tvStatus.text = statusMessage
     }
 
+    private fun showWearSleep() {
+        if (!shouldMonitorWearState()) {
+            updateWearSleepEligibility(false)
+            return
+        }
+        wearRecoveryInProgress = false
+        pauseCameraPipeline(reason = "enterprise_qr_wear_sleep")
+    }
+
+    private fun beginWearRecovery() {
+        if (!isActivityResumed || !shouldMonitorWearState()) {
+            updateWearSleepEligibility(shouldMonitorWearState())
+            return
+        }
+        wearRecoveryInProgress = true
+        if (hasRequiredPermissions()) {
+            startCameraPipeline(
+                statusMessage = getString(R.string.enterprise_qr_waiting),
+                resetRecoveryAttempts = true,
+            )
+        } else {
+            requestPermissions()
+        }
+    }
+
+    private fun finishWearRecovery() {
+        wearRecoveryInProgress = false
+        if (shouldMonitorWearState()) {
+            showScanState(getString(R.string.enterprise_qr_waiting))
+        }
+    }
+
+    private fun shouldMonitorWearState(): Boolean {
+        return !debugSnapshotMode && !completed && objectMessageRequest == null && !destroyed
+    }
+
     private fun shouldEnableCameraRecovery(): Boolean {
         return InspectionConfigRepository.get().enterpriseScan.enableCameraRecovery &&
             !debugSnapshotMode &&
             !completed &&
-            objectMessageRequest == null
+            objectMessageRequest == null &&
+            (!isWearStateInteractionBlocked() || wearRecoveryInProgress)
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -612,7 +687,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         if (debugSnapshotMode) {
             return intent.getStringExtra("debug_state") == "success"
         }
-        return !completed && objectMessageRequest == null
+        return !completed && objectMessageRequest == null && !isWearStateInteractionBlocked()
     }
 
     private fun handlePrimaryAction() {
@@ -622,7 +697,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
             }
             return
         }
-        if (completed || objectMessageRequest != null) {
+        if (completed || objectMessageRequest != null || isWearStateInteractionBlocked()) {
             return
         }
         startCameraPipeline(

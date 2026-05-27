@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eval Review</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      --bg: #faf9f5;
+      --surface: #ffffff;
+      --border: #e8e6dc;
+      --text: #141413;
+      --text-muted: #b0aea5;
+      --accent: #d97757;
+      --accent-hover: #c4613f;
+      --green: #788c5d;
+      --green-bg: #eef2e8;
+      --red: #c44;
+      --red-bg: #fceaea;
+      --header-bg: #141413;
+      --header-text: #faf9f5;
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Lora', Georgia, serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- Header ---- */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .header .instructions {
+      font-size: 0.8rem;
+      opacity: 0.7;
+      margin-top: 0.25rem;
+    }
+    .header .progress {
+      font-size: 0.875rem;
+      opacity: 0.8;
+      text-align: right;
+    }
+
+    /* ---- Main content ---- */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    /* ---- Sections ---- */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      flex-shrink: 0;
+    }
+    .section-header {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.75rem 1rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+    .section-body {
+      padding: 1rem;
+    }
+
+    /* ---- Config badge ---- */
+    .config-badge {
+      display: inline-block;
+      padding: 0.2rem 0.625rem;
+      border-radius: 9999px;
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.6875rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-left: 0.75rem;
+      vertical-align: middle;
+    }
+    .config-badge.config-primary {
+      background: rgba(33, 150, 243, 0.12);
+      color: #1976d2;
+    }
+    .config-badge.config-baseline {
+      background: rgba(255, 193, 7, 0.15);
+      color: #f57f17;
+    }
+
+    /* ---- Prompt ---- */
+    .prompt-text {
+      white-space: pre-wrap;
+      font-size: 0.9375rem;
+      line-height: 1.6;
+    }
+
+    /* ---- Outputs ---- */
+    .output-file {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .output-file + .output-file {
+      margin-top: 1rem;
+    }
+    .output-file-header {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .output-file-header .dl-btn {
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-weight: 500;
+      opacity: 0.8;
+    }
+    .output-file-header .dl-btn:hover {
+      opacity: 1;
+      text-decoration: underline;
+    }
+    .output-file-content {
+      padding: 0.75rem;
+      overflow-x: auto;
+    }
+    .output-file-content pre {
+      font-size: 0.8125rem;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+    .output-file-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+    .output-file-content iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+    }
+    .output-file-content table {
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      width: 100%;
+    }
+    .output-file-content table td,
+    .output-file-content table th {
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.5rem;
+      text-align: left;
+    }
+    .output-file-content table th {
+      background: var(--bg);
+      font-weight: 600;
+    }
+    .output-file-content .download-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.875rem;
+      cursor: pointer;
+    }
+    .output-file-content .download-link:hover {
+      background: var(--border);
+    }
+    .empty-state {
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    /* ---- Feedback ---- */
+    .prev-feedback {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.625rem 0.75rem;
+      margin-top: 0.75rem;
+      font-size: 0.8125rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .prev-feedback-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 0.25rem;
+      color: var(--text-muted);
+    }
+    .feedback-textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      resize: vertical;
+      color: var(--text);
+    }
+    .feedback-textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    .feedback-status {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      min-height: 1.1em;
+    }
+
+    /* ---- Grades (collapsible) ---- */
+    .grades-toggle {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+    }
+    .grades-toggle:hover {
+      color: var(--accent);
+    }
+    .grades-toggle .arrow {
+      margin-right: 0.5rem;
+      transition: transform 0.15s;
+      font-size: 0.75rem;
+    }
+    .grades-toggle .arrow.open {
+      transform: rotate(90deg);
+    }
+    .grades-content {
+      display: none;
+      margin-top: 0.75rem;
+    }
+    .grades-content.open {
+      display: block;
+    }
+    .grades-summary {
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .grade-badge {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .grade-pass { background: var(--green-bg); color: var(--green); }
+    .grade-fail { background: var(--red-bg); color: var(--red); }
+    .assertion-list {
+      list-style: none;
+    }
+    .assertion-item {
+      padding: 0.625rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8125rem;
+    }
+    .assertion-item:last-child { border-bottom: none; }
+    .assertion-status {
+      font-weight: 600;
+      margin-right: 0.5rem;
+    }
+    .assertion-status.pass { color: var(--green); }
+    .assertion-status.fail { color: var(--red); }
+    .assertion-evidence {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 0.25rem;
+      padding-left: 1.5rem;
+    }
+
+    /* ---- View tabs ---- */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .view-tab {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.625rem 1.25rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: var(--text-muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .view-tab:hover { color: var(--text); }
+    .view-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .view-panel { display: none; }
+    .view-panel.active { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+
+    /* ---- Benchmark view ---- */
+    .benchmark-view {
+      padding: 1.5rem 2rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .benchmark-table {
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.8125rem;
+      width: 100%;
+      margin-bottom: 1.5rem;
+    }
+    .benchmark-table th, .benchmark-table td {
+      padding: 0.625rem 0.75rem;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+    .benchmark-table th {
+      font-family: 'Poppins', sans-serif;
+      background: var(--header-bg);
+      color: var(--header-text);
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .benchmark-table tr:hover { background: var(--bg); }
+    .benchmark-table tr.benchmark-row-with { background: rgba(33, 150, 243, 0.06); }
+    .benchmark-table tr.benchmark-row-without { background: rgba(255, 193, 7, 0.06); }
+    .benchmark-table tr.benchmark-row-with:hover { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-without:hover { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-table tr.benchmark-row-avg { font-weight: 600; border-top: 2px solid var(--border); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-with { background: rgba(33, 150, 243, 0.12); }
+    .benchmark-table tr.benchmark-row-avg.benchmark-row-without { background: rgba(255, 193, 7, 0.12); }
+    .benchmark-delta-positive { color: var(--green); font-weight: 600; }
+    .benchmark-delta-negative { color: var(--red); font-weight: 600; }
+    .benchmark-notes {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1rem;
+    }
+    .benchmark-notes h3 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 0.875rem;
+      margin-bottom: 0.75rem;
+    }
+    .benchmark-notes ul {
+      list-style: disc;
+      padding-left: 1.25rem;
+    }
+    .benchmark-notes li {
+      font-size: 0.8125rem;
+      line-height: 1.6;
+      margin-bottom: 0.375rem;
+    }
+    .benchmark-empty {
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 3rem;
+    }
+
+    /* ---- Navigation ---- */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+    .nav-btn:hover:not(:disabled) {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .done-btn {
+      font-family: 'Poppins', sans-serif;
+      padding: 0.5rem 1.5rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .done-btn:hover {
+      background: var(--bg);
+      border-color: var(--text-muted);
+    }
+    .done-btn.ready {
+      border: none;
+      background: var(--accent);
+      color: white;
+      font-weight: 600;
+    }
+    .done-btn.ready:hover {
+      background: var(--accent-hover);
+    }
+    /* ---- Done overlay ---- */
+    .done-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    .done-overlay.visible {
+      display: flex;
+    }
+    .done-card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem 3rem;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 500px;
+    }
+    .done-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .done-card p {
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .done-card .btn-row {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+    }
+    .done-card button {
+      padding: 0.5rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+    .done-card button:hover {
+      background: var(--bg);
+    }
+    /* ---- Toast ---- */
+    .toast {
+      position: fixed;
+      bottom: 5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 0.625rem 1.25rem;
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 200;
+    }
+    .toast.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" style="height:100vh; display:flex; flex-direction:column;">
+    <div class="header">
+      <div>
+        <h1>Eval Review: <span id="skill-name"></span></h1>
+        <div class="instructions">Review each output and leave feedback below. Navigate with arrow keys or buttons. When done, copy feedback and paste into Claude Code.</div>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <!-- View tabs (only shown when benchmark data exists) -->
+    <div class="view-tabs" id="view-tabs" style="display:none;">
+      <button class="view-tab active" onclick="switchView('outputs')">Outputs</button>
+      <button class="view-tab" onclick="switchView('benchmark')">Benchmark</button>
+    </div>
+
+    <!-- Outputs panel (qualitative review) -->
+    <div class="view-panel active" id="panel-outputs">
+    <div class="main">
+      <!-- Prompt -->
+      <div class="section">
+        <div class="section-header">Prompt <span class="config-badge" id="config-badge" style="display:none;"></span></div>
+        <div class="section-body">
+          <div class="prompt-text" id="prompt-text"></div>
+        </div>
+      </div>
+
+      <!-- Outputs -->
+      <div class="section">
+        <div class="section-header">Output</div>
+        <div class="section-body" id="outputs-body">
+          <div class="empty-state">No output files found</div>
+        </div>
+      </div>
+
+      <!-- Previous Output (collapsible) -->
+      <div class="section" id="prev-outputs-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="togglePrevOutputs()">
+            <span class="arrow" id="prev-outputs-arrow">&#9654;</span>
+            Previous Output
+          </div>
+        </div>
+        <div class="grades-content" id="prev-outputs-content"></div>
+      </div>
+
+      <!-- Grades (collapsible) -->
+      <div class="section" id="grades-section" style="display:none;">
+        <div class="section-header">
+          <div class="grades-toggle" onclick="toggleGrades()">
+            <span class="arrow" id="grades-arrow">&#9654;</span>
+            Formal Grades
+          </div>
+        </div>
+        <div class="grades-content" id="grades-content"></div>
+      </div>
+
+      <!-- Feedback -->
+      <div class="section">
+        <div class="section-header">Your Feedback</div>
+        <div class="section-body">
+          <textarea
+            class="feedback-textarea"
+            id="feedback"
+            placeholder="What do you think of this output? Any issues, suggestions, or things that look great?"
+          ></textarea>
+          <div class="feedback-status" id="feedback-status"></div>
+          <div class="prev-feedback" id="prev-feedback" style="display:none;">
+            <div class="prev-feedback-label">Previous feedback</div>
+            <div id="prev-feedback-text"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav" id="outputs-nav">
+      <button class="nav-btn" id="prev-btn" onclick="navigate(-1)">&#8592; Previous</button>
+      <button class="done-btn" id="done-btn" onclick="showDoneDialog()">Submit All Reviews</button>
+      <button class="nav-btn" id="next-btn" onclick="navigate(1)">Next &#8594;</button>
+    </div>
+    </div><!-- end panel-outputs -->
+
+    <!-- Benchmark panel (quantitative stats) -->
+    <div class="view-panel" id="panel-benchmark">
+      <div class="benchmark-view" id="benchmark-content">
+        <div class="benchmark-empty">No benchmark data available. Run a benchmark to see quantitative results here.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Done overlay -->
+  <div class="done-overlay" id="done-overlay">
+    <div class="done-card">
+      <h2>Review Complete</h2>
+      <p>Your feedback has been saved. Go back to your Claude Code session and tell Claude you're done reviewing.</p>
+      <div class="btn-row">
+        <button onclick="closeDoneDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ---- Embedded data (injected by generate_review.py) ----
+    const EMBEDDED_DATA = {"skill_name": "codexmap-sync", "runs": [{"id": "eval-1-init-codemaps-with_skill", "prompt": "\u6211\u9700\u8981\u4e3a\u8fd9\u4e2a\u4ed3\u5e93\u521d\u59cb\u5316 CODEMAPS \u6587\u6863\u4f53\u7cfb\u3002\u5f53\u524d\u4ed3\u5e93\u6ca1\u6709 docs/CODEMAPS.md\uff0c\u4f46\u5df2\u6709 CLAUDE.md \u548c\u5404\u6a21\u5757\u7684 README.md\u3002\u8bf7\u5e2e\u6211\u5206\u6790\u73b0\u6709\u6a21\u5757\u7ed3\u6784\uff0c\u521b\u5efa docs/CODEMAPS.md\uff0c\u5e76\u68c0\u67e5 CLAUDE.md \u662f\u5426\u9700\u8981\u540c\u6b65\u7cbe\u7b80\u3002\u5b8c\u6210\u540e\u8f93\u51fa\u4f60\u505a\u4e86\u54ea\u4e9b\u53d8\u66f4\u7684\u6458\u8981\u3002", "eval_id": 1, "outputs": [{"name": "CLAUDE.md", "type": "text", "content": "# CLAUDE.md\n\nThis file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.\n\n## \u9879\u76ee\u6982\u8ff0\n\nRokid AR \u773c\u955c Android \u5e94\u7528\uff08\"\u57fa\u5c42\u5e94\u6d88\"\uff09\uff0c\u5177\u5907 AI \u9690\u60a3\u68c0\u6d4b\u529f\u80fd\u3002\u901a\u8fc7 NCNN (Vulkan GPU) \u8fd0\u884c YOLOv8 \u5b9e\u73b0\u7aef\u4fa7\u63a8\u7406\uff0c\u540c\u65f6\u652f\u6301\u5728\u7ebf SSE \u8fdc\u7aef\u63a8\u7406\u4f5c\u4e3a\u8865\u5145\uff08\u53cc\u8f68\u63a8\u7406\u67b6\u6784\uff09\u3002\n\n- \u5305\u540d/applicationId\uff1a`com.rokid.glesse`\n- \u6280\u672f\u6808\uff1aKotlin + C++ (JNI)\n- \u7248\u672c\uff1a`2.0.3`\n\n## \u663e\u793a\u8bbe\u8ba1\u57fa\u7ebf\n\n\u773c\u955c\u7aef\u663e\u793a\u57fa\u7ebf\uff1a**480 x 640 px**\uff0c**240 dpi**\uff08`1dp = 1.5px`\uff09\u3002\u7406\u8bba\u6ee1\u5c4f `320 x 426.7 dp`\uff0c\u5e38\u89c4\u9875\u9762\u5173\u952e\u5185\u5bb9\u6309 `320 x 402 dp` \u8bbe\u8ba1\u3002\n\n## \u6784\u5efa\u547d\u4ee4\n\n```bash\n./gradlew assembleDebug          # \u6784\u5efa debug APK\n./gradlew assembleRelease        # \u6784\u5efa release APK\n./gradlew clean assembleDebug    # \u6e05\u7406\u540e\u6784\u5efa\n./gradlew installDebug           # \u5b89\u88c5\u5230\u5df2\u8fde\u63a5\u8bbe\u5907\n\n# \u6d4b\u8bd5\n./gradlew test                   # \u6240\u6709\u5355\u5143\u6d4b\u8bd5\n./gradlew connectedAndroidTest   # \u4eea\u5668\u6d4b\u8bd5\n./gradlew test --tests \"com.rokid.glesse.ExampleUnitTest.addition_isCorrect\"  # \u5355\u4e2a\u6d4b\u8bd5\u65b9\u6cd5\n\n# \u6a21\u578b\u5bfc\u51fa\uff08\u9700\u8981 models/ \u4e0b\u7684 Python \u865a\u62df\u73af\u5883\uff09\ncd models && source .venv/bin/activate  # Windows: .venv/Scripts/activate\nbash scripts/export_hiddenrisk_640.sh\nbash scripts/validate_hiddenrisk_assets.sh\n```\n\nJNI/C++ \u7531 Gradle \u901a\u8fc7 CMake \u81ea\u52a8\u6784\u5efa\uff08`app/src/main/jni/CMakeLists.txt`\uff09\uff0cNDK \u7248\u672c `29.0.14206865`\u3002\n\n## \u67b6\u6784\n\n\u4e94\u5c42\u67b6\u6784\uff1a\u9875\u9762\u5c42 -> \u4f1a\u8bdd\u5c42 -> \u8f93\u5165\u5c42 -> \u76f8\u673a\u5c42 -> \u8bc6\u522b\u94fe\u8def\u5c42\u3002\u8de8\u6a21\u5757\u5173\u7cfb\u3001\u4f9d\u8d56\u77e9\u9635\u3001\u7aef\u5230\u7aef\u6570\u636e\u6d41\u89c1 **`docs/CODEMAPS.md`**\uff08L2 \u5185\u5b58\u6587\u6863\uff09\u3002\n\n\u6838\u5fc3\u67b6\u6784\u51b3\u7b56\uff1a**\u53cc\u8f68\u63a8\u7406** -- \u672c\u5730 NCNN (YOLOv8 Vulkan) \u59cb\u7ec8\u8fd0\u884c\u4f5c\u4e3a fallback\uff0c\u5728\u7ebf SSE \u63a8\u7406\u63d0\u4f9b\u66f4\u4e30\u5bcc\u7684\u5206\u6790\u7ed3\u679c\uff0c\u7531 `AutoHazardPipelineDecider` \u94fe\u8def\u8c03\u5ea6\u3002\n\n## \u6a21\u5757\u4ee3\u7801\u5730\u56fe\n\n\u6536\u5230\u4ee3\u7801\u5b9a\u4f4d\u4efb\u52a1\u65f6\uff0c\u5148\u67e5\u6b64\u8868\u627e\u5230\u5bf9\u5e94\u6a21\u5757 README.md\uff0c\u518d\u8fdb\u5165\u5177\u4f53\u6587\u4ef6\u3002\n\n| \u6a21\u5757 | \u5305/\u8def\u5f84 | README | \u8986\u76d6\u8303\u56f4 |\n|------|---------|--------|----------|\n| \u9690\u60a3\u8bc6\u522b/\u63a8\u7406 | `hiddenrisk/` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | \u5de1\u68c0\u9875\u9762\u3001\u5728\u7ebf/\u672c\u5730\u63a8\u7406\u3001\u81ea\u52a8\u94fe\u8def\u3001\u9690\u60a3\u4e0a\u4f20\u3001\u8bbe\u5907\u6307\u5f15\u3001\u62cd\u7167\u5f55\u5165 (~50\u6587\u4ef6) |\n| \u76f8\u673a/\u5e27\u6d41 | `camera/` | [README](app/src/main/java/com/rokid/glass/camera/README.md) | \u76f8\u673a\u7ba1\u7406\u3001\u5e27\u6355\u83b7\u3001\u9884\u89c8\u3001\u6062\u590d\u63a7\u5236 |\n| \u7edf\u4e00\u8f93\u5165 | `input/` | [README](app/src/main/java/com/rokid/glass/input/README.md) | \u89e6\u63a7\u3001\u8bed\u97f3\u3001\u5934\u90e8\u52a8\u4f5c\u6620\u5c04\u3001\u81ea\u52a8\u4f11\u7720 |\n| \u5de1\u68c0\u5de5\u4f5c\u6d41 | `workflow/` | [README](app/src/main/java/com/rokid/glass/workflow/README.md) | \u8de8\u9875\u9762\u4e1a\u52a1\u4e0a\u4e0b\u6587\u3001\u4f01\u4e1a\u4fe1\u606f\u3001QR \u89e3\u6790 |\n| UI \u7ec4\u4ef6 | `component/` | [README](app/src/main/java/com/rokid/glass/component/README.md) | \u72b6\u6001\u680f\u3001\u53d6\u666f\u5668\u3001\u83dc\u5355\u3001\u5f39\u7a97\u3001\u63d0\u793a |\n| \u914d\u7f6e\u7cfb\u7edf | `config/` | [README](app/src/main/java/com/rokid/glass/config/README.md) | \u8fd0\u884c\u65f6\u914d\u7f6e\u3001\u63a8\u7406\u53c2\u6570\u3001API \u7aef\u70b9\u3001\u7279\u6027\u5f00\u5173 |\n| \u539f\u751f\u63a8\u7406 (JNI) | `jni/` | -- | C++ JNI\u6865\u63a5\u3001YOLOv8\u63a8\u7406\u3001NCNN Vulkan |\n| \u7f51\u7edc | `network/` | -- | OkHttp \u5355\u4f8b\u63d0\u4f9b |\n| \u5e94\u7528\u66f4\u65b0 | `updater/` | -- | App \u7248\u672c\u68c0\u67e5\u3001\u4e0b\u8f7d\u3001\u5347\u7ea7\u63d0\u793a |\n| \u5de5\u5177\u5e93 | `utils/` | -- | \u65e5\u5fd7\u3001Bitmap\u3001SSE\u3001TTS\u3001WiFi QR \u7b49 |\n\n## \u4ee3\u7801\u98ce\u683c\n\n- \u4ee3\u7801/\u6587\u4ef6/\u76ee\u5f55\u547d\u540d\uff1aEnglish\uff1b\u6ce8\u91ca\u548c\u6587\u6863\uff1a\u7b80\u4f53\u4e2d\u6587\n- Kotlin \u98ce\u683c\uff1a`official`\uff08`kotlin.code.style=official`\uff09\uff0cJVM \u76ee\u6807 1.8\n- \u7c7b\u540d\uff1aPascalCase\uff0c\u51fd\u6570/\u53d8\u91cf\uff1acamelCase\uff0c\u5e38\u91cf\uff1aUPPER_SNAKE_CASE\n- C++ \u6587\u4ef6\uff1asnake_case\uff1b\u65b0\u4ee3\u7801\u4f18\u5148\u4f7f\u7528 Kotlin\uff0cJava \u4ec5\u7528\u4e8e JNI \u63a5\u53e3\u5c42\u548c\u65e7\u4ee3\u7801\n- \u4f18\u5148\u4f7f\u7528 `val` \u800c\u975e `var`\uff1b\u7eaf\u6570\u636e\u8f7d\u4f53\u4f7f\u7528 `data class`\n\n## \u5173\u952e\u4f9d\u8d56\n\n- Rokid Glass SDK `2.1.9-E`\uff08\u63a8\u8350 OTA `1.17.e002-20260509-150201` \u53ca\u4ee5\u4e0a\uff09\n- NCNN (Vulkan GPU \u63a8\u7406)\u3001OpenCV Mobile 4.13.0\n- ML Kit\uff08\u6761\u7801\u626b\u63cf\uff09\u3001Jetpack Compose\u3001Glide\u3001Gson\n- OkHttp 4.12.0\uff08HTTP + SSE\uff09\n\n## \u67b6\u6784\u4e0d\u53d8\u91cf\uff08\u5168\u5c40\u89c4\u5219\uff09\n\n\u4ee5\u4e0b\u89c4\u5219\u5728\u6574\u4e2a\u4ee3\u7801\u5e93\u4e2d\u4e0d\u53ef\u8fdd\u53cd\uff1a\n\n1. **NCNN param + bin \u5fc5\u987b\u6210\u5bf9\u66ff\u6362**\uff0c\u4e0d\u5141\u8bb8\u53ea\u6362\u4e00\u4e2a\n2. **JNI \u8c03\u7528\u53ea\u80fd\u901a\u8fc7 `HiddenRiskNcnn.java`**\uff0c\u7981\u6b62\u5728\u5176\u4ed6\u4f4d\u7f6e\u58f0\u660e native \u65b9\u6cd5\n3. **\u914d\u7f6e\u53ea\u4ece `InspectionConfigRepository` \u8bfb\u53d6**\uff0c\u7981\u6b62\u786c\u7f16\u7801\u63a8\u7406\u53c2\u6570/API \u7aef\u70b9\n4. **\u76f8\u673a\u5e27\u6d41\u53ea\u901a\u8fc7 `InspectionSession` \u83b7\u53d6**\uff0cActivity \u4e0d\u76f4\u63a5\u6301\u6709 Camera \u5f15\u7528\n\n## \u6587\u6863\u5bfc\u822a\n\n| \u6587\u6863 | \u8def\u5f84 | \u8bf4\u660e |\n|------|------|------|\n| \u6a21\u5757\u5173\u7cfb\u5730\u56fe (L2) | `docs/CODEMAPS.md` | \u67b6\u6784\u5c42\u7ea7\u56fe\u3001\u4f9d\u8d56\u77e9\u9635\u3001\u6570\u636e\u6d41\u3001\u8fb9\u754c\u89c4\u5219\u3001\u672f\u8bed\u8868\u3001\u4efb\u52a1\u901f\u67e5 |\n| AI Agent \u8865\u5145\u6307\u5357 | `AGENTS.md` | NCNN \u7ecf\u9a8c\u7ec6\u8282\u4e0e\u884c\u4e3a\u8865\u5145 |\n| \u6a21\u578b\u5bfc\u51fa\u6307\u5357 | `models/README.md` | \u6a21\u578b\u8bad\u7ec3 -> \u5bfc\u51fa -> \u90e8\u7f72\u5b8c\u6574\u6d41\u7a0b |\n| \u5404\u6a21\u5757 README | \u89c1\u4e0a\u65b9\"\u6a21\u5757\u4ee3\u7801\u5730\u56fe\"\u8868 | \u6a21\u5757\u5185\u90e8\u6587\u4ef6\u7d22\u5f15\u4e0e\u6838\u5fc3\u8c03\u7528\u94fe |\n\n---\n\n**\u4e09\u5c42\u6587\u6863\u4f53\u7cfb**: `CLAUDE.md` (L1 \u7f13\u5b58\uff0c\u672c\u6587\u6863) -> `docs/CODEMAPS.md` (L2 \u5185\u5b58) -> \u5404\u6a21\u5757 `README.md` (L3 \u786c\u76d8)\n"}, {"name": "CODEMAPS.md", "type": "text", "content": "# CODEMAPS -- \u6a21\u5757\u5173\u7cfb\u5730\u56fe\n\n> \u4e09\u5c42\u6587\u6863\u4f53\u7cfb\uff1aCLAUDE.md (L1\u7f13\u5b58) -> \u672c\u6587\u6863 (L2\u5185\u5b58) -> \u6a21\u5757README (L3\u786c\u76d8)\n> \u672c\u6587\u6863\u63cf\u8ff0\u6a21\u5757\u95f4\u7684\u5173\u7cfb\u3001\u6570\u636e\u6d41\u3001\u8fb9\u754c\u89c4\u5219\u3002\u6a21\u5757\u5185\u90e8\u7ec6\u8282\u89c1\u5404 README\u3002\n>\n> \u6700\u540e\u66f4\u65b0: 2026-05-27\n\n---\n\n## 1. \u67b6\u6784\u5c42\u7ea7\u56fe\n\n\u5e94\u7528\u91c7\u7528\u4e94\u5c42\u67b6\u6784\uff0c\u81ea\u4e0a\u800c\u4e0b\u4e3a\u9875\u9762\u5c42\u3001\u4f1a\u8bdd\u5c42\u3001\u8f93\u5165\u5c42\u3001\u76f8\u673a\u5c42\u3001\u8bc6\u522b\u94fe\u8def\u5c42\u3002\n\u6bcf\u5c42\u53ea\u4f9d\u8d56\u4e0b\u5c42\uff08\u6216\u5176\u62bd\u8c61\uff09\uff0c\u4e0d\u53cd\u5411\u5f15\u7528\u3002\n\n```mermaid\nflowchart TB\n    subgraph L1_PAGE[\u9875\u9762\u5c42]\n        Menu[\u4e3b\u83dc\u5355 HomeActivity]\n        Loading[\u542f\u52a8\u52a0\u8f7d InspectionLoadingActivity]\n        Inspection[AI\u5de1\u68c0 AiInspectionActivity]\n        Record[\u9690\u60a3\u62cd\u7167 HazardRecordActivity]\n        Guide[\u8bbe\u5907\u6307\u5f15 DeviceGuideActivity]\n        Report[\u7ed3\u675f\u62a5\u544a InspectionEndReportActivity]\n        Probe[\u63a2\u9488\u8c03\u8bd5 HiddenRiskProbeActivity]\n    end\n\n    subgraph L2_SESSION[\u4f1a\u8bdd\u5c42]\n        IS[InspectionSession<br/>\u5168\u5c40\u5355\u4f8b<br/>\u6301\u6709NCNN/\u5e27\u6d41/\u6a21\u578b\u72b6\u6001]\n        IWS[InspectionWorkflowSession<br/>\u4e1a\u52a1\u4e0a\u4e0b\u6587<br/>\u4f01\u4e1a\u4fe1\u606f/\u68c0\u6d4b\u7ed3\u679c/\u4e0a\u4f20\u8bb0\u5f55]\n    end\n\n    subgraph L3_INPUT[\u8f93\u5165\u5c42]\n        UI[UnifiedInput<br/>\u89e6\u63a7+\u8bed\u97f3+\u5934\u90e8\u624b\u52bf\u7edf\u4e00\u62bd\u8c61]\n        Sleep[AutoSleepStateMachine<br/>\u6458\u955c\u81ea\u52a8\u4f11\u7720]\n        Head[HeadMotionStabilityTracker<br/>\u9640\u87ba\u4eea\u7a33\u5b9a\u6027\u8ddf\u8e2a]\n    end\n\n    subgraph L4_CAMERA[\u76f8\u673a\u5c42]\n        QCM[QuickCameraManager<br/>Camera2 API GPU\u5e27\u6355\u83b7]\n        RFS[RokidFrameSource<br/>\u7edf\u4e00\u5e27\u83b7\u53d6\u63a5\u53e3]\n        RC[RokidCameraRecoveryController<br/>\u5f02\u5e38\u81ea\u52a8\u6062\u590d]\n    end\n\n    subgraph L5_INFERENCE[\u8bc6\u522b\u94fe\u8def\u5c42]\n        NCNN[NCNN YOLOv8<br/>\u672c\u5730\u7aef\u4fa7\u63a8\u7406 Vulkan]\n        SSE[SSE\u5728\u7ebf\u63a8\u7406<br/>OkHttp /ai/auto /ai/deep]\n        Pipeline[AutoHazardPipelineDecider<br/>\u53cc\u8f68\u8c03\u5ea6]\n        JNI[JNI\u6865\u63a5<br/>yolov8ncnn.cpp]\n    end\n\n    L1_PAGE --> L2_SESSION\n    L1_PAGE --> L3_INPUT\n    L4_CAMERA --> L5_INFERENCE\n    L2_SESSION --> L5_INFERENCE\n    L2_SESSION --> L4_CAMERA\n```\n\n**\u5c42\u7ea7\u804c\u8d23\u4e00\u53e5\u8bdd**\uff1a\n\n| \u5c42 | \u804c\u8d23 | \u6838\u5fc3\u7c7b/\u6587\u4ef6 |\n|---|------|------------|\n| \u9875\u9762\u5c42 | Activity \u751f\u547d\u5468\u671f\u3001UI \u6e32\u67d3\u3001\u7528\u6237\u4ea4\u4e92\u54cd\u5e94 | 6\u4e2a Activity (\u89c1 hiddenrisk/README) |\n| \u4f1a\u8bdd\u5c42 | \u5168\u5c40\u5de1\u68c0\u72b6\u6001\u5171\u4eab\uff0c\u907f\u514d\u91cd\u590d\u521d\u59cb\u5316 | `InspectionSession`, `InspectionWorkflowSession` |\n| \u8f93\u5165\u5c42 | \u591a\u6a21\u6001\u8f93\u5165\u7edf\u4e00\u62bd\u8c61\u548c\u5206\u53d1 | `UnifiedInput`, `AutoSleepStateMachine` |\n| \u76f8\u673a\u5c42 | \u76f8\u673a\u751f\u547d\u5468\u671f\u3001\u5e27\u6d41\u6355\u83b7\u548c\u6062\u590d | `QuickCameraManager`, `RokidFrameSource` |\n| \u8bc6\u522b\u94fe\u8def\u5c42 | \u53cc\u8f68\u63a8\u7406\u8c03\u5ea6\u3001\u672c\u5730NCNN\u63a8\u7406\u3001\u5728\u7ebfSSE\u63a8\u7406 | `AutoHazardPipelineDecider`, `HiddenRiskNcnn`, `AiArSseService` |\n\n---\n\n## 2. \u6a21\u5757\u4f9d\u8d56\u77e9\u9635\n\n### \u6a21\u5757\u4e00\u89c8\n\n| \u6a21\u5757 | \u5305\u8def\u5f84 | README | \u7c7b\u578b | \u6587\u4ef6\u6570 |\n|------|--------|--------|------|--------|\n| hiddenrisk | `com.rokid.glass.hiddenrisk` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | \u4e1a\u52a1\u6838\u5fc3 | ~50 |\n| camera | `com.rokid.glass.camera` | [README](app/src/main/java/com/rokid/glass/camera/README.md) | \u57fa\u7840\u8bbe\u65bd | 3 |\n| input | `com.rokid.glass.input` | [README](app/src/main/java/com/rokid/glass/input/README.md) | \u57fa\u7840\u8bbe\u65bd | 5 |\n| workflow | `com.rokid.glass.workflow` | [README](app/src/main/java/com/rokid/glass/workflow/README.md) | \u4e1a\u52a1\u4e0a\u4e0b\u6587 | 1 |\n| component | `com.rokid.glass.component` | [README](app/src/main/java/com/rokid/glass/component/README.md) | UI\u7ec4\u4ef6\u5e93 | 8 |\n| config | `com.rokid.glass.config` | [README](app/src/main/java/com/rokid/glass/config/README.md) | \u914d\u7f6e\u7cfb\u7edf | 2 |\n| network | `com.rokid.glass.network` | -- | \u57fa\u7840\u8bbe\u65bd | 1 |\n| updater | `com.rokid.glass.updater` | -- | \u529f\u80fd\u6a21\u5757 | 4 |\n| utils | `com.rokid.glass.utils` | -- | \u5de5\u5177\u5e93 | ~12 |\n| data | `com.rokid.glass.data` | -- | \u5168\u5c40\u72b6\u6001 | 2 |\n| jni | `app/src/main/jni/` | [README](app/src/main/jni/ncnn/README.md) | \u539f\u751f\u63a8\u7406 | 4(+ncnn) |\n\n### \u4f9d\u8d56\u5173\u7cfb\u56fe\n\n```mermaid\ngraph TD\n    hiddenrisk --> camera\n    hiddenrisk --> input\n    hiddenrisk --> workflow\n    hiddenrisk --> component\n    hiddenrisk --> config\n    hiddenrisk --> network\n    hiddenrisk --> utils\n    hiddenrisk --> data\n    hiddenrisk --> updater\n    hiddenrisk --> jni\n    updater --> network\n    updater --> utils\n    camera --> |Android Camera2 API| Platform[Android Platform]\n    camera --> |Rokid Glass SDK| Platform\n    input --> |Sensor API| Platform\n```\n\n**\u89e3\u8bfb**\uff1a\n- `hiddenrisk/` \u662f\u4f9d\u8d56\u7684\u6c47\u805a\u70b9\uff1a\u51e0\u4e4e\u4f9d\u8d56\u6240\u6709\u5176\u4ed6\u6a21\u5757\uff0c\u662f\u4e1a\u52a1\u7f16\u6392\u5c42\n- `workflow/` \u96f6\u4f9d\u8d56\uff0c\u662f\u7eaf\u5185\u5b58\u72b6\u6001\u5bb9\u5668\n- `camera/` \u548c `input/` \u4ec5\u4f9d\u8d56 Android \u5e73\u53f0 API\uff0c\u662f\u7eaf\u57fa\u7840\u8bbe\u65bd\n- \u4f9d\u8d56\u65b9\u5411\u4e25\u683c\uff1a\u4e1a\u52a1\u6a21\u5757 -> \u57fa\u7840\u8bbe\u65bd\uff0c\u4ece\u672a\u53cd\u5411\n\n### \u6a21\u5757\u95f4\u534f\u8bae/\u7ea6\u5b9a\n\n| \u63a5\u53e3 | \u63d0\u4f9b\u65b9 | \u6d88\u8d39\u65b9 | \u683c\u5f0f/\u7ea6\u5b9a |\n|------|--------|--------|-----------|\n| \u5e27\u6d41 | `camera/` QuickCameraManager | `hiddenrisk/` \u6240\u6709\u63a8\u7406\u94fe\u8def | HardwareBuffer -> NV21 bitmap (640x640) |\n| \u7edf\u4e00\u8f93\u5165 | `input/` UnifiedInputSession | `hiddenrisk/` \u5404 Activity | `InputActionSpec(action, trigger, pageState)` |\n| \u5de1\u68c0\u4e0a\u4e0b\u6587 | `workflow/` InspectionWorkflowSession | `hiddenrisk/` \u5404 Activity | `EnterpriseQrPayload`, sessionId, \u68c0\u6d4b\u8bb0\u5f55 |\n| \u63a8\u7406\u914d\u7f6e | `config/` InspectionConfigRepository | `hiddenrisk/` \u6240\u6709\u63a8\u7406\u7ec4\u4ef6 | `InspectionAppConfig` (JSON deserialized) |\n| JNI \u63a8\u7406 | `jni/` HiddenRiskNcnn.detect() | `hiddenrisk/` InspectionSession | NV21\u5e27 -> `DetectionResult[]` |\n| SSE \u901a\u4fe1 | `hiddenrisk/` AiArSseService | `hiddenrisk/` OnlineHazardDetectionService | OkHttp SSE -> `ResolvedHazardContent` |\n| HTTP \u5ba2\u6237\u7aef | `network/` HttpClientProvider | `hiddenrisk/`, `updater/` | OkHttpClient (\u5355\u4f8b) |\n\n---\n\n## 3. \u7aef\u5230\u7aef\u6570\u636e\u6d41\n\n### 3.1 \u6838\u5fc3\u94fe\u8def\uff1a\u521d\u59cb\u5316 -> \u81ea\u52a8\u68c0\u6d4b\n\n```mermaid\nsequenceDiagram\n    actor User as \u7528\u6237\n    participant Menu as HomeActivity\n    participant Loading as InspectionLoadingActivity\n    participant Session as InspectionSession\n    participant Camera as QuickCameraManager\n    participant AI as AiInspectionActivity\n\n    User->>Menu: \u70b9\u51fb\"\u5b9e\u65f6\u5206\u6790\"\n    Menu->>Session: isInitialized?\n    alt \u672a\u521d\u59cb\u5316\n        Menu->>Loading: \u8df3\u8f6c\n        Loading->>Session: ensureInitialized() + initFrameStream()\n        Session->>Camera: initialize() + \u5e27\u6d41\u542f\u52a8\n        Camera-->>Session: GpuFrame \u6d41\u5c31\u7eea\n        Loading->>AI: markInitialized() + \u5bfc\u822a\n    else \u5df2\u521d\u59cb\u5316\n        Menu->>AI: \u76f4\u63a5\u8df3\u8f6c\n    end\n    AI->>AI: DETECTING \u6001\uff0c\u5f00\u59cb\u81ea\u52a8\u68c0\u6d4b\u5faa\u73af\n```\n\n### 3.2 \u6838\u5fc3\u94fe\u8def\uff1a\u5728\u7ebf SSE \u63a8\u7406\uff08\u4e3b\u94fe\u8def\uff09\n\n```mermaid\nsequenceDiagram\n    participant AI as AiInspectionActivity\n    participant ODS as OnlineHazardDetectionService\n    participant SSE as AiArSseService\n    participant Remote as \u8fdc\u7aef /ai/auto + /ai/deep\n    participant Parser as AiArHazardDetailParser\n    participant Agg as AiArEventAggregator\n\n    AI->>ODS: submitDetection(frame)\n    ODS->>SSE: identifyItemHazard() POST /ai/auto\n    SSE->>Remote: HTTP POST (NV21\u5e27)\n    Remote-->>SSE: hasHazard=true\n    SSE-->>ODS: \u547d\u4e2d\n    ODS->>SSE: requestDeepAnalysis()\n    SSE->>Remote: SSE /ai/deep\n    Remote-->>Agg: SSE\u4e8b\u4ef6\u6d41\n    Agg->>Parser: parse(raw) -> ResolvedHazardContent\n    Parser-->>AI: \u5206\u7c7b+\u63cf\u8ff0+\u5efa\u8bae\n    AI->>AI: \u8fdb\u5165 STREAM_RESPONSE(DESCRIPTION)\n```\n\n### 3.3 \u6838\u5fc3\u94fe\u8def\uff1a\u672c\u5730 NCNN \u63a8\u7406\uff08fallback\uff09\n\n```mermaid\nsequenceDiagram\n    participant Decider as AutoHazardPipelineDecider\n    participant Session as InspectionSession\n    participant JNI as HiddenRiskNcnn (Java)\n    participant Native as yolov8ncnn.cpp\n    participant Dedup as LocalHazardResultDeduper\n\n    Decider->>Decider: \u8fdc\u7aef\u8fde\u7eed\u5931\u8d25\u8fbe\u9608\u503c\n    Decider->>Session: loadModel()\n    Session->>JNI: loadModel(param, bin)\n    JNI->>Native: ncnn::Extractor + GPU Vulkan\n    Native-->>JNI: \u6a21\u578b\u5c31\u7eea\n    Decider->>JNI: detect(NV21 frame)\n    JNI->>Native: preprocess + inference + postprocess\n    Native-->>JNI: DetectionResult[] (16\u7c7b\u767d\u540d\u5355)\n    JNI->>Dedup: \u53bb\u91cd\n    Dedup-->>Decider: \u6700\u7ec8\u68c0\u6d4b\u5217\u8868\n```\n\n### 3.4 \u6838\u5fc3\u94fe\u8def\uff1a\u9690\u60a3\u4e0a\u4f20 -> \u624b\u673a\u7aef\u540c\u6b65\n\n```mermaid\nsequenceDiagram\n    participant AI as AiInspectionActivity\n    participant Builder as LocalHazardUploadItemBuilder\n    participant Push as LocalHazardPushService\n    participant Remote as <QR baseUrl>/pushHidDanger\n    participant Retry as InspectionRetryExecutor\n    participant Session as InspectionWorkflowSession\n\n    AI->>Builder: build(ResolvedHazardContent) -> \u4e0a\u4f20\u9879\n    Builder->>Builder: \u8df3\u8fc7\u7a7ahidNum\uff0c\u6309hidNum\u53bb\u91cd\n    AI->>Push: pushLocalHazard(items)\n    Push->>Remote: HTTP POST\n    alt \u6210\u529f\n        Remote-->>Push: 200 OK\n        Push->>Session: updateSavedHazardAttemptOutcome(SUCCESS)\n        Session-->>AI: \u8fdb\u5165 ADVICE \u6001\n    else \u5931\u8d25\n        Push->>Retry: \u91cd\u8bd5 (\u6700\u591a4\u6b21, 1s/2s/3s\u9012\u589e)\n        Retry-->>Push: \u4ecd\u5931\u8d25 -> Session.updateSavedHazardAttemptOutcome(FAILED)\n        Session-->>AI: \u7559\u5728 DESCRIPTION \u6001\uff0c\u663e\u793a\u9519\u8bef\n    end\n```\n\n### 3.5 \u8f85\u52a9\u94fe\u8def\uff1a\u9690\u60a3\u62cd\u7167\u5f55\u5165\n\n```mermaid\nsequenceDiagram\n    actor User as \u7528\u6237\n    participant HR as HazardRecordActivity\n    participant Camera as QuickCameraManager\n    participant SSE as AiArSseService\n    participant Push as LocalHazardPushService\n\n    User->>HR: \u5355\u51fb/\u8bed\u97f3\"\u62cd\u7167\"\n    HR->>Camera: takePicture()\n    Camera-->>HR: JPEG \u56fe\u7247\n    HR->>HR: COUNTDOWN -> ANALYSIS\n    HR->>SSE: requestDeepAnalysis() /ai/deep\n    SSE-->>HR: ResolvedHazardContent\n    User->>HR: \u786e\u8ba4\n    HR->>Push: pushLocalHazard()\n    Push-->>HR: \u6210\u529f -> \u8fd4\u56de IDLE\n```\n\n### 3.6 \u8f85\u52a9\u94fe\u8def\uff1a\u8bbe\u5907\u6307\u5f15\u5224\u5b9a\n\n```mermaid\nsequenceDiagram\n    participant DG as DeviceGuideActivity\n    participant SSE as AiArSseService\n    participant Remote as /ai/auto + /ai/deep\n\n    DG->>DG: DETECTING \u6001\uff0c\u5faa\u73af\u68c0\u6d4b\n    loop \u68c0\u6d4b\u5faa\u73af\n        DG->>SSE: identifyItemHazard() /ai/auto\n        SSE->>Remote: HTTP POST (\u5e27)\n        Remote-->>SSE: \u5224\u5b9a\u7ed3\u679c\n    end\n    Note over DG: \u547d\u4e2d -> \u6682\u505c2\u79d2\n    DG->>SSE: requestDeepAnalysis() /ai/deep\n    Remote-->>DG: RESULT/DETAIL \u5c55\u793a\n```\n\n---\n\n## 4. \u67b6\u6784\u4e0d\u53d8\u91cf\u4e0e\u8fb9\u754c\u89c4\u5219\n\n| # | \u89c4\u5219 | \u539f\u56e0 |\n|---|------|------|\n| R1 | **\u76f8\u673a\u5e27\u6d41\u53ea\u901a\u8fc7 InspectionSession \u83b7\u53d6**\uff0cActivity \u4e0d\u76f4\u63a5\u6301\u6709 Camera \u5f15\u7528 | \u907f\u514d\u591a\u9875\u9762\u5e27\u6d41\u62a2\u5360\uff1b`InspectionCameraCoordinator` \u7edf\u4e00\u7ba1\u7406 acquire/release |\n| R2 | **hiddenrisk/ \u662f\u552f\u4e00\u4f9d\u8d56\u6c47\u805a\u70b9**\uff0c\u5176\u4ed6\u6a21\u5757\u95f4\u4e0d\u4ea7\u751f\u65b0\u7684\u76f4\u63a5\u4f9d\u8d56 | \u4fdd\u6301\u4f9d\u8d56\u56fe\u5355\u5411\u65e0\u73af\uff1b\u65b0\u589e\u8de8\u6a21\u5757\u4f9d\u8d56\u9700\u540c\u6b65\u66f4\u65b0\u672c\u6587\u6863 |\n| R3 | **JNI \u8c03\u7528\u53ea\u80fd\u901a\u8fc7 HiddenRiskNcnn.java**\uff0cKotlin \u4ee3\u7801\u4e0d\u76f4\u63a5\u58f0\u660e native \u65b9\u6cd5 | JNI \u7b7e\u540d\u96c6\u4e2d\u5728\u5355\u4e00\u6865\u63a5\u5c42\uff0c\u964d\u4f4e\u63a5\u53e3\u53d8\u66f4\u7684\u540c\u6b65\u6210\u672c |\n| R4 | **NCNN param + bin \u5fc5\u987b\u6210\u5bf9\u66ff\u6362**\uff0c\u4e0d\u5141\u8bb8\u53ea\u6362\u4e00\u4e2a | \u4e24\u6b21\u4e0d\u540c\u7684\u5bfc\u51fa\u4f1a\u4ea7\u751f\u4e0d\u517c\u5bb9\u7684\u6a21\u578b\u7ed3\u6784\uff0c\u5bfc\u81f4\u63a8\u7406\u5d29\u6e83 |\n| R5 | **\u914d\u7f6e\u53ea\u4ece InspectionConfigRepository \u8bfb\u53d6**\uff0c\u7981\u6b62\u786c\u7f16\u7801\u63a8\u7406\u53c2\u6570/API \u7aef\u70b9 | \u4fdd\u8bc1\u98ce\u5473\u8986\u76d6\u673a\u5236\u751f\u6548\uff0c\u907f\u514d\"\u6539\u4e86\u914d\u7f6e\u4e0d\u751f\u6548\"\u7684\u8c03\u8bd5\u9677\u9631 |\n| R6 | **input/ \u7684 HEAD_GESTURE_LISTENING_ENABLED \u5f53\u524d\u5168\u5c40\u5173\u95ed**\uff0c\u4e0d\u8981\u5728\u751f\u4ea7\u4ee3\u7801\u4e2d\u91cd\u65b0\u5f00\u542f | \u5934\u90e8\u624b\u52bf\u5c1a\u672a\u5145\u5206\u9a8c\u8bc1\u7a33\u5b9a\u6027\uff0c\u8bef\u89e6\u53d1\u4f1a\u5e72\u6270\u7528\u6237\u4f53\u9a8c |\n| R7 | **\u4e0a\u4f20\u524d\u5fc5\u987b\u6309 hidNum \u53bb\u91cd\uff0c\u8df3\u8fc7\u7a7a hidNum** | `LocalHazardUploadItemBuilder.build()` \u7684\u804c\u8d23\uff0c\u9632\u6b62\u91cd\u590d\u63a8\u9001\u548c\u7a7a\u6570\u636e\u6d6a\u8d39\u5e26\u5bbd |\n\n---\n\n## 5. \u5173\u952e\u672f\u8bed\u8868\n\n| \u672f\u8bed | \u542b\u4e49 | \u6d89\u53ca\u6a21\u5757 |\n|------|------|----------|\n| \u53cc\u8f68\u63a8\u7406 | \u540c\u65f6\u8fd0\u884c\u672c\u5730 NCNN \u548c\u5728\u7ebf SSE \u4e24\u5957\u63a8\u7406\u94fe\u8def | hiddenrisk |\n| DETECTING | AiInspectionActivity \u81ea\u52a8\u68c0\u6d4b\u6001\uff0c\u6301\u7eed\u622a\u5e27\u9001\u68c0 | hiddenrisk |\n| STREAM_RESPONSE | SSE \u6d41\u5f0f\u8fd4\u56de\u9636\u6bb5\uff0cDESCRIPTION(\u786e\u8ba4) -> ADVICE(\u5efa\u8bae) | hiddenrisk |\n| NCNN | \u817e\u8baf\u5f00\u6e90\u7684\u9ad8\u6027\u80fd\u795e\u7ecf\u7f51\u7edc\u63a8\u7406\u6846\u67b6\uff0c\u672c\u9879\u76ee\u7528 Vulkan GPU \u540e\u7aef | jni, hiddenrisk |\n| SSE | Server-Sent Events\uff0cOkHttp \u5b9e\u73b0\u7684\u957f\u8fde\u63a5\u6d41\u5f0f\u534f\u8bae\uff0c\u7528\u4e8e\u5728\u7ebf\u63a8\u7406 | hiddenrisk |\n| EnterpriseQrPayload | \u4f01\u4e1a\u626b\u7801\u540e\u89e3\u6790\u7684\u4e0a\u4e0b\u6587 (authCode, objectId, userId, apiBaseUrl) | workflow |\n| GpuFrame | HardwareBuffer \u5305\u88c5\u7684 GPU \u5e27\u6570\u636e\uff0c\u7528\u4e8e NCNN \u63a8\u7406\u8f93\u5165 | camera, hiddenrisk |\n| InspectionSession | \u5168\u5c40\u5de1\u68c0\u5355\u4f8b\uff0c\u6301\u6709 NCNN \u6a21\u578b\u5f15\u7528\u3001\u5e27\u6d41\u3001\u521d\u59cb\u5316\u6807\u8bb0 | hiddenrisk |\n| InspectionWorkflowSession | \u8de8\u9875\u9762\u4e1a\u52a1\u4e0a\u4e0b\u6587\uff0c\u8bb0\u5f55\u4f01\u4e1a\u4fe1\u606f\u3001\u68c0\u6d4b\u7ed3\u679c\u3001\u4e0a\u4f20\u5386\u53f2 | workflow |\n| \u9690\u60a3\u767d\u540d\u5355 | 16 \u7c7b\u9884\u5b9a\u4e49\u9690\u60a3\u7c7b\u522b\uff08\u71c3\u6c14\u7076\u3001\u706d\u706b\u5668\u3001\u6d88\u706b\u6813\u3001\u7535\u52a8\u8f66\u7b49\uff09 | hiddenrisk, jni |\n| Dedup \u53bb\u91cd | \u672c\u5730\u63a8\u7406\u7ed3\u679c\u57fa\u4e8e\u7c7b\u522b+\u4f4d\u7f6e\u6d88\u91cd\uff0c\u907f\u514d\u540c\u4e00\u7269\u4f53\u91cd\u590d\u62a5\u8b66 | hiddenrisk |\n| \u98ce\u5473\u8986\u76d6 | Gradle flavor \u673a\u5236\uff0c\u4e0d\u540c\u6784\u5efa\u53d8\u4f53\u53ef\u8986\u76d6\u914d\u7f6e\u9879 | config |\n| Vulkan | Android GPU \u8ba1\u7b97 API\uff0cNCNN \u4f7f\u7528 Vulkan \u540e\u7aef\u8fdb\u884c\u7aef\u4fa7\u63a8\u7406\u52a0\u901f | jni |\n\n---\n\n## 6. \u5e38\u89c1\u4efb\u52a1\u5165\u53e3\u901f\u67e5\n\n| \u4efb\u52a1\u7c7b\u578b | \u8d77\u70b9\u6587\u4ef6 | \u76f8\u5173\u6587\u6863 |\n|----------|----------|----------|\n| \u65b0\u589e\u4e00\u4e2a\u5de1\u68c0\u9875\u9762 Activity | `hiddenrisk/AiInspectionActivity.kt` (\u53c2\u8003) + `hiddenrisk/BaseGlassActivity.kt` (\u57fa\u7c7b) | hiddenrisk/README.md |\n| \u4fee\u6539\u672c\u5730 NCNN \u63a8\u7406\u53c2\u6570 | `config/InspectionAppConfig.kt` (\u914d\u7f6e\u5b9a\u4e49) + `hiddenrisk/HiddenRiskNcnn.java` (JNI\u8c03\u7528) | config/README.md, hiddenrisk/README.md |\n| \u66ff\u6362 NCNN \u6a21\u578b | `jni/yolov8ncnn.cpp` (\u540e\u5904\u7406) + `assets/hiddenrisk.ncnn.param` + `assets/hiddenrisk.ncnn.bin` | models/README.md |\n| \u65b0\u589e\u5728\u7ebf API \u7aef\u70b9 | `hiddenrisk/AiArSseService.kt` (SSE\u8bf7\u6c42) + `config/InspectionAppConfig.kt` (\u7aef\u70b9\u914d\u7f6e) | hiddenrisk/README.md |\n| \u589e\u52a0\u9690\u60a3\u7c7b\u522b(\u767d\u540d\u5355) | `jni/yolov8_det.cpp` (\u7c7b\u522b\u6620\u5c04) + \u91cd\u65b0\u8bad\u7ec3/\u5bfc\u51fa\u6a21\u578b | models/README.md |\n| \u4fee\u6539\u8f93\u5165\u5c42\u52a8\u4f5c\u6620\u5c04 | `hiddenrisk/<Activity>.kt` \u4e2d\u7684 `buildInputActions()` | input/README.md |\n| \u8c03\u6574\u76f8\u673a\u9884\u89c8/\u5e27\u6d41 | `camera/QuickCameraManager.kt` + `component/RokidCameraPreviewView.kt` | camera/README.md, component/README.md |\n| \u4fee\u6539\u4e0a\u4f20\u91cd\u8bd5\u7b56\u7565 | `hiddenrisk/InspectionRetryExecutor.kt` | hiddenrisk/README.md |\n| \u65b0\u589e\u53ef\u590d\u7528 UI \u7ec4\u4ef6 | `component/` \u76ee\u5f55\uff0c\u53c2\u8003 `GlassStatusBar.kt` \u6216 `BottomPromptView.kt` | component/README.md |\n| \u6dfb\u52a0\u8fd0\u884c\u65f6\u914d\u7f6e\u9879 | `config/InspectionAppConfig.kt` (\u5b57\u6bb5) + `assets/inspection_config.base.jsonc` (\u9ed8\u8ba4\u503c) | config/README.md |\n| \u4fee\u6539 QR \u7801\u89e3\u6790\u683c\u5f0f | `workflow/InspectionWorkflowSession.kt` \u4e2d `updateEnterpriseFromQr()` | workflow/README.md |\n| \u8c03\u8bd5 NCNN \u63a8\u7406\u95ee\u9898 | `hiddenrisk/HiddenRiskProbeActivity.kt` (\u63a2\u9488\u9875) + adb logcat \u8fc7\u6ee4 `detect ` | hiddenrisk/README.md |\n| App \u7248\u672c\u66f4\u65b0\u6d41\u7a0b | `updater/AppUpdateManager.kt` (\u5165\u53e3) + `updater/AppUpdatePromptActivity.kt` (UI) | \u89c1\u6e90\u7801\u6ce8\u91ca |\n\n---\n\n## \u9644\u5f55 A\uff1aNCNN \u6a21\u578b\u6d41\u6c34\u7ebf\uff08\u53c2\u8003\uff09\n\n- \u5f53\u524d\u90e8\u7f72\u6e90\uff1a`models/source/hidden_risk_mini_0330.onnx`\n- \u5b8c\u6574\u8bad\u7ec3\u8d44\u4ea7\uff1a`models/source/best.pt`\n- \u5bfc\u51fa\u94fe\u8def\uff1a`.pt -> torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`\n  \u6216 `.onnx -> pnnx(fp16=1) -> ncnn`\n- \u539f\u751f\u4fa7\u7edf\u4e00\u8bfb\u53d6 blob `out0_raw`\uff1bC++ \u540e\u5904\u7406\u517c\u5bb9 raw (64+26) \u548c decoded (4+26) \u4e24\u79cd proposal\n- \u5f53\u524d mini \u6a21\u578b\u8f93\u51fa `1x30x8400`\uff08decoded \u5206\u652f\uff09\n- \u5df2\u9a8c\u8bc1\u53ef\u8fd0\u884c GPU \u7ec4\u5408\uff1a`640` \u8f93\u5165\u5c3a\u5bf8\u3001`System Vulkan`\u3001`Balanced FP16`\u3001`lightmode=true`\u3001`local_pool_allocator=true`\n\n## \u9644\u5f55 B\uff1a\u63a8\u7406\u8c03\u8bd5\u5173\u952e\u65e5\u5fd7\n\n- `detect preprocess target=640`\n- `detect padded ... anchors=8400`\n- `detect ex.extract done blob=out0_raw`\n\nGPU \u7a33\u5b9a\u6027\u6392\u67e5\u987a\u5e8f\uff1a\n1. \u68c0\u67e5 `TARGET_INPUT_SIZE=640`\n2. \u68c0\u67e5 `GPU_PROFILE=Balanced FP16`\n3. \u68c0\u67e5 `lightmode/local_pool_allocator`\n4. \u533a\u5206\u662f ncnn \u63a8\u7406\u5931\u8d25\u8fd8\u662f UI/\u63a2\u9488\u9875\u81ea\u8eab\u5d29\u6e83\n\n## \u9644\u5f55 C\uff1aAI \u8f85\u52a9\u5de5\u5177\u901f\u67e5\n\n\u672c\u9879\u76ee\u914d\u7f6e\u4e86 LSP (Serena) \u548c CodeGraph \u4e24\u5957\u4ee3\u7801\u667a\u80fd\u5de5\u5177\u3002\n\n| \u4efb\u52a1\u7c7b\u578b | \u9996\u9009\u5de5\u5177 | \u539f\u56e0 |\n|----------|----------|------|\n| \u521d\u6b21\u63a5\u89e6\u964c\u751f\u6a21\u5757 | CodeGraph | \u4e00\u6b21\u8c03\u7528\u8fd4\u56de\u5165\u53e3\u70b9+\u76f8\u5173\u7b26\u53f7+\u7247\u6bb5 |\n| \u83b7\u53d6\u6587\u4ef6\u7ed3\u6784\u6982\u89c8 | Serena | `get_symbols_overview` \u7cbe\u786e\u5217\u51fa\u6240\u6709\u7b26\u53f7 |\n| \u67e5\u627e\u51fd\u6570/\u7c7b\u5b9a\u4e49 | Serena | LSP \u7cbe\u786e\u8df3\u8f6c\uff0c\u652f\u6301\u91cd\u8f7d\u8fa8\u6790 |\n| \u67e5\u627e\u6240\u6709\u5f15\u7528 | Serena | \u8bed\u4e49\u7ea7\u5f15\u7528\uff0c\u8fc7\u6ee4\u5b57\u7b26\u4e32\u540c\u540d\u566a\u58f0 |\n| \u8de8\u6a21\u5757\u8c03\u7528\u94fe\u5206\u6790 | CodeGraph | \u9884\u8ba1\u7b97\u8c03\u7528\u56fe\uff0c\u51cf\u5c11\u591a\u6b21\u5f80\u8fd4 |\n| \u5f71\u54cd\u534a\u5f84\u8bc4\u4f30 | CodeGraph | `codegraph_impact` \u4e00\u952e\u8fd4\u56de\u5f71\u54cd\u8303\u56f4 |\n| \u6279\u91cf\u6587\u672c\u641c\u7d22 | Grep | \u7b80\u5355\u76f4\u63a5\uff0c\u65e0\u9700\u8bed\u4e49\u5206\u6790 |\n| \u91cd\u547d\u540d\u7b26\u53f7 | Serena | LSP \u63d0\u4f9b\u5b89\u5168\u7684\u8de8\u6587\u4ef6\u91cd\u6784 |\n\nCodeGraph \u7d22\u5f15\u4f4d\u4e8e `.codegraph/`\uff08\u5df2\u52a0\u5165 `.gitignore`\uff09\uff0c\u5982\u9700\u5f3a\u5236\u91cd\u5efa\uff1a\n```bash\nnpx codegraph index\n```\n"}, {"name": "summary.md", "type": "text", "content": "# CODEMAPS \u6587\u6863\u4f53\u7cfb\u521d\u59cb\u5316 -- \u53d8\u66f4\u6458\u8981\n\n**\u65e5\u671f**: 2026-05-27\n**\u4efb\u52a1**: \u4e3a rokid-latest \u4ed3\u5e93\u521d\u59cb\u5316\u4e09\u5c42\u6587\u6863\u4f53\u7cfb (L1/L2/L3)\n\n---\n\n## \u53d8\u66f4\u6982\u89c8\n\n| \u6587\u4ef6 | \u64cd\u4f5c | \u53d8\u5316 |\n|------|------|------|\n| `docs/CODEMAPS.md` | **\u65b0\u5efa** | 364 \u884c\uff0c6 \u677f\u5757 + 3 \u9644\u5f55 |\n| `CLAUDE.md` | **\u7cbe\u7b80** | 228 \u884c -> 96 \u884c (-57.9%) |\n| \u6a21\u5757 README | \u672a\u4fee\u6539 | \u5df2\u6709 6 \u4e2a\u6a21\u5757 README\uff0c\u5185\u5bb9\u5145\u5206 |\n\n---\n\n## \u4e00\u3001\u65b0\u5efa `docs/CODEMAPS.md` (364 \u884c)\n\n\u6309\u6280\u80fd\u6a21\u677f\u7684 6 \u677f\u5757\u7ed3\u6784\u751f\u6210\uff0c\u5916\u52a0 3 \u4e2a\u9644\u5f55\uff1a\n\n### \u677f\u5757 1\uff1a\u67b6\u6784\u5c42\u7ea7\u56fe (~30 \u884c)\n- Mermaid flowchart \u63cf\u8ff0\u4e94\u5c42\u67b6\u6784\uff08\u9875\u9762/\u4f1a\u8bdd/\u8f93\u5165/\u76f8\u673a/\u8bc6\u522b\u94fe\u8def\uff09\n- \u5c42\u7ea7\u804c\u8d23\u8868\uff0c\u6ce8\u660e\u6838\u5fc3\u7c7b/\u6587\u4ef6\n\n### \u677f\u5757 2\uff1a\u6a21\u5757\u4f9d\u8d56\u77e9\u9635 (~55 \u884c)\n- 11 \u4e2a\u6a21\u5757\u4e00\u89c8\u8868\uff08\u542b\u5305\u8def\u5f84\u3001README \u94fe\u63a5\u3001\u6587\u4ef6\u6570\u3001\u6a21\u5757\u7c7b\u578b\uff09\n- Mermaid graph TD \u4f9d\u8d56\u5173\u7cfb\u56fe\uff08\u4ece hiddenrisk \u6c47\u805a\u70b9\u753b\u51fa\u6240\u6709\u4f9d\u8d56\u65b9\u5411\uff09\n- \u6a21\u5757\u95f4\u534f\u8bae/\u7ea6\u5b9a\u8868\uff087 \u9879\uff0c\u542b\u6570\u636e\u683c\u5f0f\u3001\u63d0\u4f9b\u65b9\u3001\u6d88\u8d39\u65b9\uff09\n\n### \u677f\u5757 3\uff1a\u7aef\u5230\u7aef\u6570\u636e\u6d41 (~100 \u884c)\n- 6 \u6761\u6838\u5fc3\u94fe\u8def\u7684 Mermaid sequenceDiagram\uff1a\n  1. \u521d\u59cb\u5316 -> \u81ea\u52a8\u68c0\u6d4b\n  2. \u5728\u7ebf SSE \u63a8\u7406\uff08\u4e3b\u94fe\u8def\uff09\n  3. \u672c\u5730 NCNN \u63a8\u7406\uff08fallback\uff09\n  4. \u9690\u60a3\u4e0a\u4f20 -> \u624b\u673a\u7aef\u540c\u6b65\n  5. \u9690\u60a3\u62cd\u7167\u5f55\u5165\n  6. \u8bbe\u5907\u6307\u5f15\u5224\u5b9a\n\n### \u677f\u5757 4\uff1a\u67b6\u6784\u4e0d\u53d8\u91cf\u4e0e\u8fb9\u754c\u89c4\u5219 (~30 \u884c)\n- 7 \u6761\u4e0d\u53ef\u8fdd\u53cd\u89c4\u5219\uff0c\u6bcf\u6761\u542b\u539f\u56e0\u5217\uff08\u5982 param+bin \u6210\u5bf9\u66ff\u6362\u3001JNI \u5355\u70b9\u6865\u63a5\u3001\u914d\u7f6e\u552f\u4e00\u6e90\u3001\u5e27\u6d41\u7edf\u4e00\u5165\u53e3\u3001\u4e0a\u4f20\u524d\u53bb\u91cd\u7b49\uff09\n\n### \u677f\u5757 5\uff1a\u5173\u952e\u672f\u8bed\u8868 (~25 \u884c)\n- 13 \u4e2a\u4e1a\u52a1/\u6280\u672f\u672f\u8bed -> \u4ee3\u7801\u5b9e\u73b0\u6620\u5c04\uff08\u53cc\u8f68\u63a8\u7406\u3001DETECTING/STREAM_RESPONSE \u72b6\u6001\u3001NCNN/SSE \u534f\u8bae\u3001GpuFrame\u3001\u9690\u60a3\u767d\u540d\u5355\u7b49\uff09\n\n### \u677f\u5757 6\uff1a\u5e38\u89c1\u4efb\u52a1\u5165\u53e3\u901f\u67e5 (~30 \u884c)\n- 13 \u79cd\u5e38\u89c1\u4efb\u52a1\u7684\u8d77\u70b9\u6587\u4ef6 + \u76f8\u5173\u6587\u6863\u8def\u5f84\n\n### \u9644\u5f55 (~100 \u884c)\n- **\u9644\u5f55 A**: NCNN \u6a21\u578b\u6d41\u6c34\u7ebf\uff08\u4ece CLAUDE.md \u8fc1\u79fb\uff09\n- **\u9644\u5f55 B**: \u63a8\u7406\u8c03\u8bd5\u5173\u952e\u65e5\u5fd7\uff08\u4ece CLAUDE.md \u8fc1\u79fb\uff09\n- **\u9644\u5f55 C**: AI \u8f85\u52a9\u5de5\u5177\u901f\u67e5\u8868\uff08Serena/CodeGraph \u5de5\u5177\u9009\u62e9\u7b56\u7565\uff0c\u4ece CLAUDE.md \u8fc1\u79fb\uff09\n\n---\n\n## \u4e8c\u3001\u7cbe\u7b80 `CLAUDE.md` (228 \u884c -> 96 \u884c)\n\n### \u79fb\u9664\u7684\u5185\u5bb9\uff08\u4e0b\u6c89\u5230 L2\uff09\n\n| \u79fb\u9664\u7684\u677f\u5757 | \u4e0b\u6c89\u4f4d\u7f6e |\n|-----------|----------|\n| \"\u63a8\u7406\u53cc\u8f68\u5236\"\u8be6\u7ec6\u6bb5\u843d\uff08\u542b\u5177\u4f53\u7c7b\u540d\u548c\u6570\u636e\u6d41\uff09 | CODEMAPS.md \u677f\u5757 1 + \u677f\u5757 3 |\n| \"AI \u4ee3\u7801\u5b9a\u4f4d\u5de5\u5177\"\u5b8c\u6574\u7ae0\u8282\uff08Serena/CodeGraph \u8bf4\u660e + \u7b56\u7565\u8868 + \u7ef4\u62a4\u8bf4\u660e\uff09 | CODEMAPS.md \u9644\u5f55 C |\n| \"\u8de8\u6a21\u5757\u6587\u6863\u7d22\u5f15\"\u8868\uff08\u542b\u5df2\u5220\u9664\u7684\u516c\u5171\u80fd\u529b\u6587\u6863\u5f15\u7528\uff09 | \u79fb\u9664\uff08\u6587\u6863\u5df2\u5220\u9664\uff09\uff1b\u9876\u5c42\u5bfc\u822a\u7cbe\u7b80\u4e3a 4 \u9879 |\n| \"UI \u5c42\" Activity \u5217\u8868 | CODEMAPS.md \u677f\u5757 1 |\n| \"AI/ML \u5c42\" NCNN \u8be6\u7ec6\u8bf4\u660e | CODEMAPS.md \u677f\u5757 1 + \u9644\u5f55 A |\n| \"\u76f8\u673a\u5c42\" \u8be6\u7ec6\u8bf4\u660e | CODEMAPS.md \u677f\u5757 1 |\n| \"\u5168\u5c40\u4f1a\u8bdd\" \u8be6\u7ec6\u8bf4\u660e | CODEMAPS.md \u677f\u5757 1 |\n| \"\u5de1\u68c0\u914d\u7f6e\u7cfb\u7edf\" \u8be6\u7ec6\u8bf4\u660e | \u6a21\u5757 README \u5df2\u6709\uff0cCODEMAPS \u534f\u8bae\u8868\u5f15\u7528 |\n| \"\u7edf\u4e00\u8f93\u5165\u5c42\" \u8be6\u7ec6\u8bf4\u660e | CODEMAPS.md \u677f\u5757 1 |\n| \"Kotlin \u5305\u7ed3\u6784\" \u5b8c\u6574\u8868 | \u7cbe\u7b80\u4e3a\u6a21\u5757\u4ee3\u7801\u5730\u56fe\u8868\uff08\u5408\u5e76 10+ \u5c0f\u5305\uff09 |\n| \"NCNN \u6a21\u578b\u6d41\u6c34\u7ebf\" \u5b8c\u6574\u6bb5\u843d | CODEMAPS.md \u9644\u5f55 A |\n| \"\u8c03\u8bd5\" \u65e5\u5fd7\u6a21\u5f0f\u548c\u6392\u67e5\u6d41\u7a0b | CODEMAPS.md \u9644\u5f55 B |\n| \"\u6587\u6863\u5bfc\u822a\" \u957f\u5217\u8868 | \u7cbe\u7b80\u4e3a 4 \u9879\u6838\u5fc3\u6587\u6863 |\n\n### \u4fdd\u7559\u5728 L1 \u7684\u5185\u5bb9\n\n| \u677f\u5757 | \u884c\u6570 | \u539f\u56e0 |\n|------|------|------|\n| \u9879\u76ee\u6982\u8ff0\uff08\u4e00\u53e5\u8bdd+\u6280\u672f\u6808\uff09 | ~8 \u884c | \u4efb\u4f55 agent \u90fd\u9700\u8981\u77e5\u9053\u8fd9\u662f\u4ec0\u4e48\u9879\u76ee |\n| \u663e\u793a\u8bbe\u8ba1\u57fa\u7ebf | ~3 \u884c | UI \u5f00\u53d1\u7684\u57fa\u7840\u7ea6\u675f |\n| \u6784\u5efa\u547d\u4ee4 | ~15 \u884c | \u65e5\u5e38\u64cd\u4f5c\u5fc5\u5907 |\n| \u67b6\u6784\uff08\u4e00\u53e5\u8bdd+\u6838\u5fc3\u51b3\u7b56\uff09 | ~5 \u884c | \u7ed9 agent \u5168\u5c40\u8ba4\u77e5\uff0c\u8be6\u60c5\u89c1 L2 |\n| \u6a21\u5757\u4ee3\u7801\u5730\u56fe\uff08\u7d22\u5f15\u8868\uff09 | ~15 \u884c | agent \u4ee3\u7801\u5b9a\u4f4d\u7684\u9996\u8981\u5165\u53e3 |\n| \u4ee3\u7801\u98ce\u683c | ~8 \u884c | \u5199\u4ee3\u7801\u5fc5\u987b\u9075\u5b88 |\n| \u5173\u952e\u4f9d\u8d56 | ~6 \u884c | \u7406\u89e3\u6280\u672f\u8fb9\u754c |\n| \u67b6\u6784\u4e0d\u53d8\u91cf\uff084 \u6761\u89c4\u5219\uff09 | ~8 \u884c | \u4e0d\u53ef\u8fdd\u53cd\uff0c\u8fdd\u53cd\u5373\u6545\u969c |\n| \u6587\u6863\u5bfc\u822a\uff084 \u9879\uff09 | ~8 \u884c | \u6307\u5411 L2 \u548c\u5173\u952e\u6587\u6863 |\n\n### \u65b0\u589e\u5185\u5bb9\n\n- **\u67b6\u6784\u4e0d\u53d8\u91cf\uff08\u5168\u5c40\u89c4\u5219\uff09**\uff1a\u4ece CODEMAPS \u677f\u5757 4 \u63d0\u53d6 4 \u6761\u6700\u91cd\u8981\u7684\u89c4\u5219\u653e\u5230 L1\uff0c\u786e\u4fdd agent \u5728\u4efb\u4f55\u4efb\u52a1\u4e2d\u90fd\u4e0d\u4f1a\u8fdd\u53cd\n- **\u4e09\u5c42\u6587\u6863\u4f53\u7cfb\u58f0\u660e**\uff1a\u5e95\u90e8\u6dfb\u52a0\u4e09\u5c42\u6587\u6863\u4f53\u7cfb\u7684\u8bf4\u660e\u884c\uff0c\u8ba9 agent \u77e5\u9053\u53bb\u54ea\u627e\u8be6\u7ec6\u4fe1\u606f\n- **\u6a21\u5757\u4ee3\u7801\u5730\u56fe\u6269\u5c55**\uff1a\u589e\u52a0\u4e86 jni\u3001network\u3001updater\u3001utils \u56db\u4e2a\u4e4b\u524d\u4e0d\u5728 CLAUDE.md \u7d22\u5f15\u8868\u4e2d\u7684\u6a21\u5757\n\n---\n\n## \u4e09\u3001\u9a8c\u8bc1\u68c0\u67e5\u7ed3\u679c\n\n- [x] `wc -l CLAUDE.md` = 96 <= 250\uff08\u7b26\u5408\u786c\u7ea6\u675f\uff09\n- [x] CODEMAPS.md 364 \u884c\uff0c\u5728 300-600 \u76ee\u6807\u8303\u56f4\u5185\n- [x] CODEMAPS.md \u4e2d\u6240\u6709 Mermaid \u8bed\u6cd5\u4f7f\u7528\u4e1a\u52a1\u672f\u8bed\u547d\u540d\u8282\u70b9\n- [x] L1 \u6a21\u5757\u7d22\u5f15\u8868\u65b0\u589e\u7684\u8def\u5f84\u4e0e\u5b9e\u9645\u76ee\u5f55\u4e00\u81f4\n- [x] L2 \u4f9d\u8d56\u77e9\u9635\u53cd\u6620\u5b9e\u9645 import \u5173\u7cfb\uff08hiddenrisk \u6c47\u805a\u70b9\u6a21\u5f0f\uff09\n- [x] L2 \u5e38\u89c1\u4efb\u52a1\u901f\u67e5\u4e2d\u7684\u6587\u4ef6\u8def\u5f84\u5747\u5b58\u5728\n- [x] \u65e0\u91cd\u590d\u4fe1\u606f\u8de8\u5c42\u5197\u4f59\uff08\u5982 NCNN \u6d41\u6c34\u7ebf\u53ea\u5728 L2 \u9644\u5f55 A\uff0c\u8c03\u8bd5\u65e5\u5fd7\u53ea\u5728 L2 \u9644\u5f55 B\uff09\n- [x] L3 \u6a21\u5757 README \u5747\u5b58\u5728\u4e14\u5185\u5bb9\u5145\u5206\uff0c\u65e0\u9700\u4fee\u6539\n\n---\n\n## \u56db\u3001\u672a\u5904\u7406\u9879\n\n- `docs/\u516c\u5171\u80fd\u529b/` \u4e0b\u7684\u4e2d\u6587\u6587\u6863\u5728 git status \u4e2d\u663e\u793a\u4e3a\u5df2\u5220\u9664\uff08D\uff09\uff0cCLAUDE.md \u539f\u6709\u7684\u6587\u6863\u5bfc\u822a\u5f15\u7528\u4e86\u8fd9\u4e9b\u5df2\u5220\u9664\u6587\u4ef6\u3002\u7cbe\u7b80\u540e\u7684 CLAUDE.md \u4e0d\u518d\u5f15\u7528\u5b83\u4eec\uff0cCODEMAPS.md \u4e5f\u4ec5\u5f15\u7528\u4ecd\u7136\u5b58\u5728\u7684\u6587\u4ef6\u3002\n- `network/`\u3001`updater/`\u3001`utils/`\u3001`jni/`\u3001`data/` \u7b49\u5c0f\u5305\u6ca1\u6709\u72ec\u7acb\u7684 README.md\uff08L3 \u6587\u6863\uff09\u3002\u6309\u6280\u80fd\u89c4\u5219\uff0c\u8fd9\u4e9b\u6a21\u5757\u4ee3\u7801\u91cf\u5c0f\u3001\u804c\u8d23\u7b80\u5355\uff0c\u5f53\u524d\u65e0\u9700\u8865\u5145\uff1b\u672a\u6765\u5982\u5176\u4e2d\u67d0\u6a21\u5757\u6269\u5145\u8d85\u8fc7 5 \u4e2a\u6587\u4ef6\uff0c\u5efa\u8bae\u4e3a\u5176\u521b\u5efa README\u3002\n"}], "grading": null}, {"id": "eval-1-init-codemaps-without_skill", "prompt": "\u6211\u9700\u8981\u4e3a\u8fd9\u4e2a\u4ed3\u5e93\u521d\u59cb\u5316 CODEMAPS \u6587\u6863\u4f53\u7cfb\u3002\u5f53\u524d\u4ed3\u5e93\u6ca1\u6709 docs/CODEMAPS.md\uff0c\u4f46\u5df2\u6709 CLAUDE.md \u548c\u5404\u6a21\u5757\u7684 README.md\u3002\u8bf7\u5e2e\u6211\u5206\u6790\u73b0\u6709\u6a21\u5757\u7ed3\u6784\uff0c\u521b\u5efa docs/CODEMAPS.md\uff0c\u5e76\u68c0\u67e5 CLAUDE.md \u662f\u5426\u9700\u8981\u540c\u6b65\u7cbe\u7b80\u3002\u5b8c\u6210\u540e\u8f93\u51fa\u4f60\u505a\u4e86\u54ea\u4e9b\u53d8\u66f4\u7684\u6458\u8981\u3002", "eval_id": 1, "outputs": [{"name": "CLAUDE.md", "type": "text", "content": "# CLAUDE.md\n\nThis file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.\n\n## \u9879\u76ee\u6982\u8ff0\n\nRokid AR \u773c\u955c Android \u5e94\u7528\uff08\"\u57fa\u5c42\u5e94\u6d88\"\uff09\uff0c\u5177\u5907 AI \u9690\u60a3\u68c0\u6d4b\u529f\u80fd\u3002\u901a\u8fc7 NCNN (Vulkan GPU) \u8fd0\u884c YOLOv8 \u5b9e\u73b0\u7aef\u4fa7\u63a8\u7406\uff0c\u540c\u65f6\u652f\u6301\u5728\u7ebf SSE \u8fdc\u7aef\u63a8\u7406\u4f5c\u4e3a\u8865\u5145\u3002\n\n- \u5305\u540d/applicationId\uff1a`com.rokid.glesse`\n- \u6280\u672f\u6808\uff1aKotlin + C++ (JNI)\n- \u7248\u672c\uff1a`2.0.3`\n\n## \u663e\u793a\u8bbe\u8ba1\u57fa\u7ebf\n\n\u773c\u955c\u7aef\u663e\u793a\u57fa\u7ebf\uff1a**480 x 640 px**\uff0c**240 dpi**\uff08`1dp = 1.5px`\uff09\u3002\u7406\u8bba\u6ee1\u5c4f `320 x 426.7 dp`\uff0c\u5e38\u89c4\u9875\u9762\u5173\u952e\u5185\u5bb9\u6309 `320 x 402 dp` \u8bbe\u8ba1\u3002\n\n## \u6784\u5efa\u547d\u4ee4\n\n```bash\n./gradlew assembleDebug          # \u6784\u5efa debug APK\n./gradlew assembleRelease        # \u6784\u5efa release APK\n./gradlew clean assembleDebug    # \u6e05\u7406\u540e\u6784\u5efa\n./gradlew installDebug           # \u5b89\u88c5\u5230\u5df2\u8fde\u63a5\u8bbe\u5907\n\n# \u6d4b\u8bd5\n./gradlew test                   # \u6240\u6709\u5355\u5143\u6d4b\u8bd5\n./gradlew connectedAndroidTest   # \u4eea\u5668\u6d4b\u8bd5\n./gradlew test --tests \"com.rokid.glesse.ExampleUnitTest.addition_isCorrect\"  # \u5355\u4e2a\u6d4b\u8bd5\u65b9\u6cd5\n\n# \u6a21\u578b\u5bfc\u51fa\uff08\u9700\u8981 models/ \u4e0b\u7684 Python \u865a\u62df\u73af\u5883\uff09\ncd models && source .venv/bin/activate  # Windows: .venv/Scripts/activate\nbash scripts/export_hiddenrisk_640.sh\nbash scripts/validate_hiddenrisk_assets.sh\n```\n\nJNI/C++ \u7531 Gradle \u901a\u8fc7 CMake \u81ea\u52a8\u6784\u5efa\uff08`app/src/main/jni/CMakeLists.txt`\uff09\uff0cNDK \u7248\u672c `29.0.14206865`\u3002\n\n## \u67b6\u6784\n\n### \u63a8\u7406\u53cc\u8f68\u5236\uff08\u6838\u5fc3\u67b6\u6784\u51b3\u7b56\uff09\n\n\u5e94\u7528\u540c\u65f6\u8fd0\u884c\u4e24\u6761\u63a8\u7406\u94fe\u8def\uff0c\u7531 `AutoInferencePipelineDecider` \u8c03\u5ea6\uff1a\n\n1. **\u672c\u5730 NCNN \u63a8\u7406** \u2014 YOLOv8 \u7aef\u4fa7\u68c0\u6d4b\uff0c\u59cb\u7ec8\u8fd0\u884c\uff0c\u4f5c\u4e3a fallback\n2. **\u5728\u7ebf SSE \u63a8\u7406** \u2014 \u901a\u8fc7 OkHttp SSE \u8fde\u63a5\u8fdc\u7aef `/ai/ar` \u7b49\u7aef\u70b9\uff0c\u63d0\u4f9b\u66f4\u4e30\u5bcc\u7684\u5206\u6790\u7ed3\u679c\n\n`OnlineHazardDetectionService` \u7ba1\u7406\u5728\u7ebf\u8bf7\u6c42\u8c03\u5ea6\uff0c`AiArEventAggregator` \u805a\u5408 SSE \u4e8b\u4ef6\u6d41\uff0c`AiArHazardDetailParser` \u89e3\u6790\u8fdc\u7aef\u7ed3\u679c\u3002\u672c\u5730\u7ed3\u679c\u901a\u8fc7 `LocalHazardResultDeduper` \u53bb\u91cd\u540e\u4e0e\u5728\u7ebf\u7ed3\u679c\u5408\u5e76\u5c55\u793a\u3002\n\n### \u5168\u5c40\u4f1a\u8bdd \u2014 InspectionSession\n\n`InspectionSession` \u662f\u8d2f\u7a7f\u6574\u4e2a\u5de1\u68c0\u6d41\u7a0b\u7684\u5168\u5c40\u5355\u4f8b\uff0c\u6301\u6709\uff1aNCNN \u5f15\u7528\u3001\u5171\u4eab\u5e27\u6d41\u3001\u6a21\u578b\u72b6\u6001\u3001\u4f01\u4e1a\u6570\u636e\u3002\u591a\u4e2a Activity \u901a\u8fc7\u5b83\u5171\u4eab\u72b6\u6001\uff0c\u907f\u514d\u91cd\u590d\u521d\u59cb\u5316\u548c\u6570\u636e\u4f20\u9012\u3002\n\n### \u5de1\u68c0\u914d\u7f6e\u7cfb\u7edf\n\n`app/src/main/assets/inspection_config.base.jsonc` \u662f\u8fd0\u884c\u65f6\u914d\u7f6e\u6838\u5fc3\uff0c\u63a7\u5236\uff1a\u63a8\u7406\u53c2\u6570\uff08\u540e\u7aef\u3001GPU profile\u3001\u8f93\u5165\u5c3a\u5bf8\uff09\u3001API \u7aef\u70b9\u3001SSE \u534f\u8bae\u53c2\u6570\u3001\u7279\u6027\u5f00\u5173\u3002\u901a\u8fc7 `InspectionConfigRepository` \u52a0\u8f7d\uff0c\u652f\u6301\u6807\u51c6\u98ce\u5473\u8986\u76d6\u3002\n\n### \u7edf\u4e00\u8f93\u5165\u5c42\n\n`input/` \u5305\u63d0\u4f9b\u89e6\u63a7\u3001\u8bed\u97f3\u3001\u5934\u90e8\u624b\u52bf\u7684\u7edf\u4e00\u62bd\u8c61\uff08`UnifiedInput`\uff09\uff0c`HeadMotionStabilityTracker` \u8ddf\u8e2a\u5934\u90e8\u7a33\u5b9a\u6027\uff0c`AutoSleepStateMachine` \u7ba1\u7406\u81ea\u52a8\u4f11\u7720\u3002\n\n## \u6a21\u5757\u4ee3\u7801\u5730\u56fe\uff08AI \u5feb\u901f\u7d22\u5f15\u5165\u53e3\uff09\n\n\u6536\u5230\u4ee3\u7801\u5b9a\u4f4d\u4efb\u52a1\u65f6\uff0c\u5148\u67e5\u6b64\u8868\u627e\u5230\u5bf9\u5e94\u6a21\u5757 README.md\uff0c\u518d\u8fdb\u5165\u5177\u4f53\u6587\u4ef6\u3002\u5b8c\u6574\u6587\u4ef6\u6e05\u5355\u3001\u4f9d\u8d56\u56fe\u548c\u63a5\u53e3\u5951\u7ea6\u89c1 [`docs/CODEMAPS.md`](docs/CODEMAPS.md)\u3002\n\n| \u6a21\u5757 | \u4ee3\u7801 README | \u8986\u76d6\u8303\u56f4 |\n|------|-------------|----------|\n| \u9690\u60a3\u8bc6\u522b/\u63a8\u7406 | `app/src/.../hiddenrisk/README.md` | \u5de1\u68c0\u9875\u9762\u3001\u5728\u7ebf/\u672c\u5730\u63a8\u7406\u3001\u81ea\u52a8\u94fe\u8def\u3001\u9690\u60a3\u4e0a\u4f20\u3001\u8bbe\u5907\u6307\u5f15\u3001\u62cd\u7167\u5f55\u5165 |\n| \u76f8\u673a/\u5e27\u6d41 | `app/src/.../camera/README.md` | \u76f8\u673a\u7ba1\u7406\u3001\u5e27\u6355\u83b7\u3001\u9884\u89c8\u3001\u6062\u590d\u63a7\u5236 |\n| \u7edf\u4e00\u8f93\u5165 | `app/src/.../input/README.md` | \u89e6\u63a7\u3001\u8bed\u97f3\u3001\u5934\u90e8\u52a8\u4f5c\u6620\u5c04\u3001\u81ea\u52a8\u4f11\u7720 |\n| \u5de1\u68c0\u5de5\u4f5c\u6d41 | `app/src/.../workflow/README.md` | \u8de8\u9875\u9762\u4e1a\u52a1\u4e0a\u4e0b\u6587\u3001\u4f01\u4e1a\u4fe1\u606f\u3001QR \u89e3\u6790 |\n| UI \u7ec4\u4ef6 | `app/src/.../component/README.md` | \u72b6\u6001\u680f\u3001\u53d6\u666f\u5668\u3001\u83dc\u5355\u3001\u5f39\u7a97\u3001\u63d0\u793a |\n| \u914d\u7f6e\u7cfb\u7edf | `app/src/.../config/README.md` | \u8fd0\u884c\u65f6\u914d\u7f6e\u3001\u63a8\u7406\u53c2\u6570\u3001API \u7aef\u70b9\u3001\u7279\u6027\u5f00\u5173 |\n\n## AI \u4ee3\u7801\u5b9a\u4f4d\u5de5\u5177\n\n\u672c\u9879\u76ee\u914d\u7f6e\u4e86\u4e24\u5957\u4ee3\u7801\u667a\u80fd\u5de5\u5177\uff0c\u6839\u636e\u4efb\u52a1\u7279\u5f81\u9009\u62e9\u4f7f\u7528\uff1a\n\n### Serena\uff08LSP\uff09\n\n\u57fa\u4e8e Language Server Protocol \u7684\u5b9e\u65f6\u8bed\u4e49\u5206\u6790\u5de5\u5177\u3002\n\n**\u9002\u7528\u573a\u666f**\uff1a\n- `get_symbols_overview` \u2014 \u521d\u6b21\u63a5\u89e6\u6587\u4ef6\u65f6\u5feb\u901f\u83b7\u53d6\u7c7b/\u65b9\u6cd5/\u53d8\u91cf\u5217\u8868\n- `find_declaration` \u2014 \u7cbe\u786e\u5b9a\u4f4d\u7b26\u53f7\u5b9a\u4e49\n- `find_referencing_symbols` \u2014 \u67e5\u627e\u7b26\u53f7\u7684\u6240\u6709\u5f15\u7528\uff08\u5e26\u4e0a\u4e0b\u6587\u7247\u6bb5\uff09\n- `find_implementations` \u2014 \u67e5\u627e\u63a5\u53e3/\u62bd\u8c61\u65b9\u6cd5\u7684\u5b9e\u73b0\n- `rename_symbol` \u2014 \u5b89\u5168\u7684\u8de8\u6587\u4ef6\u91cd\u547d\u540d\n\n**\u7279\u70b9**\uff1a\u5b9e\u65f6\u3001\u7cbe\u786e\u3001\u57fa\u4e8e\u7f16\u8bd1\u5668\u8bed\u4e49\uff0c\u9002\u5408\u7cbe\u786e\u7684\u7b26\u53f7\u64cd\u4f5c\u3002\n\n### CodeGraph\uff08\u9884\u7d22\u5f15\u77e5\u8bc6\u56fe\u8c31\uff09\n\n\u57fa\u4e8e Tree-sitter + SQLite \u9884\u8ba1\u7b97\u7684\u5168\u5e93\u77e5\u8bc6\u56fe\u8c31\uff0c\u5df2\u521d\u59cb\u5316\uff08`.codegraph/codegraph.db`\uff09\u3002\n\n**\u9002\u7528\u573a\u666f**\uff1a\n- `codegraph_explore` \u2014 \u5927\u8303\u56f4\u4ee3\u7801\u63a2\u7d22\uff0c\u8fd4\u56de\u5165\u53e3\u70b9 + \u76f8\u5173\u7b26\u53f7 + \u4ee3\u7801\u7247\u6bb5\n- `codegraph_context` \u2014 \u83b7\u53d6\u7b26\u53f7\u7684\u5b8c\u6574\u4e0a\u4e0b\u6587\uff08\u8c03\u7528\u94fe\u3001\u4f9d\u8d56\u5173\u7cfb\uff09\n- `codegraph_callers` \u2014 \u67e5\u627e\u8c03\u7528\u8005\uff08\u9884\u8ba1\u7b97\u7684\u8c03\u7528\u56fe\uff09\n- `codegraph_impact` \u2014 \u5f71\u54cd\u5206\u6790\uff08\u4fee\u6539\u67d0\u7b26\u53f7\u4f1a\u5f71\u54cd\u54ea\u4e9b\u4ee3\u7801\uff09\n- `codegraph_search` \u2014 \u57fa\u4e8e FTS5 \u7684\u5168\u6587\u7b26\u53f7\u641c\u7d22\n\n**\u7279\u70b9**\uff1a\u9884\u8ba1\u7b97\u3001\u6279\u91cf\u8fd4\u56de\u8de8\u6587\u4ef6\u4e0a\u4e0b\u6587\u3001\u51cf\u5c11\u5de5\u5177\u8c03\u7528\u6b21\u6570\u3002\u9002\u5408\u7406\u89e3\u6a21\u5757\u95f4\u5173\u7cfb\u548c\u8c03\u7528\u94fe\u3002\n\n### \u5de5\u5177\u9009\u62e9\u7b56\u7565\n\n| \u4efb\u52a1\u7c7b\u578b | \u9996\u9009\u5de5\u5177 | \u539f\u56e0 |\n|----------|----------|------|\n| \u521d\u6b21\u63a5\u89e6\u964c\u751f\u6a21\u5757 | CodeGraph | \u4e00\u6b21\u8c03\u7528\u8fd4\u56de\u5165\u53e3\u70b9 + \u76f8\u5173\u7b26\u53f7 + \u7247\u6bb5 |\n| \u83b7\u53d6\u6587\u4ef6\u7ed3\u6784\u6982\u89c8 | Serena | `get_symbols_overview` \u7cbe\u786e\u5217\u51fa\u6240\u6709\u7b26\u53f7 |\n| \u67e5\u627e\u51fd\u6570/\u7c7b\u5b9a\u4e49 | Serena | LSP \u7cbe\u786e\u8df3\u8f6c\uff0c\u652f\u6301\u91cd\u8f7d\u8fa8\u6790 |\n| \u67e5\u627e\u6240\u6709\u5f15\u7528 | Serena | \u8bed\u4e49\u7ea7\u5f15\u7528\uff0c\u8fc7\u6ee4\u5b57\u7b26\u4e32\u540c\u540d\u566a\u58f0 |\n| \u8de8\u6a21\u5757\u8c03\u7528\u94fe\u5206\u6790 | CodeGraph | \u9884\u8ba1\u7b97\u8c03\u7528\u56fe\uff0c\u51cf\u5c11\u591a\u6b21\u5f80\u8fd4 |\n| \u5f71\u54cd\u534a\u5f84\u8bc4\u4f30 | CodeGraph | `codegraph_impact` \u4e00\u952e\u8fd4\u56de\u5f71\u54cd\u8303\u56f4 |\n| \u6279\u91cf\u6587\u672c\u641c\u7d22 | Grep | \u7b80\u5355\u76f4\u63a5\uff0c\u65e0\u9700\u8bed\u4e49\u5206\u6790 |\n| \u91cd\u547d\u540d\u7b26\u53f7 | Serena | LSP \u63d0\u4f9b\u5b89\u5168\u7684\u8de8\u6587\u4ef6\u91cd\u6784 |\n\n### \u7ef4\u62a4\u8bf4\u660e\n\n- **Serena**\uff1a\u65e0\u9700\u989d\u5916\u7ef4\u62a4\uff0c\u968f\u5f00\u53d1\u73af\u5883\u81ea\u52a8\u5de5\u4f5c\n- **CodeGraph**\uff1a\u7d22\u5f15\u6587\u4ef6\u4f4d\u4e8e `.codegraph/`\uff08\u5df2\u52a0\u5165 `.gitignore`\uff0c\u4e0d\u63d0\u4ea4\uff09\u3002\u6587\u4ef6\u53d8\u66f4\u540e\u81ea\u52a8\u540c\u6b65\uff0c\u5982\u7d22\u5f15\u635f\u574f\u6216\u9700\u8981\u5f3a\u5236\u91cd\u5efa\uff1a\n  ```bash\n  npx codegraph index\n  ```\n\n## \u8de8\u6a21\u5757\u6587\u6863\u7d22\u5f15\n\n| \u6587\u6863 | \u8def\u5f84 | \u5185\u5bb9 |\n|------|------|------|\n| \u67b6\u6784\u603b\u89c8 | `docs/\u516c\u5171\u80fd\u529b/\u67b6\u6784\u603b\u89c8.md` | \u4e94\u5c42\u67b6\u6784\uff08\u9875\u9762/\u4f1a\u8bdd/\u8f93\u5165/\u76f8\u673a/\u8bc6\u522b\u94fe\u8def\uff09|\n| \u603b\u4f53\u65c5\u7a0b\u56fe | `docs/\u603b\u4f53\u65c5\u7a0b\u56fe/\u603b\u4f53\u65c5\u7a0b\u56fe.md` | \u6b63\u5f0f\u5de1\u68c0\u4e3b\u94fe\u5168\u666f |\n| \u9875\u9762\u5bfc\u822a\u5206\u5c42 | `docs/\u516c\u5171\u80fd\u529b/\u9875\u9762\u5bfc\u822a\u5206\u5c42.md` | \u6b63\u5f0f\u4e3b\u94fe\u4e0e\u9644\u5f55/\u8c03\u8bd5\u9875\u8fb9\u754c |\n| \u4f1a\u8bdd\u4e0e\u751f\u547d\u5468\u671f | `docs/\u516c\u5171\u80fd\u529b/\u4f1a\u8bdd\u4e0e\u751f\u547d\u5468\u671f.md` | \u4f1a\u8bdd\u3001\u521d\u59cb\u5316\u72b6\u6001\u8fb9\u754c |\n| \u9690\u60a3\u8bc6\u522b\u94fe\u8def | `docs/\u516c\u5171\u80fd\u529b/\u9690\u60a3\u8bc6\u522b\u94fe\u8def.md` | \u53cc\u8f68\u63a8\u7406\u7684\u8de8\u6587\u6863\u771f\u76f8\u6e90 |\n| \u9690\u60a3\u8bc6\u522b\u9a8c\u8bc1\u4e0e\u6392\u969c | `docs/\u516c\u5171\u80fd\u529b/\u9690\u60a3\u8bc6\u522b\u9a8c\u8bc1\u4e0e\u6392\u969c.md` | \u63a8\u7406\u9a8c\u8bc1\u4e0e\u6392\u969c\u8be6\u7ec6\u6587\u6863 |\n| \u7edf\u4e00\u8f93\u5165\u8bbe\u8ba1\u4e0e\u63a5\u5165 | `docs/\u516c\u5171\u80fd\u529b/\u7edf\u4e00\u8f93\u5165\u8bbe\u8ba1\u4e0e\u63a5\u5165.md` | \u7edf\u4e00\u8f93\u5165\u5c42\u8bbe\u8ba1\u4e0e\u63a5\u5165 |\n| \u5934\u90e8\u52a8\u4f5c\u8c03\u53c2\u4e0e\u9a8c\u8bc1 | `docs/\u516c\u5171\u80fd\u529b/\u5934\u90e8\u52a8\u4f5c\u8c03\u53c2\u4e0e\u9a8c\u8bc1.md` | \u5934\u90e8\u52a8\u4f5c\u53c2\u6570\u4e0e\u9a8c\u8bc1 |\n| \u65e5\u5fd7\u7cfb\u7edf | `docs/\u516c\u5171\u80fd\u529b/\u65e5\u5fd7\u7cfb\u7edf.md` | \u65e5\u5fd7\u7cfb\u7edf\u8bf4\u660e |\n| Rokid \u65b0\u7cfb\u7edf\u76f8\u673a\u9884\u89c8 Surface \u8f93\u51fa\u7ecf\u9a8c | `docs/Lessions/rokid_camera_preview_new_system_surface_output.md` | \u65b0 OTA \u540e Surface/NV21 \u9884\u89c8\u5dee\u5f02\u3001\u8bca\u65ad\u8bc1\u636e\u4e0e\u5e95\u90e8\u65b9\u5f62\u88c1\u526a\u65b9\u6848 |\n\n### \u4e09\u5c42\u6587\u6863\u4f53\u7cfb\n\n| \u5c42\u7ea7 | \u6587\u4ef6 | \u5b9a\u4f4d |\n|------|------|------|\n| **L1** | `CLAUDE.md` (\u672c\u6587\u4ef6) | AI Agent \u5feb\u901f\u53c2\u8003\uff1a\u6982\u8ff0\u3001\u547d\u4ee4\u3001\u6a21\u5757\u7d22\u5f15 |\n| **L2** | `docs/CODEMAPS.md` | \u7ed3\u6784\u5316\u4ee3\u7801\u5730\u56fe\uff1a\u5b8c\u6574\u6587\u4ef6\u6e05\u5355\u3001\u4f9d\u8d56\u56fe\u3001\u6570\u636e\u6d41\u3001\u63a5\u53e3\u5951\u7ea6 |\n| **L3** | \u5404\u6a21\u5757 `README.md` | \u6df1\u5ea6\u6a21\u5757\u6587\u6863\uff1a\u4e1a\u52a1\u7ec6\u8282\u3001\u8c03\u7528\u94fe\u3001\u5173\u952e\u5165\u53e3 |\n\n## Kotlin \u5305\u7ed3\u6784\uff08`com.rokid.glass/`\uff09\n\n| \u5305 | \u804c\u8d23 |\n|---|---|\n| `hiddenrisk/` | NCNN \u63a8\u7406\u3001\u5de1\u68c0\u6d41\u7a0b\u3001\u5728\u7ebf\u68c0\u6d4b\u3001\u7ed3\u679c\u5904\u7406\u3001\u4e0a\u4f20 (~50 \u6587\u4ef6) |\n| `camera/` | \u76f8\u673a\u7ba1\u7406\u3001\u5e27\u6355\u83b7\u3001\u6062\u590d\u63a7\u5236 |\n| `input/` | \u7edf\u4e00\u8f93\u5165\u3001\u5934\u90e8\u52a8\u4f5c\u3001\u81ea\u52a8\u4f11\u7720 |\n| `component/` | UI \u7ec4\u4ef6\uff08\u72b6\u6001\u680f\u3001\u53d6\u666f\u5668\u3001\u83dc\u5355\uff09 |\n| `workflow/` | \u5de1\u68c0\u5de5\u4f5c\u6d41 session |\n| `config/` | \u8fd0\u884c\u65f6\u914d\u7f6e\u52a0\u8f7d |\n| `base/` | Activity \u57fa\u7c7b |\n| `bean/` | \u6570\u636e\u6a21\u578b |\n| `utils/` | \u5de5\u5177\u7c7b\u4e0e\u6269\u5c55\u51fd\u6570 |\n| `data/` | \u5168\u5c40\u72b6\u6001/\u4e8b\u4ef6 |\n| `adapter/` | RecyclerView \u9002\u914d\u5668 |\n| `annotation/` | \u6ce8\u89e3 |\n| `enum/` | \u679a\u4e3e |\n| `recycleview/` | RecyclerView \u76f8\u5173 |\n\n## \u4ee3\u7801\u98ce\u683c\n\n- \u4ee3\u7801/\u6587\u4ef6/\u76ee\u5f55\u547d\u540d\uff1aEnglish\uff1b\u6ce8\u91ca\u548c\u6587\u6863\uff1a\u7b80\u4f53\u4e2d\u6587\n- Kotlin \u98ce\u683c\uff1a`official`\uff08`kotlin.code.style=official`\uff09\uff0cJVM \u76ee\u6807 1.8\n- \u7c7b\u540d\uff1aPascalCase\uff0c\u51fd\u6570/\u53d8\u91cf\uff1acamelCase\uff0c\u5e38\u91cf\uff1aUPPER_SNAKE_CASE\n- C++ \u6587\u4ef6\uff1asnake_case\uff1b\u65b0\u4ee3\u7801\u4f18\u5148\u4f7f\u7528 Kotlin\uff0cJava \u4ec5\u7528\u4e8e JNI \u63a5\u53e3\u5c42\u548c\u65e7\u4ee3\u7801\n- \u4f18\u5148\u4f7f\u7528 `val` \u800c\u975e `var`\uff1b\u7eaf\u6570\u636e\u8f7d\u4f53\u4f7f\u7528 `data class`\n\n## NCNN \u6a21\u578b\u6d41\u6c34\u7ebf\n\n- \u5f53\u524d\u90e8\u7f72\u6e90\uff1a`models/source/hidden_risk_mini_0330.onnx`\n- \u5b8c\u6574\u8bad\u7ec3\u8d44\u4ea7\uff1a`models/source/best.pt`\n- \u5bfc\u51fa\u94fe\u8def\uff1a`.pt -> torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn` \u6216 `.onnx -> pnnx(fp16=1) -> ncnn`\n- \u539f\u751f\u4fa7\u7edf\u4e00\u8bfb\u53d6 blob `out0_raw`\uff1bC++ \u540e\u5904\u7406\u517c\u5bb9 raw (64+26) \u548c decoded (4+26) \u4e24\u79cd proposal\n- \u5f53\u524d mini \u6a21\u578b\u8f93\u51fa `1x30x8400`\uff08decoded \u5206\u652f\uff09\n- \u6b63\u5f0f\u8d44\u4ea7\u5fc5\u987b\u4f7f\u7528\u540c\u4e00\u6b21\u5bfc\u51fa\u751f\u6210\u7684 `param + bin` \u6210\u5bf9\u66ff\u6362\n- \u8be6\u7ec6\u6a21\u578b\u7ecf\u9a8c\u548c\u91cd\u5bfc\u7ea6\u675f\u89c1 `AGENTS.md`\n\n## \u5173\u952e\u4f9d\u8d56\n\n- Rokid Glass SDK `2.1.9-E`\uff08\u63a8\u8350 OTA `1.17.e002-20260509-150201` \u53ca\u4ee5\u4e0a\uff09\u3001NCNN (Vulkan)\u3001OpenCV Mobile 4.13.0\n- ML Kit\uff08\u6761\u7801\u626b\u63cf\uff09\u3001Jetpack Compose\u3001Glide\u3001Gson\n- OkHttp 4.12.0\uff08HTTP + SSE\uff09\n\n## \u8c03\u8bd5\n\n\u9a8c\u8bc1\u63a8\u7406\u662f\u5426\u6b63\u5e38\u8fd0\u884c\u7684\u5173\u952e\u65e5\u5fd7\uff1a\n- `detect preprocess target=640`\n- `detect padded ... anchors=8400`\n- `detect ex.extract done blob=out0_raw`\n\nGPU \u7a33\u5b9a\u6027\u6392\u67e5\u987a\u5e8f\uff1a\u68c0\u67e5 `TARGET_INPUT_SIZE=640` \u2192 `GPU_PROFILE=Balanced FP16` \u2192 `lightmode/local_pool_allocator` \u2192 \u533a\u5206\u662f ncnn \u63a8\u7406\u5931\u8d25\u8fd8\u662f UI/\u63a2\u9488\u9875\u81ea\u8eab\u5d29\u6e83\u3002\n\n## \u6587\u6863\u5bfc\u822a\n\n- `AGENTS.md` \u2014 AI Agent \u8865\u5145\u884c\u4e3a\u6307\u5357\u4e0e NCNN \u7ecf\u9a8c\u7ec6\u8282\n- `docs/CODEMAPS.md` \u2014 \u9879\u76ee\u4ee3\u7801\u5730\u56fe (L2)\uff1a\u5b8c\u6574\u6587\u4ef6\u6e05\u5355\u3001\u4f9d\u8d56\u56fe\u3001\u6570\u636e\u6d41\u3001\u63a5\u53e3\u5951\u7ea6\n- `docs/README.md` \u2014 \u4ea7\u54c1\u6587\u6863\u603b\u5bfc\u822a\n- `docs/\u516c\u5171\u80fd\u529b/README.md` \u2014 \u516c\u5171\u80fd\u529b\u76ee\u5f55\u603b\u5165\u53e3\n- `docs/\u516c\u5171\u80fd\u529b/\u67b6\u6784\u603b\u89c8.md` \u2014 \u9875\u9762\u5c42\u3001\u4f1a\u8bdd\u5c42\u3001\u8f93\u5165\u5c42\u4e0e\u8bc6\u522b\u94fe\u8def\u603b\u89c8\n- `docs/\u516c\u5171\u80fd\u529b/\u9690\u60a3\u8bc6\u522b\u9a8c\u8bc1\u4e0e\u6392\u969c.md` \u2014 \u63a8\u7406\u9a8c\u8bc1\u4e0e\u6392\u969c\u8be6\u7ec6\u6587\u6863\n- `docs/\u516c\u5171\u80fd\u529b/\u9690\u60a3\u8bc6\u522b\u94fe\u8def.md` \u2014 \u9690\u60a3\u8bc6\u522b\u94fe\u8def\u4e0e\u53cc\u8f68\u63a8\u7406\u7684\u8de8\u6587\u6863\u771f\u76f8\u6e90\n- `docs/\u516c\u5171\u80fd\u529b/\u5934\u90e8\u52a8\u4f5c\u8c03\u53c2\u4e0e\u9a8c\u8bc1.md` \u2014 \u5934\u90e8\u52a8\u4f5c\u8bc6\u522b\u53c2\u6570\u4e0e\u9a8c\u8bc1\n- `docs/\u516c\u5171\u80fd\u529b/\u7edf\u4e00\u8f93\u5165\u8bbe\u8ba1\u4e0e\u63a5\u5165.md` \u2014 \u7edf\u4e00\u8f93\u5165\u5c42\u8bbe\u8ba1\u4e0e\u63a5\u5165\n- `docs/\u516c\u5171\u80fd\u529b/\u4f1a\u8bdd\u4e0e\u751f\u547d\u5468\u671f.md` \u2014 \u4f1a\u8bdd\u3001\u751f\u547d\u5468\u671f\u3001\u521d\u59cb\u5316\u72b6\u6001\u8fb9\u754c\n- `docs/\u516c\u5171\u80fd\u529b/\u9875\u9762\u5bfc\u822a\u5206\u5c42.md` \u2014 \u6b63\u5f0f\u4e3b\u94fe\u4e0e\u9644\u5f55/\u8c03\u8bd5\u9875\u8fb9\u754c\n- `docs/\u516c\u5171\u80fd\u529b/\u65e5\u5fd7\u7cfb\u7edf.md` \u2014 \u65e5\u5fd7\u7cfb\u7edf\u8bf4\u660e\n- `docs/Lessions/rokid_camera_preview_new_system_surface_output.md` \u2014 Rokid \u65b0\u7cfb\u7edf\u76f8\u673a\u9884\u89c8 Surface \u8f93\u51fa\u7ecf\u9a8c\n- `docs/\u516c\u5171\u80fd\u529b/\u7edf\u4e00\u8f93\u5165.md` \u2014 \u4e1a\u52a1\u63a5\u5165\u5c42\u7edf\u4e00\u8f93\u5165\u89c4\u5219\n- `docs/\u529f\u80fd\u6a21\u5757/` \u2014 \u5404\u529f\u80fd\u6a21\u5757\u8be6\u7ec6\u89c4\u683c\n- `models/README.md` \u2014 \u6a21\u578b\u5bfc\u51fa\u5b8c\u6574\u6307\u5357\n"}, {"name": "summary.md", "type": "text", "content": "# CODEMAPS \u6587\u6863\u4f53\u7cfb\u521d\u59cb\u5316 \u2014 \u53d8\u66f4\u6458\u8981\n\n## \u6267\u884c\u65e5\u671f\n\n2026-05-27\n\n## \u53d8\u66f4\u6982\u8ff0\n\n\u4e3a\u672c\u4ed3\u5e93\u521d\u59cb\u5316\u4e86\u4e09\u5c42\u6587\u6863\u4f53\u7cfb\uff08L1 CLAUDE.md / L2 CODEMAPS.md / L3 \u6a21\u5757 README.md\uff09\uff0c\u521b\u5efa\u4e86\u5168\u65b0\u7684 `docs/CODEMAPS.md` \u5e76\u540c\u6b65\u7cbe\u7b80\u4e86 `CLAUDE.md`\u3002\n\n## \u53d8\u66f4\u8be6\u60c5\n\n### 1. \u65b0\u589e\u6587\u4ef6\uff1a`docs/CODEMAPS.md`\uff08L2 \u4ee3\u7801\u5730\u56fe\uff09\n\n\u521b\u5efa\u4e86\u7ed3\u6784\u5316\u4ee3\u7801\u5730\u56fe\u6587\u6863\uff0c\u5305\u542b 8 \u4e2a\u7ae0\u8282\uff1a\n\n| \u7ae0\u8282 | \u5185\u5bb9 | \u7528\u9014 |\n|------|------|------|\n| \u7b2c 1 \u8282\uff1a\u9879\u76ee\u5168\u666f | \u57fa\u672c\u4fe1\u606f\u3001\u5e26\u6ce8\u91ca\u7684\u5b8c\u6574\u76ee\u5f55\u6811 | \u65b0\u6210\u5458/Agent \u5feb\u901f\u4e86\u89e3\u9879\u76ee\u7ed3\u6784 |\n| \u7b2c 2 \u8282\uff1a\u6a21\u5757\u4f9d\u8d56\u56fe | ASCII \u4f9d\u8d56\u56fe + \u4f9d\u8d56\u77e9\u9635 | \u7406\u89e3\u6a21\u5757\u95f4\u8026\u5408\u5173\u7cfb\uff0c\u8bc4\u4f30\u53d8\u66f4\u5f71\u54cd\u8303\u56f4 |\n| \u7b2c 3 \u8282\uff1a\u5404\u6a21\u5757\u8be6\u7ec6\u6587\u4ef6\u6e05\u5355 | 14 \u4e2a\u6a21\u5757\u7684\u5b8c\u6574\u6587\u4ef6\u5217\u8868 (\u6309\u89d2\u8272\u5206\u7c7b) | \u7cbe\u786e\u5b9a\u4f4d\u6587\u4ef6\uff0c\u4e0d\u9700\u8981\u904d\u5386\u76ee\u5f55 |\n| \u7b2c 4 \u8282\uff1a\u6570\u636e\u6d41 | 5 \u6761\u6838\u5fc3\u6570\u636e\u6d41 (\u63a8\u7406\u53cc\u8f68\u3001\u521d\u59cb\u5316\u3001\u8f93\u5165\u5206\u53d1\u3001\u914d\u7f6e\u52a0\u8f7d\u3001\u5e27\u6d41\u534f\u8c03) | \u7406\u89e3\u8fd0\u884c\u65f6\u884c\u4e3a\uff0c\u6392\u67e5\u6570\u636e\u6d41\u95ee\u9898 |\n| \u7b2c 5 \u8282\uff1a\u5173\u952e\u63a5\u53e3\u5951\u7ea6 | 6 \u7ec4\u6838\u5fc3\u63a5\u53e3 (JNI\u3001SSE\u3001Session\u3001WorkflowSession\u3001UnifiedInput\u3001Config) | \u7f16\u7801\u65f6\u4e0d\u9700\u53cd\u590d\u67e5\u9605\u6e90\u7801 |\n| \u7b2c 6 \u8282\uff1a\u6784\u5efa\u7cfb\u7edf | Gradle + CMake + \u540e\u7aef\u670d\u52a1\u914d\u7f6e\u6982\u89c8 | \u7406\u89e3\u548c\u4fee\u6539\u6784\u5efa\u914d\u7f6e |\n| \u7b2c 7 \u8282\uff1a\u6587\u6863\u4f53\u7cfb\u7d22\u5f15 | \u4e09\u5c42\u6587\u6863\u7ed3\u6784\u8bf4\u660e + L3 \u6a21\u5757\u6587\u6863\u5217\u8868 | \u6587\u6863\u5bfc\u822a |\n| \u7b2c 8 \u8282\uff1a\u7ef4\u62a4\u8bf4\u660e | \u66f4\u65b0\u65f6\u673a\u4e0e\u89c4\u5219 | \u6587\u6863\u4fdd\u9c9c |\n\n**\u6570\u636e\u6765\u6e90**\uff1a\u901a\u8fc7\u5206\u6790\u4ee5\u4e0b\u6587\u4ef6\u751f\u6210\uff1a\n- `CLAUDE.md` \u2014 \u9879\u76ee\u6982\u8ff0\u3001\u67b6\u6784\u63cf\u8ff0\n- `AGENTS.md` \u2014 NCNN \u7ecf\u9a8c\u3001\u5de5\u5177\u89c4\u8303\n- 6 \u4e2a\u6a21\u5757 README.md (hiddenrisk, camera, input, workflow, component, config)\n- `app/src/main/jni/CMakeLists.txt` \u2014 JNI \u6784\u5efa\u914d\u7f6e\n- `app/src/main/jni/yolov8.cpp` \u2014 NCNN \u6a21\u578b\u52a0\u8f7d\u4e0e GPU \u914d\u7f6e\n- 49 \u4e2a `hiddenrisk/` \u76ee\u5f55\u4e0b Kotlin \u6587\u4ef6\u7684\u5206\u7c7b\u5206\u6790\n- \u5176\u4ed6 10 \u4e2a\u5305\u76ee\u5f55\u7684\u6587\u4ef6\u6e05\u5355\n\n**\u4e0e\u5df2\u6709\u6587\u6863\u7684\u5173\u7cfb**\uff1a\n- \u4e0d\u91cd\u590d CLAUDE.md \u7684\u6784\u5efa\u547d\u4ee4\u548c\u4ee3\u7801\u98ce\u683c\u5185\u5bb9\n- \u4e0d\u91cd\u590d\u5404\u6a21\u5757 README.md \u7684\u8be6\u7ec6\u4e1a\u52a1\u8c03\u7528\u94fe\n- \u586b\u8865\u4e86 CLAUDE.md (L1 \u9ad8\u5c42\u7d22\u5f15) \u548c\u6a21\u5757 README.md (L3 \u6df1\u5ea6\u7ec6\u8282) \u4e4b\u95f4\u7684\u4fe1\u606f\u7a7a\u767d\n- \u4e0e CodeGraph \u77e5\u8bc6\u56fe\u8c31\u4e92\u8865\uff1aCodeGraph \u63d0\u4f9b\u8bed\u4e49\u7ea7\u67e5\u8be2\uff0cCODEMAPS.md \u63d0\u4f9b\u4eba\u7c7b\u53ef\u8bfb\u7684\u7ed3\u6784\u5316\u89c6\u56fe\n\n### 2. \u4fee\u6539\u6587\u4ef6\uff1a`CLAUDE.md`\uff08L1 \u5feb\u901f\u53c2\u8003\u540c\u6b65\u7cbe\u7b80\uff09\n\n\u5bf9 CLAUDE.md \u8fdb\u884c\u4e86\u4ee5\u4e0b\u7cbe\u7b80\uff0c\u5c06\u8be6\u7ec6\u5185\u5bb9\u4e0b\u6c89\u5230 CODEMAPS.md\uff1a\n\n#### \u79fb\u9664\u7684\u5185\u5bb9\uff08\u79fb\u81f3 CODEMAPS.md \u6216 AGENTS.md\uff09\n\n| \u79fb\u9664\u7684\u7ae0\u8282 | \u539f\u884c\u6570(\u7ea6) | \u53bb\u5411 |\n|-----------|-----------|------|\n| UI \u5c42\u8be6\u7ec6\u8bf4\u660e (Jetpack Compose + XML Layout + 6 \u4e2a Activity) | ~10 | CODEMAPS.md \u7b2c 3.1 \u8282 |\n| AI/ML \u5c42\u8be6\u7ec6\u8bf4\u660e (NCNN YOLOv8 + C++ \u6587\u4ef6\u5217\u8868) | ~10 | CODEMAPS.md \u7b2c 3 \u8282 + \u7b2c 5.1 \u8282 |\n| \u76f8\u673a\u5c42\u8be6\u7ec6\u8bf4\u660e (3 \u4e2a\u6838\u5fc3\u7c7b) | ~10 | CODEMAPS.md \u7b2c 3.2 \u8282 |\n| \u5168\u5c40\u4f1a\u8bdd\u8be6\u7ec6\u8bf4\u660e | ~5 | \u5df2\u5728\u67b6\u6784\u90e8\u5206\u4fdd\u7559\u6982\u8981 |\n| \u5de1\u68c0\u914d\u7f6e\u7cfb\u7edf\u8be6\u7ec6\u8bf4\u660e | ~5 | \u5df2\u5728\u67b6\u6784\u90e8\u5206\u4fdd\u7559\u6982\u8981 |\n| \u7edf\u4e00\u8f93\u5165\u5c42\u8be6\u7ec6\u8bf4\u660e | ~5 | \u5df2\u5728\u67b6\u6784\u90e8\u5206\u4fdd\u7559\u6982\u8981 |\n| \u63a2\u9488\u9875\u7ecf\u9a8c (HiddenRiskProbeActivity) | ~10 | AGENTS.md \u5df2\u8986\u76d6 |\n| NCNN \u6a21\u578b\u8d44\u4ea7\u72b6\u6001 (\u8d44\u4ea7\u66ff\u6362\u3001mini \u6a21\u578b\u6e90\u3001\u65e7\u811a\u672c\u8b66\u544a) | ~15 | AGENTS.md \u5df2\u8986\u76d6 |\n| NCNN \u6b63\u5f0f\u91cd\u5bfc\u7ea6\u675f (\u5b8c\u6574\u94fe\u8def\u3001\u6b63\u5f0f\u8d44\u4ea7\u8981\u6c42) | ~10 | AGENTS.md \u5df2\u8986\u76d6 |\n| NCNN \u53c2\u6570\u56fe patch \u65b9\u6848\u4f7f\u7528\u8fb9\u754c | ~10 | AGENTS.md \u5df2\u8986\u76d6 |\n| \u540e\u7eed\u66f4\u63a8\u8350\u7684\u6b63\u5f0f\u65b9\u6848 | ~10 | AGENTS.md \u5df2\u8986\u76d6 |\n\n#### \u65b0\u589e\u7684\u5185\u5bb9\n\n| \u65b0\u589e\u5185\u5bb9 | \u539f\u56e0 |\n|---------|------|\n| \u6a21\u5757\u4ee3\u7801\u5730\u56fe\u8868\u683c\u4e2d\u6dfb\u52a0 `docs/CODEMAPS.md` \u94fe\u63a5 | \u4e3a Agent \u63d0\u4f9b\u8be6\u7ec6\u4ee3\u7801\u5730\u56fe\u5165\u53e3 |\n| \u4e09\u5c42\u6587\u6863\u4f53\u7cfb\u8868\u683c (L1/L2/L3) | \u660e\u786e\u6587\u6863\u5b9a\u4f4d\uff0c\u5e2e\u52a9 Agent \u9009\u62e9\u6b63\u786e\u7684\u6587\u6863\u5c42\u7ea7 |\n| \u7b80\u5316\u540e\u7684 NCNN \u6a21\u578b\u6d41\u6c34\u7ebf (\u4ec5\u4fdd\u7559\u6838\u5fc3\u7ea6\u675f\uff0c\u6307\u5411 AGENTS.md) | \u4fdd\u7559\u6700\u5c0f\u5fc5\u8981\u4fe1\u606f |\n\n#### \u4fdd\u7559\u7684\u5185\u5bb9\n\n\u4ee5\u4e0b L1 \u5173\u952e\u5185\u5bb9\u5b8c\u6574\u4fdd\u7559\uff1a\u9879\u76ee\u6982\u8ff0\u3001\u663e\u793a\u8bbe\u8ba1\u57fa\u7ebf\u3001\u6784\u5efa\u547d\u4ee4\u3001\u63a8\u7406\u53cc\u8f68\u5236\u67b6\u6784\u6982\u8ff0\u3001\u6a21\u5757\u4ee3\u7801\u5730\u56fe\u8868\u683c\u3001AI \u4ee3\u7801\u5b9a\u4f4d\u5de5\u5177\u89c4\u8303\u3001\u8de8\u6a21\u5757\u6587\u6863\u7d22\u5f15\u3001Kotlin \u5305\u7ed3\u6784\u6982\u8981\u3001\u4ee3\u7801\u98ce\u683c\u3001\u5173\u952e\u4f9d\u8d56\u3001\u8c03\u8bd5\u5efa\u8bae\u3001\u6587\u6863\u5bfc\u822a\u3002\n\n### 3. CLAUDE.md \u4e0e AGENTS.md \u7684\u53bb\u91cd\u5206\u6790\n\n\u539f\u59cb\u4ed3\u5e93\u4e2d\u4e24\u4efd\u6587\u4ef6\u5b58\u5728\u663e\u8457\u91cd\u590d\uff1a\n\n| \u91cd\u590d\u4e3b\u9898 | CLAUDE.md | AGENTS.md | \u53bb\u91cd\u65b9\u5f0f |\n|---------|-----------|-----------|---------|\n| \u663e\u793a\u8bbe\u8ba1\u57fa\u7ebf | \u6709 | \u6709 | \u5404\u81ea\u4fdd\u7559\uff08\u6982\u8981 vs \u5b8c\u6574\uff09 |\n| \u6784\u5efa/\u6d4b\u8bd5\u547d\u4ee4 | \u6709 | \u6709 | \u5404\u81ea\u4fdd\u7559 |\n| \u4ee3\u7801\u98ce\u683c | \u6709(\u7cbe\u7b80) | \u6709(\u8be6\u7ec6) | \u5404\u81ea\u4fdd\u7559\uff0c\u5c42\u6b21\u4e0d\u540c |\n| \u5305\u7ed3\u6784 | \u6709 | \u6709 | CLAUDE.md \u4fdd\u7559\u6982\u8981\u8868 |\n| NCNN \u6a21\u578b\u7ecf\u9a8c(\u8be6\u7ec6) | \u6709 | \u6709 | \u79fb\u9664 CLAUDE.md \u7248\u672c\uff0c\u5f52\u4e00\u5230 AGENTS.md |\n| AI \u4ee3\u7801\u5b9a\u4f4d\u5de5\u5177 | \u6709 | \u6709 | \u5404\u81ea\u4fdd\u7559 |\n| \u8c03\u8bd5\u5efa\u8bae | \u6709(\u5173\u952e\u65e5\u5fd7) | \u6709(\u6392\u67e5\u987a\u5e8f) | \u5404\u81ea\u4fdd\u7559\uff0c\u4e92\u8865\u4e0d\u91cd\u590d |\n| \u63a2\u9488\u9875\u7ecf\u9a8c | \u6709 | \u6709 | \u79fb\u9664 CLAUDE.md \u7248\u672c\uff0c\u5f52\u4e00\u5230 AGENTS.md |\n\n### 4. CODEMAPS.md \u8986\u76d6\u7684\u6a21\u5757\u6e05\u5355\n\n| \u6a21\u5757 | \u6587\u4ef6\u6570 | \u8986\u76d6\u60c5\u51b5 |\n|------|--------|---------|\n| `hiddenrisk/` | 49 .kt + 3 .java | \u5b8c\u6574 10 \u5b50\u5206\u7c7b + \u5168\u90e8\u6587\u4ef6\u6e05\u5355 |\n| `camera/` | 3 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 + \u804c\u8d23\u8bf4\u660e |\n| `input/` | 5 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 + \u804c\u8d23\u8bf4\u660e |\n| `workflow/` | 1 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 + \u804c\u8d23\u8bf4\u660e |\n| `component/` | 8 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 + \u804c\u8d23\u8bf4\u660e |\n| `config/` | 2 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 + \u804c\u8d23\u8bf4\u660e |\n| JNI C++ \u5c42 | 3 \u6e90\u6587\u4ef6 + 2 \u9884\u7f16\u8bd1\u5e93 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 + \u6784\u5efa\u914d\u7f6e |\n| \u6839\u7ea7 Activity | 10 | \u5b8c\u6574\u6587\u4ef6\u6e05\u5355 |\n| `network/`, `data/`, `utils/`, `updater/`, `view/`, `adapter/` | \u5408\u8ba1\u7ea6 22 | \u6982\u8981\u8868\u683c |\n| \u540e\u7aef\u670d\u52a1 | Python \u9879\u76ee | \u76ee\u5f55\u7ed3\u6784 + \u90e8\u7f72\u4fe1\u606f |\n\n### 5. \u6587\u4ef6\u5927\u5c0f\u5bf9\u6bd4\n\n| \u6587\u4ef6 | \u539f\u72b6\u6001 | \u65b0\u72b6\u6001 | \u8bf4\u660e |\n|------|--------|--------|------|\n| `CLAUDE.md` | ~165 \u884c | ~140 \u884c | \u51cf\u5c11\u7ea6 25 \u884c (\u79fb\u9664\u4e0e AGENTS.md \u91cd\u590d\u7684 NCNN \u7ec6\u8282 + \u4e0b\u6c89\u6a21\u5757\u8be6\u7ec6\u63cf\u8ff0\u5230 CODEMAPS.md) |\n| `docs/CODEMAPS.md` | \u4e0d\u5b58\u5728 | ~350 \u884c | \u65b0\u589e L2 \u4ee3\u7801\u5730\u56fe |\n\n## \u540e\u7eed\u5efa\u8bae\n\n1. **docs/\u516c\u5171\u80fd\u529b/ \u6587\u6863\u6062\u590d**\uff1agit status \u663e\u793a `docs/\u516c\u5171\u80fd\u529b/` \u4e0b 13 \u4e2a\u6587\u4ef6\u5df2\u6807\u8bb0\u5220\u9664\u3002CODEMAPS.md \u7684\u8de8\u6a21\u5757\u6587\u6863\u7d22\u5f15\u4ecd\u4fdd\u7559\u4e86\u5bf9\u8fd9\u4e9b\u6587\u6863\u7684\u5f15\u7528\u3002\u5efa\u8bae\u786e\u8ba4\u540e\u6062\u590d\u6216\u66f4\u65b0\u7d22\u5f15\u3002\n\n2. **CODEMAPS.md \u4fdd\u9c9c\u673a\u5236**\uff1a\u5f53\u6a21\u5757\u8fb9\u754c\u53d8\u66f4\u3001\u65b0\u589e\u6587\u4ef6\u3001\u63a5\u53e3\u4fee\u6539\u3001\u6570\u636e\u6d41\u8c03\u6574\u65f6\uff0c\u9700\u540c\u6b65\u66f4\u65b0 CODEMAPS.md \u7684\u5bf9\u5e94\u7ae0\u8282\u3002\n\n3. **\u4e0e CodeGraph \u4e92\u8865**\uff1aCODEMAPS.md \u662f\u9759\u6001\u7ed3\u6784\u5316\u6587\u6863\uff0cCodeGraph \u662f\u52a8\u6001\u8bed\u4e49\u7d22\u5f15\uff0c\u4e24\u8005\u914d\u5408\u4f7f\u7528\u53ef\u8986\u76d6\u4ee3\u7801\u5bfc\u822a\u7684\u5b8c\u6574\u9700\u6c42\u3002\n"}], "grading": null}, {"id": "eval-2-cross-module-sync-with_skill", "prompt": "\u6211\u5728 hiddenrisk \u6a21\u5757\u65b0\u589e\u4e86\u4e00\u4e2a VoiceControlManager.kt \u7c7b\uff0c\u5b83\u73b0\u5728\u88ab hiddenrisk \u548c input \u6a21\u5757\u5171\u540c\u8c03\u7528\u3002commit \u4e4b\u524d\u5e2e\u6211\u540c\u6b65\u4e00\u4e0b\u9879\u76ee\u6587\u6863\u3002\u5f53\u524d staged \u53d8\u66f4\u6709\uff1aapp/src/main/java/com/rokid/glass/hiddenrisk/VoiceControlManager.kt\uff08\u65b0\u589e\uff09\uff0capp/src/main/java/com/rokid/glass/input/VoiceController.kt\uff08\u4fee\u6539\uff0c\u65b0\u589e\u4e86\u5bf9 VoiceControlManager \u7684\u8c03\u7528\uff09\u3002", "eval_id": 2, "outputs": [{"name": "summary.md", "type": "text", "content": "# \u53d8\u66f4\u5206\u6790\u4e0e\u6587\u6863\u540c\u6b65\u5efa\u8bae\n\n## \u53d8\u66f4\u5206\u7c7b\n- \u6a21\u5757\u5185\u65b0\u589e\uff1ahiddenrisk \u65b0\u589e VoiceControlManager.kt \u2192 L3\n- \u8de8\u6a21\u5757\u4f9d\u8d56\u53d8\u66f4\uff1ainput.VoiceController \u2192 hiddenrisk.VoiceControlManager \u2192 L1+L2\n- \u67b6\u6784\u8fb9\u754c\u53d8\u66f4\uff1ahiddenrisk \u4ece\"\u88ab\u4f9d\u8d56: \u65e0\"\u53d8\u4e3a\u88ab input \u4f9d\u8d56\n\n## \u540c\u6b65\u51b3\u7b56\n\n### L1 \u2014 CLAUDE.md\uff08\u5f53\u524d 228 \u884c\uff09\n- \u7edf\u4e00\u8f93\u5165\u5c42\u63cf\u8ff0\u8ffd\u52a0\u8bed\u97f3\u63a7\u5236\u7ba1\u7406\u4f4d\u7f6e\n- \u5305\u7ed3\u6784\u8868 hiddenrisk \u804c\u8d23\u8ffd\u52a0\"\u8bed\u97f3\u63a7\u5236\"\n- \u6a21\u5757\u4ee3\u7801\u5730\u56fe\u8986\u76d6\u8303\u56f4\u8ffd\u52a0\"\u8bed\u97f3\u63a7\u5236\"\n- \u9884\u8ba1\u6700\u7ec8 ~235 \u884c\uff0c\u5728 250 \u884c\u7ea6\u675f\u5185\n\n### L2 \u2014 CODEMAPS.md\n\u5f53\u524d\u4e0d\u5b58\u5728\uff0c\u4e0d\u5efa\u8bae\u5728\u672c\u6b21\u5c0f\u8303\u56f4\u53d8\u66f4\u4e2d\u521d\u59cb\u5316\u3002\n\n### L3 \u2014 hiddenrisk/README.md\n- \u6587\u4ef6\u7d22\u5f15\u65b0\u589e VoiceControlManager \u6761\u76ee\n- \"\u88ab\u4f9d\u8d56\"\u4ece\"\u65e0\"\u66f4\u65b0\u4e3a\"input/\u8bed\u97f3\u63a7\u5236\u7ba1\u7406\"\n\n### L3 \u2014 input/README.md\n- VoiceController \u6761\u76ee\u66f4\u65b0\u804c\u8d23\u63cf\u8ff0\uff08\u59d4\u6258\u5173\u7cfb\uff09\n- \u4f9d\u8d56\u5173\u7cfb\u65b0\u589e hiddenrisk\n\n## \u6838\u5fc3\u7ed3\u8bba\n\u672c\u6b21\u53d8\u66f4\u6253\u7834\u4e86 hiddenrisk \u7684\u5355\u5411\u9876\u5c42\u8fb9\u754c\uff0cL1 \u548c L3 \u5747\u9700\u540c\u6b65\u66f4\u65b0\u3002\n"}], "grading": null}, {"id": "eval-2-cross-module-sync-without_skill", "prompt": "\u6211\u5728 hiddenrisk \u6a21\u5757\u65b0\u589e\u4e86\u4e00\u4e2a VoiceControlManager.kt \u7c7b\uff0c\u5b83\u73b0\u5728\u88ab hiddenrisk \u548c input \u6a21\u5757\u5171\u540c\u8c03\u7528\u3002commit \u4e4b\u524d\u5e2e\u6211\u540c\u6b65\u4e00\u4e0b\u9879\u76ee\u6587\u6863\u3002\u5f53\u524d staged \u53d8\u66f4\u6709\uff1aapp/src/main/java/com/rokid/glass/hiddenrisk/VoiceControlManager.kt\uff08\u65b0\u589e\uff09\uff0capp/src/main/java/com/rokid/glass/input/VoiceController.kt\uff08\u4fee\u6539\uff0c\u65b0\u589e\u4e86\u5bf9 VoiceControlManager \u7684\u8c03\u7528\uff09\u3002", "eval_id": 2, "outputs": [{"name": "summary.md", "type": "text", "content": "# \u6587\u6863\u540c\u6b65\u5206\u6790\uff1aVoiceControlManager \u4ea4\u53c9\u6a21\u5757\u4f9d\u8d56\n\n## \u53d8\u66f4\u6982\u8ff0\n\n- **\u65b0\u589e**: `app/src/main/java/com/rokid/glass/hiddenrisk/VoiceControlManager.kt`\uff08hiddenrisk \u6a21\u5757\uff09\n- **\u4fee\u6539**: `app/src/main/java/com/rokid/glass/input/VoiceController.kt`\uff08input \u6a21\u5757\uff0c\u65b0\u589e\u5bf9 VoiceControlManager \u7684\u8c03\u7528\uff09\n\n## \u6838\u5fc3\u67b6\u6784\u5f71\u54cd\n\n### \u4f9d\u8d56\u65b9\u5411\u53d8\u5316\n\n**\u53d8\u66f4\u524d**\uff08\u5355\u5411\u4f9d\u8d56\uff09\uff1a\n```\nhiddenrisk \u2192 input\n```\nhiddenrisk \u4f9d\u8d56 input\uff08\u901a\u8fc7 UnifiedInputSession \u6ce8\u518c\u89e6\u63a7/\u8bed\u97f3/\u5934\u90e8\u624b\u52bf\u52a8\u4f5c\uff09\u3002\n\n**\u53d8\u66f4\u540e**\uff08\u53cc\u5411\u4f9d\u8d56\uff09\uff1a\n```\nhiddenrisk \u2194 input\n```\n- hiddenrisk \u2192 input\uff1a\u4ecd\u901a\u8fc7 UnifiedInput \u4f9d\u8d56\u8f93\u5165\u5c42\n- input \u2192 hiddenrisk\uff1aVoiceController \u8c03\u7528 VoiceControlManager\n\n\u8fd9\u5f62\u6210\u4e86\u6a21\u5757\u95f4\u7684**\u5faa\u73af\u4f9d\u8d56**\uff0c\u662f\u4e00\u4e2a\u9700\u8981\u5173\u6ce8\u7684\u67b6\u6784\u4fe1\u53f7\u3002\n\n---\n\n## \u9700\u8981\u66f4\u65b0\u7684\u6587\u6863\uff08\u6309\u4f18\u5148\u7ea7\u6392\u5e8f\uff09\n\n### 1. `app/src/main/java/com/rokid/glass/hiddenrisk/README.md`\n\n**\u53d8\u66f4\u539f\u56e0**\uff1aVoiceControlManager.kt \u662f\u65b0\u589e\u6587\u4ef6\uff0c\u6a21\u5757\u6587\u4ef6\u7d22\u5f15\u7f3a\u5c11\u8be5\u6761\u76ee\uff1b\u4f9d\u8d56\u5173\u7cfb\u58f0\u660e\u5df2\u8fc7\u65f6\u3002\n\n**\u5177\u4f53\u66f4\u65b0**\uff1a\n\n| \u66f4\u65b0\u70b9 | \u5f53\u524d\u72b6\u6001 | \u5e94\u66f4\u65b0\u4e3a |\n|--------|----------|----------|\n| \u6587\u4ef6\u7d22\u5f15 | \u65e0 VoiceControlManager.kt | \u5728\u300c\u57fa\u7840/\u7cfb\u7edf\u300d\u6216\u65b0\u5efa\u300c\u8bed\u97f3\u63a7\u5236\u300d\u5206\u7c7b\u4e0b\u6dfb\u52a0\u8be5\u6587\u4ef6\u7d22\u5f15\uff0c\u542b\u804c\u8d23\u63cf\u8ff0\u548c\u5173\u952e\u5165\u53e3 |\n| \u4f9d\u8d56\u5173\u7cfb \u2014 \u88ab\u4f9d\u8d56 | `\u65e0 \u2014 \u672c\u6a21\u5757\u662f\u4e1a\u52a1\u9876\u5c42\uff0c\u5176\u4ed6\u6a21\u5757\u4e0d\u4f9d\u8d56\u6b64\u5305` | \u66f4\u65b0\u4e3a `input/ \u2014 VoiceController \u8c03\u7528 VoiceControlManager \u8fdb\u884c\u8bed\u97f3\u63a7\u5236\u7ba1\u7406` |\n\n**\u5efa\u8bae\u5206\u7c7b**\uff1a`VoiceControlManager.kt` \u7684\u804c\u8d23\u662f\u7ba1\u7406\u8bed\u97f3\u63a7\u5236\u72b6\u6001/\u903b\u8f91\uff0c\u82e5\u4e13\u4e3a\u5de1\u68c0\u9875\u9762\u670d\u52a1\uff0c\u53ef\u653e\u5728\u300c\u57fa\u7840/\u7cfb\u7edf\u300d\u5206\u7c7b\uff1b\u82e5\u529f\u80fd\u8f83\u72ec\u7acb\uff0c\u53ef\u65b0\u589e\u300c\u8bed\u97f3\u63a7\u5236\u300d\u5206\u7c7b\u3002\n\n---\n\n### 2. `app/src/main/java/com/rokid/glass/input/README.md`\n\n**\u53d8\u66f4\u539f\u56e0**\uff1aVoiceController.kt \u5f53\u524d\u4e0d\u5728\u6587\u4ef6\u7d22\u5f15\u4e2d\uff1b\u6a21\u5757\u4f9d\u8d56\u58f0\u660e\u7f3a\u5c11\u5bf9 hiddenrisk \u7684\u4f9d\u8d56\u3002\n\n**\u5177\u4f53\u66f4\u65b0**\uff1a\n\n| \u66f4\u65b0\u70b9 | \u5f53\u524d\u72b6\u6001 | \u5e94\u66f4\u65b0\u4e3a |\n|--------|----------|----------|\n| \u6587\u4ef6\u7d22\u5f15 | \u65e0 VoiceController.kt | \u6dfb\u52a0\u6587\u4ef6\u7d22\u5f15\u6761\u76ee\uff0c\u8bf4\u660e\u5176\u8d1f\u8d23\u8bed\u97f3\u63a7\u5236\u5668\u7684\u5b9e\u73b0 |\n| \u4f9d\u8d56\u5173\u7cfb \u2014 \u4f9d\u8d56 | `Android Sensor API\u3001Rokid Glass SDK` | \u65b0\u589e `hiddenrisk/ \u2014 VoiceControlManager \u63d0\u4f9b\u8bed\u97f3\u63a7\u5236\u7ba1\u7406\u80fd\u529b` |\n| \u6838\u5fc3\u8c03\u7528\u94fe \u2014 \u8bed\u97f3\u5206\u53d1 | \u4ec5\u63d0\u53ca VoiceRecognition \u2192 UnifiedInputSession | \u8865\u5145 VoiceController \u2192 VoiceControlManager \u7684\u8c03\u7528\u94fe\u8def |\n\n---\n\n### 3. `CLAUDE.md`\n\n**\u53d8\u66f4\u539f\u56e0**\uff1aKotlin \u5305\u7ed3\u6784\u8868\u548c\u7edf\u4e00\u8f93\u5165\u5c42\u7684\u63cf\u8ff0\u672a\u53cd\u6620\u8bed\u97f3\u63a7\u5236\u65b0\u80fd\u529b\u3002\n\n**\u5177\u4f53\u66f4\u65b0**\uff1a\n\n| \u66f4\u65b0\u70b9 | \u5f53\u524d\u72b6\u6001 | \u5e94\u66f4\u65b0\u4e3a |\n|--------|----------|----------|\n| Kotlin \u5305\u7ed3\u6784\u8868 \u2014 `hiddenrisk/` | `NCNN \u63a8\u7406\u3001\u5de1\u68c0\u6d41\u7a0b\u3001\u5728\u7ebf\u68c0\u6d4b\u3001\u7ed3\u679c\u5904\u7406\u3001\u4e0a\u4f20 (~50 \u6587\u4ef6)` | \u6587\u4ef6\u6570\u66f4\u65b0\uff08~51\uff09\uff0c\u53ef\u8865\u5145\u300c\u8bed\u97f3\u63a7\u5236\u7ba1\u7406\u300d |\n| \u7edf\u4e00\u8f93\u5165\u5c42\u63cf\u8ff0 | `input/ \u5305\u63d0\u4f9b\u89e6\u63a7\u3001\u8bed\u97f3\u3001\u5934\u90e8\u624b\u52bf\u7684\u7edf\u4e00\u62bd\u8c61` | \u8865\u5145\u8bf4\u660e\u8bed\u97f3\u63a7\u5236\u7531 hiddenrisk \u7684 VoiceControlManager \u4e0e input \u7684 VoiceController \u534f\u540c\u5b9e\u73b0 |\n\n**\u6ce8\u610f**\uff1aCLAUDE.md \u4e2d\u7684\u5305\u7ed3\u6784\u8868\u63cf\u8ff0\u8f83\u6982\u62ec\uff0c\u4e0d\u4e00\u5b9a\u9700\u8981\u5728\u6b64\u5c42\u7ea7\u5217\u51fa\u6bcf\u4e2a\u5177\u4f53\u7c7b\u540d\u3002\u5173\u952e\u662f\u786e\u4fdd\u6a21\u5757\u804c\u8d23\u63cf\u8ff0\u51c6\u786e\u53cd\u6620\u65b0\u589e\u7684\u8bed\u97f3\u63a7\u5236\u80fd\u529b\u3002\n\n---\n\n### 4. `AGENTS.md`\n\n**\u53d8\u66f4\u539f\u56e0**\uff1aAGENTS.md \u4e2d\u7684\u5305\u7ed3\u6784\u5217\u8868\u4e0e CLAUDE.md \u4fdd\u6301\u4e00\u81f4\uff0c\u82e5\u65b0\u7c7b\u5177\u6709\u8db3\u591f\u91cd\u8981\u6027\uff0c\u9700\u540c\u6b65\u3002\n\n**\u5177\u4f53\u66f4\u65b0**\uff1a`hiddenrisk/` \u7684\u804c\u8d23\u63cf\u8ff0\u53ef\u540c\u6b65 CLAUDE.md \u7684\u66f4\u65b0\u3002\u82e5 VoiceControlManager/ VoiceController \u4e0d\u6d89\u53ca JNI/\u6a21\u578b\u7b49 AGENTS.md \u7279\u522b\u5173\u6ce8\u7684\u9886\u57df\uff0c\u53d8\u66f4\u53ef\u4fdd\u6301\u6700\u5c0f\u3002\n\n---\n\n### 5. `docs/\u516c\u5171\u80fd\u529b/\u67b6\u6784\u603b\u89c8.md` \u548c `docs/\u516c\u5171\u80fd\u529b/\u7edf\u4e00\u8f93\u5165\u8bbe\u8ba1\u4e0e\u63a5\u5165.md`\n\n**\u72b6\u6001**\uff1a\u8fd9\u4e24\u4e2a\u6587\u4ef6\u5f53\u524d\u5728 git \u4e2d\u663e\u793a\u4e3a\u5df2\u5220\u9664\uff08`D` \u72b6\u6001\uff09\uff0c\u5de5\u4f5c\u6811\u4e2d\u4e0d\u5b58\u5728\u3002\n\n**\u5982\u679c\u6062\u590d\u8fd9\u4e9b\u6587\u4ef6**\uff0c\u9700\u8981\u66f4\u65b0\uff1a\n- **\u67b6\u6784\u603b\u89c8.md**\uff1a\u5728\u4e94\u5c42\u67b6\u6784\u56fe\u4e2d\u4f53\u73b0 hiddenrisk \u4e0e input \u7684\u53cc\u5411\u4f9d\u8d56\uff0c\u8bf4\u660e\u8bed\u97f3\u63a7\u5236\u5b50\u7cfb\u7edf\u7684\u5b9a\u4f4d\n- **\u7edf\u4e00\u8f93\u5165\u8bbe\u8ba1\u4e0e\u63a5\u5165.md**\uff1a\u6dfb\u52a0 VoiceController \u7684\u8bbe\u8ba1\u8bf4\u660e\uff0c\u4ee5\u53ca\u63a5\u5165 VoiceControlManager \u7684\u8c03\u7528\u7ea6\u5b9a\n\n**\u5efa\u8bae**\uff1a\u5148\u786e\u8ba4\u8fd9\u4e9b\u6587\u6863\u662f\u5426\u5e94\u8be5\u6062\u590d\uff08\u4ece git \u5386\u53f2\u4e2d\u53d6\u56de\uff09\uff0c\u6216\u4ece CLAUDE.md / AGENTS.md \u4e2d\u79fb\u9664\u5bf9\u5b83\u4eec\u7684\u5f15\u7528\u3002\n\n---\n\n## \u67b6\u6784\u98ce\u9669\u63d0\u793a\n\n### \u5faa\u73af\u4f9d\u8d56\u95ee\u9898\n\n`VoiceControlManager` \u653e\u5728 `hiddenrisk` \u5305\u4e2d\uff0c\u4f46\u88ab `input` \u5305\u5f15\u7528\uff0c\u9020\u6210\uff1a\n- `hiddenrisk` \u4f9d\u8d56 `input`\uff08UnifiedInput\uff09\n- `input` \u4f9d\u8d56 `hiddenrisk`\uff08VoiceControlManager\uff09\n\n\u8fd9\u5728 Kotlin/Gradle \u4e2d\u4f1a\u7f16\u8bd1\u901a\u8fc7\uff08\u540c\u4e00\u4e2a Gradle \u6a21\u5757\u5185\uff09\uff0c\u4f46\u4ece\u67b6\u6784\u53ef\u7ef4\u62a4\u6027\u89d2\u5ea6\u770b\u5b58\u5728\u95ee\u9898\uff1a\n- \u4e24\u4e2a\u6a21\u5757\u7684\u804c\u8d23\u8fb9\u754c\u53d8\u5f97\u6a21\u7cca\n- \u672a\u6765\u82e5\u8981\u5c06 hiddenrisk \u6216 input \u72ec\u7acb\u4e3a library module\uff0c\u4f1a\u9047\u5230\u5faa\u73af\u5f15\u7528\n\n### \u5efa\u8bae\u8003\u8651\u7684\u66ff\u4ee3\u65b9\u6848\n\n1. **\u5c06 VoiceControlManager \u79fb\u81f3 `input/` \u5305**\uff1a\u5982\u679c\u5b83\u672c\u8d28\u4e0a\u7ba1\u7406\u7684\u662f\u8bed\u97f3\u63a7\u5236\u72b6\u6001\uff0c\u8fd9\u66f4\u7b26\u5408 input \u6a21\u5757\u7684\u804c\u8d23\uff08\u7edf\u4e00\u8f93\u5165\u5c42\uff09\uff0c\u4e5f\u6d88\u9664\u4e86\u5faa\u73af\u4f9d\u8d56\u3002\n2. **\u5c06 VoiceControlManager \u79fb\u81f3\u72ec\u7acb\u7684 `voice/` \u6216\u5171\u4eab\u7684 `component/` \u5305**\uff1a\u5982\u679c hiddenrisk \u548c input \u90fd\u9700\u8981\u8c03\u7528\u5b83\uff0c\u653e\u5728\u7b2c\u4e09\u65b9\u4e2d\u7acb\u4f4d\u7f6e\u66f4\u5408\u7406\u3002\n3. **\u4fdd\u6301\u73b0\u72b6\u4f46\u5728\u6587\u6863\u4e2d\u660e\u786e\u8bf4\u660e**\uff1a\u5982\u679c\u91cd\u6784\u6210\u672c\u8fc7\u9ad8\uff0c\u81f3\u5c11\u5728 README \u4e2d\u663e\u5f0f\u6807\u8bb0\u8fd9\u4e2a\u53cc\u5411\u4f9d\u8d56\uff0c\u5e76\u8bf4\u660e\u8fd9\u662f\u4e00\u4e2a\u300c\u6709\u610f\u7684\u4f8b\u5916\u300d\uff0c\u9632\u6b62\u540e\u4eba\u8bef\u4ee5\u4e3a\u6a21\u5757\u95f4\u662f\u5b8c\u5168\u5355\u5411\u89e3\u8026\u7684\u3002\n\n---\n\n## \u540c\u6b65\u6267\u884c\u987a\u5e8f\u5efa\u8bae\n\n1. \u5148\u66f4\u65b0 `hiddenrisk/README.md`\uff08\u65b0\u589e\u6587\u4ef6\u7d22\u5f15 + \u4fee\u6b63\u4f9d\u8d56\u58f0\u660e\uff09\n2. \u518d\u66f4\u65b0 `input/README.md`\uff08\u65b0\u589e\u6587\u4ef6\u7d22\u5f15 + \u4fee\u6b63\u4f9d\u8d56\u58f0\u660e\uff09\n3. \u66f4\u65b0 `CLAUDE.md`\uff08\u6a21\u5757\u804c\u8d23\u63cf\u8ff0\u3001\u5305\u7ed3\u6784\u8868\uff09\n4. \u89c6\u9700\u8981\u66f4\u65b0 `AGENTS.md`\n5. \u5982 docs/ \u4e0b\u6587\u6863\u88ab\u6062\u590d\uff0c\u540c\u6b65\u66f4\u65b0\u67b6\u6784\u603b\u89c8\u548c\u7edf\u4e00\u8f93\u5165\u8bbe\u8ba1\u6587\u6863\n"}], "grading": null}, {"id": "eval-3-in-module-sync-with_skill", "prompt": "\u6211\u5728 hiddenrisk \u6a21\u5757\u91cc\u65b0\u589e\u4e86\u4e00\u4e2a\u5de5\u5177\u7c7b HazardResultFormatter.kt\uff0c\u53ea\u662f\u628a AiInspectionActivity \u91cc\u7684\u4e00\u4e9b\u683c\u5f0f\u5316\u903b\u8f91\u62bd\u53d6\u51fa\u6765\uff0c\u4e0d\u6d89\u53ca\u8de8\u6a21\u5757\u8c03\u7528\u3002commit \u524d\u5e2e\u6211\u540c\u6b65\u6587\u6863\u3002", "eval_id": 3, "outputs": [{"name": "summary.md", "type": "text", "content": "## \u53d8\u66f4\u5206\u6790\n\n**\u53d8\u66f4\u7c7b\u578b**\uff1a\u6a21\u5757\u5185\u91cd\u6784\uff08\u4ece AiInspectionActivity.kt \u63d0\u53d6\u683c\u5f0f\u5316\u903b\u8f91\u5230\u65b0\u6587\u4ef6 HazardResultFormatter.kt\uff0c\u4e0d\u6d89\u53ca\u8de8\u6a21\u5757\u8c03\u7528\uff09\u3002\n\n## \u4e09\u5c42\u6587\u6863\u540c\u6b65\u5224\u5b9a\n\n### L1 \u2014 CLAUDE.md\n\u65e0\u9700\u66f4\u65b0\u3002\u672a\u65b0\u589e/\u5220\u9664\u6a21\u5757\uff0c\u6a21\u5757\u7d22\u5f15\u8868\u65e0\u9700\u4fee\u6539\u3002\n\n### L2 \u2014 CODEMAPS.md\n\u65e0\u9700\u521b\u5efa/\u66f4\u65b0\u3002\u7eaf\u6a21\u5757\u5185\u91cd\u6784\u4e0d\u89e6\u53d1 L2 \u66f4\u65b0\u3002\n\n### L3 \u2014 hiddenrisk/README.md\n\u9700\u8981\u66f4\u65b0\u3002\u5728\"UI/\u8f85\u52a9\u7ec4\u4ef6\"\u8868\u683c\u4e2d\u65b0\u589e\u4e00\u884c HazardResultFormatter.kt \u6761\u76ee\uff0c\u5e76\u66f4\u65b0\u5206\u7c7b\u8ba1\u6570\u3002\n\n## \u9a8c\u8bc1\u6e05\u5355\n- [x] CLAUDE.md 228 \u884c\uff0c\u2264 250 \u884c\u7ea6\u675f\u6ee1\u8db3\n- [x] CODEMAPS.md \u4e0d\u5b58\u5728\u4e14\u65e0\u9700\u521b\u5efa\n- [x] L1 \u6a21\u5757\u7d22\u5f15\u8868\u8def\u5f84\u4e00\u81f4\n- [x] \u65e0\u8de8\u6a21\u5757 import \u5173\u7cfb\u53d8\u66f4\n- [x] \u65b0\u6587\u4ef6\u8def\u5f84\u5728 hiddenrisk \u6a21\u5757\u5185\n\n## \u603b\u7ed3\n\u4e00\u6b21\u6700\u7b80\u540c\u6b65\u2014\u2014\u4ec5\u9700\u5728 L3 \u65b0\u589e\u4e00\u884c\u6761\u76ee\uff0cL1 \u548c L2 \u5b8c\u5168\u4e0d\u53d7\u5f71\u54cd\u3002\n"}], "grading": null}, {"id": "eval-3-in-module-sync-without_skill", "prompt": "\u6211\u5728 hiddenrisk \u6a21\u5757\u91cc\u65b0\u589e\u4e86\u4e00\u4e2a\u5de5\u5177\u7c7b HazardResultFormatter.kt\uff0c\u53ea\u662f\u628a AiInspectionActivity \u91cc\u7684\u4e00\u4e9b\u683c\u5f0f\u5316\u903b\u8f91\u62bd\u53d6\u51fa\u6765\uff0c\u4e0d\u6d89\u53ca\u8de8\u6a21\u5757\u8c03\u7528\u3002commit \u524d\u5e2e\u6211\u540c\u6b65\u6587\u6863\u3002", "eval_id": 3, "outputs": [{"name": "summary.md", "type": "text", "content": "# HazardResultFormatter.kt \u65b0\u589e\u540e\u7684\u6587\u6863\u540c\u6b65\u5206\u6790\n\n## \u53d8\u66f4\u6982\u8981\n\n\u5728 hiddenrisk \u6a21\u5757\u65b0\u589e\u5de5\u5177\u7c7b HazardResultFormatter.kt\uff0c\u4ece AiInspectionActivity.kt \u4e2d\u62bd\u53d6\u683c\u5f0f\u5316\u903b\u8f91\uff0c\u4e0d\u6d89\u53ca\u8de8\u6a21\u5757\u8c03\u7528\u3002\u62bd\u53d6\u5185\u5bb9\u5305\u62ec ensureAdviceDisplayPrefix()\u3001buildAdviceDisplayText() \u7b49\u65b9\u6cd5\u4ee5\u53ca ADVICE_DISPLAY_PREFIX \u5e38\u91cf\u3002\n\n## \u9700\u8981\u66f4\u65b0\u7684\u6587\u6863\n\n### 1. app/src/main/java/com/rokid/glass/hiddenrisk/README.md -- \u5fc5\u987b\u66f4\u65b0\n\n**\u539f\u56e0**: \u8be5 README \u662f hiddenrisk \u6a21\u5757\u7684\u4ee3\u7801\u5730\u56fe\uff0c\u5bf9\u6240\u6709\u6587\u4ef6\u6309\u7c7b\u522b\u5efa\u8868\u7d22\u5f15\u3002\u65b0\u589e\u6587\u4ef6\u5fc5\u987b\u7eb3\u5165\u7d22\u5f15\u3002\n\n**\u5177\u4f53\u4fee\u6539**:\n\n\u4fee\u6539 A\uff1a\u5728 \"UI/\u8f85\u52a9\u7ec4\u4ef6\" \u6587\u4ef6\u7d22\u5f15\u8868\u4e2d\u8ffd\u52a0\u4e00\u884c\uff1a\n\n```\n| HazardResultFormatter.kt | \u9690\u60a3\u7ed3\u679c\u683c\u5f0f\u5316\u5de5\u5177\uff0c\u5efa\u8bae\u6587\u6848\u524d\u7f00\u62fc\u63a5\u3001\u5c55\u793a\u6587\u672c\u6784\u5efa | ensureAdviceDisplayPrefix(), buildAdviceDisplayText() |\n```\n\n\u4fee\u6539 B\uff1a\u5c06\u5206\u7c7b\u6807\u9898 `UI/\u8f85\u52a9\u7ec4\u4ef6\uff089 \u4e2a\uff09` \u6539\u4e3a `UI/\u8f85\u52a9\u7ec4\u4ef6\uff0810 \u4e2a\uff09`\u3002\n\n\u4fee\u6539 C\uff08\u53ef\u9009\uff09\uff1a\u5982\u679c HazardResultFormatter \u5728\u8c03\u7528\u94fe\u4e2d\u88ab\u663e\u5f0f\u8c03\u7528\uff0c\u53ef\u8003\u8651\u5728\u76f8\u5173\u8c03\u7528\u94fe\u63cf\u8ff0\u4e2d\u63d0\u53ca\u3002\u4f46\u9274\u4e8e\u5176\u5b9a\u4f4d\u662f\u7eaf\u5de5\u5177\u7c7b\uff0c\u975e\u5f3a\u5236\u3002\n\n### 2. CLAUDE.md -- \u65e0\u9700\u66f4\u65b0\n\n**\u539f\u56e0**: \u7b2c 165 \u884c\u8bb0\u5f55\u4e3a `~50 \u6587\u4ef6`\uff0c\u5f53\u524d\u5b9e\u9645 52 \u4e2a\uff0c\u65b0\u589e\u540e 53 \u4e2a\u3002\u8fd1\u4f3c\u503c\u4ecd\u7136\u51c6\u786e\u3002\n\n### 3. docs/\u516c\u5171\u80fd\u529b/ \u7cfb\u5217\u6587\u6863 -- \u5df2\u5220\u9664\uff0c\u65e0\u9700\u66f4\u65b0\n\n**\u539f\u56e0**: \u8be5\u76ee\u5f55\u4e0b\u6240\u6709\u6587\u6863\u5728 git \u4e2d\u5df2\u6807\u8bb0\u5220\u9664\uff08D\uff09\uff0c\u4e0d\u518d\u5c5e\u4e8e\u5f53\u524d\u6587\u6863\u4f53\u7cfb\u3002\n\n## \u5206\u6790\u4f9d\u636e\n\n### \u4ee3\u7801\u4fa7\u8bc1\u636e\n\n- AiInspectionActivity.kt (4598\u884c)\uff1a\u5305\u542b ensureAdviceDisplayPrefix() (L2869)\u3001buildAdviceDisplayText() (L4042) \u7b49\u683c\u5f0f\u5316\u65b9\u6cd5\n- OnlineHazardAdviceFormatter.kt\uff1a\u5df2\u6709\u7684\u683c\u5f0f\u5316\u5de5\u5177\u7c7b\uff0c\u4f5c\u4e3a\u65b0\u589e HazardResultFormatter \u7684\u540c\u7c7b\u578b\u53c2\u8003\n- ResolvedHazardContent.kt\uff1a\u5df2\u6709\u7684\u6570\u636e/\u683c\u5f0f\u5316\u7c7b\uff0c\u4f4d\u4e8e \"UI/\u8f85\u52a9\u7ec4\u4ef6\" \u5206\u7c7b\u4e2d\uff0cHazardResultFormatter \u5e94\u5f52\u5165\u540c\u7c7b\n\n### \u6587\u6863\u4fa7\u8bc1\u636e\n\n- hiddenrisk/README.md \"UI/\u8f85\u52a9\u7ec4\u4ef6\" \u5f53\u524d\u5f52\u7c7b\u4e86 9 \u4e2a\u6587\u4ef6\uff0c\u5305\u62ec ResolvedHazardContent \u7b49\u540c\u7c7b\u578b\u5de5\u5177\n- hiddenrisk/README.md \"\u88ab\u4f9d\u8d56\" \u5b57\u6bb5\u5199\u660e\uff1a\u201c\u65e0 \u2014 \u672c\u6a21\u5757\u662f\u4e1a\u52a1\u9876\u5c42\uff0c\u5176\u4ed6\u6a21\u5757\u4e0d\u4f9d\u8d56\u6b64\u5305\u201d\uff0c\u56e0\u6b64\u4e0d\u6d89\u53ca\u8de8\u6a21\u5757\u6587\u6863\u540c\u6b65\n- CLAUDE.md \u6a21\u5757\u4ee3\u7801\u5730\u56fe\u4e2d hiddenrisk \u884c\u63cf\u8ff0\u4e3a `~50 \u6587\u4ef6`\uff0c\u662f\u8fd1\u4f3c\u503c\n- docs/\u516c\u5171\u80fd\u529b/ \u76ee\u5f55\u4e0b\u6240\u6709\u6587\u4ef6\u5728 git \u72b6\u6001\u4e2d\u6807\u8bb0\u4e3a D\uff08\u5df2\u5220\u9664\uff09\uff0c\u4e0d\u7eb3\u5165\u5f53\u524d\u6587\u6863\u4f53\u7cfb\n\n## \u7ed3\u8bba\n\n\u672c\u6b21\u53d8\u66f4\u5c5e\u4e8e\u6a21\u5757\u5185\u7eaf\u91cd\u6784\uff08\u62bd\u53d6\u5de5\u5177\u7c7b\uff09\uff0c\u8de8\u6a21\u5757\u4f9d\u8d56\u4e3a\u96f6\u3002\u552f\u4e00\u9700\u8981\u540c\u6b65\u7684\u6587\u6863\u662f hiddenrisk \u6a21\u5757\u7ea7 README\uff0c\u5728 \"UI/\u8f85\u52a9\u7ec4\u4ef6\" \u8868\u4e2d\u8ffd\u52a0\u4e00\u884c\u5e76\u66f4\u65b0\u6587\u4ef6\u8ba1\u6570\u3002\u5176\u4ed6\u6587\u6863\u65e0\u9700\u53d8\u66f4\u3002\n"}], "grading": null}], "previous_feedback": {}, "previous_outputs": {}, "benchmark": {"metadata": {"skill_name": "codexmap-sync", "timestamp": "2026-05-27T04:00:58Z", "evals_run": ["eval-1-init-codemaps", "eval-2-cross-module-sync", "eval-3-in-module-sync"], "runs_per_configuration": 1}, "runs": [{"eval": "eval-1-init-codemaps", "configurations": {"with_skill": {"pass_rate": 1.0, "time_seconds": 328.9, "tokens": 77103}, "without_skill": {"pass_rate": 0.4, "time_seconds": 387.4, "tokens": 84849}}}, {"eval": "eval-2-cross-module-sync", "configurations": {"with_skill": {"pass_rate": 1.0, "time_seconds": 132.3, "tokens": 56742}, "without_skill": {"pass_rate": 0.75, "time_seconds": 196.5, "tokens": 69105}}}, {"eval": "eval-3-in-module-sync", "configurations": {"with_skill": {"pass_rate": 1.0, "time_seconds": 78.2, "tokens": 49240}, "without_skill": {"pass_rate": 1.0, "time_seconds": 166.8, "tokens": 66914}}}], "run_summary": {"with_skill": {"pass_rate": "100%", "avg_time_seconds": 179.8, "avg_tokens": 61028}, "without_skill": {"pass_rate": "67%", "avg_time_seconds": 250.2, "avg_tokens": 73623}, "delta": {"pass_rate": "+33pp", "time_seconds": "-70.4s (-28%)", "tokens": "-12595 (-17%)"}}}};
+
+    // ---- State ----
+    let feedbackMap = {};  // run_id -> feedback text
+    let currentIndex = 0;
+    let visitedRuns = new Set();
+
+    // ---- Init ----
+    async function init() {
+      // Load saved feedback from server — but only if this isn't a fresh
+      // iteration (indicated by previous_feedback being present). When
+      // previous feedback exists, the feedback.json on disk is stale from
+      // the prior iteration and should not pre-fill the textareas.
+      const hasPrevious = Object.keys(EMBEDDED_DATA.previous_feedback || {}).length > 0
+        || Object.keys(EMBEDDED_DATA.previous_outputs || {}).length > 0;
+      if (!hasPrevious) {
+        try {
+          const resp = await fetch("/api/feedback");
+          const data = await resp.json();
+          if (data.reviews) {
+            for (const r of data.reviews) feedbackMap[r.run_id] = r.feedback;
+          }
+        } catch { /* first run, no feedback yet */ }
+      }
+
+      document.getElementById("skill-name").textContent = EMBEDDED_DATA.skill_name;
+      showRun(0);
+
+      // Wire up feedback auto-save
+      const textarea = document.getElementById("feedback");
+      let saveTimeout = null;
+      textarea.addEventListener("input", () => {
+        clearTimeout(saveTimeout);
+        document.getElementById("feedback-status").textContent = "";
+        saveTimeout = setTimeout(() => saveCurrentFeedback(), 800);
+      });
+    }
+
+    // ---- Navigation ----
+    function navigate(delta) {
+      const newIndex = currentIndex + delta;
+      if (newIndex >= 0 && newIndex < EMBEDDED_DATA.runs.length) {
+        saveCurrentFeedback();
+        showRun(newIndex);
+      }
+    }
+
+    function updateNavButtons() {
+      document.getElementById("prev-btn").disabled = currentIndex === 0;
+      document.getElementById("next-btn").disabled =
+        currentIndex === EMBEDDED_DATA.runs.length - 1;
+    }
+
+    // ---- Show a run ----
+    function showRun(index) {
+      currentIndex = index;
+      const run = EMBEDDED_DATA.runs[index];
+
+      // Progress
+      document.getElementById("progress").textContent =
+        `${index + 1} of ${EMBEDDED_DATA.runs.length}`;
+
+      // Prompt
+      document.getElementById("prompt-text").textContent = run.prompt;
+
+      // Config badge
+      const badge = document.getElementById("config-badge");
+      const configMatch = run.id.match(/(with_skill|without_skill|new_skill|old_skill)/);
+      if (configMatch) {
+        const config = configMatch[1];
+        const isBaseline = config === "without_skill" || config === "old_skill";
+        badge.textContent = config.replace(/_/g, " ");
+        badge.className = "config-badge " + (isBaseline ? "config-baseline" : "config-primary");
+        badge.style.display = "inline-block";
+      } else {
+        badge.style.display = "none";
+      }
+
+      // Outputs
+      renderOutputs(run);
+
+      // Previous outputs
+      renderPrevOutputs(run);
+
+      // Grades
+      renderGrades(run);
+
+      // Previous feedback
+      const prevFb = (EMBEDDED_DATA.previous_feedback || {})[run.id];
+      const prevEl = document.getElementById("prev-feedback");
+      if (prevFb) {
+        document.getElementById("prev-feedback-text").textContent = prevFb;
+        prevEl.style.display = "block";
+      } else {
+        prevEl.style.display = "none";
+      }
+
+      // Feedback
+      document.getElementById("feedback").value = feedbackMap[run.id] || "";
+      document.getElementById("feedback-status").textContent = "";
+
+      updateNavButtons();
+
+      // Track visited runs and promote done button when all visited
+      visitedRuns.add(index);
+      const doneBtn = document.getElementById("done-btn");
+      if (visitedRuns.size >= EMBEDDED_DATA.runs.length) {
+        doneBtn.classList.add("ready");
+      }
+
+      // Scroll main content to top
+      document.querySelector(".main").scrollTop = 0;
+    }
+
+    // ---- Render outputs ----
+    function renderOutputs(run) {
+      const container = document.getElementById("outputs-body");
+      container.innerHTML = "";
+
+      const outputs = run.outputs || [];
+      if (outputs.length === 0) {
+        container.innerHTML = '<div class="empty-state">No output files</div>';
+        return;
+      }
+
+      for (const file of outputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        // Always show file header with download link
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const content = document.createElement("div");
+        content.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          content.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          content.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          content.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(content, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          content.appendChild(a);
+        } else if (file.type === "error") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          pre.style.color = "var(--red)";
+          content.appendChild(pre);
+        }
+
+        fileDiv.appendChild(content);
+        container.appendChild(fileDiv);
+      }
+    }
+
+    // ---- XLSX rendering via SheetJS ----
+    function renderXlsx(container, b64Data) {
+      try {
+        const raw = Uint8Array.from(atob(b64Data), c => c.charCodeAt(0));
+        const wb = XLSX.read(raw, { type: "array" });
+
+        for (let i = 0; i < wb.SheetNames.length; i++) {
+          const sheetName = wb.SheetNames[i];
+          const ws = wb.Sheets[sheetName];
+
+          if (wb.SheetNames.length > 1) {
+            const sheetLabel = document.createElement("div");
+            sheetLabel.style.cssText =
+              "font-weight:600; font-size:0.8rem; color:#b0aea5; margin-top:0.5rem; margin-bottom:0.25rem;";
+            sheetLabel.textContent = "Sheet: " + sheetName;
+            container.appendChild(sheetLabel);
+          }
+
+          const htmlStr = XLSX.utils.sheet_to_html(ws, { editable: false });
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = htmlStr;
+          container.appendChild(wrapper);
+        }
+      } catch (err) {
+        container.textContent = "Error rendering spreadsheet: " + err.message;
+      }
+    }
+
+    // ---- Grades ----
+    function renderGrades(run) {
+      const section = document.getElementById("grades-section");
+      const content = document.getElementById("grades-content");
+
+      if (!run.grading) {
+        section.style.display = "none";
+        return;
+      }
+
+      const grading = run.grading;
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("grades-arrow").classList.remove("open");
+
+      const summary = grading.summary || {};
+      const expectations = grading.expectations || [];
+
+      let html = '<div style="padding: 1rem;">';
+
+      // Summary line
+      const passRate = summary.pass_rate != null
+        ? Math.round(summary.pass_rate * 100) + "%"
+        : "?";
+      const badgeClass = summary.pass_rate >= 0.8 ? "grade-pass" : summary.pass_rate >= 0.5 ? "" : "grade-fail";
+      html += '<div class="grades-summary">';
+      html += '<span class="grade-badge ' + badgeClass + '">' + passRate + '</span>';
+      html += '<span>' + (summary.passed || 0) + ' passed, ' + (summary.failed || 0) + ' failed of ' + (summary.total || 0) + '</span>';
+      html += '</div>';
+
+      // Assertions list
+      html += '<ul class="assertion-list">';
+      for (const exp of expectations) {
+        const statusClass = exp.passed ? "pass" : "fail";
+        const statusIcon = exp.passed ? "\u2713" : "\u2717";
+        html += '<li class="assertion-item">';
+        html += '<span class="assertion-status ' + statusClass + '">' + statusIcon + '</span>';
+        html += '<span>' + escapeHtml(exp.text) + '</span>';
+        if (exp.evidence) {
+          html += '<div class="assertion-evidence">' + escapeHtml(exp.evidence) + '</div>';
+        }
+        html += '</li>';
+      }
+      html += '</ul>';
+
+      html += '</div>';
+      content.innerHTML = html;
+    }
+
+    function toggleGrades() {
+      const content = document.getElementById("grades-content");
+      const arrow = document.getElementById("grades-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Previous outputs (collapsible) ----
+    function renderPrevOutputs(run) {
+      const section = document.getElementById("prev-outputs-section");
+      const content = document.getElementById("prev-outputs-content");
+      const prevOutputs = (EMBEDDED_DATA.previous_outputs || {})[run.id];
+
+      if (!prevOutputs || prevOutputs.length === 0) {
+        section.style.display = "none";
+        return;
+      }
+
+      section.style.display = "block";
+      // Reset to collapsed
+      content.classList.remove("open");
+      document.getElementById("prev-outputs-arrow").classList.remove("open");
+
+      // Render the files into the content area
+      content.innerHTML = "";
+      const wrapper = document.createElement("div");
+      wrapper.style.padding = "1rem";
+
+      for (const file of prevOutputs) {
+        const fileDiv = document.createElement("div");
+        fileDiv.className = "output-file";
+
+        const header = document.createElement("div");
+        header.className = "output-file-header";
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = file.name;
+        header.appendChild(nameSpan);
+        const dlBtn = document.createElement("a");
+        dlBtn.className = "dl-btn";
+        dlBtn.textContent = "Download";
+        dlBtn.download = file.name;
+        dlBtn.href = getDownloadUri(file);
+        header.appendChild(dlBtn);
+        fileDiv.appendChild(header);
+
+        const fc = document.createElement("div");
+        fc.className = "output-file-content";
+
+        if (file.type === "text") {
+          const pre = document.createElement("pre");
+          pre.textContent = file.content;
+          fc.appendChild(pre);
+        } else if (file.type === "image") {
+          const img = document.createElement("img");
+          img.src = file.data_uri;
+          img.alt = file.name;
+          fc.appendChild(img);
+        } else if (file.type === "pdf") {
+          const iframe = document.createElement("iframe");
+          iframe.src = file.data_uri;
+          fc.appendChild(iframe);
+        } else if (file.type === "xlsx") {
+          renderXlsx(fc, file.data_b64);
+        } else if (file.type === "binary") {
+          const a = document.createElement("a");
+          a.className = "download-link";
+          a.href = file.data_uri;
+          a.download = file.name;
+          a.textContent = "Download " + file.name;
+          fc.appendChild(a);
+        }
+
+        fileDiv.appendChild(fc);
+        wrapper.appendChild(fileDiv);
+      }
+
+      content.appendChild(wrapper);
+    }
+
+    function togglePrevOutputs() {
+      const content = document.getElementById("prev-outputs-content");
+      const arrow = document.getElementById("prev-outputs-arrow");
+      content.classList.toggle("open");
+      arrow.classList.toggle("open");
+    }
+
+    // ---- Feedback (saved to server -> feedback.json) ----
+    function saveCurrentFeedback() {
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // Build reviews array from map
+      const reviews = [];
+      for (const [run_id, feedback] of Object.entries(feedbackMap)) {
+        if (feedback.trim()) {
+          reviews.push({ run_id, feedback, timestamp: new Date().toISOString() });
+        }
+      }
+
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reviews, status: "in_progress" }),
+      }).then(() => {
+        document.getElementById("feedback-status").textContent = "Saved";
+      }).catch(() => {
+        // Static mode or server unavailable — no-op on auto-save,
+        // feedback will be downloaded on final submit
+        document.getElementById("feedback-status").textContent = "Will download on submit";
+      });
+    }
+
+    // ---- Done ----
+    function showDoneDialog() {
+      // Save current textarea to feedbackMap (but don't POST yet)
+      const run = EMBEDDED_DATA.runs[currentIndex];
+      const text = document.getElementById("feedback").value;
+      if (text.trim() === "") {
+        delete feedbackMap[run.id];
+      } else {
+        feedbackMap[run.id] = text;
+      }
+
+      // POST once with status: complete — include ALL runs so the model
+      // can distinguish "no feedback" (looks good) from "not reviewed"
+      const reviews = [];
+      const ts = new Date().toISOString();
+      for (const r of EMBEDDED_DATA.runs) {
+        reviews.push({ run_id: r.id, feedback: feedbackMap[r.id] || "", timestamp: ts });
+      }
+      const payload = JSON.stringify({ reviews, status: "complete" }, null, 2);
+      fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+      }).then(() => {
+        document.getElementById("done-overlay").classList.add("visible");
+      }).catch(() => {
+        // Server not available (static mode) — download as file
+        const blob = new Blob([payload], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "feedback.json";
+        a.click();
+        URL.revokeObjectURL(url);
+        document.getElementById("done-overlay").classList.add("visible");
+      });
+    }
+
+    function closeDoneDialog() {
+      // Reset status back to in_progress
+      saveCurrentFeedback();
+      document.getElementById("done-overlay").classList.remove("visible");
+    }
+
+    // ---- Toast ----
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("visible");
+      setTimeout(() => toast.classList.remove("visible"), 2000);
+    }
+
+    // ---- Keyboard nav ----
+    document.addEventListener("keydown", (e) => {
+      // Don't capture when typing in textarea
+      if (e.target.tagName === "TEXTAREA") return;
+
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        e.preventDefault();
+        navigate(-1);
+      } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        e.preventDefault();
+        navigate(1);
+      }
+    });
+
+    // ---- Util ----
+    function getDownloadUri(file) {
+      if (file.data_uri) return file.data_uri;
+      if (file.data_b64) return "data:application/octet-stream;base64," + file.data_b64;
+      if (file.type === "text") return "data:text/plain;charset=utf-8," + encodeURIComponent(file.content);
+      return "#";
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ---- View switching ----
+    function switchView(view) {
+      document.querySelectorAll(".view-tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".view-panel").forEach(p => p.classList.remove("active"));
+      document.querySelector(`[onclick="switchView('${view}')"]`).classList.add("active");
+      document.getElementById("panel-" + view).classList.add("active");
+    }
+
+    // ---- Benchmark rendering ----
+    function renderBenchmark() {
+      const data = EMBEDDED_DATA.benchmark;
+      if (!data) return;
+
+      // Show the tabs
+      document.getElementById("view-tabs").style.display = "flex";
+
+      const container = document.getElementById("benchmark-content");
+      const summary = data.run_summary || {};
+      const metadata = data.metadata || {};
+      const notes = data.notes || [];
+
+      let html = "";
+
+      // Header
+      html += "<h2 style='font-family: Poppins, sans-serif; margin-bottom: 0.5rem;'>Benchmark Results</h2>";
+      html += "<p style='color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.25rem;'>";
+      if (metadata.skill_name) html += "<strong>" + escapeHtml(metadata.skill_name) + "</strong> &mdash; ";
+      if (metadata.timestamp) html += metadata.timestamp + " &mdash; ";
+      if (metadata.evals_run) html += "Evals: " + metadata.evals_run.join(", ") + " &mdash; ";
+      html += (metadata.runs_per_configuration || "?") + " runs per configuration";
+      html += "</p>";
+
+      // Summary table
+      html += '<table class="benchmark-table">';
+
+      function fmtStat(stat, pct) {
+        if (!stat) return "—";
+        const suffix = pct ? "%" : "";
+        const m = pct ? (stat.mean * 100).toFixed(0) : stat.mean.toFixed(1);
+        const s = pct ? (stat.stddev * 100).toFixed(0) : stat.stddev.toFixed(1);
+        return m + suffix + " ± " + s + suffix;
+      }
+
+      function deltaClass(val) {
+        if (!val) return "";
+        const n = parseFloat(val);
+        if (n > 0) return "benchmark-delta-positive";
+        if (n < 0) return "benchmark-delta-negative";
+        return "";
+      }
+
+      // Discover config names dynamically (everything except "delta")
+      const configs = Object.keys(summary).filter(k => k !== "delta");
+      const configA = configs[0] || "config_a";
+      const configB = configs[1] || "config_b";
+      const labelA = configA.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const labelB = configB.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      const a = summary[configA] || {};
+      const b = summary[configB] || {};
+      const delta = summary.delta || {};
+
+      html += "<thead><tr><th>Metric</th><th>" + escapeHtml(labelA) + "</th><th>" + escapeHtml(labelB) + "</th><th>Delta</th></tr></thead>";
+      html += "<tbody>";
+
+      html += "<tr><td><strong>Pass Rate</strong></td>";
+      html += "<td>" + fmtStat(a.pass_rate, true) + "</td>";
+      html += "<td>" + fmtStat(b.pass_rate, true) + "</td>";
+      html += '<td class="' + deltaClass(delta.pass_rate) + '">' + (delta.pass_rate || "—") + "</td></tr>";
+
+      // Time (only show row if data exists)
+      if (a.time_seconds || b.time_seconds) {
+        html += "<tr><td><strong>Time (s)</strong></td>";
+        html += "<td>" + fmtStat(a.time_seconds, false) + "</td>";
+        html += "<td>" + fmtStat(b.time_seconds, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.time_seconds) + '">' + (delta.time_seconds ? delta.time_seconds + "s" : "—") + "</td></tr>";
+      }
+
+      // Tokens (only show row if data exists)
+      if (a.tokens || b.tokens) {
+        html += "<tr><td><strong>Tokens</strong></td>";
+        html += "<td>" + fmtStat(a.tokens, false) + "</td>";
+        html += "<td>" + fmtStat(b.tokens, false) + "</td>";
+        html += '<td class="' + deltaClass(delta.tokens) + '">' + (delta.tokens || "—") + "</td></tr>";
+      }
+
+      html += "</tbody></table>";
+
+      // Per-eval breakdown (if runs data available)
+      const runs = data.runs || [];
+      if (runs.length > 0) {
+        const evalIds = [...new Set(runs.map(r => r.eval_id))].sort((a, b) => a - b);
+
+        html += "<h3 style='font-family: Poppins, sans-serif; margin-bottom: 0.75rem;'>Per-Eval Breakdown</h3>";
+
+        const hasTime = runs.some(r => r.result && r.result.time_seconds != null);
+        const hasErrors = runs.some(r => r.result && r.result.errors > 0);
+
+        for (const evalId of evalIds) {
+          const evalRuns = runs.filter(r => r.eval_id === evalId);
+          const evalName = evalRuns[0] && evalRuns[0].eval_name ? evalRuns[0].eval_name : "Eval " + evalId;
+
+          html += "<h4 style='font-family: Poppins, sans-serif; margin: 1rem 0 0.5rem; color: var(--text);'>" + escapeHtml(evalName) + "</h4>";
+          html += '<table class="benchmark-table">';
+          html += "<thead><tr><th>Config</th><th>Run</th><th>Pass Rate</th>";
+          if (hasTime) html += "<th>Time (s)</th>";
+          if (hasErrors) html += "<th>Crashes During Execution</th>";
+          html += "</tr></thead>";
+          html += "<tbody>";
+
+          // Group by config and render with average rows
+          const configGroups = [...new Set(evalRuns.map(r => r.configuration))];
+          for (let ci = 0; ci < configGroups.length; ci++) {
+            const config = configGroups[ci];
+            const configRuns = evalRuns.filter(r => r.configuration === config);
+            if (configRuns.length === 0) continue;
+
+            const rowClass = ci === 0 ? "benchmark-row-with" : "benchmark-row-without";
+            const configLabel = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+            for (const run of configRuns) {
+              const r = run.result || {};
+              const prClass = r.pass_rate >= 0.8 ? "benchmark-delta-positive" : r.pass_rate < 0.5 ? "benchmark-delta-negative" : "";
+              html += '<tr class="' + rowClass + '">';
+              html += "<td>" + configLabel + "</td>";
+              html += "<td>" + run.run_number + "</td>";
+              html += '<td class="' + prClass + '">' + ((r.pass_rate || 0) * 100).toFixed(0) + "% (" + (r.passed || 0) + "/" + (r.total || 0) + ")</td>";
+              if (hasTime) html += "<td>" + (r.time_seconds != null ? r.time_seconds.toFixed(1) : "—") + "</td>";
+              if (hasErrors) html += "<td>" + (r.errors || 0) + "</td>";
+              html += "</tr>";
+            }
+
+            // Average row
+            const rates = configRuns.map(r => (r.result || {}).pass_rate || 0);
+            const avgRate = rates.reduce((a, b) => a + b, 0) / rates.length;
+            const avgPrClass = avgRate >= 0.8 ? "benchmark-delta-positive" : avgRate < 0.5 ? "benchmark-delta-negative" : "";
+            html += '<tr class="benchmark-row-avg ' + rowClass + '">';
+            html += "<td>" + configLabel + "</td>";
+            html += "<td>Avg</td>";
+            html += '<td class="' + avgPrClass + '">' + (avgRate * 100).toFixed(0) + "%</td>";
+            if (hasTime) {
+              const times = configRuns.map(r => (r.result || {}).time_seconds).filter(t => t != null);
+              html += "<td>" + (times.length ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(1) : "—") + "</td>";
+            }
+            if (hasErrors) html += "<td></td>";
+            html += "</tr>";
+          }
+          html += "</tbody></table>";
+
+          // Per-assertion detail for this eval
+          const runsWithExpectations = {};
+          for (const config of configGroups) {
+            runsWithExpectations[config] = evalRuns.filter(r => r.configuration === config && r.expectations && r.expectations.length > 0);
+          }
+          const hasAnyExpectations = Object.values(runsWithExpectations).some(runs => runs.length > 0);
+          if (hasAnyExpectations) {
+            // Collect all unique assertion texts across all configs
+            const allAssertions = [];
+            const seen = new Set();
+            for (const config of configGroups) {
+              for (const run of runsWithExpectations[config]) {
+                for (const exp of (run.expectations || [])) {
+                  if (!seen.has(exp.text)) {
+                    seen.add(exp.text);
+                    allAssertions.push(exp.text);
+                  }
+                }
+              }
+            }
+
+            html += '<table class="benchmark-table" style="margin-top: 0.5rem;">';
+            html += "<thead><tr><th>Assertion</th>";
+            for (const config of configGroups) {
+              const label = config.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+              html += "<th>" + escapeHtml(label) + "</th>";
+            }
+            html += "</tr></thead><tbody>";
+
+            for (const assertionText of allAssertions) {
+              html += "<tr><td>" + escapeHtml(assertionText) + "</td>";
+
+              for (const config of configGroups) {
+                html += "<td>";
+                for (const run of runsWithExpectations[config]) {
+                  const exp = (run.expectations || []).find(e => e.text === assertionText);
+                  if (exp) {
+                    const cls = exp.passed ? "benchmark-delta-positive" : "benchmark-delta-negative";
+                    const icon = exp.passed ? "\u2713" : "\u2717";
+                    html += '<span class="' + cls + '" title="Run ' + run.run_number + ': ' + escapeHtml(exp.evidence || "") + '">' + icon + "</span> ";
+                  } else {
+                    html += "— ";
+                  }
+                }
+                html += "</td>";
+              }
+              html += "</tr>";
+            }
+            html += "</tbody></table>";
+          }
+        }
+      }
+
+      // Notes
+      if (notes.length > 0) {
+        html += '<div class="benchmark-notes">';
+        html += "<h3>Analysis Notes</h3>";
+        html += "<ul>";
+        for (const note of notes) {
+          html += "<li>" + escapeHtml(note) + "</li>";
+        }
+        html += "</ul></div>";
+      }
+
+      container.innerHTML = html;
+    }
+
+    // ---- Start ----
+    init();
+    renderBenchmark();
+  </script>
+</body>
+</html>
