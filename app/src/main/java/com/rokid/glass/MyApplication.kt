@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
+import com.rokid.glass.input.WearStateManager
 import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.ToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
@@ -55,6 +56,7 @@ class MyApplication : Application() {
         AppFileLogger.init(this, enabled = BuildConfig.DEBUG)
         installCrashLogger()
         InspectionConfigRepository.init(this)
+        WearStateManager.init(this)
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
     }
 

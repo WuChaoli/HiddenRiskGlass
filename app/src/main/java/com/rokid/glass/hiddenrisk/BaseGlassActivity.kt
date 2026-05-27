@@ -10,12 +10,21 @@ import android.view.KeyEvent
 import android.view.WindowManager
 import androidx.appcompat.app.AppCompatActivity
 import com.rokid.glass.MyApplication
+import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.input.GlassesWearStateMachine
+import com.rokid.glass.input.WearStateManager
 
-open class BaseGlassActivity : AppCompatActivity() {
+open class BaseGlassActivity : AppCompatActivity(), WearStateManager.Callback {
 
     /** 子类可覆盖为 false 来禁用自动常亮（如更新弹窗等短暂页面） */
     protected open val keepScreenOnEnabled: Boolean
         get() = true
+
+    /** 子类覆盖为 true 后，可接收全局佩戴睡眠/恢复回调 */
+    protected open val wearSleepEnabled: Boolean
+        get() = false
+
+    private var baseWearSnapshot: GlassesWearStateMachine.Snapshot? = null
 
     private val buttonReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -82,9 +91,20 @@ open class BaseGlassActivity : AppCompatActivity() {
         if (keepScreenOnEnabled) {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+        if (wearSleepEnabled) {
+            WearStateManager.setGlobalEnabled(isGlobalWearSleepEnabled())
+            WearStateManager.subscribe(
+                owner = this,
+                eligible = shouldEnableWearSleepNow(),
+                callback = this,
+            )
+        }
     }
 
     override fun onPause() {
+        if (wearSleepEnabled) {
+            WearStateManager.unsubscribe(this)
+        }
         if (keepScreenOnEnabled) {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
@@ -111,5 +131,54 @@ open class BaseGlassActivity : AppCompatActivity() {
             return true
         }
         return false
+    }
+
+    override fun onWearStateChanged(snapshot: GlassesWearStateMachine.Snapshot?) {
+        val previousState = baseWearSnapshot?.state
+        baseWearSnapshot = snapshot
+        when (snapshot?.state) {
+            GlassesWearStateMachine.State.SLEEP -> onWearSleep(snapshot)
+            GlassesWearStateMachine.State.WAKE -> onWearWake(snapshot)
+            GlassesWearStateMachine.State.ACTIVE -> onWearActive(snapshot, previousState)
+            else -> Unit
+        }
+    }
+
+    protected open fun shouldEnableWearSleepNow(): Boolean {
+        return wearSleepEnabled && isGlobalWearSleepEnabled()
+    }
+
+    protected fun updateWearSleepEligibility(enabled: Boolean) {
+        if (!wearSleepEnabled) return
+        WearStateManager.setGlobalEnabled(isGlobalWearSleepEnabled())
+        WearStateManager.updateOwnerEligibility(
+            owner = this,
+            eligible = enabled && isGlobalWearSleepEnabled(),
+        )
+    }
+
+    protected fun reportWearRecoveryReady() {
+        WearStateManager.reportRecoveryReady(this)
+    }
+
+    protected fun currentWearSnapshot(): GlassesWearStateMachine.Snapshot? {
+        return WearStateManager.currentSnapshot()
+    }
+
+    protected fun isWearStateInteractionBlocked(): Boolean {
+        return wearSleepEnabled && WearStateManager.isInteractionBlocked()
+    }
+
+    protected open fun onWearSleep(snapshot: GlassesWearStateMachine.Snapshot) = Unit
+
+    protected open fun onWearWake(snapshot: GlassesWearStateMachine.Snapshot) = Unit
+
+    protected open fun onWearActive(
+        snapshot: GlassesWearStateMachine.Snapshot,
+        previousState: GlassesWearStateMachine.State?,
+    ) = Unit
+
+    private fun isGlobalWearSleepEnabled(): Boolean {
+        return InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring
     }
 }

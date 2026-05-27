@@ -5,7 +5,8 @@
 将触控（单击/双击/返回）、语音识别、头部手势统一抽象为 `UnifiedInput`，各页面通过 `buildInputActions()` 注册动作映射表，输入层根据当前页面态动态分发。
 
 ### 配套系统
-- `AutoSleepStateMachine` — 检测眼镜摘下，自动进入休眠提示
+- `WearStateManager` — 全局佩戴状态入口，维护当前前台页面回调
+- `GlassesWearStateMachine` — 维护 `ACTIVE` / `SLEEP` / `WAKE` 三态佩戴恢复流程
 - `HeadMotionStabilityTracker` — 陀螺仪跟踪头部稳定性
 - `GlassesWearMonitor` — 佩戴状态广播监听
 
@@ -17,8 +18,8 @@
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `UnifiedInput.kt` | **统一输入核心**，注册动作、分发触控/语音/头部手势 | `UnifiedInputSession.attach()`, `updateActions()`, `dispatchTouch()`, `InputActionSpec`, `InputTrigger` |
-| `AutoSleepStateMachine.kt` | **自动休眠状态机**，摘镜检测+休眠提示 | `Config`, `Snapshot`, `tick()`, `onGlassesRemoved()`, `onGlassesWorn()` |
-| `AutoSleepController.kt` | 自动休眠控制器，协调传感器+状态机+UI | `attach()`, `detach()`, `setEnabled()`, `markSleepHandled()` |
+| `WearStateManager.kt` | **全局佩戴状态管理器**，监听佩戴广播并向当前前台页面派发状态 | `init()`, `subscribe()`, `updateOwnerEligibility()`, `reportRecoveryReady()` |
+| `GlassesWearStateMachine.kt` | **佩戴恢复状态机**，摘镜暂停+戴回动态恢复 | `Snapshot`, `onGlassesRemoved()`, `onGlassesWorn()`, `onRecoveryReady()` |
 | `HeadMotionStabilityTracker.kt` | **头部稳定性跟踪**，陀螺仪数据→稳定性判断 | `start()`, `stop()`, `onStabilityChanged()` |
 | `GlassesWearMonitor.kt` | 眼镜佩戴状态广播监听 | `attach()`, `detach()`, `onWearStateChanged()` |
 
@@ -41,11 +42,18 @@
     → UnifiedInputSession.dispatchTrigger(Voice(text, pinyin))
       → 匹配当前页面态 → 执行 Action
 
-自动休眠:
+佩戴检测恢复:
+  MyApplication.onCreate()
+    → WearStateManager.init()
+  BaseGlassActivity.onResume()
+    → WearStateManager.subscribe(当前前台页面)
   GlassesWearMonitor.onWearStateChanged(false)
-    → AutoSleepStateMachine.onGlassesRemoved()
-      → tick() 倒计时
-        → SLEEP_WARNING → AutoSleepController 通知 UI
+    → GlassesWearStateMachine.onGlassesRemoved()
+      → WearStateManager 派发 SLEEP → 页面暂停检测并提示重新佩戴
+  GlassesWearMonitor.onWearStateChanged(true)
+    → GlassesWearStateMachine.onGlassesWorn()
+      → WearStateManager 派发 WAKE → 页面恢复帧流并等待检测输入就绪
+        → WearStateManager.reportRecoveryReady() → ACTIVE
 ```
 
 ## 依赖关系
