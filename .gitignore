@@ -42,3 +42,5 @@ release/*.apk
 # Deploy env
 .env.deploy
 
+# Local Android toolchain and signing configuration
+.env
