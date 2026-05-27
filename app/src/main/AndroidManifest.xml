@@ -92,10 +92,6 @@
         <!--            android:name="com.rokid.glass.BarcodeDetectorActivity"-->
         <!--            android:exported="false" />-->
         <activity
-            android:name="com.rokid.glass.WifiQrScanActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Glessedemo" />
-        <activity
             android:name="com.rokid.glass.EnterpriseQrScanActivity"
             android:exported="false"
             android:theme="@style/Theme.Glessedemo" />
