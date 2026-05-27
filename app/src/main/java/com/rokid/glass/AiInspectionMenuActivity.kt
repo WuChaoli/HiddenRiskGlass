@@ -3,8 +3,11 @@ package com.rokid.glass
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -21,6 +24,8 @@ import com.google.gson.Gson
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.updater.AppUpdateManager
 import com.rokid.glass.updater.AppUpdatePromptActivity
+import com.rokid.glass.utils.SystemStateUtils
+import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -37,6 +42,11 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private var checkingUpdate = false
     private var autoUpdateChecked = false
     private var selectedIndex = 0
+
+    private lateinit var layoutWifiRequiredDialog: LinearLayout
+    private lateinit var tvWifiRequiredConfirm: TextView
+    private var entryGuardNavigating = false
+    private var wifiRequiredDialogVisible = false
 
     private val menuAdapter by lazy {
         MenuCardAdapter(
@@ -64,13 +74,19 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
         // 初始选中第一张卡片
         menuAdapter.selectedIndex = 0
+
+        layoutWifiRequiredDialog = findViewById(R.id.layoutWifiRequiredDialog)
+        tvWifiRequiredConfirm = findViewById(R.id.tvWifiRequiredConfirm)
+        tvWifiRequiredConfirm.setOnClickListener { exitAppFromWifiDialog() }
     }
 
     override fun onResume() {
         super.onResume()
+        entryGuardNavigating = false
         inputSession.attach()
         inputSession.updateActions(buildInputActions())
-        startAutoUpdateCheck()
+        updateBatteryLevel()
+        runEntryGuards()
     }
 
     override fun onPause() {
@@ -88,7 +104,78 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
+    private fun runEntryGuards() {
+        if (entryGuardNavigating || wifiRequiredDialogVisible) return
+
+        if (SystemStateUtils.getCurrentWifiSsid(this) == null) {
+            showWifiRequiredDialog()
+            return
+        }
+
+        hideWifiRequiredDialog()
+
+        if (!InspectionSession.isInitialized) {
+            entryGuardNavigating = true
+            startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
+                putExtra(InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY, AiInspectionMenuActivity::class.java.name)
+            })
+            return
+        }
+
+        if (
+            InspectionWorkflowSession.enterpriseQrPayload == null ||
+            InspectionWorkflowSession.enterpriseInfo == null
+        ) {
+            entryGuardNavigating = true
+            startActivity(Intent(this, EnterpriseQrScanActivity::class.java))
+            return
+        }
+
+        startAutoUpdateCheck()
+    }
+
+    private fun showWifiRequiredDialog() {
+        wifiRequiredDialogVisible = true
+        layoutWifiRequiredDialog.visibility = View.VISIBLE
+        recyclerMenu.isEnabled = false
+        tvBottomHint.visibility = View.GONE
+        inputSession.updateActions(buildInputActions())
+    }
+
+    private fun hideWifiRequiredDialog() {
+        wifiRequiredDialogVisible = false
+        layoutWifiRequiredDialog.visibility = View.GONE
+        recyclerMenu.isEnabled = true
+        tvBottomHint.visibility = View.VISIBLE
+    }
+
+    private fun exitAppFromWifiDialog() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAffinity()
+            finishAndRemoveTask()
+        } else {
+            finishAffinity()
+            finish()
+        }
+    }
+
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        if (wifiRequiredDialogVisible) {
+            return listOf(
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Confirm,
+                    label = getString(R.string.ai_entry_wifi_required_confirm),
+                    triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_wifi_required_confirm), "que ding"),
+                    ),
+                ) {
+                    exitAppFromWifiDialog()
+                },
+            )
+        }
         return listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Previous,
@@ -175,6 +262,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     }
 
     private fun onItemConfirmed(index: Int) {
+        if (entryGuardNavigating || wifiRequiredDialogVisible) return
         when (index) {
             0 -> startHazardAnalysis()
             1 -> startDeviceGuide()
