@@ -73,7 +73,7 @@ versionName "<目标版本号>"
 git add app/build.gradle
 git commit -m "chore: bump version to <目标版本号>
 
-Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>"
+Co-Authored-By: Codex Opus 4.7 <noreply@anthropic.com>"
 ```
 
 如果还有其他待提交的变更（如功能代码），将其一并纳入 commit，使用 `feat:` 前缀。
@@ -132,7 +132,7 @@ git push origin HEAD
 使用 WSL 本地编译（`wsl-android-tools` 脚本）：
 
 ```bash
-bash /home/wuchaoli/.claude/skills/wsl-android-tools/scripts/wsl-gradle.sh :app:assembleStandardDebug
+bash /home/wuchaoli/.Codex/skills/wsl-android-tools/scripts/wsl-gradle.sh :app:assembleStandardDebug
 ```
 
 构建成功后复制 APK 到 `release/`：
