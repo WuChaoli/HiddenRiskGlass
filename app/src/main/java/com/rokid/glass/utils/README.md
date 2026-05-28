@@ -1,7 +1,7 @@
 # utils/ — 工具库
 
 ## 业务概述
-提供全项目共用的工具函数和扩展，覆盖日志、图像处理、TTS 播放、SSE 通信、WiFi QR 解析、协程作用域、系统状态查询等领域。
+提供全项目共用的工具函数和扩展，覆盖日志、图像处理、TTS 播放、SSE 通信、协程作用域、系统状态查询等领域。
 
 ## 文件索引
 
@@ -18,7 +18,6 @@
 | `StringUtils.kt` | 字符串工具：获取首个非空白字符串 | `firstNonBlank()` |
 | `SystemStateUtils.kt` | 系统状态查询：WiFi 状态、网络连接、蓝牙状态 | `isWifiEnabled()`、`isNetworkConnected()` |
 | `ToastUtil.kt` | Toast 工具 (Kotlin)，防重复弹出管理 | `showToast()` |
-| `WifiQrParser.kt` | WiFi QR 码内容解析，提取 SSID/密码/加密类型 | `parse(rawValue)` |
 | `kt_ext_flow.kt` | Kotlin Flow 扩展：`MutableSharedFlow.call()` 便捷发射 | `MutableSharedFlow.call()` |
 
 ## 依赖关系

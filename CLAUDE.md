@@ -58,7 +58,7 @@ bash scripts/validate_hiddenrisk_assets.sh
 | 原生推理 (JNI) | `jni/` | [README](app/src/main/jni/README.md) | C++ JNI桥接、YOLOv8推理、NCNN Vulkan |
 | 网络 | `network/` | [README](app/src/main/java/com/rokid/glass/network/README.md) | OkHttp 单例提供 |
 | 应用更新 | `updater/` | [README](app/src/main/java/com/rokid/glass/updater/README.md) | App 版本检查、下载、升级提示 |
-| 工具库 | `utils/` | [README](app/src/main/java/com/rokid/glass/utils/README.md) | 日志、Bitmap、SSE、TTS、WiFi QR 等 |
+| 工具库 | `utils/` | [README](app/src/main/java/com/rokid/glass/utils/README.md) | 日志、Bitmap、SSE、TTS、系统状态查询等 |
 
 ## 代码风格
 

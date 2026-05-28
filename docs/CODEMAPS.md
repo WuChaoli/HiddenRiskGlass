@@ -133,24 +133,34 @@ graph TD
 ```mermaid
 sequenceDiagram
     actor User as 用户
-    participant Menu as HomeActivity
+    participant Menu as AiInspectionMenuActivity
     participant Loading as InspectionLoadingActivity
     participant Session as InspectionSession
     participant Camera as QuickCameraManager
+    participant QrScan as EnterpriseQrScanActivity
     participant AI as AiInspectionActivity
 
     User->>Menu: 点击"实时分析"
-    Menu->>Session: isInitialized?
-    alt 未初始化
-        Menu->>Loading: 跳转
-        Loading->>Session: ensureInitialized() + initFrameStream()
-        Session->>Camera: initialize() + 帧流启动
-        Camera-->>Session: GpuFrame 流就绪
-        Loading->>AI: markInitialized() + 导航
-    else 已初始化
-        Menu->>AI: 直接跳转
+    Menu->>Menu: 入口守卫: WiFi 检查
+    alt WiFi 未连接
+        Menu-->>User: 显示 WiFi 必需对话框
+    else WiFi 已连接
+        Menu->>Session: isInitialized?
+        alt 未初始化
+            Menu->>Loading: 跳转
+            Loading->>Session: ensureInitialized() + initFrameStream()
+            Session->>Camera: initialize() + 帧流启动
+            Camera-->>Session: GpuFrame 流就绪
+            Loading->>Menu: markInitialized() + 回到菜单
+        end
+        Menu->>Menu: 企业信息已获取?
+        alt 企业信息为空
+            Menu->>QrScan: 跳转企业扫码
+            QrScan-->>Menu: 扫码完成 → 回到菜单
+        end
+        Menu->>AI: 用户选择"实时分析"
+        AI->>AI: DETECTING 态，开始自动检测循环
     end
-    AI->>AI: DETECTING 态，开始自动检测循环
 ```
 
 ### 3.2 核心链路：在线 SSE 推理（主链路）
