@@ -1,0 +1,5 @@
+{
+  "hooks": {
+    "pre-commit": "提交代码前，请先执行 /codexmap-sync 同步三层文档体系（CLAUDE.md → CODEMAPS.md → 模块 README），确认文档与代码变更一致后再继续提交。"
+  }
+}
