@@ -1,16 +1,11 @@
 package com.rokid.glass
 
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
-import android.os.BatteryManager
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.GridLayout
@@ -20,6 +15,7 @@ import android.widget.TextView
 import androidx.annotation.StringRes
 import com.rokid.glass.component.BottomPromptView
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.OperationGuideView
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.GlassKeyEvent
@@ -59,15 +55,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     private lateinit var returnDestination: InspectionEndReportReturnDestination
     private var finishExitTriggered = false
     private var endReportTtsPlayed = false
-
-    private val uiHandler = Handler(Looper.getMainLooper())
-    private var batteryReceiver: BroadcastReceiver? = null
-    private val timeUpdateRunnable = object : Runnable {
-        override fun run() {
-            statusBarEnd.updateTime()
-            uiHandler.postDelayed(this, 1000L)
-        }
-    }
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -100,11 +88,12 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         )
         hideActionPrompts()
 
-        startTimeAndBatteryUpdate()
+        statusBarUpdater.refreshNow(statusBarEnd)
     }
 
     override fun onResume() {
         super.onResume()
+        statusBarUpdater.start(statusBarEnd)
         if (!endReportTtsPlayed) {
             endReportTtsPlayed = OfflineTtsPlayer.play(
                 context = this,
@@ -117,42 +106,17 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     override fun onPause() {
+        statusBarUpdater.stop()
         inputSession.detach()
         super.onPause()
     }
 
     override fun onDestroy() {
-        stopTimeAndBatteryUpdate()
+        statusBarUpdater.stop()
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
         clearThumbnailBitmaps()
         super.onDestroy()
-    }
-
-    private fun startTimeAndBatteryUpdate() {
-        statusBarEnd.updateTime()
-        uiHandler.post(timeUpdateRunnable)
-        batteryReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                intent?.let {
-                    val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-                    val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-                    if (level != -1 && scale != -1) {
-                        val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                        statusBarEnd.setBatteryPercent(batteryPct)
-                    }
-                }
-            }
-        }
-        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    }
-
-    private fun stopTimeAndBatteryUpdate() {
-        uiHandler.removeCallbacks(timeUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
     }
 
     private fun hideActionPrompts() {
@@ -269,6 +233,8 @@ class InspectionEndReportActivity : BaseGlassActivity() {
 
     private fun getReturnDestinationLabel(destination: InspectionEndReportReturnDestination): String {
         return when (destination) {
+            InspectionEndReportReturnDestination.AI_MENU_HOME ->
+                getString(R.string.ai_inspection_end_report_return_label_menu)
             InspectionEndReportReturnDestination.HAZARD_ANALYSIS_HOME ->
                 getString(R.string.ai_inspection_end_report_return_label_analysis)
             InspectionEndReportReturnDestination.DEVICE_GUIDE_HOME ->

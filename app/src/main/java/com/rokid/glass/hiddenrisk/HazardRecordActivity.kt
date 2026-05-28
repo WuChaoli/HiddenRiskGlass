@@ -1,15 +1,11 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaActionSound
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -29,6 +25,7 @@ import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.OfflineTtsPlayer
@@ -98,19 +95,12 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var activeHazardContent: ResolvedHazardContent? = null
     private var lastStreamText = ""
     private var currentThumbnail: Bitmap? = null
-    private var batteryReceiver: BroadcastReceiver? = null
     private var isActivityResumed = false
     private var navigatingToDeviceGuide = false
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
     private val hideSuccessToastRunnable = Runnable {
         tvSuccessToast.visibility = View.GONE
-    }
-
-    private val statusUpdateRunnable = object : Runnable {
-        override fun run() {
-            updateStatusBars()
-            uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
-        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -140,7 +130,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ensureFrameStreamReady()
         inputSession.attach()
         refreshInputActions()
-        startStatusBarUpdates()
+        statusBarUpdater.start(statusBarIdle, statusBarCountdown, statusBarAnalysis)
     }
 
     override fun onPause() {
@@ -153,7 +143,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReady = false
         cameraSessionGeneration = 0L
         InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         inputSession.detach()
         super.onPause()
     }
@@ -165,6 +155,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         cancelActiveWork()
         InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
+        statusBarUpdater.stop()
         uiHandler.removeCallbacksAndMessages(null)
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
@@ -221,7 +212,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val menuContent = getString(R.string.hazard_record_function_menu_content)
         functionMenuIdle.setMenu(content = menuContent)
         functionMenuCountdown.setMenu(content = menuContent)
-        updateStatusBars()
+        statusBarUpdater.refreshNow(statusBarIdle, statusBarCountdown, statusBarAnalysis)
     }
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
@@ -822,49 +813,6 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         finish()
     }
 
-    private fun startStatusBarUpdates() {
-        updateStatusBars()
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        uiHandler.post(statusUpdateRunnable)
-        if (batteryReceiver == null) {
-            batteryReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    updateBatteryLevel(intent)
-                }
-            }
-            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-    }
-
-    private fun stopStatusBarUpdates() {
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    private fun updateStatusBars() {
-        statusBarIdle.updateTime()
-        statusBarCountdown.updateTime()
-        statusBarAnalysis.updateTime()
-        updateBatteryLevel()
-    }
-
-    private fun updateBatteryLevel(intent: Intent? = null) {
-        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { batteryIntent ->
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBarIdle.setBatteryPercent(batteryPct)
-                statusBarCountdown.setBatteryPercent(batteryPct)
-                statusBarAnalysis.setBatteryPercent(batteryPct)
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "HazardRecordActivity"
         private const val REQUEST_MEDIA_PERMISSION = 301
@@ -877,6 +825,5 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val JPEG_QUALITY = 97
         private const val THUMBNAIL_TARGET_PX = 160
         private const val SUCCESS_TOAST_VISIBLE_MS = 1800L
-        private const val STATUS_UPDATE_DELAY_MS = 1000L
     }
 }

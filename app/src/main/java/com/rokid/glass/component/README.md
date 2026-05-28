@@ -9,6 +9,7 @@
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `GlassStatusBar.kt` | **顶部状态栏**，显示时间+电量 | `updateTime()`, `updateBattery()`, `setBatteryPercent()` |
+| `GlassStatusBarUpdater.kt` | **状态栏刷新器**，统一管理时间定时刷新和电量广播 | `start()`, `stop()`, `refreshNow()` |
 | `RokidCameraPreviewView.kt` | **相机预览视图**，渲染帧流+健康监控 | `startPreview()`, `stopPreview()`, `PreviewHealthListener` |
 | `FunctionMenuView.kt` | **右上功能菜单**，显示菜单标题+内容 | `setMenu(title, content)` |
 | `BottomPromptView.kt` | **底部提示栏**，显示操作提示文案 | `setPrompt(title, subtitle)` |
@@ -16,6 +17,8 @@
 | `StatusAlertOverlayView.kt` | **状态弹窗叠层**，倒计时+动画+自动消失 | `render(model)`, `reset()`, `AlertBehavior` |
 | `StatusAlertStateMachine.kt` | 弹窗状态机，控制显示/隐藏决策 | `render()`, `RenderDecision.Show/Hide` |
 | `StatusAlertModels.kt` | 弹窗数据模型 | `StatusAlertModel`, `AlertBehavior`, `AlertStyle` |
+| `RokidDemoNv21PreviewView.kt` | **NV21 预览调试视图**，复用 Glass3 SDK Demo NV21/GL 渲染，仅用于诊断对比 | |
+| `RokidDemoSurfacePreviewView.kt` | **Surface 预览调试视图**，复用 Glass3 SDK Demo Surface/GL 纹理，仅用于诊断对比 | |
 
 ## 依赖关系
 

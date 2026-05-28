@@ -24,6 +24,7 @@ test/
 release/
 .codex/footprints/
 release/*.apk
+!release/changelog.md
 
 # Claude
 .claude/worktrees/
@@ -41,3 +42,5 @@ release/*.apk
 # Deploy env
 .env.deploy
 
+# Local Android toolchain and signing configuration
+.env

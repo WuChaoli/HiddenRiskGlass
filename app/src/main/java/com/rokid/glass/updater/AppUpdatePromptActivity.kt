@@ -12,6 +12,10 @@ import com.rokid.glesse.R
 import java.io.IOException
 import java.util.concurrent.Executors
 
+internal fun moveUpdatePromptSelection(currentIndex: Int, delta: Int, lastIndex: Int): Int {
+    return (currentIndex + delta).coerceIn(0, lastIndex)
+}
+
 /**
  * 版本更新提示弹窗 Activity。
  *
@@ -34,12 +38,14 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
     private lateinit var btnUpdate: TextView
     private lateinit var btnSkip: TextView
     private lateinit var btnCancel: TextView
+    private lateinit var actionButtons: List<TextView>
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val worker = Executors.newSingleThreadExecutor()
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private lateinit var updateInfo: AppUpdateInfo
     private var installing = false
+    private var selectedIndex = ACTION_UPDATE
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +61,7 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
         tvUpdateVersion.text = getString(R.string.app_update_version, updateInfo.versionName)
         tvUpdateNotes.text = updateInfo.releaseNotes.ifBlank { getString(R.string.app_update_notes_empty) }
         setupButtonListeners()
+        updateSelection()
         refreshInputActions()
     }
 
@@ -69,18 +76,13 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
         btnUpdate = findViewById(R.id.btnUpdate)
         btnSkip = findViewById(R.id.btnSkip)
         btnCancel = findViewById(R.id.btnCancel)
+        actionButtons = listOf(btnUpdate, btnSkip, btnCancel)
     }
 
     private fun setupButtonListeners() {
-        btnUpdate.setOnClickListener { installUpdate() }
-        btnSkip.setOnClickListener {
-            updateManager.skipVersion(updateInfo.versionCode)
-            finish()
-        }
-        btnCancel.setOnClickListener {
-            updateManager.skipCurrentSession()
-            finish()
-        }
+        btnUpdate.setOnClickListener { executeAction(ACTION_UPDATE) }
+        btnSkip.setOnClickListener { executeAction(ACTION_SKIP) }
+        btnCancel.setOnClickListener { executeAction(ACTION_CANCEL) }
     }
 
     override fun onResume() {
@@ -108,42 +110,105 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
         inputSession.updateActions(
             listOf(
                 UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Previous,
+                    label = "上一个",
+                    triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
+                    ),
+                    enabled = { !installing },
+                ) {
+                    moveSelection(-1)
+                },
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Next,
+                    label = "下一个",
+                    triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
+                    ),
+                    enabled = { !installing },
+                ) {
+                    moveSelection(1)
+                },
+                UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Confirm,
-                    label = getString(R.string.app_update_install_now),
+                    label = "确认",
                     triggers = listOf(
                         UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                    ),
+                    enabled = { !installing },
+                ) {
+                    executeAction(selectedIndex)
+                },
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId("update_install"),
+                    label = getString(R.string.app_update_install_now),
+                    triggers = listOf(
                         UnifiedInputSession.InputTrigger.Voice(getString(R.string.app_update_install_now), "li ji an zhuang"),
                     ),
                     enabled = { !installing },
                 ) {
-                    installUpdate()
+                    executeAction(ACTION_UPDATE)
                 },
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId("skip"),
                     label = getString(R.string.app_update_skip),
                     triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
                         UnifiedInputSession.InputTrigger.Voice(getString(R.string.app_update_skip), "tiao guo ben ci"),
                     ),
                     enabled = { !installing },
                 ) {
-                    updateManager.skipVersion(updateInfo.versionCode)
-                    finish()
+                    executeAction(ACTION_SKIP)
                 },
                 UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId("cancel"),
+                    id = UnifiedInputSession.InputActionId.Cancel,
                     label = getString(R.string.app_update_button_cancel),
                     triggers = listOf(
                         UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
                         UnifiedInputSession.InputTrigger.Voice(getString(R.string.app_update_button_cancel), "qu xiao"),
                     ),
                     enabled = { !installing },
                 ) {
-                    updateManager.skipCurrentSession()
-                    finish()
+                    executeAction(ACTION_CANCEL)
                 },
             ),
         )
+    }
+
+    private fun moveSelection(delta: Int) {
+        val targetIndex = moveUpdatePromptSelection(selectedIndex, delta, actionButtons.lastIndex)
+        if (targetIndex == selectedIndex) return
+        selectedIndex = targetIndex
+        updateSelection()
+    }
+
+    private fun updateSelection() {
+        actionButtons.forEachIndexed { index, button ->
+            button.setBackgroundResource(
+                if (index == selectedIndex) R.drawable.glass_card_outline_selected
+                else R.drawable.glass_card_outline,
+            )
+            button.setTextColor(
+                getColor(
+                    if (index == selectedIndex) R.color.rokid_glass_dialog_button_focused_text_color
+                    else R.color.green,
+                ),
+            )
+        }
+    }
+
+    private fun executeAction(index: Int) {
+        when (index) {
+            ACTION_UPDATE -> installUpdate()
+            ACTION_SKIP -> {
+                updateManager.skipVersion(updateInfo.versionCode)
+                finish()
+            }
+            ACTION_CANCEL -> {
+                updateManager.skipCurrentSession()
+                finish()
+            }
+        }
     }
 
     private fun installUpdate() {
@@ -196,5 +261,8 @@ class AppUpdatePromptActivity : BaseGlassActivity() {
     companion object {
         const val EXTRA_UPDATE_INFO = "update_info"
         private const val TAG = "AppUpdatePrompt"
+        private const val ACTION_UPDATE = 0
+        private const val ACTION_SKIP = 1
+        private const val ACTION_CANCEL = 2
     }
 }

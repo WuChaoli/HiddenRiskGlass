@@ -68,39 +68,41 @@ Rokid Glass Android 应用，包含相机、人脸识别、车牌识别、Hidden
 - 理论满屏设计尺寸为：`320 x 426.7 dp`。
 - 常规页面关键内容优先按应用可用区 `320 x 402 dp` 设计；沉浸式或全屏背景可延展到 `320 x 426.7 dp`。
 
-## 构建/测试命令
+## Android 构建与设备调试入口
 
-### Gradle 构建
+- Android 构建、安装、设备调试和 APK 打包前，必须先执行 `bash scripts/android/doctor.sh`。
+- 默认业务变体为 `standard`；日常 debug 构建固定使用 `bash scripts/android/build-debug.sh`。
+- WSL 环境下构建走本地 JDK/SDK，眼镜真机命令走 Windows `adb.exe`；具体环境配置与故障经验见 `scripts/android/README.md`。
+- 正式签名配置不完整时，打包只允许生成明确标识的 debug 签名本地演示包，不得称为正式升级包。
+
 ```bash
-# 构建 debug APK
-./gradlew assembleDebug
+# 检查构建环境与真机连接
+bash scripts/android/doctor.sh
+bash scripts/android/doctor.sh --device
 
-# 构建 release APK
-./gradlew assembleRelease
-
-# 清理并构建
-./gradlew clean assembleDebug
-
-# 安装到设备
-./gradlew installDebug
+# 构建、安装、验包与打包
+bash scripts/android/build-debug.sh
+bash scripts/android/install-debug.sh -s <serial>
+bash scripts/android/verify-apk.sh app/build/outputs/apk/standard/debug/app-standard-debug.apk
+bash scripts/android/package-release.sh
 ```
 
 ### 测试
 ```bash
 # 运行所有单元测试
-./gradlew test
+./gradlew :app:testStandardDebugUnitTest
 
 # 运行所有仪器测试
 ./gradlew connectedAndroidTest
 
 # 运行单个单元测试 (指定类)
-./gradlew test --tests "com.rokid.glesse.ExampleUnitTest"
+./gradlew :app:testStandardDebugUnitTest --tests "com.rokid.glesse.ExampleUnitTest"
 
 # 运行单个测试方法
-./gradlew test --tests "com.rokid.glesse.ExampleUnitTest.addition_isCorrect"
+./gradlew :app:testStandardDebugUnitTest --tests "com.rokid.glesse.ExampleUnitTest.addition_isCorrect"
 
 # 运行特定模块测试
-./gradlew :app:testDebugUnitTest
+./gradlew :app:testStandardDebugUnitTest
 ```
 
 ### Python 模型脚本
@@ -177,60 +179,7 @@ com.rokid.glass/
 - ML Kit (条码扫描)
 - Glide (图片加载)
 - Gson (JSON 序列化)
-- Rokid Glass SDK (`com.rokid.security:glass3.open.sdk:2.1.7-E`)
-
-## HiddenRisk NCNN 经验
-
-详细验证方法、准确率基线、历史根因与探针页排障经验，统一收敛到：
-
-- `docs/公共能力/隐患识别验证与排障.md`
-
-## HeadGesture 经验
-
-头部动作识别当前基线参数、验证方法与调参经验，统一收敛到：
-
-- `docs/公共能力/头部动作调参与验证.md`
-
-## UnifiedInput 经验
-
-统一输入注册层、调试页接入方式与后续业务页迁移顺序，统一收敛到：
-
-- `docs/公共能力/统一输入设计与接入.md`
-
-## 产品规格文档导航
-
-当前产品行为基线、正式主链页面跳转与功能规格，统一收敛到 `docs/`：
-
-- `docs/README.md`
-  - 新文档体系总导航
-- `docs/总体旅程图/总体旅程图.md`
-  - 正式巡检主链全景
-- `docs/公共能力/架构总览.md`
-  - 页面层、会话层、输入层与识别链路的总览
-- `docs/公共能力/README.md`
-  - 公共能力目录总入口
-- `docs/公共能力/会话与生命周期.md`
-  - 会话、生命周期、初始化状态边界
-- `docs/公共能力/隐患识别链路.md`
-  - 隐患识别链路、远端主链、本地 fallback 的跨文档真相源
-- `docs/公共能力/页面导航分层.md`
-  - 正式主链与附录 / 调试页边界
-- `docs/功能模块/WiFi连接.md`
-  - Wi-Fi 扫码、配网、连接验证与成功跳转
-- `docs/功能模块/任务关联.md`
-  - 企业扫码、企业信息页与菜单前置上下文
-- `docs/功能模块/主菜单.md`
-  - AI 巡检菜单项、触控翻页与语音直达
-- `docs/功能模块/隐患识别.md`
-  - `InspectionLoadingActivity` + `AiInspectionActivity` 的页面流程、自动在线识别、结果态和接口链路
-- `docs/功能模块/设备指引.md`
-  - 设备指引能力、判定确认与详情展示
-- `docs/功能模块/隐患录入.md`
-  - 拍照、实时分析、保存与结束任务流程
-- `docs/功能模块/结束巡查.md`
-  - 统一结束页、来源返回与结束上报
-- `docs/公共能力/统一输入.md`
-  - 业务接入层的统一输入规则
+- Rokid Glass SDK (`com.rokid.security:glass3.open.sdk:2.1.9-E`)，推荐 OTA `1.17.e002-20260509-150201` 及以上
 
 ### 当前已验证可运行的 GPU 组合
 

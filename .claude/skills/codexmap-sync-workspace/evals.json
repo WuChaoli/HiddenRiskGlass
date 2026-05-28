@@ -1,0 +1,23 @@
+{
+  "skill_name": "codexmap-sync",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我需要为这个仓库初始化 CODEMAPS 文档体系。当前仓库没有 docs/CODEMAPS.md，但已有 CLAUDE.md 和各模块的 README.md。请帮我分析现有模块结构，创建 docs/CODEMAPS.md，并检查 CLAUDE.md 是否需要同步精简。完成后输出你做了哪些变更的摘要。",
+      "expected_output": "创建 docs/CODEMAPS.md，包含6个板块（架构层级图、模块依赖矩阵、端到端数据流、架构不变量、术语表、任务入口速查），使用 Mermaid 图表，并输出变更摘要。CLAUDE.md 如有超过250行风险则同步精简。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我在 hiddenrisk 模块新增了一个 VoiceControlManager.kt 类，它现在被 hiddenrisk 和 input 模块共同调用。commit 之前帮我同步一下项目文档。当前 staged 变更有：app/src/main/java/com/rokid/glass/hiddenrisk/VoiceControlManager.kt（新增），app/src/main/java/com/rokid/glass/input/VoiceController.kt（修改，新增了对 VoiceControlManager 的调用）。",
+      "expected_output": "识别为跨模块依赖变更，更新 L2 CODEMAPS.md 依赖矩阵，更新 L3 hiddenrisk/README.md 和 input/README.md 的文件索引表，检查 L1 CLAUDE.md 模块索引是否需要更新。输出变更摘要。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我在 hiddenrisk 模块里新增了一个工具类 HazardResultFormatter.kt，只是把 AiInspectionActivity 里的一些格式化逻辑抽取出来，不涉及跨模块调用。commit 前帮我同步文档。",
+      "expected_output": "识别为模块内重构，仅更新 L3 hiddenrisk/README.md 文件索引表，新增 HazardResultFormatter 条目。L1 和 L2 无需更新。输出变更摘要。",
+      "files": []
+    }
+  ]
+}

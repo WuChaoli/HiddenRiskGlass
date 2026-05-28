@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <FrameLayout
+        android:id="@+id/layoutRawPreviewViewport"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_gravity="center">
+
+        <com.rokid.glass.component.RokidCameraPreviewView
+            android:id="@+id/viewRawSurfacePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.rokid.glass.component.RokidDemoSurfacePreviewView
+            android:id="@+id/viewDemoSurfacePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <ImageView
+            android:id="@+id/imageRawNv21Preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#000000"
+            android:contentDescription="@string/raw_camera_debug_title"
+            android:scaleType="fitCenter"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/layoutSdkDemoCompare"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:layout_gravity="center_horizontal">
+
+            <com.rokid.glass.component.RokidDemoSurfacePreviewView
+                android:id="@+id/viewCompareSurfacePreview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:background="#99000000"
+                android:padding="4dp"
+                android:text="@string/raw_camera_debug_surface_label"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11sp" />
+        </FrameLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#FFFFFFFF" />
+
+        <FrameLayout
+            android:layout_width="180dp"
+            android:layout_height="180dp"
+            android:layout_gravity="center_horizontal">
+
+            <com.rokid.glass.component.RokidDemoNv21PreviewView
+                android:id="@+id/viewCompareNv21Preview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|center_horizontal"
+                android:background="#99000000"
+                android:padding="4dp"
+                android:text="@string/raw_camera_debug_nv21_label"
+                android:textColor="#FFFFFFFF"
+                android:textSize="11sp" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textRawCameraDiagnostics"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:background="#99000000"
+        android:padding="6dp"
+        android:text="@string/raw_camera_debug_starting"
+        android:textColor="#FFFFFFFF"
+        android:textSize="9sp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#99000000"
+        android:gravity="center"
+        android:padding="10dp"
+        android:text="@string/raw_camera_debug_hint"
+        android:textColor="#FFFFFFFF"
+        android:textSize="12sp" />
+
+</FrameLayout>

@@ -1,12 +1,8 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.IntentFilter
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,16 +19,16 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.annotation.StringRes
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.rokid.glass.InspectionFeatureFlags
-import com.rokid.glass.EnterpriseQrScanActivity
-import com.rokid.glass.WifiQrScanActivity
+import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.config.AutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.AppFileLogger
+import com.rokid.glass.utils.DeviceUtil
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
@@ -52,9 +48,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         private const val PROGRESS_STEP_DELAY_MS = 24L
         private const val SUBTITLE_FRAME_DELAY_MS = 320L
         private const val COMPLETE_HOLD_DELAY_MS = 400L
-        private const val STATUS_UPDATE_DELAY_MS = 1000L
         const val EXTRA_NEXT_HOME_ACTIVITY = "next_home_activity"
-        const val EXTRA_FORCE_LOADING_FLOW = "force_loading_flow"
     }
 
     // 加载阶段枚举
@@ -82,6 +76,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private lateinit var tvErrorMessage: TextView
     private lateinit var layoutError: LinearLayout
     private lateinit var statusBar: GlassStatusBar
+    private lateinit var tvVersion: TextView
+    private lateinit var tvVersionError: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private var currentProgress = 0
@@ -99,10 +95,10 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var subtitleBaseText = ""
     private var subtitleFrame = 0
     private var subtitleAnimating = false
-    private var batteryReceiver: BroadcastReceiver? = null
     private var loadingViewsInitialized = false
     private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
     // 转圈动画
     private val loadingRotateAnimation: RotateAnimation by lazy {
@@ -158,25 +154,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         navigateToInspection()
     }
 
-    private val statusUpdateRunnable = object : Runnable {
-        override fun run() {
-            if (activityDestroyed) return
-            updateCurrentTime()
-            uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        if (shouldRouteToWifiBeforeLoading()) {
-            startActivity(Intent(this, WifiQrScanActivity::class.java).apply {
-                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, InspectionLoadingActivity::class.java.name)
-                intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)?.let { putExtra(EXTRA_NEXT_HOME_ACTIVITY, it) }
-            })
-            finish()
-            return
-        }
 
         setContentView(R.layout.activity_inspection_loading)
 
@@ -224,18 +203,19 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         super.onResume()
         inputSession.attach()
         refreshInputActions()
-        startStatusBarUpdates()
+        statusBarUpdater.start(statusBar)
         if (debugSnapshotMode) return
     }
 
     override fun onPause() {
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         inputSession.detach()
         super.onPause()
     }
 
     override fun onDestroy() {
         activityDestroyed = true
+        statusBarUpdater.stop()
         inputSession.release()
         super.onDestroy()
         if (loadingViewsInitialized) {
@@ -344,51 +324,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         layoutError = findViewById(R.id.layoutError)
 
         statusBar = findViewById(R.id.statusBar)
-        updateCurrentTime()
-        updateBatteryLevel()
+        tvVersion = findViewById(R.id.tvVersion)
+        tvVersion.text = "本应用由浙江省应科院开发-v${DeviceUtil.getVersionName(this)}"
+        tvVersionError = findViewById(R.id.tvVersionError)
+        tvVersionError.text = tvVersion.text
+        statusBarUpdater.refreshNow(statusBar)
         loadingViewsInitialized = true
-    }
-
-    private fun startStatusBarUpdates() {
-        updateCurrentTime()
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        uiHandler.post(statusUpdateRunnable)
-
-        if (batteryReceiver == null) {
-            batteryReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    updateBatteryLevel(intent)
-                }
-            }
-            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-    }
-
-    private fun stopStatusBarUpdates() {
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    private fun updateCurrentTime() {
-        statusBar.updateTime()
-    }
-
-    /**
-     * 获取当前电池电量并更新电池图标填充
-     */
-    private fun updateBatteryLevel(intent: Intent? = null) {
-        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { batteryIntent ->
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBar.setBatteryPercent(batteryPct)
-            }
-        }
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -429,16 +370,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             animateProgressTo(30)
             startCameraInit()
         }
-    }
-
-    private fun shouldRouteToWifiBeforeLoading(): Boolean {
-        if (intent.getBooleanExtra(EXTRA_FORCE_LOADING_FLOW, false)) {
-            return false
-        }
-        if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            return false
-        }
-        return SystemStateUtils.getCurrentWifiSsid(this) == null
     }
 
     private fun startCameraInit() {
@@ -589,24 +520,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         InspectionWorkflowSession.beginInspection(
             InspectionBackendSessionId.create(RokidSdkManager.getSerialNumber(), prefix = "inspection"),
         )
-        val wifiConnected = SystemStateUtils.getCurrentWifiSsid(this) != null
-        InspectionWorkflowSession.updateMode(wifiConnected)
+        InspectionWorkflowSession.updateMode(SystemStateUtils.getCurrentWifiSsid(this) != null)
         val nextHomeClassName = intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)
         val nextHomeActivityClass = runCatching {
             nextHomeClassName?.takeIf { it.isNotBlank() }?.let { Class.forName(it) }
         }.getOrNull()
-        val targetIntent = if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            Intent(this, nextHomeActivityClass ?: AiInspectionActivity::class.java)
-        } else if (wifiConnected) {
-            Intent(this, EnterpriseQrScanActivity::class.java)
-        } else {
-            Intent(this, WifiQrScanActivity::class.java).apply {
-                putExtra(WifiQrScanActivity.EXTRA_NEXT_AFTER_SUCCESS, InspectionLoadingActivity::class.java.name)
-                putExtra(EXTRA_FORCE_LOADING_FLOW, true)
-            }
-        }
-        // 企业/Wi-Fi 扫码页复用加载页已预热的共享帧流，进入后只检测是否可用。
-        startActivity(targetIntent)
+        startActivity(Intent(this, nextHomeActivityClass ?: AiInspectionMenuActivity::class.java))
         finish()
     }
 

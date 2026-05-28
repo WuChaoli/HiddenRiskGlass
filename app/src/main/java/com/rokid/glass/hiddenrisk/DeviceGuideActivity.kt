@@ -1,12 +1,8 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -29,13 +25,13 @@ import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
 import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
-import com.rokid.glass.input.AutoSleepController
-import com.rokid.glass.input.AutoSleepStateMachine
+import com.rokid.glass.input.GlassesWearStateMachine
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glesse.R
@@ -48,6 +44,15 @@ import java.util.concurrent.RejectedExecutionException
  * 当前仅依赖远端物品隐患识别，再通过深度分析拉取检查重点文本。
  */
 class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
+
+    override val wearSleepEnabled: Boolean
+        get() = true
+
+    override fun shouldEnableWearSleepNow(): Boolean {
+        return InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring &&
+            isActivityResumed &&
+            pageState == PageState.DETECTING
+    }
 
     private enum class PageState {
         DETECTING,
@@ -73,19 +78,9 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var tvResultBottomHint: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
-    private var autoSleepSnapshot: AutoSleepStateMachine.Snapshot? = null
+    private var wearSnapshot: GlassesWearStateMachine.Snapshot? = null
     private val inputSession by lazy {
         UnifiedInputSession(this, TAG)
-    }
-    private val autoSleepController by lazy {
-        AutoSleepController(
-            context = this,
-            callback = object : AutoSleepController.Callback {
-                override fun onAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
-                    handleAutoSleepStateChanged(snapshot)
-                }
-            },
-        )
     }
     private val imageExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val detectSseService by lazy { AiArSseService() }
@@ -112,17 +107,14 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var previewReadyRetryPosted = false
     private var activeDetectHandle: AiArSseService.RequestHandle? = null
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
-    private var batteryReceiver: BroadcastReceiver? = null
-
-    private val statusUpdateRunnable = object : Runnable {
-        override fun run() {
-            updateStatusBars()
-            uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
-        }
-    }
+    private var wearRecoveryFrameCheckInFlight = false
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
     private val nextDetectRunnable = Runnable {
         runDetectionLoop()
+    }
+    private val wearRecoveryFrameRunnable = Runnable {
+        pollWearRecoveryReadyFrame()
     }
 
     private val autoGuideDetailRunnable = Runnable {
@@ -151,33 +143,32 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         isActivityResumed = true
         ensureFrameStreamReady()
         inputSession.attach()
-        autoSleepController.attach()
         refreshInputActions()
-        updateAutoSleepEnabled()
-        startStatusBarUpdates()
+        updateWearMonitoringEnabled()
+        statusBarUpdater.start(statusBarDetecting, statusBarResult)
         scheduleNextDetection(immediate = true)
     }
 
     override fun onPause() {
         isActivityResumed = false
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         cancelActiveRequests()
         uiHandler.removeCallbacks(nextDetectRunnable)
         uiHandler.removeCallbacks(autoGuideDetailRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
         InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
-        autoSleepController.detach()
+        uiHandler.removeCallbacks(wearRecoveryFrameRunnable)
         inputSession.detach()
         super.onPause()
     }
 
     override fun onDestroy() {
         cancelActiveRequests()
+        statusBarUpdater.stop()
         uiHandler.removeCallbacksAndMessages(null)
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
-        autoSleepController.release()
         RokidSdkManager.removeListener(this)
         InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
@@ -185,7 +176,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
-        if (isAutoSleepWarningVisible()) {
+        if (isWearInteractionBlocked()) {
             return true
         }
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
@@ -248,7 +239,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val menuContent = getString(R.string.device_guide_function_menu_content)
         operationGuideDetecting.setMenu(content = menuContent)
         operationGuideResult.setMenu(content = menuContent)
-        updateStatusBars()
+        statusBarUpdater.refreshNow(statusBarDetecting, statusBarResult)
     }
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
@@ -278,7 +269,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     UnifiedInputSession.InputTrigger.Voice("结束任务", "jie shu ren wu"),
                     UnifiedInputSession.InputTrigger.Voice("结速任务", "jie su ren wu"),
                 ),
-                enabled = { !isAutoSleepWarningVisible() },
+                enabled = { !isWearInteractionBlocked() },
             ) {
                 startActivity(
                     InspectionEndReportActivity.createIntent(
@@ -292,7 +283,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 label = "确认",
                 triggers = buildConfirmTriggers(),
                 enabled = {
-                    !isAutoSleepWarningVisible() &&
+                    !isWearInteractionBlocked() &&
                         (pageState == PageState.PROMPT_PENDING || pageState == PageState.DETAIL)
                 },
             ) {
@@ -306,7 +297,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Cancel,
                 label = "返回",
                 triggers = buildReturnTriggers(),
-                enabled = { !isAutoSleepWarningVisible() },
+                enabled = { !isWearInteractionBlocked() },
             ) {
                 if (pageState == PageState.DETECTING) {
                     returnToMenuHome()
@@ -340,12 +331,16 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun canHandleDetectingInput(): Boolean {
-        return pageState == PageState.DETECTING && !isAutoSleepWarningVisible()
+        return pageState == PageState.DETECTING && !isWearInteractionBlocked()
     }
 
     private fun ensureFrameStreamReady() {
         if (!isActivityResumed) {
             Log.i(TAG, "skip frame stream because device guide is not resumed")
+            return
+        }
+        if (wearSnapshot?.state == GlassesWearStateMachine.State.SLEEP) {
+            Log.i(TAG, "skip frame stream while glasses are removed")
             return
         }
         if (!hasRequiredPermissions()) {
@@ -393,10 +388,16 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     return@post
                 }
                 if (success) {
-                    scheduleNextDetection(immediate = true)
+                    if (isWearRecovering()) {
+                        pollWearRecoveryReadyFrame()
+                    } else {
+                        scheduleNextDetection(immediate = true)
+                    }
                     scheduleDeviceGuidePreviewDrawCheck(requestGeneration)
                 } else {
+                    if (isWearRecovering()) statusAlertOverlay.reset()
                     tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
+                    tvDetectingBottomHint.visibility = View.VISIBLE
                 }
             }
         }
@@ -488,14 +489,20 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 frameStreamReady = success
                 if (!success) {
                     Log.w(TAG, "recreated device guide preview bind failed reason=$reason")
+                    if (isWearRecovering()) statusAlertOverlay.reset()
                     tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
+                    tvDetectingBottomHint.visibility = View.VISIBLE
                     return@rebindPreview
                 }
                 Log.i(
                     TAG,
                     "recreated device guide preview ready reason=$reason generation=${InspectionCameraCoordinator.getGeneration()}",
                 )
-                scheduleNextDetection(immediate = true)
+                if (isWearRecovering()) {
+                    pollWearRecoveryReadyFrame()
+                } else {
+                    scheduleNextDetection(immediate = true)
+                }
                 scheduleDeviceGuidePreviewDrawCheck(InspectionCameraCoordinator.getGeneration())
             }
         }
@@ -524,7 +531,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun scheduleNextDetection(immediate: Boolean) {
         uiHandler.removeCallbacks(nextDetectRunnable)
-        if (!isActivityResumed || pageState != PageState.DETECTING || detectInFlight || detailInFlight) {
+        if (!isActivityResumed || pageState != PageState.DETECTING || isWearInteractionBlocked() || detectInFlight || detailInFlight) {
             return
         }
         if (immediate) {
@@ -535,7 +542,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun runDetectionLoop() {
-        if (!isActivityResumed || pageState != PageState.DETECTING || detectInFlight || detailInFlight) {
+        if (!isActivityResumed || pageState != PageState.DETECTING || isWearInteractionBlocked() || detectInFlight || detailInFlight) {
             return
         }
         if (!frameStreamReady) {
@@ -552,7 +559,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
                 val base64Image = Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
                 uiHandler.post {
-                    if (!isActivityResumed || pageState != PageState.DETECTING) {
+                    if (!isActivityResumed || pageState != PageState.DETECTING || isWearInteractionBlocked()) {
                         scheduleNextDetection(immediate = false)
                         return@post
                     }
@@ -601,7 +608,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun showPromptPending(payload: InspectionFrameCaptureService.CapturedFramePayload) {
-        autoSleepController.setEnabled(false)
+        updateWearSleepEligibility(false)
         uiHandler.removeCallbacks(nextDetectRunnable)
         uiHandler.removeCallbacks(autoGuideDetailRunnable)
         pageState = PageState.PROMPT_PENDING
@@ -629,7 +636,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun requestGuideDetails() {
-        autoSleepController.setEnabled(false)
+        updateWearSleepEligibility(false)
         val payload = currentPayload ?: return
         uiHandler.removeCallbacks(autoGuideDetailRunnable)
         detailInFlight = true
@@ -732,7 +739,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvDetectingBottomHint.visibility = View.VISIBLE
         refreshFunctionMenuVisibility()
         refreshInputActions()
-        updateAutoSleepEnabled()
+        updateWearMonitoringEnabled()
         scheduleNextDetection(immediate = false)
     }
 
@@ -741,7 +748,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun returnToMenuHome() {
-        autoSleepController.setEnabled(false)
+        updateWearSleepEligibility(false)
         cancelActiveRequests()
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -759,40 +766,43 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeDetailHandle = null
     }
 
-    private fun updateAutoSleepEnabled() {
-        val enabled = InspectionConfigRepository.get().aiInspection.enableAutoSleepMonitoring &&
-            isActivityResumed &&
-            pageState == PageState.DETECTING
-        autoSleepController.setEnabled(enabled)
+    private fun updateWearMonitoringEnabled() {
+        val enabled = shouldEnableWearSleepNow()
+        if (!enabled) {
+            uiHandler.removeCallbacks(wearRecoveryFrameRunnable)
+        }
+        updateWearSleepEligibility(enabled)
     }
 
-    private fun handleAutoSleepStateChanged(snapshot: AutoSleepStateMachine.Snapshot?) {
-        autoSleepSnapshot = snapshot
+    override fun onWearStateChanged(snapshot: GlassesWearStateMachine.Snapshot?) {
+        val previousState = wearSnapshot?.state
+        wearSnapshot = snapshot
         refreshInputActions()
         when (snapshot?.state) {
-            AutoSleepStateMachine.State.SLEEP_WARNING -> showAutoSleepWarning(snapshot)
-            AutoSleepStateMachine.State.TO_SLEEP -> {
-                statusAlertOverlay.reset()
-                autoSleepController.markSleepHandled()
-                returnToMenuHome()
+            GlassesWearStateMachine.State.SLEEP -> showWearSleep()
+            GlassesWearStateMachine.State.WAKE -> beginWearRecovery()
+            GlassesWearStateMachine.State.ACTIVE -> {
+                if (previousState == GlassesWearStateMachine.State.WAKE) {
+                    finishWearRecovery()
+                }
             }
-            AutoSleepStateMachine.State.WAKE -> resumeFromAutoSleepIfNeeded()
-            AutoSleepStateMachine.State.WAKING -> updateAutoSleepEnabled()
             else -> Unit
         }
     }
 
-    private fun showAutoSleepWarning(snapshot: AutoSleepStateMachine.Snapshot) {
+    private fun showWearSleep() {
         if (pageState != PageState.DETECTING) {
-            autoSleepController.setEnabled(false)
+            updateWearSleepEligibility(false)
             return
         }
+        uiHandler.removeCallbacks(wearRecoveryFrameRunnable)
+        wearRecoveryFrameCheckInFlight = false
         cancelActiveRequests()
         uiHandler.removeCallbacks(nextDetectRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
         previewRecreateAttempted = false
-        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_auto_sleep_warning")
+        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_wear_sleep")
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
         tvDetectingBottomHint.visibility = View.GONE
@@ -800,41 +810,73 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         statusAlertOverlay.render(
             StatusAlertModel(
                 status = AlertStatus.WARNING,
-                titleText = if (snapshot.triggerReason == AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED) "检测到已摘下眼镜" else getString(R.string.inspection_auto_sleep_prompt),
-                messageText = buildAutoSleepMessage(snapshot),
+                titleText = getString(R.string.inspection_wear_removed_title),
+                messageText = getString(R.string.inspection_wear_removed_message),
                 behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
                 style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
             ),
         )
     }
 
-    private fun resumeFromAutoSleepIfNeeded() {
-        statusAlertOverlay.reset()
+    private fun beginWearRecovery() {
         if (!isActivityResumed || pageState != PageState.DETECTING) {
-            updateAutoSleepEnabled()
+            updateWearMonitoringEnabled()
             return
         }
+        statusAlertOverlay.render(
+            StatusAlertModel(
+                status = AlertStatus.WARNING,
+                titleText = getString(R.string.inspection_wear_recovering_title),
+                messageText = getString(R.string.inspection_wear_recovering_message),
+                behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
+                style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
+            ),
+        )
         layoutLivePreviewCard.visibility = View.VISIBLE
         viewLivePreview.visibility = View.VISIBLE
+        tvDetectingBottomHint.visibility = View.GONE
+        refreshFunctionMenuVisibility()
+        ensureFrameStreamReady()
+        pollWearRecoveryReadyFrame()
+    }
+
+    private fun pollWearRecoveryReadyFrame() {
+        uiHandler.removeCallbacks(wearRecoveryFrameRunnable)
+        if (!isWearRecovering() || !frameStreamReady || wearRecoveryFrameCheckInFlight) return
+        wearRecoveryFrameCheckInFlight = true
+        try {
+            imageExecutor.execute {
+                val payload = frameCaptureService.selectBestFramePayload(Long.MIN_VALUE)
+                uiHandler.post {
+                    wearRecoveryFrameCheckInFlight = false
+                    if (!isWearRecovering()) return@post
+                    if (payload != null) {
+                        reportWearRecoveryReady()
+                    } else {
+                        uiHandler.postDelayed(wearRecoveryFrameRunnable, DETECT_INTERVAL_MS)
+                    }
+                }
+            }
+        } catch (error: RejectedExecutionException) {
+            wearRecoveryFrameCheckInFlight = false
+            Log.w(TAG, "wear recovery frame task rejected", error)
+        }
+    }
+
+    private fun finishWearRecovery() {
+        uiHandler.removeCallbacks(wearRecoveryFrameRunnable)
+        statusAlertOverlay.reset()
         tvDetectingBottomHint.setText(R.string.device_guide_detecting_bottom_hint)
         tvDetectingBottomHint.visibility = View.VISIBLE
         refreshFunctionMenuVisibility()
-        ensureFrameStreamReady()
         scheduleNextDetection(immediate = true)
-        updateAutoSleepEnabled()
     }
 
-    private fun isAutoSleepWarningVisible(): Boolean {
-        return autoSleepSnapshot?.state == AutoSleepStateMachine.State.SLEEP_WARNING
+    private fun isWearInteractionBlocked(): Boolean {
+        return wearSnapshot?.state in setOf(GlassesWearStateMachine.State.SLEEP, GlassesWearStateMachine.State.WAKE)
     }
 
-    private fun buildAutoSleepMessage(snapshot: AutoSleepStateMachine.Snapshot): String {
-        return if (snapshot.triggerReason == AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED) {
-            "请重新佩戴眼镜"
-        } else {
-            getString(R.string.inspection_auto_sleep_prompt)
-        }
-    }
+    private fun isWearRecovering(): Boolean = wearSnapshot?.state == GlassesWearStateMachine.State.WAKE
 
     private fun clearResultUi() {
         tvResultContent.text = ""
@@ -848,53 +890,14 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun refreshFunctionMenuVisibility() {
         operationGuideDetecting.visibility =
-            if (pageState == PageState.DETECTING || pageState == PageState.PROMPT_PENDING) {
+            if ((pageState == PageState.DETECTING || pageState == PageState.PROMPT_PENDING) &&
+                !isWearInteractionBlocked()
+            ) {
                 View.VISIBLE
             } else {
                 View.GONE
             }
         operationGuideResult.visibility = View.GONE
-    }
-
-    private fun startStatusBarUpdates() {
-        updateStatusBars()
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        uiHandler.post(statusUpdateRunnable)
-        if (batteryReceiver == null) {
-            batteryReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    updateBatteryLevel(intent)
-                }
-            }
-            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-    }
-
-    private fun stopStatusBarUpdates() {
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    private fun updateStatusBars() {
-        statusBarDetecting.updateTime()
-        statusBarResult.updateTime()
-        updateBatteryLevel()
-    }
-
-    private fun updateBatteryLevel(intent: Intent? = null) {
-        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { batteryIntent ->
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBarDetecting.setBatteryPercent(batteryPct)
-                statusBarResult.setBatteryPercent(batteryPct)
-            }
-        }
     }
 
     companion object {
@@ -908,7 +911,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val JPEG_QUALITY = 97
         private const val DETECT_INTERVAL_MS = 1000L
         private const val PROMPT_AUTO_DETAIL_DELAY_MS = 2000L
-        private const val STATUS_UPDATE_DELAY_MS = 1000L
         private const val PREVIEW_READY_RETRY_DELAY_MS = 100L
         private const val PREVIEW_DRAW_CHECK_DELAY_MS = 700L
     }

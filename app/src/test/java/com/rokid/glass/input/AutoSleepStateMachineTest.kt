@@ -1,65 +1,71 @@
 package com.rokid.glass.input
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class AutoSleepStateMachineTest {
-
-    private val config = AutoSleepStateMachine.Config(
-        wakeDurationMs = 3_000L,
-    )
+class GlassesWearStateMachineTest {
 
     @Test
-    fun `waking stays unchanged when time advances`() {
-        val machine = AutoSleepStateMachine(config)
-        machine.setEnabled(true, 0L)
+    fun `enabling monitoring begins in active state`() {
+        val machine = GlassesWearStateMachine()
 
-        assertTrue(machine.tick(60_000L).isEmpty())
-        assertEquals(AutoSleepStateMachine.State.WAKING, machine.currentSnapshot(60_000L)?.state)
+        val snapshot = machine.setEnabled(true, 0L)
+
+        assertEquals(GlassesWearStateMachine.State.ACTIVE, snapshot?.state)
     }
 
     @Test
-    fun `warning stays visible while glasses remain removed`() {
-        val machine = AutoSleepStateMachine(config)
+    fun `sleep remains until glasses are worn`() {
+        val machine = GlassesWearStateMachine()
         machine.setEnabled(true, 0L)
         machine.onGlassesRemoved(1L)
 
-        assertTrue(machine.tick(15_001L).isEmpty())
-        assertEquals(AutoSleepStateMachine.State.SLEEP_WARNING, machine.currentSnapshot(15_001L)?.state)
+        assertEquals(GlassesWearStateMachine.State.SLEEP, machine.currentSnapshot()?.state)
     }
 
     @Test
-    fun `glasses removed enters warning immediately`() {
-        val machine = AutoSleepStateMachine(config)
+    fun `glasses removed enters sleep immediately`() {
+        val machine = GlassesWearStateMachine()
         machine.setEnabled(true, 0L)
 
         val snapshot = machine.onGlassesRemoved(10L)
-        assertEquals(AutoSleepStateMachine.State.SLEEP_WARNING, snapshot?.state)
-        assertEquals(AutoSleepStateMachine.TriggerReason.GLASSES_REMOVED, snapshot?.triggerReason)
+        assertEquals(GlassesWearStateMachine.State.SLEEP, snapshot?.state)
+        assertEquals(GlassesWearStateMachine.TriggerReason.GLASSES_REMOVED, snapshot?.triggerReason)
     }
 
     @Test
-    fun `glasses worn recovers through wake to waking`() {
-        val machine = AutoSleepStateMachine(config)
+    fun `glasses worn waits in wake until recovery is ready`() {
+        val machine = GlassesWearStateMachine()
         machine.setEnabled(true, 0L)
         machine.onGlassesRemoved(10L)
 
-        val snapshots = machine.onGlassesWorn(20L)
-        assertEquals(1, snapshots.size)
-        assertEquals(AutoSleepStateMachine.State.WAKE, snapshots[0].state)
-        assertTrue(machine.tick(3_019L).isEmpty())
+        val wake = machine.onGlassesWorn(20L)
+        assertEquals(GlassesWearStateMachine.State.WAKE, wake?.state)
+        assertEquals(GlassesWearStateMachine.State.WAKE, machine.currentSnapshot()?.state)
 
-        val waking = machine.tick(3_020L).single()
-        assertEquals(AutoSleepStateMachine.State.WAKING, waking.state)
+        val active = machine.onRecoveryReady(60_001L)
+        assertEquals(GlassesWearStateMachine.State.ACTIVE, active?.state)
+    }
+
+    @Test
+    fun `removing glasses during wake returns to sleep`() {
+        val machine = GlassesWearStateMachine()
+        machine.setEnabled(true, 0L)
+        machine.onGlassesRemoved(10L)
+        machine.onGlassesWorn(20L)
+
+        val snapshot = machine.onGlassesRemoved(30L)
+
+        assertEquals(GlassesWearStateMachine.State.SLEEP, snapshot?.state)
     }
 
     @Test
     fun `wear events are ignored while disabled`() {
-        val machine = AutoSleepStateMachine(config)
+        val machine = GlassesWearStateMachine()
 
         assertEquals(null, machine.onGlassesRemoved(10L))
-        assertTrue(machine.onGlassesWorn(20L).isEmpty())
-        assertEquals(null, machine.currentSnapshot(20L))
+        assertEquals(null, machine.onGlassesWorn(20L))
+        assertEquals(null, machine.onRecoveryReady(30L))
+        assertEquals(null, machine.currentSnapshot())
     }
 }

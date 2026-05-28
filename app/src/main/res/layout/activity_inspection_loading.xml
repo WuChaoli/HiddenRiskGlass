@@ -181,6 +181,14 @@
             android:textSize="14sp"
             android:visibility="gone" />
 
+        <TextView
+            android:id="@+id/tvVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:textColor="@color/common_text_color"
+            android:textSize="11sp" />
+
         <com.rokid.glass.component.GlassStatusBar
             android:id="@+id/statusBar"
             android:layout_width="match_parent"
@@ -213,5 +221,19 @@
             android:text="@string/ai_inspection_loading_error_retry_hint"
             android:textColor="@color/green"
             android:textSize="15sp" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/tvVersionError"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="34dp"
+            android:textColor="@color/common_text_color"
+            android:textSize="11sp" />
     </LinearLayout>
+
 </FrameLayout>

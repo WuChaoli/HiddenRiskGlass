@@ -1,0 +1,6 @@
+{
+  "eval_id": 2,
+  "eval_name": "cross-module-sync",
+  "prompt": "我在 hiddenrisk 模块新增了一个 VoiceControlManager.kt 类，它现在被 hiddenrisk 和 input 模块共同调用。commit 之前帮我同步一下项目文档。当前 staged 变更有：app/src/main/java/com/rokid/glass/hiddenrisk/VoiceControlManager.kt（新增），app/src/main/java/com/rokid/glass/input/VoiceController.kt（修改，新增了对 VoiceControlManager 的调用）。",
+  "assertions": []
+}

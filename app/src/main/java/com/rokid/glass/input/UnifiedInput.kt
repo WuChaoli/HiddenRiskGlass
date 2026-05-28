@@ -10,6 +10,27 @@ import com.rokid.security.glass3.sdk.base.data.offlineCmd.bean.VoiceAction
 import com.rokid.security.glass3.sdk.base.data.offlineCmd.listener.IVoiceCallback
 
 /**
+ * 仅允许当前前台会话管理应用离线词表，防止旧页面延迟 detach 清空新页面词表。
+ */
+internal class VoiceVocabularyOwnerState<T> {
+    private var owner: T? = null
+
+    fun activate(nextOwner: T): T? {
+        val previous = owner
+        owner = nextOwner
+        return previous?.takeIf { it !== nextOwner }
+    }
+
+    fun release(candidate: T): Boolean {
+        if (owner !== candidate) return false
+        owner = null
+        return true
+    }
+
+    fun isOwner(candidate: T): Boolean = owner === candidate
+}
+
+/**
  * 统一输入注册层。
  * 页面只声明业务动作与触发源，不直接分别管理语音、触控、陀螺仪注册。
  */
@@ -209,6 +230,8 @@ class UnifiedInputSession(
         private var triggerDispatcher: ((InputTrigger) -> Boolean)? = null
         private var currentVoiceTriggers: List<InputTrigger.Voice> = emptyList()
         private var registeredVoiceActions: List<VoiceAction> = emptyList()
+        private var registeredLanguage: String? = null
+        private var registeredByVocabularyOverride = false
 
         fun attach(
             actionSpecs: List<InputActionSpec>,
@@ -217,6 +240,9 @@ class UnifiedInputSession(
             specs = actionSpecs
             triggerDispatcher = onTrigger
             attached = true
+            synchronized(ownerLock) {
+                ownerState.activate(this)?.unregisterVoiceActions()
+            }
             mainHandler.removeCallbacks(retryRunnable)
             val nextVoiceTriggers = collectVoiceTriggers()
             if (nextVoiceTriggers != currentVoiceTriggers) {
@@ -237,10 +263,17 @@ class UnifiedInputSession(
             specs = emptyList()
             currentVoiceTriggers = emptyList()
             mainHandler.removeCallbacks(retryRunnable)
-            unregisterVoiceActions()
+            synchronized(ownerLock) {
+                if (ownerState.release(this)) {
+                    unregisterVoiceActions()
+                }
+            }
         }
 
         private fun tryRegisterVoiceActions(): Boolean {
+            synchronized(ownerLock) {
+                if (!ownerState.isOwner(this)) return true
+            }
             val triggerSpecs = currentVoiceTriggers
             if (triggerSpecs.isEmpty()) {
                 return true
@@ -252,18 +285,45 @@ class UnifiedInputSession(
                 }
                 .getOrNull() ?: return false
 
-            registeredVoiceActions = triggerSpecs.map { voiceTrigger ->
+            val actions = triggerSpecs.map { voiceTrigger ->
                 VoiceAction(voiceTrigger.command, voiceTrigger.pinyin, object : IVoiceCallback.Stub() {
                     override fun onVoiceTriggered() {
                         mainHandler.post {
                             triggerDispatcher?.invoke(voiceTrigger)
                         }
                     }
-                }).also { service.add(it) }
+                })
             }
-            registered = true
-            Log.i(ownerTag, "统一输入语音注册成功: ${triggerSpecs.joinToString { it.command }}")
-            return true
+            val activeLanguage = runCatching { service.language?.trim().orEmpty() }
+                .onFailure { error -> Log.w(ownerTag, "统一输入读取离线语言失败，回退逐条注册: ${error.message}") }
+                .getOrDefault("")
+            if (activeLanguage.isNotBlank()) {
+                val covered = runCatching { GlassSdk.setOfflineCmdWords(activeLanguage, actions) }
+                    .onFailure { error -> Log.w(ownerTag, "统一输入词表覆盖异常，回退逐条注册: ${error.message}") }
+                    .getOrDefault(false)
+                if (covered) {
+                    registeredVoiceActions = actions
+                    registeredLanguage = activeLanguage
+                    registeredByVocabularyOverride = true
+                    registered = true
+                    Log.i(ownerTag, "统一输入词表覆盖成功 language=$activeLanguage: ${triggerSpecs.joinToString { it.command }}")
+                    return true
+                }
+                Log.w(ownerTag, "统一输入词表覆盖返回失败 language=$activeLanguage，回退逐条注册")
+            } else {
+                Log.w(ownerTag, "统一输入离线语言为空，回退逐条注册")
+            }
+            return runCatching {
+                actions.forEach(service::add)
+                registeredVoiceActions = actions
+                registeredLanguage = null
+                registeredByVocabularyOverride = false
+                registered = true
+                Log.i(ownerTag, "统一输入逐条语音注册成功: ${triggerSpecs.joinToString { it.command }}")
+                true
+            }.onFailure { error ->
+                Log.w(ownerTag, "统一输入逐条语音注册失败: ${error.message}")
+            }.getOrDefault(false)
         }
 
         private fun unregisterVoiceActions() {
@@ -271,14 +331,29 @@ class UnifiedInputSession(
                 return
             }
             runCatching {
-                GlassSdk.getGlassOfflineCmdService()?.let { service ->
-                    registeredVoiceActions.forEach(service::remove)
+                val service = GlassSdk.getGlassOfflineCmdService()
+                val cleared = if (registeredByVocabularyOverride && registeredLanguage != null) {
+                    runCatching { GlassSdk.clearOfflineCmdWords(registeredLanguage!!) }
+                        .onFailure { error -> Log.w(ownerTag, "统一输入词表清空异常，回退逐条注销: ${error.message}") }
+                        .getOrDefault(false)
+                } else {
+                    false
+                }
+                if (!cleared) {
+                    if (registeredByVocabularyOverride) {
+                        Log.w(ownerTag, "统一输入词表清空返回失败，回退逐条注销")
+                    }
+                    service?.let { activeService ->
+                        registeredVoiceActions.forEach(activeService::remove)
+                    }
                 }
             }.onFailure { error ->
                 Log.w(ownerTag, "统一输入语音注销失败: ${error.message}")
             }
             registered = false
             registeredVoiceActions = emptyList()
+            registeredLanguage = null
+            registeredByVocabularyOverride = false
         }
 
         private fun collectVoiceTriggers(): List<InputTrigger.Voice> {
@@ -291,6 +366,8 @@ class UnifiedInputSession(
 
         companion object {
             private const val VOICE_RETRY_DELAY_MS = 500L
+            private val ownerLock = Any()
+            private val ownerState = VoiceVocabularyOwnerState<VoiceInputAdapter>()
         }
     }
 

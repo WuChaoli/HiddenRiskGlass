@@ -14,10 +14,15 @@
 ### 页面状态流转
 
 ```
-主菜单点击"实时分析"
-  → InspectionSession 已初始化? → AiInspectionActivity (DETECTING)
-  → 未初始化 → InspectionLoadingActivity (IDLE → SDK_INIT → CAMERA_INIT → COMPLETE)
-       → 完成后 → AiInspectionActivity (DETECTING)
+主菜单点击"实时分析" → AiInspectionMenuActivity
+  → 入口守卫 (onResume 自动执行):
+      WiFi 未连接 → 显示 WiFi 必需对话框
+      InspectionSession 未初始化 → InspectionLoadingActivity → 回到 AiInspectionMenuActivity
+      企业信息为空 → EnterpriseQrScanActivity
+  → 菜单可操作:
+      实时分析 → AiInspectionActivity (DETECTING)
+      设备指引 → DeviceGuideActivity
+      隐患拍照 → HazardRecordActivity
 
 AiInspectionActivity:
   DETECTING → 自动/手动命中隐患 → STREAM_RESPONSE(DESCRIPTION)
@@ -27,6 +32,13 @@ AiInspectionActivity:
   DETECTING → 设备指引 → DeviceGuideActivity
   DETECTING → 隐患拍照 → HazardRecordActivity
   DETECTING → 结束任务 → InspectionEndReportActivity
+
+InspectionLoadingActivity:
+  IDLE → SDK_INIT → CAMERA_INIT → COMPLETE → AiInspectionMenuActivity
+
+EnterpriseQrScanActivity:
+  扫码等待 → 解析企业 QR → 获取企业对象信息 → AiInspectionMenuActivity
+  (集成 GlassesWearStateMachine: 摘镜 SLEEP 暂停扫码，戴回 WAKE 自动恢复)
 
 HazardRecordActivity:
   IDLE → 拍照 → COUNTDOWN → ANALYSIS → 保存 → IDLE
@@ -54,19 +66,20 @@ DeviceGuideActivity:
 
 ## 文件索引
 
-### 页面 Activity（6 个）
+### 页面 Activity（7 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `AiInspectionActivity.kt` | **AI 巡检主页面**，管理自动检测+结果展示+手机同步 | `onCreate()`, `startDetectionImmediately()`, `buildInputActions()` |
-| `InspectionLoadingActivity.kt` | **启动加载页**，SDK 初始化+相机预热+会话创建 | `onCreate()`, `startInitializationFlow()`, `onInitializationComplete()` |
+| `InspectionLoadingActivity.kt` | **启动加载页**，SDK 初始化+相机预热+会话创建，完成后回到 AiInspectionMenuActivity | `onCreate()`, `startInitializationFlow()`, `onInitializationComplete()` |
 | `HazardRecordActivity.kt` | **隐患拍照页**，拍照+分析+保存 | `onCreate()`, `captureAndAnalyze()`, `submitLocalHazard()` |
 | `DeviceGuideActivity.kt` | **设备指引页**，检查品判定+详情展示 | `onCreate()`, `runDetectionLoop()`, `requestGuideDetails()` |
 | `HiddenRiskProbeActivity.kt` | **探针/调试页**，NCNN 推理验证（非正式功能）| |
 | `LightshotActivity.kt` | 历史调试页（非产品基线）| |
 | `UnifiedInputDebugActivity.kt` | 统一输入调试页 | |
+| `RawCameraPreviewDebugActivity.kt` | 原始相机预览调试页 | |
 
-### 在线推理/SSE 服务（5 个）
+### 在线推理/SSE 服务（6 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
@@ -75,6 +88,7 @@ DeviceGuideActivity:
 | `AiArEventAggregator.kt` | 聚合 SSE 事件流 | |
 | `AiArHazardDetailParser.kt` | 解析远端隐患详情 → `ResolvedHazardContent` | `parse()` |
 | `OnlineHazardAdviceFormatter.kt` | 格式化在线建议文案 | |
+| `DualEndpointSubmitCoordinator.kt` | 双端点提交协调器，聚合主备双端点提交结果 | `record()` |
 
 ### 本地推理/后处理（4 个）
 
@@ -86,13 +100,14 @@ DeviceGuideActivity:
 | `DetectionResult.java` | 检测结果数据模型 | |
 | `NativeInferenceStats.java` | 原生推理统计 | |
 
-### 自动链路决策（3 个）
+### 自动链路决策（4 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `AutoHazardPipelineDecider.kt` | **链路调度核心**，决定使用远端/本地链路 | `decideStart()`, `decideAfterRemoteFailure()`, `decideAfterLocalModelLoaded()` |
 | `AutoInferenceLoopDecider.kt` | 自动推理循环决策 | |
 | `OnlineHazardCompetitionDecider.kt` | 在线识别竞争决策 | |
+| `SharedInferenceFrameDecider.kt` | 共享推理帧决策器，判断在线链路是否复用本地推理缓存 | `decide()` |
 
 ### 会话与会话管理（4 个）
 
@@ -103,7 +118,7 @@ DeviceGuideActivity:
 | `InspectionFrameCaptureService.kt` | 帧捕获服务 | |
 | `InspectionBackendSessionId.kt` | 后端 session 管理 | |
 
-### 隐患上传/保存（5 个）
+### 隐患上传/保存（6 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
@@ -113,6 +128,7 @@ DeviceGuideActivity:
 | `InspectionBackgroundUploadService.kt` | 后台上传服务 | |
 | `InspectionFinishService.kt` | 结束巡检提交 | |
 | `HazardCaptureService.kt` | 隐患截图服务 | |
+| `HazardRecordUploadService.kt` | 隐患录入上传服务，当前使用 mock 结果打通 UI | `uploadHazardRecord()` |
 
 ### 深度分析/验证（3 个）
 
@@ -154,14 +170,22 @@ DeviceGuideActivity:
 ### 链路 1：初始化 → 检测
 ```
 AiInspectionMenuActivity (点击"实时分析")
-  → InspectionSession.isInitialized?
-    → YES: 直接进入 AiInspectionActivity
-    → NO: InspectionLoadingActivity
-        → RokidSdkManager.ensureInitialized()
-        → InspectionSession.initFrameStream()
-        → InspectionSession.markInitialized()
-        → 创建 sessionId (InspectionWorkflowSession.beginInspection())
-        → 导航到 AiInspectionActivity
+  → runEntryGuards() (onResume 自动执行)
+    → WiFi 已连接?
+      → NO: 显示 WiFi 必需对话框，等待用户确认退出
+      → YES: 继续
+    → InspectionSession.isInitialized?
+      → NO: InspectionLoadingActivity
+          → RokidSdkManager.ensureInitialized()
+          → InspectionSession.initFrameStream()
+          → InspectionSession.markInitialized()
+          → 创建 sessionId (InspectionWorkflowSession.beginInspection())
+          → 回到 AiInspectionMenuActivity
+      → YES: 继续
+    → 企业信息已获取 (enterpriseQrPayload != null)?
+      → NO: EnterpriseQrScanActivity (佩戴状态机集成: 摘镜暂停/戴回恢复)
+      → YES: 菜单可操作
+  → 选择"实时分析" → AiInspectionActivity
 ```
 
 ### 链路 2：在线自动识别

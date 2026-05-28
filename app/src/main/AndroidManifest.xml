@@ -92,10 +92,6 @@
         <!--            android:name="com.rokid.glass.BarcodeDetectorActivity"-->
         <!--            android:exported="false" />-->
         <activity
-            android:name="com.rokid.glass.WifiQrScanActivity"
-            android:exported="true"
-            android:theme="@style/Theme.Glessedemo" />
-        <activity
             android:name="com.rokid.glass.EnterpriseQrScanActivity"
             android:exported="false"
             android:theme="@style/Theme.Glessedemo" />
@@ -105,8 +101,13 @@
             android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.AiInspectionMenuActivity"
-            android:exported="false"
-            android:theme="@style/Theme.Glessedemo" />
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name="com.rokid.glass.InspectionEndReportActivity"
             android:exported="false"
@@ -141,12 +142,7 @@
         <activity
             android:name="com.rokid.glass.hiddenrisk.InspectionLoadingActivity"
             android:exported="true"
-            android:theme="@style/Theme.Glessedemo">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.hiddenrisk.AiInspectionActivity"
             android:exported="true"
@@ -166,6 +162,11 @@
         <activity
             android:name="com.rokid.glass.hiddenrisk.UnifiedInputDebugActivity"
             android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.RawCameraPreviewDebugActivity"
+            android:exported="true"
+            android:label="@string/raw_camera_debug_title"
             android:theme="@style/Theme.Glessedemo" />
 
         <provider

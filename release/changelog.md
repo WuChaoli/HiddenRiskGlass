@@ -1,3 +1,55 @@
+### 2.0.8
+
+#### 新增
+1. **提交前文档同步提醒**: 新增 Claude Code pre-commit hook，在提交前提醒执行 codexmap-sync 同步三层文档体系。
+
+#### 重构
+1. **状态栏刷新集中化**: 抽取 `GlassStatusBarUpdater`，将原先分散在各页面的状态栏刷新逻辑集中管理，统一处理时间、网络信号、电量等状态更新。
+
+#### 文档
+1. **WiFi 扫码引用清理**: 从文档中彻底移除 WiFi 二维码扫描相关引用，更新入口保护流程描述以反映当前菜单页直接跳转的链路。
+2. **版本发布**: 版本号升级至 2.0.8。
+
+### 2.0.7
+
+#### 新增
+1. **佩戴状态机集成**: 企业扫码页接入佩戴状态机，根据眼镜佩戴状态管理页面生命周期。
+2. **AI 菜单入口保护**: AI 菜单入口增加就绪状态校验，未就绪时阻止进入识别链路。
+
+#### 重构
+1. **移除 WiFi 扫码**: 移除 WiFi 二维码扫描流程，简化扫码链路。
+2. **加载页回归菜单**: 将加载流程从独立页面回退到菜单页面内嵌展示，减少页面切换开销。
+
+### 2.0.6.2
+
+#### 优化
+1. **共享相机视野配置**: 正式识别链路的共享相机 zoom 支持配置化管理，默认使用 `2.0x`，同时保持 Surface 与 NV21 共用中心方形 ROI。
+2. **NV21 恢复复用 Session**: 基于 Rokid SDK `2.1.9-E`，相机故障恢复优先复用现有 `CameraShareHelper` session，失败后再回退重建，降低残留 session 风险。
+3. **相机诊断补强**: 原始相机诊断页新增 NV21/Surface active 状态、请求与实际配置、支持分辨率及恢复信息展示，便于真机排障。
+4. **统一输入词表切换**: 语音命令按设备当前语言原子覆盖词表，并增加页面 owner 交接保护与旧接口回退，避免页面切换期间旧命令残留或误清空。
+5. **更新弹窗交互**: APK 更新提示支持前后滑动选择操作项、单击确认，双击或返回取消。
+
+#### 文档与验证
+1. **SDK/OTA 基线同步**: 文档与 Rokid 技能基线统一为 SDK `2.1.9-E`、推荐 OTA `1.17.e002-20260509-150201` 及以上，并区分正式 `sharedCameraZoomRatio=2.0` 与 Demo 验证 `zoomLevel=1`。
+2. **测试覆盖补充**: 增加相机恢复路径、重启 generation 防护和统一输入词表 owner 交接测试用例。
+
+### 2.0.6.1
+
+#### 新增
+1. **加载页版本号显示**: 加载页（`InspectionLoadingActivity`）底部新增版本号文字"本应用由浙江省应科院开发-v2.0.6.1"，版本号通过 `DeviceUtil.getVersionName()` 动态获取，加载中和加载失败状态下始终可见。
+
+### 2.0.6
+
+#### 变更
+1. **SDK 升级**: `com.rokid.security:glass3.open.sdk` 从 `2.1.8-E` 升级至 `2.1.9-E`，新版本已修复 Surface 输出异常
+2. **统一中心方形 ROI**: 提取 `SharedCameraViewportPolicy` 管理共享相机视野策略，正式 Surface 预览、NV21 检测、上传、扫码、探针链路统一使用同一个中心方形 ROI（`Rect(420,0,1500,1080)`）
+3. **移除临时方案**: 清理 `PreviewFramingMode`、`BUSINESS_ROI`、底部方形裁剪等旧 SDK 异常时期的临时兼容逻辑
+4. **调试页增强**: `RawCameraPreviewDebugActivity` 新增 SDK Demo 同屏对比模式（`SDK_DEMO_COMPARE`），真机并排展示 Surface / NV21 中心方图用于验证 ROI 一致性；新增 `SURFACE_VALIDATED_CENTER` 正式渲染验证模式
+5. **新增组件**: `RokidDemoNv21PreviewView`（NV21 GL 渲染诊断预览）、`SharedCameraViewportPolicy`（共享视野策略）
+6. **Demo Surface 增强**: `RokidDemoSurfacePreviewView` 支持中心方形裁剪 uniform，`CameraShareHelper` 改为持久实例
+7. **测试覆盖**: 新增 `SharedCameraViewportPolicy` 单元测试
+8. **文档更新**: 更新相机预览 Surface 输出经验文档，标记旧方案为历史，记录当前正式策略
+
 ### 2.0.5
 
 #### 新增

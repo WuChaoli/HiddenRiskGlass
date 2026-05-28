@@ -237,7 +237,7 @@ class InspectionFrameCaptureService(
 
 object RokidSquareFrameProvider : InspectionFrameCaptureService.FrameProvider {
     override fun copyLatestSquareFrame(): InspectionFrameCaptureService.SourceSquareFrame? {
-        val frame = RokidFrameSource.copyLatestSquareFrame() ?: return null
+        val frame = RokidFrameSource.copyLatestValidatedSquareFrame() ?: return null
         return InspectionFrameCaptureService.SourceSquareFrame(
             data = frame.data,
             width = frame.width,

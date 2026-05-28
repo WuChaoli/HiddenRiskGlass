@@ -9,6 +9,18 @@ import org.junit.Test
 class UnifiedInputSessionTriggerTest {
 
     @Test
+    fun voiceOwnerState_oldOwnerDetachDoesNotReleaseNewOwner() {
+        val state = VoiceVocabularyOwnerState<String>()
+
+        assertEquals(null, state.activate("old"))
+        assertEquals("old", state.activate("new"))
+        assertFalse(state.release("old"))
+        assertTrue(state.isOwner("new"))
+        assertTrue(state.release("new"))
+        assertFalse(state.isOwner("new"))
+    }
+
+    @Test
     fun buildConfirmTriggers_withoutHeadGesture_containsClickAndConfirmOnly() {
         val triggers = UnifiedInputSession.buildConfirmTriggers(enableHeadGesture = false)
 
@@ -48,66 +60,58 @@ class UnifiedInputSessionTriggerTest {
     }
 
     @Test
-    fun autoSleepStateMachine_disabledStateDoesNotShowPrompt() {
-        val stateMachine = newAutoSleepStateMachine()
+    fun wearStateMachine_disabledStateDoesNotBlockInput() {
+        val stateMachine = newWearStateMachine()
 
         val snapshot = stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
         assertEquals(null, snapshot)
-        assertFalse(stateMachine.isPromptVisible(60_000L))
+        assertFalse(stateMachine.isInteractionBlocked())
     }
 
     @Test
-    fun autoSleepStateMachine_enabledStateShowsPromptWhenGlassesRemoved() {
-        val stateMachine = newAutoSleepStateMachine()
+    fun wearStateMachine_enabledStateBlocksInputWhenGlassesRemoved() {
+        val stateMachine = newWearStateMachine()
         stateMachine.setEnabled(true, 0L)
 
         val snapshot = stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
-        assertEquals(AutoSleepStateMachine.State.SLEEP_WARNING, snapshot?.state)
-        assertTrue(stateMachine.isPromptVisible(60_000L))
+        assertEquals(GlassesWearStateMachine.State.SLEEP, snapshot?.state)
+        assertTrue(stateMachine.isInteractionBlocked())
     }
 
     @Test
-    fun autoSleepStateMachine_glassesWornResumesAfterWakeDelay() {
-        val stateMachine = newAutoSleepStateMachine()
+    fun wearStateMachine_glassesWornRequiresRecoveryReady() {
+        val stateMachine = newWearStateMachine()
         stateMachine.setEnabled(true, 0L)
         stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
-        val events = stateMachine.onGlassesWorn(61_000L)
-        val earlyEvents = stateMachine.tick(nowMillis = 63_999L)
-        val wakeCompleteEvents = stateMachine.tick(nowMillis = 64_000L)
+        val wake = stateMachine.onGlassesWorn(61_000L)
+        val active = stateMachine.onRecoveryReady(64_000L)
 
-        assertEquals(1, events.size)
-        assertEquals(AutoSleepStateMachine.State.WAKE, events[0].state)
-        assertTrue(earlyEvents.isEmpty())
-        assertEquals(AutoSleepStateMachine.State.WAKING, wakeCompleteEvents.single().state)
-        assertFalse(stateMachine.isPromptVisible(64_000L))
+        assertEquals(GlassesWearStateMachine.State.WAKE, wake?.state)
+        assertEquals(GlassesWearStateMachine.State.ACTIVE, active?.state)
+        assertFalse(stateMachine.isInteractionBlocked())
     }
 
     @Test
-    fun autoSleepStateMachine_promptDoesNotTimeoutWhileGlassesRemainRemoved() {
-        val stateMachine = newAutoSleepStateMachine()
+    fun wearStateMachine_sleepDoesNotChangeWithTime() {
+        val stateMachine = newWearStateMachine()
         stateMachine.setEnabled(true, 0L)
         stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
-        val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
-
-        assertTrue(timeoutEvents.isEmpty())
-        assertTrue(stateMachine.isPromptVisible(75_000L))
+        assertEquals(GlassesWearStateMachine.State.SLEEP, stateMachine.currentSnapshot()?.state)
+        assertTrue(stateMachine.isInteractionBlocked())
     }
 
     @Test
-    fun autoSleepStateMachine_disablingWhilePromptVisibleClearsPrompt() {
-        val stateMachine = newAutoSleepStateMachine()
+    fun wearStateMachine_disablingWhileSleepingClearsBlockedState() {
+        val stateMachine = newWearStateMachine()
         stateMachine.setEnabled(true, 0L)
         stateMachine.onGlassesRemoved(nowMillis = 60_000L)
 
         stateMachine.setEnabled(false, 75_000L)
-        val timeoutEvents = stateMachine.tick(nowMillis = 75_000L)
-
-        assertTrue(timeoutEvents.isEmpty())
-        assertFalse(stateMachine.isPromptVisible(75_000L))
+        assertFalse(stateMachine.isInteractionBlocked())
     }
 
     private fun voiceCommands(triggers: List<UnifiedInputSession.InputTrigger>): List<String> {
@@ -130,11 +134,7 @@ class UnifiedInputSessionTriggerTest {
             .map { it.type }
     }
 
-    private fun newAutoSleepStateMachine(): AutoSleepStateMachine {
-        return AutoSleepStateMachine(
-            config = AutoSleepStateMachine.Config(
-                wakeDurationMs = 3_000L,
-            ),
-        )
+    private fun newWearStateMachine(): GlassesWearStateMachine {
+        return GlassesWearStateMachine()
     }
 }

@@ -1,19 +1,20 @@
 package com.rokid.glass
 
 import android.content.Intent
-import android.content.IntentFilter
-import android.os.BatteryManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.rokid.glass.adapter.MenuCardAdapter
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.DeviceGuideActivity
-import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HazardRecordActivity
 import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.hiddenrisk.InspectionSession
@@ -21,6 +22,8 @@ import com.google.gson.Gson
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.updater.AppUpdateManager
 import com.rokid.glass.updater.AppUpdatePromptActivity
+import com.rokid.glass.utils.SystemStateUtils
+import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -28,15 +31,28 @@ import java.util.concurrent.Executors
 class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private lateinit var tvBottomHint: TextView
+    private lateinit var tvInspectionSummary: TextView
     private lateinit var statusBar: GlassStatusBar
     private lateinit var recyclerMenu: RecyclerView
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
     private val updateExecutor = Executors.newSingleThreadExecutor()
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private var checkingUpdate = false
     private var autoUpdateChecked = false
     private var selectedIndex = 0
+
+    private lateinit var layoutWifiRequiredDialog: LinearLayout
+    private lateinit var tvWifiRequiredConfirm: TextView
+    private lateinit var layoutExitConfirmDialog: LinearLayout
+    private lateinit var tvExitConfirmConfirm: TextView
+    private lateinit var tvExitConfirmCancel: TextView
+    private lateinit var exitConfirmButtons: List<TextView>
+    private var entryGuardNavigating = false
+    private var wifiRequiredDialogVisible = false
+    private var exitConfirmDialogVisible = false
+    private var exitConfirmSelectedIndex = EXIT_CONFIRM_CONFIRM
 
     private val menuAdapter by lazy {
         MenuCardAdapter(
@@ -54,8 +70,8 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         setContentView(R.layout.activity_ai_inspection_menu)
 
         tvBottomHint = findViewById(R.id.tvBottomHint)
+        tvInspectionSummary = findViewById(R.id.tvInspectionSummary)
         statusBar = findViewById(R.id.statusBar)
-        updateBatteryLevel()
 
         recyclerMenu = findViewById(R.id.recyclerMenu)
         recyclerMenu.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
@@ -64,21 +80,37 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
         // 初始选中第一张卡片
         menuAdapter.selectedIndex = 0
+
+        layoutWifiRequiredDialog = findViewById(R.id.layoutWifiRequiredDialog)
+        tvWifiRequiredConfirm = findViewById(R.id.tvWifiRequiredConfirm)
+        tvWifiRequiredConfirm.setOnClickListener { exitAppDirectly() }
+        layoutExitConfirmDialog = findViewById(R.id.layoutExitConfirmDialog)
+        tvExitConfirmConfirm = findViewById(R.id.tvExitConfirmConfirm)
+        tvExitConfirmCancel = findViewById(R.id.tvExitConfirmCancel)
+        exitConfirmButtons = listOf(tvExitConfirmConfirm, tvExitConfirmCancel)
+        tvExitConfirmConfirm.setOnClickListener { exitAppDirectly() }
+        tvExitConfirmCancel.setOnClickListener { hideExitConfirmDialog() }
+        updateInspectionSummary()
     }
 
     override fun onResume() {
         super.onResume()
+        entryGuardNavigating = false
         inputSession.attach()
         inputSession.updateActions(buildInputActions())
-        startAutoUpdateCheck()
+        statusBarUpdater.start(statusBar)
+        updateInspectionSummary()
+        runEntryGuards()
     }
 
     override fun onPause() {
+        statusBarUpdater.stop()
         inputSession.detach()
         super.onPause()
     }
 
     override fun onDestroy() {
+        statusBarUpdater.stop()
         updateExecutor.shutdownNow()
         inputSession.release()
         super.onDestroy()
@@ -88,7 +120,146 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
+    private fun runEntryGuards() {
+        if (entryGuardNavigating || wifiRequiredDialogVisible || exitConfirmDialogVisible) return
+
+        if (SystemStateUtils.getCurrentWifiSsid(this) == null) {
+            showWifiRequiredDialog()
+            return
+        }
+
+        hideWifiRequiredDialog()
+
+        if (!InspectionSession.isInitialized) {
+            entryGuardNavigating = true
+            startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
+                putExtra(InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY, AiInspectionMenuActivity::class.java.name)
+            })
+            return
+        }
+
+        if (
+            InspectionWorkflowSession.enterpriseQrPayload == null ||
+            InspectionWorkflowSession.enterpriseInfo == null
+        ) {
+            entryGuardNavigating = true
+            startEnterpriseQrScan(forceScan = false)
+            return
+        }
+
+        updateInspectionSummary()
+        startAutoUpdateCheck()
+    }
+
+    private fun showWifiRequiredDialog() {
+        wifiRequiredDialogVisible = true
+        hideExitConfirmDialog(refreshInput = false)
+        layoutWifiRequiredDialog.visibility = View.VISIBLE
+        recyclerMenu.isEnabled = false
+        tvBottomHint.visibility = View.GONE
+        inputSession.updateActions(buildInputActions())
+    }
+
+    private fun hideWifiRequiredDialog() {
+        wifiRequiredDialogVisible = false
+        layoutWifiRequiredDialog.visibility = View.GONE
+        recyclerMenu.isEnabled = true
+        tvBottomHint.visibility = View.VISIBLE
+    }
+
+    private fun showExitConfirmDialog() {
+        if (wifiRequiredDialogVisible) return
+        exitConfirmDialogVisible = true
+        exitConfirmSelectedIndex = EXIT_CONFIRM_CONFIRM
+        layoutExitConfirmDialog.visibility = View.VISIBLE
+        recyclerMenu.isEnabled = false
+        tvBottomHint.visibility = View.GONE
+        updateExitConfirmSelection()
+        inputSession.updateActions(buildInputActions())
+    }
+
+    private fun hideExitConfirmDialog(refreshInput: Boolean = true) {
+        exitConfirmDialogVisible = false
+        if (::layoutExitConfirmDialog.isInitialized) {
+            layoutExitConfirmDialog.visibility = View.GONE
+        }
+        recyclerMenu.isEnabled = true
+        tvBottomHint.visibility = View.VISIBLE
+        if (refreshInput) {
+            inputSession.updateActions(buildInputActions())
+        }
+    }
+
+    private fun exitAppDirectly() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            finishAffinity()
+            finishAndRemoveTask()
+        } else {
+            finishAffinity()
+            finish()
+        }
+    }
+
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
+        if (wifiRequiredDialogVisible) {
+            return listOf(
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Confirm,
+                    label = getString(R.string.ai_entry_wifi_required_confirm),
+                    triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_wifi_required_confirm), "que ding"),
+                    ),
+                ) {
+                    exitAppDirectly()
+                },
+            )
+        }
+        if (exitConfirmDialogVisible) {
+            return listOf(
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Previous,
+                    label = "上一个",
+                    triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
+                ) {
+                    moveExitConfirmSelection(-1)
+                },
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Next,
+                    label = "下一个",
+                    triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
+                ) {
+                    moveExitConfirmSelection(+1)
+                },
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Confirm,
+                    label = getString(R.string.ai_entry_exit_confirm_confirm),
+                    triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_exit_confirm_confirm), "que ren"),
+                    ),
+                ) { event ->
+                    if (event.trigger is UnifiedInputSession.InputTrigger.Voice) {
+                        exitAppDirectly()
+                    } else {
+                        executeExitConfirmSelection()
+                    }
+                },
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Cancel,
+                    label = getString(R.string.ai_entry_exit_confirm_cancel),
+                    triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_exit_confirm_cancel), "qu xiao"),
+                    ),
+                ) {
+                    hideExitConfirmDialog()
+                },
+            )
+        }
         return listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Previous,
@@ -140,6 +311,48 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             ) {
                 checkUpdateManually()
             },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_menu_finish_inspection"),
+                label = "结束巡查",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Voice("结束巡查", "jie shu xun cha"),
+                    UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_finish), "jie shu ren wu"),
+                    UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_finish_accent_alias), "jie su ren wu"),
+                ),
+            ) {
+                startEndReport()
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("ai_menu_scan"),
+                label = "检查扫码",
+                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("检查扫码", "jian cha sao ma")),
+            ) {
+                startEnterpriseQrScan(forceScan = true)
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Exit,
+                label = "退出",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
+                    UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_exit), "tui chu"),
+                ),
+            ) {
+                showExitConfirmDialog()
+            },
+        )
+    }
+
+    private fun updateInspectionSummary() {
+        val companyName = InspectionWorkflowSession.enterpriseInfo
+            ?.companyName
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+            ?: "-"
+        tvInspectionSummary.text = getString(
+            R.string.ai_entry_menu_inspection_summary,
+            companyName,
+            InspectionWorkflowSession.buildEndReportHazardCount(),
         )
     }
 
@@ -174,7 +387,33 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         }
     }
 
+    private fun moveExitConfirmSelection(delta: Int) {
+        val target = (exitConfirmSelectedIndex + delta).coerceIn(0, exitConfirmButtons.lastIndex)
+        if (target == exitConfirmSelectedIndex) return
+        exitConfirmSelectedIndex = target
+        updateExitConfirmSelection()
+    }
+
+    private fun updateExitConfirmSelection() {
+        exitConfirmButtons.forEachIndexed { index, button ->
+            button.setBackgroundResource(
+                if (index == exitConfirmSelectedIndex) R.drawable.glass_card_outline_selected
+                else R.drawable.glass_card_outline,
+            )
+            button.setTextColor(getColor(R.color.green))
+            button.setTypeface(null, if (index == exitConfirmSelectedIndex) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+        }
+    }
+
+    private fun executeExitConfirmSelection() {
+        when (exitConfirmSelectedIndex) {
+            EXIT_CONFIRM_CONFIRM -> exitAppDirectly()
+            EXIT_CONFIRM_CANCEL -> hideExitConfirmDialog()
+        }
+    }
+
     private fun onItemConfirmed(index: Int) {
+        if (entryGuardNavigating || wifiRequiredDialogVisible || exitConfirmDialogVisible) return
         when (index) {
             0 -> startHazardAnalysis()
             1 -> startDeviceGuide()
@@ -205,6 +444,21 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                     putExtra(InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY, DeviceGuideActivity::class.java.name)
                 }
             },
+        )
+    }
+
+    private fun startEnterpriseQrScan(forceScan: Boolean) {
+        startActivity(Intent(this, EnterpriseQrScanActivity::class.java).apply {
+            putExtra(EnterpriseQrScanActivity.EXTRA_FORCE_SCAN, forceScan)
+        })
+    }
+
+    private fun startEndReport() {
+        startActivity(
+            InspectionEndReportActivity.createIntent(
+                this,
+                InspectionEndReportReturnDestination.AI_MENU_HOME,
+            ),
         )
     }
 
@@ -261,22 +515,9 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         }
     }
 
-    /**
-     * 获取当前电池电量并更新电池图标填充
-     */
-    private fun updateBatteryLevel() {
-        val batteryStatus = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { intent ->
-            val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBar.setBatteryPercent(batteryPct)
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "AiInspectionMenu"
+        private const val EXIT_CONFIRM_CONFIRM = 0
+        private const val EXIT_CONFIRM_CANCEL = 1
     }
 }

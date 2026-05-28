@@ -18,6 +18,7 @@ object InspectionCameraCoordinator {
         AI_INSPECTION,
         DEVICE_GUIDE,
         HAZARD_RECORD,
+        RAW_CAMERA_DEBUG,
     }
 
     enum class CameraSessionState {
