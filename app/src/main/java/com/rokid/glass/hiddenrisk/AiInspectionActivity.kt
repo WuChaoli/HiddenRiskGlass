@@ -1,14 +1,10 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -41,6 +37,7 @@ import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
 import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
@@ -525,14 +522,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    // 时间和电量更新
-    private val timeUpdateRunnable = object : Runnable {
-        override fun run() {
-            updateCurrentTime()
-            uiHandler.postDelayed(this, 1000L) // 每秒更新
-        }
-    }
-    private var batteryReceiver: BroadcastReceiver? = null
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
     private val motionStabilityListener = object : HeadMotionStabilityTracker.Listener {
         override fun onStabilityChanged(isStable: Boolean, stableSinceMillis: Long?) {
             isMotionStable = isStable
@@ -769,7 +759,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         showPage(PageState.DETECTING)
         applyDefaultDetectionStatus()
-        startTimeAndBatteryUpdate()
+        statusBarUpdater.refreshNow(statusBarDetecting, statusBarStream)
         debugSnapshotState = intent.getStringExtra("debug_state")
         if (debugSnapshotState != null) {
             applyDebugSnapshotState(debugSnapshotState!!)
@@ -824,6 +814,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "onResume pageState=$pageState active=$isWorkflowActive pendingDetectionStart=$pendingDetectionStart frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()}",
         )
         inputSession.attach()
+        statusBarUpdater.start(statusBarDetecting, statusBarStream)
         if (debugSnapshotState != null) {
             refreshInputActions()
             return
@@ -859,6 +850,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onPause() {
         isActivityResumed = false
+        statusBarUpdater.stop()
         inputSession.detach()
         if (debugSnapshotState != null) {
             super.onPause()
@@ -916,7 +908,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
         if (debugSnapshotState != null) {
-            stopTimeAndBatteryUpdate()
+            statusBarUpdater.stop()
             super.onDestroy()
             return
         }
@@ -947,8 +939,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         clearStreamThumbnailState()
-        // 停止时间和电量更新
-        stopTimeAndBatteryUpdate()
+        statusBarUpdater.stop()
         super.onDestroy()
     }
 
@@ -2985,59 +2976,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         AppFileLogger.e(TAG, "workflow failed: $message")
         // 简化错误处理，仅记录日志，不显示错误页面
         // 因为加载页面已剥离到 InspectionLoadingActivity
-    }
-
-    // ==================== 时间和电量更新 ====================
-
-    /**
-     * 启动时间和电量更新
-     */
-    private fun startTimeAndBatteryUpdate() {
-        // 启动时间更新
-        uiHandler.post(timeUpdateRunnable)
-
-        // 注册电量广播接收器
-        batteryReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                updateBatteryLevel(intent)
-            }
-        }
-        val filter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
-        registerReceiver(batteryReceiver, filter)
-    }
-
-    /**
-     * 停止时间和电量更新
-     */
-    private fun stopTimeAndBatteryUpdate() {
-        uiHandler.removeCallbacks(timeUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    /**
-     * 更新当前时间显示
-     */
-    private fun updateCurrentTime() {
-        statusBarDetecting.updateTime()
-        statusBarStream.updateTime()
-    }
-
-    /**
-     * 更新电量显示
-     */
-    private fun updateBatteryLevel(intent: Intent?) {
-        intent?.let {
-            val level = it.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBarDetecting.setBatteryPercent(batteryPct)
-                statusBarStream.setBatteryPercent(batteryPct)
-            }
-        }
     }
 
     // ==================== 工具方法 ====================

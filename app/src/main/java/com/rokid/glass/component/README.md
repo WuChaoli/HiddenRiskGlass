@@ -9,6 +9,7 @@
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `GlassStatusBar.kt` | **顶部状态栏**，显示时间+电量 | `updateTime()`, `updateBattery()`, `setBatteryPercent()` |
+| `GlassStatusBarUpdater.kt` | **状态栏刷新器**，统一管理时间定时刷新和电量广播 | `start()`, `stop()`, `refreshNow()` |
 | `RokidCameraPreviewView.kt` | **相机预览视图**，渲染帧流+健康监控 | `startPreview()`, `stopPreview()`, `PreviewHealthListener` |
 | `FunctionMenuView.kt` | **右上功能菜单**，显示菜单标题+内容 | `setMenu(title, content)` |
 | `BottomPromptView.kt` | **底部提示栏**，显示操作提示文案 | `setPrompt(title, subtitle)` |

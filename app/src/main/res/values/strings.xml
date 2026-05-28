@@ -59,8 +59,10 @@
     <string name="ai_inspection_end_report_return_label_analysis">隐患分析首页</string>
     <string name="ai_inspection_end_report_return_label_device_guide">设备指引首页</string>
     <string name="ai_inspection_end_report_return_label_hazard_record">隐患录入首页</string>
+    <string name="ai_inspection_end_report_return_label_menu">隐患菜单</string>
     <string name="ai_inspection_end_report_confirm_finish_title">确认结束巡检</string>
     <string name="ai_inspection_end_report_hazard_count">分析出%1$d条隐患</string>
+    <string name="ai_entry_menu_inspection_summary">巡查企业：%1$s\n已识别隐患数：%2$d个隐患</string>
     <string name="ai_inspection_end_report_hazard_count_placeholder">分析出0条隐患</string>
     <string name="ai_inspection_loading_error_default">初始化失败</string>
     <string name="ai_inspection_loading_error_retry_hint">单击重试, 双击退出</string>
@@ -82,6 +84,9 @@
     <string name="ai_inspection_input_label_detecting_finish">检测页结束巡检</string>
     <string name="ai_inspection_input_label_confirm">确认</string>
     <string name="ai_inspection_input_label_return">返回</string>
+    <string name="ai_entry_exit_confirm_message">确认退出应用?</string>
+    <string name="ai_entry_exit_confirm_confirm">确认</string>
+    <string name="ai_entry_exit_confirm_cancel">取消</string>
     <string name="ai_inspection_voice_confirm">确认</string>
     <string name="ai_inspection_voice_confirm_alias">确定</string>
     <string name="ai_inspection_voice_continue_alias">继续</string>

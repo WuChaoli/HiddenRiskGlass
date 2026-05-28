@@ -1,13 +1,9 @@
 package com.rokid.glass
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -31,6 +27,7 @@ import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.updater.AppUpdateManager
@@ -60,6 +57,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private lateinit var infoCard: LinearLayout
     private lateinit var bottomHints: LinearLayout
     private lateinit var statusBar: GlassStatusBar
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
     private val updateCheckExecutor = Executors.newSingleThreadExecutor()
     private val updateManager by lazy { AppUpdateManager(applicationContext) }
     private var autoUpdateChecked = false
@@ -84,18 +82,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private var destroyed = false
     private var cameraSessionGeneration = 0L
     private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
-    private var batteryReceiver: BroadcastReceiver? = null
     private var isActivityResumed = false
     private var wearSnapshot: GlassesWearStateMachine.Snapshot? = null
     private var wearRecoveryInProgress = false
-
-    private val statusUpdateRunnable = object : Runnable {
-        override fun run() {
-            if (destroyed) return
-            statusBar.updateTime()
-            mainHandler.postDelayed(this, STATUS_UPDATE_INTERVAL_MS)
-        }
-    }
 
     private val cameraRecoveryController by lazy {
         RokidCameraRecoveryController(
@@ -188,6 +177,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         setContentView(R.layout.activity_enterprise_qr_scan)
 
         debugSnapshotMode = intent.getBooleanExtra("debug_snapshot", false)
+        val forceScan = intent.getBooleanExtra(EXTRA_FORCE_SCAN, false)
         cameraPreviewView = findViewById(R.id.cameraPreviewView)
         tvStatus = findViewById(R.id.tvStatus)
         resultOverlay = findViewById(R.id.resultOverlay)
@@ -200,9 +190,9 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         infoCard = findViewById(R.id.infoCard)
         bottomHints = findViewById(R.id.bottomHints)
         statusBar = findViewById(R.id.statusBar)
-        updateBatteryLevel()
+        statusBarUpdater.refreshNow(statusBar)
 
-        if (!debugSnapshotMode && skipScanIfEnterpriseQrCached()) {
+        if (!debugSnapshotMode && !forceScan && skipScanIfEnterpriseQrCached()) {
             return
         }
 
@@ -222,11 +212,11 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         super.onResume()
         inputSession.attach()
         refreshInputActions()
-        startStatusBarUpdates()
+        statusBarUpdater.start(statusBar)
         if (completed) return
         if (debugSnapshotMode) return
         startAutoUpdateCheck()
-        if (skipScanIfEnterpriseQrCached()) return
+        if (!intent.getBooleanExtra(EXTRA_FORCE_SCAN, false) && skipScanIfEnterpriseQrCached()) return
         cameraRecoveryController.start()
         if (hasRequiredPermissions()) {
             startCameraPipeline(resetRecoveryAttempts = true)
@@ -238,7 +228,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     override fun onPause() {
         isActivityResumed = false
         wearRecoveryInProgress = false
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         inputSession.detach()
         if (debugSnapshotMode) {
             super.onPause()
@@ -255,7 +245,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     override fun onDestroy() {
         destroyed = true
         updateCheckExecutor.shutdownNow()
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         inputSession.release()
         if (!debugSnapshotMode) {
             mainHandler.removeCallbacksAndMessages(null)
@@ -599,47 +589,6 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         ActivityCompat.requestPermissions(this, requiredPermissions(), REQUEST_CODE_PERMISSIONS)
     }
 
-    /**
-     * 页面可见时持续刷新状态栏时间与电量，保证底部状态栏显示真实系统状态。
-     */
-    private fun startStatusBarUpdates() {
-        statusBar.updateTime()
-        updateBatteryLevel()
-        mainHandler.removeCallbacks(statusUpdateRunnable)
-        mainHandler.post(statusUpdateRunnable)
-        if (batteryReceiver == null) {
-            batteryReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    updateBatteryLevel(intent)
-                }
-            }
-            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-    }
-
-    private fun stopStatusBarUpdates() {
-        mainHandler.removeCallbacks(statusUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    /**
-     * 获取当前电池电量并更新电池图标填充
-     */
-    private fun updateBatteryLevel(intent: Intent? = null) {
-        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { batteryIntent ->
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBar.setBatteryPercent(batteryPct)
-            }
-        }
-    }
-
     private fun applyDebugSnapshotState() {
         cameraPreviewView.visibility = View.INVISIBLE
         viewfinder.visibility = View.INVISIBLE
@@ -772,6 +721,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
 
     companion object {
         private const val TAG = "EnterpriseQrScan"
+        const val EXTRA_FORCE_SCAN = "force_scan"
         private const val REQUEST_CODE_PERMISSIONS = 6001
         private val SCAN_INTERVAL_MS: Long
             get() = InspectionConfigRepository.get().enterpriseScan.scanIntervalMs
@@ -779,7 +729,6 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         private val SCAN_FRAME_TARGET_SIZE: Int
             get() = InspectionConfigRepository.get().enterpriseScan.scanFrameTargetSize
 
-        private const val STATUS_UPDATE_INTERVAL_MS = 1000L
         private const val QR_LOG_VISIBLE_PREFIX_LENGTH = 120
 
         private fun sanitizeQrForLog(rawValue: String): String {

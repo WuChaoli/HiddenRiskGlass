@@ -1,12 +1,8 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -29,6 +25,7 @@ import com.rokid.glass.component.AlertStatus
 import com.rokid.glass.component.AlertStyle
 import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.component.StatusAlertModel
 import com.rokid.glass.component.StatusAlertOverlayView
@@ -110,15 +107,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var previewReadyRetryPosted = false
     private var activeDetectHandle: AiArSseService.RequestHandle? = null
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
-    private var batteryReceiver: BroadcastReceiver? = null
     private var wearRecoveryFrameCheckInFlight = false
-
-    private val statusUpdateRunnable = object : Runnable {
-        override fun run() {
-            updateStatusBars()
-            uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
-        }
-    }
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
     private val nextDetectRunnable = Runnable {
         runDetectionLoop()
@@ -155,13 +145,13 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         inputSession.attach()
         refreshInputActions()
         updateWearMonitoringEnabled()
-        startStatusBarUpdates()
+        statusBarUpdater.start(statusBarDetecting, statusBarResult)
         scheduleNextDetection(immediate = true)
     }
 
     override fun onPause() {
         isActivityResumed = false
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         cancelActiveRequests()
         uiHandler.removeCallbacks(nextDetectRunnable)
         uiHandler.removeCallbacks(autoGuideDetailRunnable)
@@ -175,6 +165,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onDestroy() {
         cancelActiveRequests()
+        statusBarUpdater.stop()
         uiHandler.removeCallbacksAndMessages(null)
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
@@ -248,7 +239,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val menuContent = getString(R.string.device_guide_function_menu_content)
         operationGuideDetecting.setMenu(content = menuContent)
         operationGuideResult.setMenu(content = menuContent)
-        updateStatusBars()
+        statusBarUpdater.refreshNow(statusBarDetecting, statusBarResult)
     }
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
@@ -909,47 +900,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         operationGuideResult.visibility = View.GONE
     }
 
-    private fun startStatusBarUpdates() {
-        updateStatusBars()
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        uiHandler.post(statusUpdateRunnable)
-        if (batteryReceiver == null) {
-            batteryReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    updateBatteryLevel(intent)
-                }
-            }
-            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-    }
-
-    private fun stopStatusBarUpdates() {
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    private fun updateStatusBars() {
-        statusBarDetecting.updateTime()
-        statusBarResult.updateTime()
-        updateBatteryLevel()
-    }
-
-    private fun updateBatteryLevel(intent: Intent? = null) {
-        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { batteryIntent ->
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBarDetecting.setBatteryPercent(batteryPct)
-                statusBarResult.setBatteryPercent(batteryPct)
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "DeviceGuideActivity"
         private const val DEVICE_GUIDE_DETAIL_DISPLAY_PREFIX = "识别到此处有设备，建议您重点关注以下问题："
@@ -961,7 +911,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val JPEG_QUALITY = 97
         private const val DETECT_INTERVAL_MS = 1000L
         private const val PROMPT_AUTO_DETAIL_DELAY_MS = 2000L
-        private const val STATUS_UPDATE_DELAY_MS = 1000L
         private const val PREVIEW_READY_RETRY_DELAY_MS = 100L
         private const val PREVIEW_DRAW_CHECK_DELAY_MS = 700L
     }

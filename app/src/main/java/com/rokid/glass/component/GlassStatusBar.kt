@@ -2,7 +2,6 @@ package com.rokid.glass.component
 
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.os.BatteryManager
 import android.util.AttributeSet
 import android.view.LayoutInflater
@@ -17,7 +16,7 @@ import java.util.Locale
 /**
  * 统一的 Glass 底部状态栏组件。
  * 包含 WiFi 图标、当前时间、电量指示器。
- * 自动监听电量变化，提供更新时间的方法。
+ * 提供更新时间和电量的方法，由 GlassStatusBarUpdater 统一驱动刷新。
  */
 class GlassStatusBar @JvmOverloads constructor(
     context: Context,

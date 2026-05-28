@@ -1,12 +1,8 @@
 package com.rokid.glass.hiddenrisk
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.IntentFilter
-import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
@@ -23,6 +19,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.annotation.StringRes
 import com.rokid.glass.component.GlassStatusBar
+import com.rokid.glass.component.GlassStatusBarUpdater
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.AiInspectionMenuActivity
@@ -51,7 +48,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         private const val PROGRESS_STEP_DELAY_MS = 24L
         private const val SUBTITLE_FRAME_DELAY_MS = 320L
         private const val COMPLETE_HOLD_DELAY_MS = 400L
-        private const val STATUS_UPDATE_DELAY_MS = 1000L
         const val EXTRA_NEXT_HOME_ACTIVITY = "next_home_activity"
     }
 
@@ -99,10 +95,10 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var subtitleBaseText = ""
     private var subtitleFrame = 0
     private var subtitleAnimating = false
-    private var batteryReceiver: BroadcastReceiver? = null
     private var loadingViewsInitialized = false
     private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
+    private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
     // 转圈动画
     private val loadingRotateAnimation: RotateAnimation by lazy {
@@ -158,14 +154,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         navigateToInspection()
     }
 
-    private val statusUpdateRunnable = object : Runnable {
-        override fun run() {
-            if (activityDestroyed) return
-            updateCurrentTime()
-            uiHandler.postDelayed(this, STATUS_UPDATE_DELAY_MS)
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -215,18 +203,19 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         super.onResume()
         inputSession.attach()
         refreshInputActions()
-        startStatusBarUpdates()
+        statusBarUpdater.start(statusBar)
         if (debugSnapshotMode) return
     }
 
     override fun onPause() {
-        stopStatusBarUpdates()
+        statusBarUpdater.stop()
         inputSession.detach()
         super.onPause()
     }
 
     override fun onDestroy() {
         activityDestroyed = true
+        statusBarUpdater.stop()
         inputSession.release()
         super.onDestroy()
         if (loadingViewsInitialized) {
@@ -339,51 +328,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         tvVersion.text = "本应用由浙江省应科院开发-v${DeviceUtil.getVersionName(this)}"
         tvVersionError = findViewById(R.id.tvVersionError)
         tvVersionError.text = tvVersion.text
-        updateCurrentTime()
-        updateBatteryLevel()
+        statusBarUpdater.refreshNow(statusBar)
         loadingViewsInitialized = true
-    }
-
-    private fun startStatusBarUpdates() {
-        updateCurrentTime()
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        uiHandler.post(statusUpdateRunnable)
-
-        if (batteryReceiver == null) {
-            batteryReceiver = object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    updateBatteryLevel(intent)
-                }
-            }
-            registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        }
-    }
-
-    private fun stopStatusBarUpdates() {
-        uiHandler.removeCallbacks(statusUpdateRunnable)
-        batteryReceiver?.let {
-            unregisterReceiver(it)
-            batteryReceiver = null
-        }
-    }
-
-    private fun updateCurrentTime() {
-        statusBar.updateTime()
-    }
-
-    /**
-     * 获取当前电池电量并更新电池图标填充
-     */
-    private fun updateBatteryLevel(intent: Intent? = null) {
-        val batteryStatus = intent ?: registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        batteryStatus?.let { batteryIntent ->
-            val level = batteryIntent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
-            val scale = batteryIntent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
-            if (level != -1 && scale != -1) {
-                val batteryPct = (level * 100 / scale.toFloat()).toInt()
-                statusBar.setBatteryPercent(batteryPct)
-            }
-        }
     }
 
     private fun hasRequiredPermissions(): Boolean {

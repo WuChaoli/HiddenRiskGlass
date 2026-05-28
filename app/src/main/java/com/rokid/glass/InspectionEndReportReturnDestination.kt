@@ -12,6 +12,10 @@ enum class InspectionEndReportReturnDestination(
     val intentValue: String,
     val targetActivityClass: Class<*>,
 ) {
+    AI_MENU_HOME(
+        intentValue = "ai_menu_home",
+        targetActivityClass = AiInspectionMenuActivity::class.java,
+    ),
     HAZARD_ANALYSIS_HOME(
         intentValue = "hazard_analysis_home",
         targetActivityClass = AiInspectionActivity::class.java,
