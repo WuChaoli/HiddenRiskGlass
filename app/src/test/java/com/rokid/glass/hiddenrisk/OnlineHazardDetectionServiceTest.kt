@@ -137,6 +137,26 @@ class OnlineHazardDetectionServiceTest {
         )
     }
 
+    @Test
+    fun cancelActiveDetection_doesNotCancelActiveDeepAnalysis() {
+        val env = TestEnv()
+        val service = env.createService()
+
+        service.requestDeepAnalysis(
+            OnlineHazardDetectionService.DetailRequest(
+                epoch = 1L,
+                requestId = 33L,
+                jpegBytes = byteArrayOf(1),
+            ),
+        )
+        service.submitDetection(detectionRequest(requestId = 34L))
+
+        service.cancelActiveDetection()
+
+        assertFalse(env.gateway.detailHandle?.isCanceled() ?: true)
+        assertTrue(env.gateway.detectionHandles[34L]?.isCanceled() ?: false)
+    }
+
     private fun detectionRequest(
         requestId: Long,
         lane: OnlineHazardDetectionService.DetectionLane = OnlineHazardDetectionService.DetectionLane.ITEM,
@@ -256,6 +276,7 @@ class OnlineHazardDetectionServiceTest {
         val detectCallbacks = mutableMapOf<Long, AiArSseService.DetectCallback>()
         val detectionHandles = mutableMapOf<Long, AiArSseService.RequestHandle>()
         var detailCallback: AiArSseService.DetailCallback? = null
+        var detailHandle: AiArSseService.RequestHandle? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
         val startedDetectionLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
         val startedDetailLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
@@ -287,6 +308,7 @@ class OnlineHazardDetectionServiceTest {
                 taskId = "detail",
             )
             detailCallback = callback
+            detailHandle = handle
             startedDetailLanes += request.lane
             return handle
         }
