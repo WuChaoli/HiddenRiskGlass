@@ -164,6 +164,8 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runCatching { shutterSound.release() }
         currentThumbnail?.takeIf { !it.isRecycled }?.recycle()
         currentThumbnail = null
+        // 释放 OkHttp 空闲连接，避免服务器端残留 ESTABLISHED 连接
+        aiArSseService.releaseConnections()
         super.onDestroy()
     }
 
