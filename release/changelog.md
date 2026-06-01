@@ -1,3 +1,15 @@
+### 2.0.9
+
+#### 修复
+1. **OkHttp 连接泄漏**: `AiArSseService` 复用 `HttpClientProvider.sseClient` 单例，Activity 退出时调用 `releaseConnections()` 强制关闭空闲连接，避免服务器端残留大量 `ESTABLISHED` 连接。
+2. **Cancel 分类优化**: 新增 `cancelActiveDetection()` 只取消检测请求（/ai/auto），保留深度分析请求（/ai/deep），避免用户确认隐患结果时误中断正在流式返回的深度分析。
+
+#### 文档
+1. **网络连接生命周期管理**: 更新 `hiddenrisk/README.md`，新增 OkHttp Client 复用、Activity 退出连接释放、Cancel 分类设计等章节。
+
+#### 测试
+1. **Cancel 粒度覆盖**: 新增 `OnlineHazardDetectionServiceTest.cancelActiveDetection_doesNotCancelActiveDeepAnalysis` 单元测试。
+
 ### 2.0.8
 
 #### 新增
