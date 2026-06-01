@@ -402,6 +402,10 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
             )
             button.setTextColor(getColor(R.color.green))
             button.setTypeface(null, if (index == exitConfirmSelectedIndex) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+            // 同步焦点，确保按键事件和视觉状态一致
+            if (index == exitConfirmSelectedIndex) {
+                button.requestFocus()
+            }
         }
     }
 
