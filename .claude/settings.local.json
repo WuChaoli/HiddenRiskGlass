@@ -10,5 +10,26 @@
   "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "android-adb"
-  ]
+  ],
+  "skillOverrides": {
+    "codegraph-usage": "off",
+    "openspec-apply-change": "off",
+    "openspec-archive-change": "off",
+    "openspec-explore": "off",
+    "openspec-propose": "off",
+    "opsx:apply": "off",
+    "opsx:archive": "off",
+    "opsx:explore": "off",
+    "opsx:propose": "off",
+    "source-command-opsx-apply": "off",
+    "source-command-opsx-archive": "off",
+    "source-command-opsx-explore": "off",
+    "source-command-opsx-propose": "off",
+    "wsl-android-tools": "off",
+    "wsl-windows-android-build": "off",
+    "architecture-spec": "off",
+    "codex-provider-sync": "off",
+    "doc": "off",
+    "glue-coding": "off"
+  }
 }
