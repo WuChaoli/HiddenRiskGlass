@@ -83,8 +83,8 @@ DeviceGuideActivity:
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
-| `AiArSseService.kt` | **SSE 通信核心**，封装 OkHttp SSE 请求 | `identifyItemHazard()`, `requestDeepAnalysis()`, `fetchInspectionGuide()`, `RequestHandle` |
-| `OnlineHazardDetectionService.kt` | **在线检测调度**，管理检测请求队列+超时 | `submitDetection()`, `requestDeepAnalysis()`, `cancelAll()` |
+| `AiArSseService.kt` | **SSE 通信核心**，封装 OkHttp SSE 请求；复用 `HttpClientProvider` 单例，Activity 退出时调用 `releaseConnections()` 释放空闲连接 | `identifyItemHazard()`, `requestDeepAnalysis()`, `fetchInspectionGuide()`, `RequestHandle`, `releaseConnections()` |
+| `OnlineHazardDetectionService.kt` | **在线检测调度**，管理检测请求队列+超时；支持 `cancelAll()` 和 `cancelActiveDetection()` 两种取消粒度 | `submitDetection()`, `requestDeepAnalysis()`, `cancelAll()`, `cancelActiveDetection()` |
 | `AiArEventAggregator.kt` | 聚合 SSE 事件流 | |
 | `AiArHazardDetailParser.kt` | 解析远端隐患详情 → `ResolvedHazardContent` | `parse()` |
 | `OnlineHazardAdviceFormatter.kt` | 格式化在线建议文案 | |
@@ -192,12 +192,13 @@ AiInspectionMenuActivity (点击"实时分析")
 ```
 AiInspectionActivity (DETECTING)
   → OnlineHazardDetectionService.submitDetection()
-    → AiArSseService.identifyItemHazard() → POST /ai/auto
+    → AiArSseService.identifyItemHazard() → POST /ai/auto (复用 HttpClientProvider 单例)
     → 返回 hasHazard=true?
-      → YES: 停止在线检测
+      → YES: 停止在线检测 (cancelActiveDetection() 只取消检测，保留深度分析)
       → AiArSseService.requestDeepAnalysis() → SSE /ai/deep
         → AiArHazardDetailParser.parse() → ResolvedHazardContent
         → 进入 STREAM_RESPONSE / DESCRIPTION
+  → Activity 退出: aiArSseService.releaseConnections() + onlineHazardDetectionService.shutdown()
 ```
 
 ### 链路 3：本地 fallback
@@ -236,10 +237,11 @@ HazardRecordActivity (IDLE)
 ### 链路 6：设备指引
 ```
 DeviceGuideActivity (DETECTING)
-  → runDetectionLoop() → AiArSseService.identifyItemHazard() → /ai/auto
+  → runDetectionLoop() → AiArSseService.identifyItemHazard() → /ai/auto (复用 HttpClientProvider 单例)
   → 命中 → RESULT/PROMPT (约2秒后自动)
   → AiArSseService.requestDeepAnalysis() → /ai/deep
   → RESULT/DETAIL
+  → Activity 退出: detectSseService.releaseConnections()
 ```
 
 ---
@@ -256,3 +258,34 @@ DeviceGuideActivity (DETECTING)
 
 - **被依赖（谁依赖我）：**
   - 无 — 本模块是业务顶层，其他模块不依赖此包
+
+---
+
+## 网络连接生命周期管理
+
+### OkHttp Client 复用
+
+`AiArSseService` 复用 `network/` 模块的 `HttpClientProvider.sseClient` 单例，避免每个 Activity 创建独立的 `OkHttpClient` 导致连接池泄漏。
+
+### Activity 退出连接释放
+
+所有使用 `AiArSseService` 的 Activity 在 `onDestroy()` 中必须调用 `releaseConnections()`：
+
+| Activity | 释放调用 |
+|----------|----------|
+| `AiInspectionActivity` | `aiArSseService.releaseConnections()` |
+| `DeviceGuideActivity` | `detectSseService.releaseConnections()` |
+| `HazardRecordActivity` | `aiArSseService.releaseConnections()` |
+
+`releaseConnections()` 内部执行 `client.connectionPool.evictAll()`，强制关闭所有空闲 TCP 连接，避免服务器端残留大量 `ESTABLISHED` 连接。
+
+### Cancel 分类
+
+`OnlineHazardDetectionService` 提供两种取消粒度：
+
+| 方法 | 取消范围 | 使用场景 |
+|------|---------|----------|
+| `cancelAll()` | 活跃检测请求 + 深度分析请求 | Activity 退出、页面切换 |
+| `cancelActiveDetection()` | 仅活跃检测请求（/ai/auto） | 确认隐患结果时保留深度分析 |
+
+**设计原因**：用户确认隐患结果时，后台可能仍在流式接收深度分析（/ai/deep）的 SSE 事件，此时应只停止新的检测请求，不中断正在进行的深度分析。

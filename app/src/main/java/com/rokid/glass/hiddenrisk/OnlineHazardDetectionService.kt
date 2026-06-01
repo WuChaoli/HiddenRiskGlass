@@ -117,6 +117,9 @@ internal class OnlineHazardDetectionService(
 
     fun requestDeepAnalysis(request: DetailRequest) {
         scheduler.post {
+            infoLogger(
+                "detail request queued lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} jpegBytes=${request.jpegBytes.size}",
+            )
             activeDetailHandle?.cancel()
             activeDetailHandle = null
             activeDetailRequest = request
@@ -126,6 +129,9 @@ internal class OnlineHazardDetectionService(
                     if (activeDetailRequest != request) {
                         return@detailPost
                     }
+                    infoLogger(
+                        "detail request encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} base64Chars=${base64Image.length}",
+                    )
                     activeDetailHandle = requestGateway.requestDeepAnalysis(
                         request = request,
                         base64Image = base64Image,

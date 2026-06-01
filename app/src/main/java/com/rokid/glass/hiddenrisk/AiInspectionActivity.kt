@@ -940,6 +940,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentManualAnalysisHandle = null
         clearStreamThumbnailState()
         statusBarUpdater.stop()
+        // 释放 OkHttp 空闲连接，避免服务器端残留 ESTABLISHED 连接
+        aiArSseService.releaseConnections()
         super.onDestroy()
     }
 
@@ -1502,12 +1504,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         scheduleLocalNetworkProbe()
     }
 
-    private fun stopAutoInferencePipelines(reason: String, clearPendingStreamState: Boolean = true) {
+    private fun stopAutoInferencePipelines(
+        reason: String,
+        clearPendingStreamState: Boolean = true,
+        cancelOnlineDetails: Boolean = true,
+    ) {
         logAudioPressureSnapshot(
             stage = "stop_auto_inference_pipelines:start",
-            extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState",
+            extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState cancelOnlineDetails=$cancelOnlineDetails",
         )
-        AppFileLogger.i(TAG, "stop auto inference pipelines reason=$reason")
+        AppFileLogger.i(TAG, "stop auto inference pipelines reason=$reason cancelOnlineDetails=$cancelOnlineDetails")
         autoInferenceStartRequested = false
         captureDelayScheduled = false
         localRetryPosted = false
@@ -1528,14 +1534,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(localNetworkProbeRunnable)
         InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = false)
         cameraRecoveryController.notifyConsumerWaitStopped()
-        onlineHazardDetectionService.cancelAll()
-        sceneOnlineHazardDetectionService.cancelAll()
+        if (cancelOnlineDetails) {
+            onlineHazardDetectionService.cancelAll()
+            sceneOnlineHazardDetectionService.cancelAll()
+        } else {
+            onlineHazardDetectionService.cancelActiveDetection()
+            sceneOnlineHazardDetectionService.cancelActiveDetection()
+        }
         if (clearPendingStreamState) {
             pendingStreamStart = false
         }
         logAudioPressureSnapshot(
             stage = "stop_auto_inference_pipelines:end",
-            extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState",
+            extra = "reason=$reason clearPendingStreamState=$clearPendingStreamState cancelOnlineDetails=$cancelOnlineDetails",
         )
     }
 
@@ -1967,7 +1978,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 continueOnlineInferenceAfterCompletion(request.lane)
                 return
             }
-            stopAutoInferencePipelines("accept_online_hazard_result")
+            stopAutoInferencePipelines(
+                reason = "accept_online_hazard_result",
+                cancelOnlineDetails = false,
+            )
             handleAutoDetectedOnlineHazardResult(
                 request.copy(cooldownLabels = cooldownDecision.activeLabels),
             )

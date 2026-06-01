@@ -10,6 +10,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.rokid.glass.config.AiArApiConfig
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.network.HttpClientProvider
 import com.rokid.glass.utils.AppFileLogger
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Call
@@ -133,6 +134,14 @@ class AiArSseService(
     }
 
     private val eventSourceFactory = EventSources.createFactory(client)
+
+    /**
+     * 强制关闭当前 client 的所有空闲连接。
+     * 应在 Activity 退出时调用，避免服务器端残留大量 ESTABLISHED 连接。
+     */
+    fun releaseConnections() {
+        client.connectionPool.evictAll()
+    }
 
     fun identifyItemHazard(
         base64Image: String,
@@ -801,7 +810,7 @@ class AiArSseService(
             val generalDeepAnalysisConfig = cfg.network.aiGeneralDeepApi
             val deviceGuideConfig = cfg.network.aiDeviceApi
             val suggestionChecksConfig = cfg.network.aiSuggestionChecksApi
-            val defaultClient = createDefaultClient(cfg.network.aiAutoApi)
+            val defaultClient = HttpClientProvider.sseClient
         }
 
         private fun summarizeSseLogText(text: String): String {
@@ -811,15 +820,6 @@ class AiArSseService(
             } else {
                 "${normalized.take(MAX_SSE_BODY_LOG_CHARS)}...(truncated ${normalized.length - MAX_SSE_BODY_LOG_CHARS} chars)"
             }
-        }
-
-        private fun createDefaultClient(apiConfig: AiArApiConfig): OkHttpClient {
-            return OkHttpClient.Builder()
-                .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-                .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-                .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-                .eventListenerFactory(TimingEventListenerFactory)
-                .build()
         }
 
         private fun durationOrMinusOne(startElapsedMs: Long, endElapsedMs: Long): Long {

@@ -172,6 +172,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         RokidSdkManager.removeListener(this)
         InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
+        // 释放 OkHttp 空闲连接，避免服务器端残留 ESTABLISHED 连接
+        detectSseService.releaseConnections()
         super.onDestroy()
     }
 
