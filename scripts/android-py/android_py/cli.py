@@ -59,7 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     package_parser.add_argument("--replace-current", action="store_true", help="Allow replacing current version")
 
     # get-qrcode
-    subparsers.add_parser("get-qrcode", help="Retrieve QR code")
+    qrcode_parser = subparsers.add_parser("get-qrcode", help="Retrieve QR code")
+    qrcode_parser.add_argument("--account", default=None, help="Account name (or set HZFJ_ACCOUNT_NAME env)")
+    qrcode_parser.add_argument("--code", default="21A", help="Organization code (default: 21A)")
 
     return parser
 
@@ -109,6 +111,8 @@ def main(args: list[str] | None = None) -> int:
         return run_package(replace_current=parsed.replace_current)
     elif parsed.command == "get-qrcode":
         from android_py.qrcode import run_get_qrcode
-        return run_get_qrcode()
+        account = parsed.account or __import__("os").environ.get("HZFJ_ACCOUNT_NAME", "")
+        code = parsed.code or __import__("os").environ.get("HZFJ_CODE", "21A")
+        return run_get_qrcode(account=account, code=code)
 
     return 1
