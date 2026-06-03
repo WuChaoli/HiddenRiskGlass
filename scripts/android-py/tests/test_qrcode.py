@@ -3,12 +3,6 @@ from unittest.mock import MagicMock, patch
 from android_py.qrcode import run_get_qrcode
 
 
-def test_get_qrcode_requires_account():
-    """Account name is required."""
-    result = run_get_qrcode(account="", code="21A")
-    assert result == 1
-
-
 def test_get_qrcode_login_failure():
     """Login failure returns error."""
     with patch("android_py.qrcode._http_post", return_value={"code": 500, "msg": "error"}):

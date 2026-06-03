@@ -46,10 +46,6 @@ def run_get_qrcode(account: str = "", code: str = "21A") -> int:
         account: Account name for login. Required.
         code: Organization code (default: 21A).
     """
-    if not account:
-        logger.error("Account name is required. Use --account or set HZFJ_ACCOUNT_NAME env var.")
-        return 1
-
     # Step 1: Login to get token
     logger.info("Step 1: Login to get token...")
     try:
