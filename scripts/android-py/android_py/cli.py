@@ -30,11 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # gradle
     gradle_parser = subparsers.add_parser("gradle", help="Run arbitrary Gradle task")
-    gradle_parser.add_argument("args", nargs="*", help="Gradle arguments")
+    gradle_parser.add_argument("args", nargs=argparse.REMAINDER, help="Gradle arguments")
 
     # adb
     adb_parser = subparsers.add_parser("adb", help="Run ADB command")
-    adb_parser.add_argument("args", nargs="*", help="ADB arguments")
+    adb_parser.add_argument("args", nargs=argparse.REMAINDER, help="ADB arguments")
 
     # logcat
     logcat_parser = subparsers.add_parser("logcat", help="Capture device logs")

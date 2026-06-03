@@ -8,7 +8,9 @@ from android_py.platform_ import resolve_gradle
 
 
 def run_gradle(args: list[str], project_root: Path, **kwargs) -> subprocess.CompletedProcess:
-    cmd = resolve_gradle() + args
+    gradle_cmd = resolve_gradle()
+    # Use absolute path so subprocess can find the wrapper on all platforms
+    cmd = [str(project_root / gradle_cmd[0])] + gradle_cmd[1:] + args
     env = os.environ.copy()
     # Remove localhost proxy variables to avoid Java TLS handshake failures
     for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy"]:

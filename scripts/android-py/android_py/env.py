@@ -18,8 +18,10 @@ class EnvConfig(BaseSettings):
     win_android_adb: Path | None = None
     release_keystore_path: Path | None = None
     release_key_alias: str | None = None
+    release_keystore_password: str | None = None
     release_key_password: str | None = None
     release_cert_sha256: str | None = None
+    debug_keystore_path: Path | None = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

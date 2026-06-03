@@ -40,13 +40,15 @@ def run_doctor(device: bool = False) -> int:
     ok = True
 
     # Check JAVA_HOME
+    import sys
+    java_exe = "java.exe" if sys.platform == "win32" else "java"
     if not _check_dir(env.java_home, "JAVA_HOME"):
         ok = False
-    elif not _check_file(env.java_home / "bin" / "java", "java executable"):
+    elif not _check_file(env.java_home / "bin" / java_exe, "java executable"):
         ok = False
     else:
         try:
-            result = subprocess.run([str(env.java_home / "bin" / "java"), "-version"], capture_output=True, text=True)
+            result = subprocess.run([str(env.java_home / "bin" / java_exe), "-version"], capture_output=True, text=True)
             logger.info(f"JAVA_HOME={env.java_home} (java -version returned {result.returncode})")
         except Exception as e:
             logger.error(f"Failed to run java: {e}")
