@@ -7,6 +7,8 @@ import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.client.IServiceConnectionCallback
 import com.rokid.security.system.server.IClientCallback
 import com.rokid.security.system.server.device.IDeviceService
+import com.rokid.security.system.server.device.listener.IAppVisibilityListener
+import com.rokid.glass.utils.AppFileLogger
 import java.util.concurrent.CopyOnWriteArraySet
 
 object RokidSdkManager {
@@ -36,6 +38,9 @@ object RokidSdkManager {
     private var deviceService: IDeviceService? = null
 
     @Volatile
+    private var appVisibilityConfigurationStarted = false
+
+    @Volatile
     var state: SdkState = SdkState.IDLE
         private set
 
@@ -58,6 +63,7 @@ object RokidSdkManager {
 
             deviceService = serviceResult.getOrNull()
             updateState(SdkState.READY, null)
+            configureAppVisibilityOnce()
         }
     }
 
@@ -162,6 +168,7 @@ object RokidSdkManager {
 
                 deviceService = deviceServiceResult.getOrNull()
                 updateState(SdkState.READY, null)
+                configureAppVisibilityOnce()
                 return
             }
 
@@ -187,4 +194,36 @@ object RokidSdkManager {
             listeners.forEach { it.onSdkStateChanged(newState) }
         }
     }
+
+    private fun configureAppVisibilityOnce() {
+        synchronized(stateLock) {
+            if (appVisibilityConfigurationStarted) {
+                return
+            }
+            appVisibilityConfigurationStarted = true
+        }
+
+        val service = deviceService
+        if (service == null) {
+            AppFileLogger.e(TAG, "configureAppVisibility skipped: device service unavailable")
+            return
+        }
+
+        val config = AppVisibilityConfigFactory.create()
+        AppFileLogger.i(TAG, "configureAppVisibility request config=$config")
+        runCatching {
+            service.configureAppVisibility(
+                config,
+                object : IAppVisibilityListener.Stub() {
+                    override fun onResult(success: Boolean) {
+                        AppFileLogger.i(TAG, "configureAppVisibility result success=$success")
+                    }
+                },
+            )
+        }.onFailure { error ->
+            AppFileLogger.e(TAG, "configureAppVisibility failed", error)
+        }
+    }
+
+    private const val TAG = "RokidSdkManager"
 }
