@@ -1,12 +1,15 @@
 # Rokid SDK / OTA / 共享预览兼容参考
 
-## 当前基线
+## 当前版本基线
 
 这是当前主技能的版本真相源。
 
-- 当前仓库 SDK 基线：`com.rokid.security:glass3.open.sdk:2.1.9-E`
-- 当前推荐 OTA 基线：`1.17.e002-20260509-150201` 及以上
-- 来源：`app/build.gradle`
+- 当前仓库 SDK 基线：`com.rokid.security:glass3.open.sdk:2.2.0-E`
+- 官方最新眼镜端 SDK：`com.rokid.security:glass3.open.sdk:2.2.0-E`（2026-06-05）
+- 官方推荐 OTA：`1.17.e002-20260509-150201` 及以上
+- 官方最低 SDK 要求：`2.1.8-E`
+- 仓库版本来源：`app/build.gradle`
+- 官方版本来源：Rokid Sprite Enterprise 版本变更日志
 - 当前技能判断优先级：代码现状 > 官方 changelog > 历史摘录
 
 处理版本敏感任务时，不要只引用旧技能文案或单个 changelog 切片。
@@ -20,6 +23,28 @@
 3. 该 changelog 对应的推荐 OTA 基线
 4. 本仓库实际 call site 是否命中受影响接口
 5. 共享预览和统一输入是否依赖了该版本新增的语义
+
+## `2.2.0-E` 眼镜端 Wi-Fi 能力
+
+`IDeviceService` 新增以下接口：
+
+- `connectWifi(WifiConnectRequest, IWifiOperationCallback)`：异步连接指定 Wi-Fi。
+- `removeWifi(WifiRemoveRequest, IWifiOperationCallback)`：异步移除指定 Wi-Fi 配置。
+- `getConnectedWifiList()`：获取系统保存的 Wi-Fi 记录并合并当前连接信息。
+- `getCurrentWifiInfo()`：获取当前已连接或正在连接的 Wi-Fi 信息；无连接时返回 `null`。
+
+接入时遵守以下约束：
+
+- `connectWifi(...)` 和 `removeWifi(...)` 返回不代表操作完成，最终结果以 callback 为准；callback 可以为空。
+- 支持 open、WEP、WPA/WPA2-PSK、WPA3-SAE、WPA/WPA2-Enterprise、WPA3-Enterprise 和 WPA2/WPA3 自动模式。
+- `ssid` 必填且调用方不需要额外添加双引号。
+- PSK/SAE 密码必须为 8-63 位，或 64 位十六进制 PSK。
+- Enterprise 场景需要提供 enterprise 配置，建议同时配置 CA 证书和 `domainSuffixMatch`。
+- 移除网络时优先按 `networkId` 精确匹配，否则按 `ssid`/`bssid` 匹配；同名 AP 建议提供 `bssid`。
+- 历史网络通常只有 `ssid`、`networkId`、`securityType` 和 `hiddenSsid`，`bssid`、`rssi`、IP 等实时字段可能为空或为默认值。
+- 受系统可见性限制时，`getConnectedWifiList()` 可能只返回当前连接信息。
+
+当前仓库已升级到 `2.2.0-E`，并在应用启动入口采用 `connectWifi(...)` 完成标准 Wi-Fi 二维码联网。其余 Wi-Fi 管理 API 尚未采用，不要自动扩展现有 Wi-Fi 链路。
 
 ## 当前仓库依赖的共享预览语义
 
