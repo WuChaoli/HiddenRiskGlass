@@ -1,0 +1,9 @@
+{
+  "versionCode": 2,
+  "versionName": "2.0.4",
+  "apkUrl": "http://192.168.1.152:8080/releases/latest/app.apk",
+  "sha256": "6ec70b6c3cd4df7fada902ca54098d9a5e917d261046a4a045fab484d1c9c6da",
+  "sizeBytes": 111416171,
+  "releaseNotes": "测试局域网 APK 更新",
+  "mandatory": false
+}

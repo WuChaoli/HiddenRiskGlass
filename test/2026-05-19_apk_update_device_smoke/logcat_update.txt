@@ -1,0 +1,39 @@
+05-19 11:42:25.875  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:am start -n com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity --ez force_loading_flow true
+05-19 11:42:25.965  1251  1373 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (has extras)} from uid 2000
+05-19 11:42:25.966  1251  1373 D ActivityStarter: Background activity start allowed: START_ACTIVITIES_FROM_BACKGROUND permission granted for uid 2000
+05-19 11:42:26.084  1251  1284 I ActivityManager: Start proc 6046:com.rokid.glesse/u0a66 for pre-top-activity {com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity}
+05-19 11:42:28.688  6046  6046 E startActivity: com.rokid.glass.hiddenrisk.InspectionLoadingActivity
+05-19 11:42:28.730  1251  6022 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity, true, booted=true
+05-19 11:42:29.108  6046  6046 I InspectionLoading: SDK state=BINDING
+05-19 11:42:29.154  1251  1274 I ActivityMetricsLogger: Displayed com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity: +3s157ms
+05-19 11:42:29.222  6046  6046 I InspectionLoading: SDK state=BINDING
+05-19 11:42:29.231  6046  6046 I InspectionLoading: 统一输入语音注册成功: 退出
+05-19 11:42:29.343  1251  5634 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras)} from uid 10066
+05-19 11:42:29.344  1251  5634 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:42:29.381  6046  6046 I InspectionLoading: SDK state=READY
+05-19 11:42:29.573  6046  6046 E startActivity: com.rokid.glass.updater.AppUpdatePromptActivity
+05-19 11:42:29.592  1251  1266 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, true, booted=true
+05-19 11:42:29.681  6046  6046 I AppUpdatePrompt: 统一输入语音注册成功: 立即安装, 跳过本次
+05-19 11:42:29.683  1251  1274 I ActivityMetricsLogger: Displayed com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity: +334ms
+05-19 11:42:29.863  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:29.878  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:30.768  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=0, flags=0, keyCode=0, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:30.779  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=1, flags=0, keyCode=0, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:31.203   872  6042 I iorapd  : Perfetto TraceBuffer saved to file: /data/misc/iorapd/com.rokid.glesse/1/com.rokid.glass.hiddenrisk.InspectionLoadingActivity/raw_traces/1779162151161455015.perfetto_trace.pb
+05-19 11:42:32.995  1251  1266 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity} from uid 10066
+05-19 11:42:32.996  1251  1266 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:42:33.155  1251  5385 W InputManager-JNI: Input channel object '781bef0 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (client)' was disposed without first being removed with the input manager!
+05-19 11:42:33.170  1251  1282 W UsageStatsService: Unexpected activity event reported! (com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity event : 23 instanceId : 83928457)
+05-19 11:42:33.583  6046  6046 E startActivity: com.rokid.glass.EnterpriseQrScanActivity
+05-19 11:42:33.731  1251  5634 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, true, booted=true
+05-19 11:42:35.107  1251  1274 I ActivityMetricsLogger: Displayed com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity: +2s101ms
+05-19 11:42:37.341   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.404   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.507   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.641   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:89 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:46.421  1251  5634 I ActivityStarter: START u0 {act=android.intent.action.VIEW dat=content://com.rokid.glesse.appupdate.fileprovider/app_updates/latest.apk typ=application/vnd.android.package-archive flg=0x10000001 cmp=com.android.packageinstaller/.InstallStart} from uid 10066
+05-19 11:42:46.422  1251  5634 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:42:46.624  1251  5634 W StartingSurfaceController: TaskSnapshotSurface.create: Failed to find top fullscreen for task=Task{2fc5bb3 #35 type=standard A=10026:com.android.packageinstaller U=0 visible=true visibleRequested=false mode=fullscreen translucent=true sz=2}
+05-19 11:42:47.133  1251  1277 W ActivityRecord: Activity pause timeout for ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+05-19 11:42:47.601  1251  3582 D ActivityRecord: setupResumeState: com.android.packageinstaller/.PackageInstallerActivity, true, booted=true
+05-19 11:42:47.660  5976  5993 I AdrenoGLES-0: Process Name                     : com.android.packageinstaller

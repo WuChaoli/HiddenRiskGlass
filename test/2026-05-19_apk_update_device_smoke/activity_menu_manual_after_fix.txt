@@ -1,0 +1,19 @@
+    mLastPausedActivity: ActivityRecord{b91ee76 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t42}
+    topResumedActivity=ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+    * Hist  #1: ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+      Intent { cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity }
+      mActivityComponent=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity
+      windows=[Window{d08ed03 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}]
+    * Hist  #0: ActivityRecord{b91ee76 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t42}
+      Intent { cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras) }
+      mActivityComponent=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity
+      windows=[Window{9454d49 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity}]
+    Resumed: ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+  ResumedActivity: ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+  deepestLastOrientationSource=ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+  mCurrentFocus=Window{d08ed03 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}
+  mFocusedApp=ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+        * ActivityRecord{ed3895a u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t42}
+        * ActivityRecord{b91ee76 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t42}
+    mFocusedWindow=Window{d08ed03 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}
+    mTopFullscreenOpaqueWindowState=Window{d08ed03 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}

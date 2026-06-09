@@ -1,0 +1,311 @@
+--------- beginning of main
+05-19 13:56:16.078 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 18MB/73MB, paused 402us,89us total 149.717ms
+--------- beginning of kernel
+05-19 13:56:16.456 I/[dp_rx_][0x1a64a89787][13:56:16.441111] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:16.661 I/[dp_rx_][0x1a64e4973d][13:56:16.645908] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:17.561 I/om.rokid.gless( 4927): Background concurrent copying GC freed 50(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 129us,87us total 165.823ms
+05-19 13:56:18.604 I/[dp_rx_][0x1a671dcfe2][13:56:18.588849] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:18.832 W/cam_common_util_thread_switch_delay_detect( 4859): 1 callbacks suppressed
+05-19 13:56:18.832 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5902:287750 cur 5902:297807 diff 10: threshold 5
+05-19 13:56:18.834 I/(virq   ( 3022): irq_count)- GICv3:IPI(1):12862799 GICv3:arch_timer(11):5681405 ipcc:glink-native-adsp(363):794940 GICv3:ipcc_0(32):724584 GICv3:apps_rsc(22):654462 GICv3:190b6400.qcom,bwmon-llcc(26):495761 GICv3:IPI(6):429576 GICv3:IPI(2):396455 GICv3:kgsl_hfi_irq(176):355289 GICv3:msm_drm(249):325694
+05-19 13:56:18.834 I/(cpu    ( 3022): irq_count)- 0:7067482 1:6359512 2:4963874 3:4908181
+05-19 13:56:18.834 I/(ipi    ( 3022): irq_count)- 0:12862800 1:396455 2:0 3:0 4:0 5:429576 6:0
+05-19 13:56:18.819 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 116us,91us total 156.995ms
+05-19 13:56:19.323 I/[dp_rx_][0x1a67f0882f][13:56:19.308107] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:19.725 W/healthd (  791): battery l=100 v=4487 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 13:56:19.731 I/[dp_rx_][0x1a6867dd42][13:56:19.715428] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:19.903 W/FG_CW221X( 3022): cw_update_data-575 : vol = 4487  current = 0 cap = 100 temp = 295
+05-19 13:56:20.018 W/healthd (  791): battery l=100 v=4487 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 13:56:20.073 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 123us,84us total 148.505ms
+05-19 13:56:20.205 I/SystemServer( 1963): GlassP2PConnectControl isNeedCloseWifiP2P:  isSendH264Stream = false,  isSendingFile = false, isReceivingFile = false, mKeepP2pConnectSwitch = false
+05-19 13:56:20.207 I/SystemServer( 1963): GlassP2PConnectControl isNeedCloseWifiP2P ret = true
+05-19 13:56:20.216 I/SystemServer( 1963): GlassP2PConnectControl isWifiConnected: hasConnectWifi = true
+05-19 13:56:20.217 I/SystemServer( 1963): GlassP2PConnectControl 重新计时
+05-19 13:56:20.217 I/SystemServer( 1963): GlassP2PConnectControl startCountDown: 
+05-19 13:56:20.654 I/[dp_rx_][0x1a69763c06][13:56:20.638292] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:21.150 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:56:21.348 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 165us,93us total 150.543ms
+05-19 13:56:21.416 D/RokidESecurity( 2225): DeviceStatusManager:: Storage status checked: 17368MB available
+05-19 13:56:21.416 D/DeviceStatusManager::( 2225): checkStorageStatus availableMB:17368
+05-19 13:56:21.228 I/CAM_WARN( 3398): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5904:686683 cur 5904:694235 diff 7: threshold 5
+05-19 13:56:21.676 I/[dp_rx_][0x1a6aa1e82b][13:56:21.661174] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:21.965 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 37(31KB) AllocSpace objects, 18(53MB) LOS objects, 74% free, 15MB/62MB, paused 1.413ms,182us total 101.564ms
+05-19 13:56:22.614 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 165us,108us total 152.777ms
+05-19 13:56:22.803 I/[dp_rx_][0x1a6bebdb30][13:56:22.787400] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+--------- beginning of system
+05-19 13:56:22.825 V/DisplayPowerController[0]( 1260): Brightness [0.0] reason changing to: 'manual [ dim ]', previous reason: 'manual'.
+05-19 13:56:22.826 E/DisplayDeviceConfig( 1260): requesting nits when no mapping exists.
+05-19 13:56:22.827 E/DisplayDeviceConfig( 1260): requesting nits when no mapping exists.
+05-19 13:56:22.829 I/DropBoxManagerService( 1260): add tag=system_server_wtf isTagEnabled=true flags=0x2
+05-19 13:56:22.832 I/DropBoxManagerService( 1260): add tag=system_server_wtf isTagEnabled=true flags=0x2
+05-19 13:56:23.305 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:56:23.305 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:56:23.827 I/[dp_rx_][0x1a6d181e3c][13:56:23.812294] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:23.888 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 144us,86us total 163.238ms
+05-19 13:56:24.970 I/[dp_rx_][0x1a6e66e54a][13:56:24.955002] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:25.140 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 151us,756us total 146.364ms
+05-19 13:56:26.080 I/[dp_rx_][0x1a6fac19d3][13:56:26.065036] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:26.413 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 117us,87us total 148.479ms
+05-19 13:56:26.549 I/CNSS    (  886): cnss_open_log_file: directory /data/vendor/wifi/wlan_logs/ created
+05-19 13:56:27.672 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 125us,84us total 146.916ms
+05-19 13:56:27.821 I/[dp_rx_][0x1a71aa26a1][13:56:27.806006] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:28.306 I/(virq   ( 3022): irq_count)- GICv3:IPI(1):12891005 GICv3:arch_timer(11):5691908 ipcc:glink-native-adsp(363):800364 GICv3:ipcc_0(32):728199 GICv3:apps_rsc(22):655098 GICv3:190b6400.qcom,bwmon-llcc(26):495835 GICv3:IPI(6):430776 GICv3:IPI(2):400259 GICv3:kgsl_hfi_irq(176):356135 GICv3:msm_drm(249):325694
+05-19 13:56:28.306 I/(cpu    ( 3022): irq_count)- 0:7088939 1:6374473 2:4974920 3:4919396
+05-19 13:56:28.306 I/(ipi    ( 3022): irq_count)- 0:12891005 1:400259 2:0 3:0 4:0 5:430776 6:0
+05-19 13:56:28.829 W/cam_common_util_thread_switch_delay_detect( 4859): 1 callbacks suppressed
+05-19 13:56:28.829 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5912:286342 cur 5912:295284 diff 8: threshold 5
+05-19 13:56:28.845 I/[dp_rx_][0x1a72d5fd19][13:56:28.829452] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:28.956 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 146us,86us total 160.635ms
+05-19 13:56:29.255 I/[dp_rx_][0x1a734e13ad][13:56:29.239354] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:29.391 I/turen   ( 1963): [R2][01:38:08.000] [src/R2Module.cpp     104]D R2In: 2000 loops, average: 24.
+05-19 13:56:29.392 I/turen   ( 1963): [R2][01:38:08.000] [src/R2Module.cpp     104]D R2Rdc: 2000 loops, average: 2.
+05-19 13:56:30.180 I/[dp_rx_][0x1a745d3698][13:56:30.164833] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:30.206 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 18MB/73MB, paused 515us,87us total 147.944ms
+05-19 13:56:30.381 I/[dp_rx_][0x1a749813ec][13:56:30.365757] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:31.151 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:56:31.302 I/[dp_rx_][0x1a75a60bb0][13:56:31.287247] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:31.694 I/om.rokid.gless( 4927): Background concurrent copying GC freed 50(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 143us,95us total 162.652ms
+05-19 13:56:32.303 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 37(31KB) AllocSpace objects, 18(53MB) LOS objects, 74% free, 15MB/62MB, paused 1.971ms,82us total 107.924ms
+05-19 13:56:32.372 I/turen   ( 1963): [R2][01:38:10.976] [src/R2Module.cpp     104]D R2Rs: 2000 loops, average: 71.
+05-19 13:56:32.373 I/turen   ( 1963): [R2][01:38:10.976] [src/R2Module.cpp     288]D <Thread> R2Engine: 2000 loops, average: 366
+05-19 13:56:32.946 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 137us,133us total 150.796ms
+05-19 13:56:33.297 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:56:33.297 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:56:33.455 I/[dp_rx_][0x1a781cc27a][13:56:33.440084] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:33.965 I/[dp_rx_][0x1a78b21960][13:56:33.949830] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:34.217 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 164us,92us total 155.316ms
+05-19 13:56:34.682 I/[dp_rx_][0x1a79841b13][13:56:34.666652] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:35.481 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 1.919ms,107us total 152.676ms
+05-19 13:56:35.494 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5918:951914 cur 5918:959891 diff 7: threshold 5
+05-19 13:56:35.502 I/[dp_rx_][0x1a7a744144][13:56:35.486362] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:35.809 I/[dp_rx_][0x1a7ace46b5][13:56:35.793634] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:10:82:3d:f0:64:8f DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:35.910 I/[dp_rx_][0x1a7aebdcc5][13:56:35.894621] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:10:82:3d:f0:64:8f DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:36.627 I/[dp_rx_][0x1a7bbe133c][13:56:36.612148] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:36.741 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 136us,91us total 149.231ms
+05-19 13:56:36.832 I/[dp_rx_][0x1a7bfa12c2][13:56:36.816941] kiwi_v2( 1580): [1580:I:QDF] DHCP-O RX: SA:c0:b8:e6:4d:7f:bc DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:36.820 D/DhcpClient( 1260): Received packet: 10:82:3d:f0:64:8f OFFER, ip /192.168.1.84, mask /255.255.255.0, DNS servers: /202.101.172.35 /202.101.172.47 , gateways [/192.168.1.1], lease time 43200, domain null
+05-19 13:56:37.362 I/CAM_WARN( 3261): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5920:819785 cur 5920:828175 diff 8: threshold 5
+05-19 13:56:37.651 I/[dp_rx_][0x1a7cea1085][13:56:37.636111] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:37.778 I/(virq   ( 4713): irq_count)- GICv3:IPI(1):12919200 GICv3:arch_timer(11):5702523 ipcc:glink-native-adsp(363):805788 GICv3:ipcc_0(32):731832 GICv3:apps_rsc(22):655717 GICv3:190b6400.qcom,bwmon-llcc(26):495907 GICv3:IPI(6):432049 GICv3:IPI(2):404502 GICv3:kgsl_hfi_irq(176):356981 GICv3:msm_drm(249):325694
+05-19 13:56:37.778 I/(cpu    ( 4713): irq_count)- 0:7110347 1:6389230 2:4986598 3:4930554
+05-19 13:56:37.778 I/(ipi    ( 4713): irq_count)- 0:12919201 1:404502 2:0 3:0 4:0 5:432049 6:0
+05-19 13:56:38.010 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 126us,132us total 151.206ms
+05-19 13:56:38.880 I/[dp_rx_][0x1a7e521800][13:56:38.865011] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:39.279 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 120us,85us total 154.723ms
+05-19 13:56:40.007 I/[dp_rx_][0x1a7f9c123b][13:56:39.991334] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:40.549 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 127us,93us total 155.939ms
+05-19 13:56:40.723 I/[dp_rx_][0x1a806e1117][13:56:40.708119] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:41.152 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:56:41.810 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 134us,94us total 150.103ms
+05-19 13:56:41.953 I/[dp_rx_][0x1a81d6789b][13:56:41.938299] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:42.441 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 37(31KB) AllocSpace objects, 19(56MB) LOS objects, 79% free, 12MB/62MB, paused 108us,73us total 107.794ms
+05-19 13:56:42.781 I/[dp_rx_][0x1a82c8cf01][13:56:42.765478] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:43.127 I/om.rokid.gless( 4927): Background concurrent copying GC freed 47(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 132us,196us total 157.290ms
+05-19 13:56:43.270 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:56:43.270 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:56:44.103 I/[dp_rx_][0x1a844c1030][13:56:44.087307] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:44.378 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 114us,89us total 152.514ms
+05-19 13:56:45.024 I/[dp_rx_][0x1a855a0785][13:56:45.008791] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:45.331 I/[dp_rx_][0x1a85b3f160][13:56:45.315698] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:45.655 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 18MB/73MB, paused 813us,91us total 158.046ms
+05-19 13:56:46.172 I/[dp_rx_][0x1a86aa7669][13:56:46.157150] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:46.374 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 44(31KB) AllocSpace objects, 21(62MB) LOS objects, 70% free, 21MB/73MB, paused 2.844ms,89us total 112.482ms
+05-19 13:56:47.128 I/om.rokid.gless( 4927): Background concurrent copying GC freed 50(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 145us,92us total 166.222ms
+05-19 13:56:47.250 I/(virq   ( 3022): irq_count)- GICv3:IPI(1):12947051 GICv3:arch_timer(11):5713032 ipcc:glink-native-adsp(363):811194 GICv3:ipcc_0(32):735446 GICv3:apps_rsc(22):656359 GICv3:190b6400.qcom,bwmon-llcc(26):495980 GICv3:IPI(6):433246 GICv3:IPI(2):408621 GICv3:kgsl_hfi_irq(176):357828 GICv3:msm_drm(249):325694
+05-19 13:56:47.250 I/(cpu    ( 3022): irq_count)- 0:7131720 1:6403980 2:4997917 3:4941474
+05-19 13:56:47.251 I/(ipi    ( 3022): irq_count)- 0:12947051 1:408621 2:0 3:0 4:0 5:433246 6:0
+05-19 13:56:48.380 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 214us,87us total 154.644ms
+05-19 13:56:48.506 I/[dp_rx_][0x1a89560e32][13:56:48.490480] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:49.120 I/[dp_rx_][0x1a8a0a2c09][13:56:49.105278] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:49.633 I/[dp_rx_][0x1a8aa06240][13:56:49.618001] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:49.639 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 12MB/50MB, paused 153us,112us total 149.033ms
+05-19 13:56:50.455 I/[dp_rx_][0x1a8b914668][13:56:50.440243] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:50.616 W/FG_CW221X( 4113): cw_update_data-575 : vol = 4487  current = 0 cap = 100 temp = 295
+05-19 13:56:50.636 I/om.rokid.gless( 4927): Background concurrent copying GC freed 37(32KB) AllocSpace objects, 16(47MB) LOS objects, 75% free, 15MB/62MB, paused 110us,87us total 143.904ms
+05-19 13:56:50.735 W/healthd (  791): battery l=100 v=4487 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 13:56:51.154 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:56:51.421 D/RokidESecurity( 2225): DeviceStatusManager:: Storage status checked: 17396MB available
+05-19 13:56:51.421 D/DeviceStatusManager::( 2225): checkStorageStatus availableMB:17396
+05-19 13:56:51.476 I/[dp_rx_][0x1a8cbc2d43][13:56:51.460494] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:51.929 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 158us,112us total 165.920ms
+05-19 13:56:51.892 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5935:349084 cur 5935:358452 diff 9: threshold 5
+05-19 13:56:52.705 I/[dp_rx_][0x1a8e24488b][13:56:52.689658] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:53.181 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 126us,98us total 150.098ms
+05-19 13:56:53.412 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:56:53.412 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:56:53.728 I/[dp_rx_][0x1a8f501ef6][13:56:53.713104] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:53.831 I/[dp_rx_][0x1a8f6e2f72][13:56:53.815724] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:54.436 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 15MB/62MB, paused 496us,87us total 149.481ms
+05-19 13:56:54.856 I/[dp_rx_][0x1a909a8006][13:56:54.840798] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:55.642 I/om.rokid.gless( 4927): Background concurrent copying GC freed 42(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 134us,94us total 148.433ms
+05-19 13:56:55.674 I/[dp_rx_][0x1a918a40ea][13:56:55.659157] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:56.723 I/(virq   ( 3022): irq_count)- GICv3:IPI(1):12975117 GICv3:arch_timer(11):5723312 ipcc:glink-native-adsp(363):816573 GICv3:ipcc_0(32):739027 GICv3:apps_rsc(22):656974 GICv3:190b6400.qcom,bwmon-llcc(26):496049 GICv3:IPI(6):434540 GICv3:IPI(2):412773 GICv3:kgsl_hfi_irq(176):358671 GICv3:msm_drm(249):325694
+05-19 13:56:56.723 I/(cpu    ( 3022): irq_count)- 0:7153031 1:6418705 2:5009268 3:4952676
+05-19 13:56:56.723 I/(ipi    ( 3022): irq_count)- 0:12975128 1:412779 2:0 3:0 4:0 5:434540 6:0
+05-19 13:56:56.801 I/[dp_rx_][0x1a92d4392c][13:56:56.785453] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:56.914 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 1.082ms,81us total 156.702ms
+05-19 13:56:57.927 I/[dp_rx_][0x1a941e40cd][13:56:57.911955] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:58.176 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 12MB/50MB, paused 140us,95us total 153.165ms
+05-19 13:56:58.160 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5941:614492 cur 5941:626267 diff 11: threshold 5
+05-19 13:56:59.157 I/[dp_rx_][0x1a9586a3bc][13:56:59.142074] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:56:59.213 I/om.rokid.gless( 4927): Background concurrent copying GC freed 39(32KB) AllocSpace objects, 16(47MB) LOS objects, 75% free, 15MB/62MB, paused 148us,95us total 154.092ms
+05-19 13:56:59.975 I/[dp_rx_][0x1a96765aea][13:56:59.960303] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:00.284 I/[dp_rx_][0x1a96d0a50e][13:57:00.268492] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:00.483 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 127us,81us total 159.836ms
+05-19 13:57:01.102 I/[dp_rx_][0x1a97c04553][13:57:01.086416] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:01.155 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:57:01.625 W/cam_common_util_thread_switch_delay_detect( 4859): 1 callbacks suppressed
+05-19 13:57:01.750 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 163us,98us total 158.146ms
+05-19 13:57:03.007 I/om.rokid.gless( 4927): Background concurrent copying GC freed 46(48KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 12MB/50MB, paused 168us,81us total 154.388ms
+05-19 13:57:01.625 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5945:081589 cur 5945:090865 diff 9: threshold 5
+05-19 13:57:03.359 I/[dp_rx_][0x1a9a55c0a1][13:57:03.344273] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:03.348 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:57:03.348 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:57:03.866 I/[dp_rx_][0x1a9aea36d7][13:57:03.851023] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:03.994 I/om.rokid.gless( 4927): Background concurrent copying GC freed 36(32KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 15MB/62MB, paused 1.202ms,92us total 141.132ms
+05-19 13:57:04.022 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5947:480800 cur 5947:487741 diff 6: threshold 5
+05-19 13:57:04.586 I/[dp_rx_][0x1a9bbd1b35][13:57:04.570867] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:05.089 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5948:548225 cur 5948:555027 diff 6: threshold 5
+05-19 13:57:05.199 I/[dp_rx_][0x1a9c70a1c6][13:57:05.183649] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:05.217 I/om.rokid.gless( 4927): Background concurrent copying GC freed 43(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 126us,79us total 159.645ms
+05-19 13:57:06.194 I/(virq   ( 3261): irq_count)- GICv3:IPI(1):13003181 GICv3:arch_timer(11):5733555 ipcc:glink-native-adsp(363):821963 GICv3:ipcc_0(32):742623 GICv3:apps_rsc(22):657604 GICv3:190b6400.qcom,bwmon-llcc(26):496117 GICv3:IPI(6):435838 GICv3:IPI(2):416917 GICv3:kgsl_hfi_irq(176):359519 GICv3:msm_drm(249):325694
+05-19 13:57:06.194 I/(cpu    ( 3261): irq_count)- 0:7174553 1:6433363 2:5020490 3:4963638
+05-19 13:57:06.194 I/(ipi    ( 3261): irq_count)- 0:13003182 1:416917 2:0 3:0 4:0 5:435838 6:0
+05-19 13:57:06.425 W/cam_common_util_thread_switch_delay_detect( 4859): 1 callbacks suppressed
+05-19 13:57:06.425 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5949:880291 cur 5949:891239 diff 10: threshold 5
+05-19 13:57:06.426 I/[dp_rx_][0x1a9dd81d0d][13:57:06.410678] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:06.481 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 113us,125us total 159.102ms
+05-19 13:57:06.940 I/[dp_rx_][0x1a9e6ec055][13:57:06.924856] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:07.748 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 117us,84us total 159.646ms
+05-19 13:57:07.754 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5951:213508 cur 5951:220151 diff 6: threshold 5
+05-19 13:57:08.688 I/[dp_rx_][0x1aa06ede46][13:57:08.672881] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:08.988 I/[dp_rx_][0x1aa0c6dd3b][13:57:08.973242] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:09.010 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 115us,90us total 156.194ms
+05-19 13:57:09.638 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 35(31KB) AllocSpace objects, 18(53MB) LOS objects, 74% free, 15MB/62MB, paused 523us,232us total 110.970ms
+05-19 13:57:10.011 I/[dp_rx_][0x1aa1f270db][13:57:09.995797] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:10.279 I/om.rokid.gless( 4927): Background concurrent copying GC freed 47(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 113us,79us total 157.918ms
+05-19 13:57:10.625 I/[dp_rx_][0x1aa2a64b06][13:57:10.609691] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:11.156 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:57:11.544 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 116us,83us total 156.879ms
+05-19 13:57:11.751 I/[dp_rx_][0x1aa3f053c7][13:57:11.736208] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:12.811 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 114us,83us total 154.390ms
+05-19 13:57:12.821 I/CAM_WARN( 4113): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5956:281054 cur 5956:287118 diff 6: threshold 5
+05-19 13:57:12.984 I/[dp_rx_][0x1aa5595a22][13:57:12.968506] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:13.483 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:57:13.483 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:57:14.070 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 126us,77us total 149.043ms
+05-19 13:57:14.107 I/[dp_rx_][0x1aa6a2605b][13:57:14.091576] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:14.620 I/[dp_rx_][0x1aa738abf6][13:57:14.604584] kiwi_v2( 1580): [1580:I:QDF] DHCP-IN RX: SA:ac:12:03:e2:ec:12 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:14.661 W/cam_common_util_thread_switch_delay_detect( 3398): 1 callbacks suppressed
+05-19 13:57:14.661 I/CAM_WARN( 3398): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5958:117984 cur 5958:127280 diff 9: threshold 5
+05-19 13:57:14.924 I/[dp_rx_][0x1aa791bd32][13:57:14.908600] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:15.233 I/[dp_rx_][0x1aa7ec52a5][13:57:15.217793] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:15.358 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 18MB/73MB, paused 707us,77us total 168.368ms
+05-19 13:57:15.666 I/(virq   ( 3261): irq_count)- GICv3:IPI(1):13031552 GICv3:arch_timer(11):5743675 ipcc:glink-native-adsp(363):827366 GICv3:ipcc_0(32):746231 GICv3:apps_rsc(22):658214 GICv3:190b6400.qcom,bwmon-llcc(26):496187 GICv3:IPI(6):437151 GICv3:IPI(2):420841 GICv3:kgsl_hfi_irq(176):360367 GICv3:msm_drm(249):325694
+05-19 13:57:15.666 I/(cpu    ( 3261): irq_count)- 0:7195770 1:6448203 2:5031878 3:4974607
+05-19 13:57:15.666 I/(ipi    ( 3261): irq_count)- 0:13031553 1:420841 2:0 3:0 4:0 5:437151 6:0
+05-19 13:57:16.055 I/[dp_rx_][0x1aa8dd156d][13:57:16.039590] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:16.823 W/cam_common_util_thread_switch_delay_detect( 4113): 2 callbacks suppressed
+05-19 13:57:16.821 I/om.rokid.gless( 4927): Background concurrent copying GC freed 50(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 171us,79us total 169.020ms
+05-19 13:57:16.823 I/CAM_WARN( 4113): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5960:281543 cur 5960:288840 diff 7: threshold 5
+05-19 13:57:17.691 I/[dp_rx_][0x1aaabc5855][13:57:17.675469] kiwi_v2( 1580): [1580:I:QDF] DHCP-IN RX: SA:ac:12:03:e2:ec:12 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:18.074 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 124us,82us total 152.330ms
+05-19 13:57:18.512 I/[dp_rx_][0x1aabacdc08][13:57:18.496426] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:18.819 I/[dp_rx_][0x1aac07025f][13:57:18.804136] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:19.343 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 136us,81us total 155.813ms
+05-19 13:57:19.636 I/[dp_rx_][0x1aacf64b5e][13:57:19.620896] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:19.721 W/healthd (  791): battery l=100 v=4487 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 13:57:20.219 I/SystemServer( 1963): GlassP2PConnectControl isNeedCloseWifiP2P:  isSendH264Stream = false,  isSendingFile = false, isReceivingFile = false, mKeepP2pConnectSwitch = false
+05-19 13:57:20.220 I/SystemServer( 1963): GlassP2PConnectControl isNeedCloseWifiP2P ret = true
+05-19 13:57:20.225 I/SystemServer( 1963): GlassP2PConnectControl isWifiConnected: hasConnectWifi = true
+05-19 13:57:20.225 I/SystemServer( 1963): GlassP2PConnectControl 重新计时
+05-19 13:57:20.226 I/SystemServer( 1963): GlassP2PConnectControl startCountDown: 
+05-19 13:57:20.253 I/[dp_rx_][0x1aadaaf636][13:57:20.237574] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:20.611 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 130us,78us total 159.454ms
+05-19 13:57:21.158 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:57:21.331 W/FG_CW221X( 5051): cw_update_data-575 : vol = 4487  current = 0 cap = 100 temp = 295
+05-19 13:57:21.377 I/[dp_rx_][0x1aaef46782][13:57:21.362071] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:21.426 D/RokidESecurity( 2225): DeviceStatusManager:: Storage status checked: 17393MB available
+05-19 13:57:21.426 D/DeviceStatusManager::( 2225): checkStorageStatus availableMB:17393
+05-19 13:57:21.438 W/healthd (  791): battery l=100 v=4487 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 13:57:21.879 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 161us,109us total 157.736ms
+05-19 13:57:22.491 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 37(31KB) AllocSpace objects, 18(53MB) LOS objects, 74% free, 15MB/62MB, paused 1.434ms,111us total 100.531ms
+05-19 13:57:21.891 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5965:345544 cur 5965:357382 diff 11: threshold 5
+05-19 13:57:22.812 I/[dp_rx_][0x1ab098cd10][13:57:22.797025] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:23.139 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 138us,93us total 151.980ms
+05-19 13:57:23.835 I/[dp_rx_][0x1ab1c4801d][13:57:23.819999] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:23.937 I/[dp_rx_][0x1ab1e25d59][13:57:23.921936] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:24.126 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:57:24.127 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:57:24.405 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 119us,80us total 150.058ms
+05-19 13:57:24.422 I/CAM_WARN( 5052): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5967:878782 cur 5967:888462 diff 9: threshold 5
+05-19 13:57:24.961 I/[dp_rx_][0x1ab30e67c9][13:57:24.946075] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:25.139 I/(virq   ( 3261): irq_count)- GICv3:IPI(1):13059812 GICv3:arch_timer(11):5753858 ipcc:glink-native-adsp(363):832774 GICv3:ipcc_0(32):749841 GICv3:apps_rsc(22):658815 GICv3:190b6400.qcom,bwmon-llcc(26):496252 GICv3:IPI(6):438459 GICv3:IPI(2):424809 GICv3:kgsl_hfi_irq(176):361216 GICv3:msm_drm(249):325694
+05-19 13:57:25.139 I/(cpu    ( 3261): irq_count)- 0:7216982 1:6462920 2:5043085 3:4986037
+05-19 13:57:25.139 I/(ipi    ( 3261): irq_count)- 0:13059815 1:424809 2:0 3:0 4:0 5:438459 6:0
+05-19 13:57:25.577 I/[dp_rx_][0x1ab3c2ba65][13:57:25.561576] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:25.679 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 96us,108us total 161.641ms
+05-19 13:57:25.857 E/COMU    (  803): ar_osal_mutex_try_lock:136 ar_osal_mutex_try_lock: Failed to lock ar_osal_mutex
+05-19 13:57:26.704 I/[dp_rx_][0x1ab50d12e5][13:57:26.689156] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:26.944 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 127us,90us total 157.653ms
+05-19 13:57:27.726 I/[dp_rx_][0x1ab6386f8a][13:57:27.710978] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:28.196 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 15MB/62MB, paused 376us,126us total 145.063ms
+05-19 13:57:28.852 I/[dp_rx_][0x1ab78266d0][13:57:28.837261] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:29.262 I/[dp_rx_][0x1ab7fa4a2e][13:57:29.246480] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:29.405 I/om.rokid.gless( 4927): Background concurrent copying GC freed 42(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 317us,165us total 155.566ms
+05-19 13:57:30.287 I/[dp_rx_][0x1ab9268bc2][13:57:30.271354] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:30.681 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 135us,96us total 159.618ms
+05-19 13:57:31.003 I/[dp_rx_][0x1ab9f87caf][13:57:30.987954] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:31.159 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:57:31.932 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 18MB/73MB, paused 536us,91us total 149.655ms
+05-19 13:57:31.222 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5974:676799 cur 5974:688477 diff 11: threshold 5
+05-19 13:57:32.130 I/[dp_rx_][0x1abb428d8a][13:57:32.114578] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:33.398 I/turen   ( 1963): [R2][01:39:12.000] [src/R2Module.cpp     104]D R2In: 2000 loops, average: 23.
+05-19 13:57:33.399 I/turen   ( 1963): [R2][01:39:12.000] [src/R2Module.cpp     104]D R2Rdc: 2000 loops, average: 2.
+05-19 13:57:33.423 I/om.rokid.gless( 4927): Background concurrent copying GC freed 50(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 126us,83us total 171.349ms
+05-19 13:57:33.355 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5976:809180 cur 5976:820968 diff 11: threshold 5
+05-19 13:57:33.563 I/[dp_rx_][0x1abce679fa][13:57:33.547918] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:34.035 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 37(31KB) AllocSpace objects, 18(53MB) LOS objects, 74% free, 15MB/62MB, paused 5.484ms,100us total 114.536ms
+05-19 13:57:34.368 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:57:34.368 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:57:34.553 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5978:009767 cur 5978:019254 diff 9: threshold 5
+05-19 13:57:34.610 I/(virq   ( 3261): irq_count)- GICv3:IPI(1):13087758 GICv3:arch_timer(11):5764249 ipcc:glink-native-adsp(363):838204 GICv3:ipcc_0(32):753475 GICv3:apps_rsc(22):659437 GICv3:190b6400.qcom,bwmon-llcc(26):496322 GICv3:IPI(6):439673 GICv3:IPI(2):428912 GICv3:kgsl_hfi_irq(176):362064 GICv3:msm_drm(249):325694
+05-19 13:57:34.611 I/(cpu    ( 3261): irq_count)- 0:7237858 1:6477948 2:5054326 3:4997262
+05-19 13:57:34.611 I/(ipi    ( 3261): irq_count)- 0:13087759 1:428912 2:0 3:0 4:0 5:439673 6:0
+05-19 13:57:34.692 I/[dp_rx_][0x1abe311d18][13:57:34.676492] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:34.694 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 18MB/73MB, paused 239us,102us total 174.236ms
+05-19 13:57:35.304 I/[dp_rx_][0x1abee47e7e][13:57:35.288777] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:35.422 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 45(31KB) AllocSpace objects, 22(65MB) LOS objects, 79% free, 15MB/73MB, paused 358us,92us total 101.815ms
+05-19 13:57:36.218 I/om.rokid.gless( 4927): Background concurrent copying GC freed 53(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 346us,80us total 168.006ms
+05-19 13:57:36.373 I/turen   ( 1963): [R2][01:39:14.976] [src/R2Module.cpp     104]D R2Rs: 2000 loops, average: 65.
+05-19 13:57:36.374 I/turen   ( 1963): [R2][01:39:14.976] [src/R2Module.cpp     288]D <Thread> R2Engine: 2000 loops, average: 188
+05-19 13:57:36.430 I/[dp_rx_][0x1ac02e6483][13:57:36.414832] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:37.466 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 18MB/73MB, paused 910us,82us total 149.397ms
+05-19 13:57:37.762 I/[dp_rx_][0x1ac1b48c02][13:57:37.746558] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:38.888 I/[dp_rx_][0x1ac2fe82d6][13:57:38.872835] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:38.958 I/om.rokid.gless( 4927): Background concurrent copying GC freed 50(32KB) AllocSpace objects, 24(71MB) LOS objects, 75% free, 15MB/62MB, paused 171us,104us total 172.361ms
+05-19 13:57:40.022 I/[dp_rx_][0x1ac44aa57d][13:57:40.006524] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:40.216 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 114us,100us total 164.914ms
+05-19 13:57:40.629 I/[dp_rx_][0x1ac4fc731f][13:57:40.613426] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:41.164 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:57:41.476 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 20(59MB) LOS objects, 75% free, 15MB/62MB, paused 140us,86us total 160.157ms
+05-19 13:57:41.757 I/[dp_rx_][0x1ac6470508][13:57:41.741771] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:42.637 I/y.system.serve( 1963): Background young concurrent copying GC freed 548041(17MB) AllocSpace objects, 11(14MB) LOS objects, 20% free, 123MB/155MB, paused 128us,113us total 166.286ms
+05-19 13:57:42.750 W/System  ( 1963): A resource failed to call release. 
+05-19 13:57:42.802 I/om.rokid.gless( 4927): Background concurrent copying GC freed 45(32KB) AllocSpace objects, 19(56MB) LOS objects, 75% free, 24MB/97MB, paused 126us,80us total 187.264ms
+05-19 13:57:42.684 I/CAM_WARN( 5052): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5986:141855 cur 5986:149797 diff 7: threshold 5
+05-19 13:57:42.984 I/[dp_rx_][0x1ac7ae81d0][13:57:42.968822] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:43.750 W/cam_common_util_thread_switch_delay_detect( 3224): 1 callbacks suppressed
+05-19 13:57:43.743 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 59(47KB) AllocSpace objects, 29(86MB) LOS objects, 78% free, 21MB/97MB, paused 725us,77us total 125.426ms
+05-19 13:57:43.750 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5987:208983 cur 5987:216492 diff 7: threshold 5
+05-19 13:57:44.082 I/(virq   ( 5051): irq_count)- GICv3:IPI(1):13115063 GICv3:arch_timer(11):5774614 ipcc:glink-native-adsp(363):843642 GICv3:ipcc_0(32):757117 GICv3:apps_rsc(22):660068 GICv3:190b6400.qcom,bwmon-llcc(26):496389 GICv3:IPI(6):440921 GICv3:IPI(2):432875 GICv3:kgsl_hfi_irq(176):362912 GICv3:msm_drm(249):325694
+05-19 13:57:44.083 I/(cpu    ( 5051): irq_count)- 0:7258405 1:6492780 2:5065596 3:5008162
+05-19 13:57:44.083 I/(ipi    ( 5051): irq_count)- 0:13115063 1:432875 2:0 3:0 4:0 5:440921 6:0
+05-19 13:57:44.214 I/[dp_rx_][0x1ac916db52][13:57:44.198815] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:44.317 I/[dp_rx_][0x1ac934ee4e][13:57:44.301468] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:44.303 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:57:44.303 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:57:44.773 I/om.rokid.gless( 4927): Background concurrent copying GC freed 67(32KB) AllocSpace objects, 32(95MB) LOS objects, 75% free, 18MB/73MB, paused 157us,159us total 188.303ms
+05-19 13:57:45.341 I/[dp_rx_][0x1aca611ea6][13:57:45.326113] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 13:57:45.697 I/adbd    ( 1252): RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time'
+05-19 13:57:45.766 I/logd    (  476): logdr: UID=2000 GID=2000 PID=5053 n tail=0 logMask=99 pid=0 start=0ns deadline=0ns

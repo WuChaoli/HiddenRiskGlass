@@ -20,7 +20,6 @@ debug/
 .tmp_*.png
 .tmp_*.jpg
 screen_*.png
-test/
 release/
 .codex/footprints/
 release/*.apk
@@ -34,6 +33,8 @@ release/*.apk
 
 # Logs
 *.log
+!test/
+!test/**
 
 # Deployment packages
 *.tar

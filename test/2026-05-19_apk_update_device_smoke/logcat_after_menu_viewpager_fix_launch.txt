@@ -1,0 +1,1034 @@
+--------- beginning of main
+05-19 13:55:35.779 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.003795415
+05-19 13:55:35.881 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.015162473
+05-19 13:55:35.981 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.026456092
+05-19 13:55:36.048 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.037768897
+05-19 13:55:36.115 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.049130782
+05-19 13:55:36.181 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.060518663
+05-19 13:55:36.281 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.07186404
+05-19 13:55:36.347 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.083185345
+05-19 13:55:36.447 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.09456958
+05-19 13:55:36.531 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.105899036
+05-19 13:55:36.581 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.11719264
+05-19 13:55:36.681 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.12849613
+05-19 13:55:36.766 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.13982557
+05-19 13:55:36.880 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.15115502
+05-19 13:55:36.948 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.16244863
+05-19 13:55:37.067 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.17374222
+05-19 13:55:37.131 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.18503582
+05-19 13:55:37.232 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.19632943
+05-19 13:55:37.296 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.20762303
+05-19 13:55:37.416 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.21891664
+05-19 13:55:37.465 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.23021579
+05-19 13:55:37.581 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.24154559
+05-19 13:55:37.647 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.25283918
+05-19 13:55:37.762 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.2641328
+05-19 13:55:37.814 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.27548277
+05-19 13:55:37.930 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.2868578
+05-19 13:55:37.981 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.298205
+05-19 13:55:38.064 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.30962667
+05-19 13:55:38.146 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.32093224
+05-19 13:55:38.213 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.33222583
+05-19 13:55:38.315 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.34351942
+05-19 13:55:38.381 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.35485682
+05-19 13:55:38.431 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.3661504
+05-19 13:55:38.515 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.37745297
+05-19 13:55:38.564 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.3887466
+05-19 13:55:38.665 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.4000402
+05-19 13:55:38.715 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.41134754
+05-19 13:55:38.797 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.42264113
+05-19 13:55:38.864 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.4339373
+05-19 13:55:38.950 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.44525668
+05-19 13:55:39.015 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.45655027
+05-19 13:55:39.083 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.4679032
+05-19 13:55:39.181 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.47919932
+05-19 13:55:39.248 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.4905958
+05-19 13:55:39.348 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.5019773
+05-19 13:55:39.416 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.51332635
+05-19 13:55:39.498 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.5247095
+05-19 13:55:39.615 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.53613573
+05-19 13:55:39.665 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.5474293
+05-19 13:55:39.765 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.5587229
+05-19 13:55:39.816 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.57001656
+05-19 13:55:39.879 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.5813271
+05-19 13:55:39.964 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.59270847
+05-19 13:55:40.012 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.60401416
+05-19 13:55:40.097 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6153212
+05-19 13:55:40.281 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6266776
+05-19 13:55:40.331 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.63797116
+05-19 13:55:40.398 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6493254
+05-19 13:55:40.481 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6606709
+05-19 13:55:40.549 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6720569
+05-19 13:55:40.598 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6833809
+05-19 13:55:40.665 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.6947014
+05-19 13:55:40.732 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7061149
+05-19 13:55:40.815 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.71751404
+05-19 13:55:40.898 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7288816
+--------- beginning of kernel
+05-19 13:55:40.946 I/(virq   ( 4713): irq_count)- GICv3:IPI(1):12761531 GICv3:arch_timer(11):5639710 ipcc:glink-native-adsp(363):780860 GICv3:ipcc_0(32):714593 GICv3:apps_rsc(22):650829 GICv3:190b6400.qcom,bwmon-llcc(26):494149 GICv3:IPI(6):425228 GICv3:IPI(2):384101 GICv3:kgsl_hfi_irq(176):352173 GICv3:msm_drm(249):324396
+05-19 13:55:40.947 I/(cpu    ( 4713): irq_count)- 0:6995071 1:6306346 2:4923401 3:4868207
+05-19 13:55:40.947 I/(ipi    ( 4713): irq_count)- 0:12761533 1:384101 2:0 3:0 4:0 5:425228 6:0
+05-19 13:55:40.965 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7402557
+05-19 13:55:41.047 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7516132
+05-19 13:55:41.133 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7629944
+05-19 13:55:41.143 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:55:41.215 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7744123
+05-19 13:55:41.315 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7858303
+05-19 13:55:41.399 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.7972595
+05-19 13:55:41.399 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onActiveChanged() sessionId = 1237192930, active = false
+05-19 13:55:41.399 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onActiveChanged() sessionId = 1237192930, active = true
+05-19 13:55:41.787 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:55:41.787 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:55:41.831 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.8
+05-19 13:55:42.296 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 1237192930, progress = 0.90000004
+--------- beginning of system
+05-19 13:55:42.341 W/PackageParsing( 1260): Ignoring duplicate uses-permissions/uses-permissions-sdk-m: android.permission.RECORD_AUDIO in package: com.rokid.glesse at: Binary XML file line #57
+05-19 13:55:42.353 W/RuleEvaluation( 1260): Integrity rule files are not available.
+05-19 13:55:42.354 I/PackageManager( 1260): Integrity check passed for file:///data/app/vmdl1237192930.tmp
+05-19 13:55:42.367 W/PackageParsing( 1260): Ignoring duplicate uses-permissions/uses-permissions-sdk-m: android.permission.RECORD_AUDIO in package: com.rokid.glesse at: Binary XML file line #57
+05-19 13:55:42.373 I/hwservicemanager(  397): getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+05-19 13:55:42.418 I/ActivityManager( 1260): Force stopping com.rokid.glesse appid=10066 user=-1: installPackageLI
+05-19 13:55:42.422 I/PackageManager( 1260): Update package com.rokid.glesse code path from /data/app/~~Vux3z-k1DwfArrxy83qu_g==/com.rokid.glesse-pJd2JSdxE6gKoh8O96SmMw== to /data/app/~~I4pwgyEQ6RQjdlhhQGqWXA==/com.rokid.glesse-5NyWZYociHOq4Muanp08UA==; Retain data and using new
+05-19 13:55:42.435 I/hwservicemanager(  397): getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+05-19 13:55:42.436 I/PackageManager( 1260): Permission ownership changed. Updating all permissions.
+05-19 13:55:42.569 E/installd(  892): Couldn't opendir /data/app/vmdl1237192930.tmp: No such file or directory
+05-19 13:55:42.569 E/installd(  892): Failed to delete /data/app/vmdl1237192930.tmp: No such file or directory
+05-19 13:55:42.571 I/ActivityManager( 1260): Force stopping com.rokid.glesse appid=10066 user=0: pkg removed
+05-19 13:55:42.580 D/Launcher_Log( 2063): PackageInstaller.SessionCallback -> onFinished() sessionId = 1237192930
+05-19 13:55:42.592 I/MediaProvider( 2042): Invalidating LocalCallingIdentity cache for package com.rokid.glesse. Reason: package android.intent.action.PACKAGE_REMOVED
+05-19 13:55:42.597 D/CompatibilityChangeReporter( 1260): Compat change id reported: 168419799; UID 10066; state: DISABLED
+05-19 13:55:42.597 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:55:42.598 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:55:42.598 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:55:42.601 I/MediaProvider( 2042): Invalidating LocalCallingIdentity cache for package com.rokid.glesse. Reason: package android.intent.action.PACKAGE_ADDED
+05-19 13:55:42.602 W/BroadcastQueue( 1260): Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:com.rokid.glesse flg=0x4000010 (has extras) } to com.android.packageinstaller/.PackageInstalledReceiver
+05-19 13:55:42.608 I/InputReader( 1260): Reconfiguring input devices, changes=KEYBOARD_LAYOUTS | 
+05-19 13:55:42.618 I/InputReader( 1260): Reconfiguring input devices, changes=KEYBOARD_LAYOUTS | 
+05-19 13:55:42.621 D/Launcher_Log( 2063): AppInstallReceiver -> onReceive action = android.intent.action.PACKAGE_REMOVED, packageName = com.rokid.glesse, replacing = true, dataRemoved = false
+05-19 13:55:42.621 D/Launcher_Log( 2063): SpUtil -> get key -> need_open_app, value -> com.rokid.glesse
+05-19 13:55:42.623 D/Launcher_Log( 2063): AppAssistUtil -> deleteNeedOpenApp deletePkg = com.rokid.glesse, save newValue = 
+05-19 13:55:42.623 D/Launcher_Log( 2063): SpUtil -> put key -> need_open_app, value -> 
+05-19 13:55:42.623 D/Launcher_Log( 2063): SpUtil -> get key -> delete_pre_app, value -> 
+05-19 13:55:42.623 D/Launcher_Log( 2063): AppAssistUtil -> getDeletePreApp preList = []
+05-19 13:55:42.624 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 系统切换, install -- false
+05-19 13:55:42.624 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 系统切换
+05-19 13:55:42.624 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 设置, install -- false
+05-19 13:55:42.625 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 设置
+05-19 13:55:42.625 I/InputReader( 1260): Reconfiguring input devices, changes=KEYBOARD_LAYOUTS | 
+05-19 13:55:42.627 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 扫一扫, install -- false
+05-19 13:55:42.627 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 扫一扫
+05-19 13:55:42.627 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 拍照, install -- false
+05-19 13:55:42.627 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 拍照
+05-19 13:55:42.627 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 车牌识别, install -- false
+05-19 13:55:42.627 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 车牌识别
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 离线人脸, install -- false
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 离线人脸
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- AI问答, install -- false
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp AI问答
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- AI工作助手, install -- false
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp AI工作助手
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- AI识别, install -- false
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp AI识别
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 远程协作, install -- false
+05-19 13:55:42.628 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 远程协作
+05-19 13:55:42.630 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:55:42.630 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:55:42.630 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:55:42.638 I/RokidLauncher( 2063): AppDataManager 1_hideToShow []
+05-19 13:55:42.641 W/TextServicesManagerService( 1260): no available spell checker services found
+05-19 13:55:42.644 I/RokidLauncher( 2063): AppDataManager 1_showToHide [AppConfigInfo(appKey=xpert, appName=远程协作, orderIndex=0, isHide=false, iconFilePath=), AppConfigInfo(appKey=identification, appName=AI识别, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=aiAssistant, appName=AI工作助手, orderIndex=0, isHide=false, iconFilePath=), AppConfigInfo(appKey=aiIndustry, appName=AI巡检, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=safetyInspection, appName=AI问答, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=offlineFace, appName=离线人脸, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=lprDetection, appName=车牌识别, orderIndex=0, isHide=true, iconFilePath=)]
+05-19 13:55:42.644 D/AppDataManager( 2063): --->xpert configKey:xpert
+05-19 13:55:42.644 D/showToHide-111>( 2063): isHide:false
+05-19 13:55:42.644 D/showToHide-111>( 2063): iconFilePath:远程协作 远程协作
+05-19 13:55:42.646 D/AppDataManager( 2063): --->xpert configKey:identification
+05-19 13:55:42.646 D/AppDataManager( 2063): --->identification configKey:identification
+05-19 13:55:42.646 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.646 D/AppDataManager( 2063): --->xpert configKey:aiAssistant
+05-19 13:55:42.646 D/AppDataManager( 2063): --->aiAssistant configKey:aiAssistant
+05-19 13:55:42.646 D/showToHide-111>( 2063): isHide:false
+05-19 13:55:42.646 D/showToHide-111>( 2063): iconFilePath:AI工作助手 AI工作助手
+05-19 13:55:42.646 D/AppDataManager( 2063): --->xpert configKey:aiIndustry
+05-19 13:55:42.646 D/AppDataManager( 2063): --->aiAssistant configKey:aiIndustry
+05-19 13:55:42.646 D/AppDataManager( 2063): --->safetyInspection configKey:aiIndustry
+05-19 13:55:42.646 D/AppDataManager( 2063): --->offlineFace configKey:aiIndustry
+05-19 13:55:42.646 D/AppDataManager( 2063): --->lprDetection configKey:aiIndustry
+05-19 13:55:42.646 D/AppDataManager( 2063): --->takephoto configKey:aiIndustry
+05-19 13:55:42.646 D/AppDataManager( 2063): --->rokidscan configKey:aiIndustry
+05-19 13:55:42.647 D/AppDataManager( 2063): --->null configKey:aiIndustry
+05-19 13:55:42.647 D/AppDataManager( 2063): --->dualSystem configKey:aiIndustry
+05-19 13:55:42.647 D/AppDataManager( 2063): --->xpert configKey:safetyInspection
+05-19 13:55:42.647 D/AppDataManager( 2063): --->aiAssistant configKey:safetyInspection
+05-19 13:55:42.647 D/AppDataManager( 2063): --->safetyInspection configKey:safetyInspection
+05-19 13:55:42.647 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.647 D/AppDataManager( 2063): --->xpert configKey:offlineFace
+05-19 13:55:42.647 D/AppDataManager( 2063): --->aiAssistant configKey:offlineFace
+05-19 13:55:42.647 D/AppDataManager( 2063): --->offlineFace configKey:offlineFace
+05-19 13:55:42.647 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.647 D/AppDataManager( 2063): --->xpert configKey:lprDetection
+05-19 13:55:42.647 D/AppDataManager( 2063): --->aiAssistant configKey:lprDetection
+05-19 13:55:42.647 D/AppDataManager( 2063): --->lprDetection configKey:lprDetection
+05-19 13:55:42.647 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.647 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 远程协作, appType: 7, orderIndex: 0, configListIndex: 0
+05-19 13:55:42.647 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: AI工作助手, appType: 7, orderIndex: 0, configListIndex: 2
+05-19 13:55:42.647 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 拍照, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.647 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 扫一扫, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.647 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 设置, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.647 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 系统切换, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.647 W/Searchables( 1260): No global search activity found
+05-19 13:55:42.647 D/Launcher_Log( 2063): AppInstallReceiver -> onReceive action = android.intent.action.PACKAGE_ADDED, packageName = com.rokid.glesse, replacing = true, dataRemoved = false
+05-19 13:55:42.649 D/Launcher_Log( 2063): AppInstallReceiver -> onReceive action = android.intent.action.PACKAGE_REPLACED, packageName = com.rokid.glesse, replacing = true, dataRemoved = false
+05-19 13:55:42.652 D/Launcher_Log( 2063): AppListFragment -> configMediaAppInfoList onChanged ---> focusLastItem
+05-19 13:55:42.659 D/CompanionDeviceManagerService( 1260): onPackageModified(packageName = com.rokid.glesse)
+05-19 13:55:42.661 W/Searchables( 1260): No global search activity found
+05-19 13:55:42.663 D/Launcher_Log( 2063): AppListFragment -> onAppDefaultFocusEvent focus -> -1
+05-19 13:55:42.665 I/DeviceConfigService( 1260): onReceive: packageName = com.rokid.glesse
+05-19 13:55:42.668 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:AI工作助手
+05-19 13:55:42.677 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.678 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.679 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.679 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.681 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:55:42.681 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:55:42.681 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:55:42.683 D/Launcher_Log( 2063): SpUtil -> get key -> need_open_app, value -> 
+05-19 13:55:42.684 D/Launcher_Log( 2063): AppAssistUtil -> saveNeedOpenApp needPkg = com.rokid.glesse, save newValue = com.rokid.glesse
+05-19 13:55:42.684 D/Launcher_Log( 2063): SpUtil -> put key -> need_open_app, value -> com.rokid.glesse
+05-19 13:55:42.684 I/DeviceConfigService( 1260): onReceive: packageName = com.rokid.glesse
+05-19 13:55:42.684 D/Launcher_Log( 2063): SpUtil -> get key -> delete_pre_app, value -> 
+05-19 13:55:42.684 D/Launcher_Log( 2063): AppAssistUtil -> getDeletePreApp preList = []
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 系统切换, install -- false
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 系统切换
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 设置, install -- false
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 设置
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 扫一扫, install -- false
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 扫一扫
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 拍照, install -- false
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 拍照
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 车牌识别, install -- false
+05-19 13:55:42.685 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 车牌识别
+05-19 13:55:42.686 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 离线人脸, install -- false
+05-19 13:55:42.686 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 离线人脸
+05-19 13:55:42.686 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- AI问答, install -- false
+05-19 13:55:42.686 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp AI问答
+05-19 13:55:42.686 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- AI工作助手, install -- false
+05-19 13:55:42.686 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp AI工作助手
+05-19 13:55:42.687 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- AI识别, install -- false
+05-19 13:55:42.687 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp AI识别
+05-19 13:55:42.687 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp ---- 远程协作, install -- false
+05-19 13:55:42.688 D/RokidLauncher( 2063): AppSearchManager configDefaultPreApp addApp 远程协作
+05-19 13:55:42.688 I/RokidLauncher( 2063): AppDataManager 1_hideToShow []
+05-19 13:55:42.690 I/RokidLauncher( 2063): AppDataManager 1_showToHide [AppConfigInfo(appKey=xpert, appName=远程协作, orderIndex=0, isHide=false, iconFilePath=), AppConfigInfo(appKey=identification, appName=AI识别, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=aiAssistant, appName=AI工作助手, orderIndex=0, isHide=false, iconFilePath=), AppConfigInfo(appKey=aiIndustry, appName=AI巡检, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=safetyInspection, appName=AI问答, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=offlineFace, appName=离线人脸, orderIndex=0, isHide=true, iconFilePath=), AppConfigInfo(appKey=lprDetection, appName=车牌识别, orderIndex=0, isHide=true, iconFilePath=)]
+05-19 13:55:42.690 D/AppDataManager( 2063): --->xpert configKey:xpert
+05-19 13:55:42.690 D/showToHide-111>( 2063): isHide:false
+05-19 13:55:42.691 D/showToHide-111>( 2063): iconFilePath:远程协作 远程协作
+05-19 13:55:42.691 D/AppDataManager( 2063): --->xpert configKey:identification
+05-19 13:55:42.692 D/AppDataManager( 2063): --->identification configKey:identification
+05-19 13:55:42.692 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.692 D/AppDataManager( 2063): --->xpert configKey:aiAssistant
+05-19 13:55:42.692 D/AppDataManager( 2063): --->aiAssistant configKey:aiAssistant
+05-19 13:55:42.692 D/showToHide-111>( 2063): isHide:false
+05-19 13:55:42.692 D/showToHide-111>( 2063): iconFilePath:AI工作助手 AI工作助手
+05-19 13:55:42.692 D/AppDataManager( 2063): --->xpert configKey:aiIndustry
+05-19 13:55:42.692 D/AppDataManager( 2063): --->aiAssistant configKey:aiIndustry
+05-19 13:55:42.692 D/AppDataManager( 2063): --->safetyInspection configKey:aiIndustry
+05-19 13:55:42.693 D/AppDataManager( 2063): --->offlineFace configKey:aiIndustry
+05-19 13:55:42.693 D/AppDataManager( 2063): --->lprDetection configKey:aiIndustry
+05-19 13:55:42.693 D/AppDataManager( 2063): --->takephoto configKey:aiIndustry
+05-19 13:55:42.693 D/AppDataManager( 2063): --->rokidscan configKey:aiIndustry
+05-19 13:55:42.694 D/AppDataManager( 2063): --->null configKey:aiIndustry
+05-19 13:55:42.694 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:远程协作
+05-19 13:55:42.694 D/AppDataManager( 2063): --->dualSystem configKey:aiIndustry
+05-19 13:55:42.694 D/AppDataManager( 2063): --->null configKey:aiIndustry
+05-19 13:55:42.694 D/AppDataManager( 2063): --->xpert configKey:safetyInspection
+05-19 13:55:42.694 D/AppDataManager( 2063): --->aiAssistant configKey:safetyInspection
+05-19 13:55:42.694 D/AppDataManager( 2063): --->safetyInspection configKey:safetyInspection
+05-19 13:55:42.694 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.694 D/AppDataManager( 2063): --->xpert configKey:offlineFace
+05-19 13:55:42.694 D/AppDataManager( 2063): --->aiAssistant configKey:offlineFace
+05-19 13:55:42.694 D/AppDataManager( 2063): --->offlineFace configKey:offlineFace
+05-19 13:55:42.694 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.694 D/AppDataManager( 2063): --->xpert configKey:lprDetection
+05-19 13:55:42.694 D/AppDataManager( 2063): --->aiAssistant configKey:lprDetection
+05-19 13:55:42.694 D/AppDataManager( 2063): --->lprDetection configKey:lprDetection
+05-19 13:55:42.694 D/showToHide-111>( 2063): isHide:true
+05-19 13:55:42.694 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 远程协作, appType: 7, orderIndex: 0, configListIndex: 0
+05-19 13:55:42.694 I/DeviceConfigService( 1260): PProcesser: start com.rokid.glesse
+05-19 13:55:42.694 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: AI工作助手, appType: 7, orderIndex: 0, configListIndex: 2
+05-19 13:55:42.694 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 拍照, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.694 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 扫一扫, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.695 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 设置, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.695 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 系统切换, appType: 7, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.695 I/Launcher_Log( 2063): AppDataManager -> After sort - appName: 基层应消, appType: 0, orderIndex: 0, configListIndex: -1
+05-19 13:55:42.695 I/DeviceConfigService( 1260): PProcesser: isSystem false
+05-19 13:55:42.700 I/DeviceConfigService( 1260): PProcesser: end com.rokid.glesse
+05-19 13:55:42.700 I/DeviceConfigService( 1260): PProcesser: start com.rokid.glesse
+05-19 13:55:42.700 I/DeviceConfigService( 1260): PProcesser: isSystem false
+05-19 13:55:42.705 I/DeviceConfigService( 1260): PProcesser: end com.rokid.glesse
+05-19 13:55:42.708 D/Launcher_Log( 2063): AppListFragment -> configMediaAppInfoList onChanged ---> focusLastItem
+05-19 13:55:42.710 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:远程协作
+05-19 13:55:42.712 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:AI工作助手
+05-19 13:55:42.712 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.713 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.713 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.708 I/PermissionControllerServiceImpl( 3572): Updating user sensitive for uid 10066
+05-19 13:55:42.718 D/AppListAdapter( 2063): configNormalUi->iconType:4 iconFilePath:null
+05-19 13:55:42.756 D/Launcher_Log( 2063): AppListFragment -> focusLastItem  firstPos[1], endPos[4], childPos[0], itemIndex[1]
+05-19 13:55:42.763 D/Launcher_Log( 2063): AppListFragment -> focusLastItem  firstPos[0], endPos[4], childPos[1], itemIndex[1]
+05-19 13:55:42.833 I/ite.ebglaunche( 2063): Background concurrent copying GC freed 92953(6682KB) AllocSpace objects, 2(104KB) LOS objects, 90% free, 2466KB/26MB, paused 120us,87us total 110.128ms
+05-19 13:55:43.010 D/Launcher_Log( 2063): AppListFragment -> GameRecyclerView onScrollStateChanged SCROLL_STATE_IDLE
+05-19 13:55:43.024 I/system_server( 1260): Background concurrent copying GC freed 322056(15MB) AllocSpace objects, 83(3252KB) LOS objects, 75% free, 10MB/41MB, paused 239us,325us total 444.506ms
+05-19 13:55:43.034 W/System  ( 1260): A resource failed to call close. 
+05-19 13:55:43.034 W/System  ( 1260): A resource failed to call close. 
+05-19 13:55:43.035 W/System  ( 1260): A resource failed to call close. 
+05-19 13:55:43.038 W/System  ( 1260): A resource failed to call close. 
+05-19 13:55:43.038 W/System  ( 1260): A resource failed to call close. 
+05-19 13:55:43.038 W/System  ( 1260): A resource failed to call close. 
+05-19 13:55:43.038 W/System  ( 1260): A resource failed to call release. 
+05-19 13:55:49.172 W/FG_CW221X( 3261): cw_update_data-575 : vol = 4487  current = 0 cap = 100 temp = 295
+05-19 13:55:49.286 W/healthd (  791): battery l=100 v=4487 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 13:55:50.419 I/(virq   ( 4713): irq_count)- GICv3:IPI(1):12783582 GICv3:arch_timer(11):5648687 ipcc:glink-native-adsp(363):781828 GICv3:ipcc_0(32):715561 GICv3:apps_rsc(22):652045 GICv3:190b6400.qcom,bwmon-llcc(26):495011 GICv3:IPI(6):425874 GICv3:IPI(2):384458 GICv3:kgsl_hfi_irq(176):352737 GICv3:msm_drm(249):324964
+05-19 13:55:50.419 I/(cpu    ( 4713): irq_count)- 0:7007736 1:6316877 2:4930953 3:4876201
+05-19 13:55:50.419 I/(ipi    ( 4713): irq_count)- 0:12783582 1:384458 2:0 3:0 4:0 5:425874 6:0
+05-19 13:55:51.145 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:55:51.410 D/RokidESecurity( 2225): DeviceStatusManager:: Storage status checked: 17371MB available
+05-19 13:55:51.410 D/DeviceStatusManager::( 2225): checkStorageStatus availableMB:17371
+05-19 13:55:52.855 I/adbd    ( 1252): RKD-- daemon_service_to_fd : shell,v2,raw:am start -n com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity --ez force_loading_flow true
+05-19 13:55:53.058 I/ActivityStarter( 1260): START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (has extras)} from uid 2000
+05-19 13:55:53.058 I/EventSequenceValidator( 1260): inc AccIntentStartedEvents to 2
+05-19 13:55:53.059 D/ActivityStarter( 1260): Background activity start allowed: START_ACTIVITIES_FROM_BACKGROUND permission granted for uid 2000
+05-19 13:55:53.069 I/hwservicemanager(  397): getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+05-19 13:55:53.080 D/CompatibilityChangeReporter( 1260): Compat change id reported: 174042980; UID 10066; state: DISABLED
+05-19 13:55:53.082 D/CompatibilityChangeReporter( 1260): Compat change id reported: 184838306; UID 10066; state: DISABLED
+05-19 13:55:53.082 D/CompatibilityChangeReporter( 1260): Compat change id reported: 185004937; UID 10066; state: DISABLED
+05-19 13:55:53.083 D/CompatibilityChangeReporter( 1260): Compat change id reported: 181136395; UID 10066; state: DISABLED
+05-19 13:55:53.084 D/CompatibilityChangeReporter( 1260): Compat change id reported: 174042936; UID 10066; state: DISABLED
+05-19 13:55:53.091 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:55:53.091 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:55:53.091 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:55:53.093 D/ActivityTrigger( 1260): ActivityTrigger activityPauseTrigger 
+05-19 13:55:53.107 D/CompatibilityChangeReporter( 1260): Compat change id reported: 135634846; UID 10066; state: DISABLED
+05-19 13:55:53.108 D/CompatibilityChangeReporter( 1260): Compat change id reported: 177438394; UID 10066; state: DISABLED
+05-19 13:55:53.108 D/CompatibilityChangeReporter( 1260): Compat change id reported: 135772972; UID 10066; state: DISABLED
+05-19 13:55:53.108 D/CompatibilityChangeReporter( 1260): Compat change id reported: 135754954; UID 10066; state: ENABLED
+05-19 13:55:53.111 D/CompatibilityChangeReporter( 1260): Compat change id reported: 143937733; UID 10066; state: ENABLED
+05-19 13:55:53.115 I/perfetto(  878): ing_service_impl.cc:912 Configured tracing session 8, #sources:1, duration:5000 ms, #buffers:1, total buffer size:4096 KB, total sessions:1, uid:1071 session name: ""
+05-19 13:55:53.116 I/perfetto(  877): probes_producer.cc:241  Ftrace setup (target_buf=8)
+05-19 13:55:53.118 D/Launcher_Log( 2063): AppListFragment -> onPause -> 
+05-19 13:55:53.118 D/Launcher_Log( 2063): AppListFragment -> onPause()
+05-19 13:55:53.122 I/perfetto(  877): ftrace_procfs.cc:206    enabled ftrace in /sys/kernel/tracing/
+05-19 13:55:53.137 W/perfetto(  877): enabled ftrace
+05-19 13:55:53.130 D/Zygote  (  738): Forked child process 4927
+05-19 13:55:53.133 W/ContextImpl( 1260): Calling a method in the system process without a qualified user: android.app.ContextImpl.sendBroadcast:1181 com.qualcomm.qti.Performance$SendGameLaunchBroadcast.run:248 java.lang.Thread.run:920 <bottom of call stack> <bottom of call stack> 
+05-19 13:55:53.134 I/ActivityManager( 1260): PendingStartActivityUids startActivity to updateOomAdj delay:191175ms, uid:10066
+05-19 13:55:53.136 I/ActivityManager( 1260): Start proc 4927:com.rokid.glesse/u0a66 for pre-top-activity {com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity}
+05-19 13:55:53.142 I/BpBinder(  826): onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+05-19 13:55:53.167 I/om.rokid.gless( 4927): Late-enabling -Xcheck:jni
+05-19 13:55:53.224 I/adbd    ( 1252): jdwp connection from 4927
+05-19 13:55:53.256 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:55:53.256 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:55:53.256 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:55:53.262 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:55:53.263 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:55:53.263 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:55:53.539 D/CompatibilityChangeReporter( 4927): Compat change id reported: 171979766; UID 10066; state: ENABLED
+05-19 13:55:53.938 I/CNSS    (  886): /sys/wifi/dump_in_progress doesn't exist
+05-19 13:55:53.938 I/CNSS    (  886): /sys/wifi/max_chipset_log_size doesn't exist
+05-19 13:55:54.549 I/Perf    ( 4927): Connecting to perf service.
+05-19 13:55:54.565 V/GraphicsEnvironment( 4927): ANGLE Developer option for 'com.rokid.glesse' set to: 'default'
+05-19 13:55:54.567 V/GraphicsEnvironment( 4927): ANGLE GameManagerService for com.rokid.glesse: false
+05-19 13:55:54.567 V/GraphicsEnvironment( 4927): Neither updatable production driver nor prerelease driver is supported.
+05-19 13:55:54.572 D/NetworkSecurityConfig( 4927): Using Network Security Config from resource network_security_config debugBuild: true
+05-19 13:55:54.578 D/NetworkSecurityConfig( 4927): Using Network Security Config from resource network_security_config debugBuild: true
+05-19 13:55:54.605 W/FirebaseApp( 4927): Default FirebaseApp failed to initialize because no default options were found. This usually means that com.google.gms:google-services was not applied to your gradle project.
+05-19 13:55:54.605 I/FirebaseInitProvider( 4927): FirebaseApp initialization unsuccessful
+05-19 13:55:54.919 I/InspectionConfig( 4927): config loaded flavor=standard overlay=inspection_config.standard.jsonc
+05-19 13:55:54.927 I/hwservicemanager(  397): getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+05-19 13:55:54.928 E/ANDR-IOP(  901): IIop:: Iop HAL Service is not available.
+05-19 13:55:55.141 D/AppCompatDelegate( 4927): Checking for metadata for AppLocalesMetadataHolderService : Service not found
+05-19 13:55:55.348 W/om.rokid.gless( 4927): Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (unsupported, reflection, allowed)
+05-19 13:55:55.570 I/Open-SDK( 4927): SecurityServiceClient 绑定服务请求发送：bindSuccess = true
+05-19 13:55:55.637 E/startActivity( 4927): com.rokid.glass.hiddenrisk.InspectionLoadingActivity
+05-19 13:55:55.677 D/ActivityRecord( 1260): setupResumeState: com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity, true, booted=true
+05-19 13:55:55.678 I/Choreographer( 4927): Skipped 56 frames!  The application may be doing too much work on its main thread.
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): QUALCOMM build                   : 1ee5569fc4, I7c9e039212
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): Build Date                       : 12/26/24
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): OpenGL ES Shader Compiler Version: E031.49.05.00
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): Local Branch                     : 
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.14.3.4.11.00.00.1126.313
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): Remote Branch                    : NONE
+05-19 13:55:55.783 I/AdrenoGLES-0( 4927): Reconstruct Branch               : NOTHING
+05-19 13:55:55.784 I/AdrenoGLES-0( 4927): Build Config                     : S P 16.1.2 AArch64
+05-19 13:55:55.784 I/AdrenoGLES-0( 4927): Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+05-19 13:55:55.784 I/AdrenoGLES-0( 4927): Driver Version                   : 0812.0
+05-19 13:55:55.784 I/AdrenoGLES-0( 4927): Process Name                     : com.rokid.glesse
+05-19 13:55:55.800 I/AdrenoGLES-0( 4927): PFP: 0x016dd112, ME: 0x00000000
+05-19 13:55:55.820 I/hwservicemanager(  397): Since vendor.qti.qspmhal@1.0::IQspmhal/default is not registered, trying to start it as a lazy HAL.
+05-19 13:55:55.820 W/Adreno-AppProfiles( 4927): Could not find QSPM HAL service. Skipping adreno profile processing.
+05-19 13:55:55.824 W/libc    (  397): Unable to set property "ctl.interface_start" to "vendor.qti.qspmhal@1.0::IQspmhal/default": error code: 0x20
+05-19 13:55:55.824 I/hwservicemanager(  397): Tried to start vendor.qti.qspmhal@1.0::IQspmhal/default as a lazy service, but was unable to. Usually this happens when a service is not installed, but if the service is intended to be used as a lazy service, then it may be configured incorrectly.
+05-19 13:55:55.839 E/init    (    1): Control message: Could not find 'vendor.qti.qspmhal@1.0::IQspmhal/default' for ctl.interface_start from pid: 397 (/system/bin/hwservicemanager)
+05-19 13:55:55.848 I/SDM     (  805): HWCColorModeStc::GetColorModeCount: Supported color mode count = 1
+05-19 13:55:55.848 I/SDM     (  805): HWCColorModeStc::GetColorModes: Color mode = 0 is supported
+05-19 13:55:56.056 I/InspectionLoading( 4927): SDK state=BINDING
+05-19 13:55:56.057 I/Open-SDK( 4927): SecurityServiceClient 服务绑定成功：onServiceConnected
+05-19 13:55:56.062 I/OpenGLRenderer( 4927): Davey! duration=1302ms; Flags=1, FrameTimelineVsyncId=676925, IntendedVsync=5878223088023, Vsync=5879156421319, InputEventId=0, HandleInputStart=5879159888537, AnimationStart=5879159902756, PerformTraversalsStart=5879160410465, DrawStart=5879331999996, FrameDeadline=5878239754689, FrameInterval=5879159290360, FrameStartTime=16666666, SyncQueued=5879344837912, SyncStart=5879345026610, IssueDrawCommandsStart=5879345781767, SwapBuffers=5879523244579, FrameCompleted=5879525831194, DequeueBufferDuration=927657, QueueBufferDuration=1241719, GpuCompleted=5879524422391, SwapBuffersCompleted=5879525831194, DisplayPresentTime=0, 
+05-19 13:55:56.073 I/hwservicemanager(  397): getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+05-19 13:55:56.074 I/ActivityMetricsLogger( 1260): Displayed com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity: +3s5ms
+05-19 13:55:56.074 D/DeviceConfigService( 1260): onTaskAppeared: Surface(name=Task=38)/@0xf47bf6e
+05-19 13:55:56.074 I/hwservicemanager(  397): getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+05-19 13:55:56.079 I/EventSequenceValidator( 1260): dec AccIntentStartedEvents to 1
+05-19 13:55:56.082 V/DisplayPowerController[0]( 1260): Brightness [1.0] reason changing to: 'manual', previous reason: 'manual [ dim ]'.
+05-19 13:55:56.083 E/DisplayDeviceConfig( 1260): requesting nits when no mapping exists.
+05-19 13:55:56.084 E/DisplayDeviceConfig( 1260): requesting nits when no mapping exists.
+05-19 13:55:56.087 I/DropBoxManagerService( 1260): add tag=system_server_wtf isTagEnabled=true flags=0x2
+05-19 13:55:56.100 D/Launcher_Log( 2063): BaseLibrary -> onActivityStopped screen_ui count = 0 activity = com.rokid.os.sprite.launcher.main.SpriteMainActivity
+05-19 13:55:56.102 D/Launcher_Log( 2063): CenterFragment -> onStop()
+05-19 13:55:56.103 D/Launcher_Log( 2063): AppListFragment -> onStop()
+05-19 13:55:56.103 D/Launcher_Log( 2063): MsgListFragment -> onStop()
+05-19 13:55:56.112 I/DropBoxManagerService( 1260): add tag=system_server_wtf isTagEnabled=true flags=0x2
+05-19 13:55:56.134 D/CompatibilityChangeReporter( 1260): Compat change id reported: 149924527; UID 10066; state: ENABLED
+05-19 13:55:56.136 D/CompatibilityChangeReporter( 1260): Compat change id reported: 132649864; UID 10066; state: DISABLED
+05-19 13:55:56.209 I/SystemServer( 1963): ClientManager registerClient pid=4927, uid=10066, pkg=com.rokid.glesse, clientId=com.rokid.glesse.hiddenrisk
+05-19 13:55:56.210 I/SystemServer( 1963): ServicePoolImpl registerClient: onReady
+05-19 13:55:56.212 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=device
+05-19 13:55:56.212 I/SystemServer( 1963): ServicePoolImpl Service granted: device to com.rokid.glesse
+05-19 13:55:56.214 D/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 死亡通知注册成功
+05-19 13:55:56.215 I/InspectionLoading( 4927): SDK state=BINDING
+05-19 13:55:56.216 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 13:55:56.217 I/SystemServer( 1963): ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 13:55:56.217 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：device (IDeviceService)
+05-19 13:55:56.220 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 13:55:56.222 D/SystemServer( 1963): OfflineCmdImpl:: add-->
+05-19 13:55:56.222 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 (com.rokid.security.system.server) 添加VoiceAction
+05-19 13:55:56.222 I/SystemServer( 1963): GlassVoiceServiceImpl:: add-->
+05-19 13:55:56.223 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:5
+05-19 13:55:56.223 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=5
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:55:56.223 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:55:56.224 I/InspectionLoading( 4927): 统一输入语音注册成功: 退出
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     621]D Is user defined wakewords, content:退出
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Config.cpp     519]D Add wakeup word pinyin: tui chu, margin: 0.000000, wordtype: 3
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [R2Engine.cpp         1072]D set wakewords 5
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [ctcengine.cpp        684]D add wakewords pinyin:tui chu, content:退出
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:55:56.224 I/turen   ( 1963): [R2][01:37:34.816] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:55:56.224 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:55:56.250 I/turen   ( 1963): [R2][01:37:34.848] [ctcengine.cpp        562]D set key prons 5
+05-19 13:55:56.250 I/turen   ( 1963): [R2][01:37:34.848] [engine/ctc.cpp       393]D stop_lines cancel 0
+05-19 13:55:56.252 I/InspectionLoading( 4927): SDK state=READY
+05-19 13:55:56.301 I/turen   ( 1963): [R2][01:37:34.880] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 13:55:56.301 I/turen   ( 1963): [R2][01:37:34.880] [ctcengine.cpp        572]D key prons [she bei zhi yin] margin -2.000000
+05-19 13:55:56.301 I/turen   ( 1963): [R2][01:37:34.880] [ctcengine.cpp        572]D key prons [yin huan pai zhao] margin -2.000000
+05-19 13:55:56.301 I/turen   ( 1963): [R2][01:37:34.880] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 13:55:56.301 I/turen   ( 1963): [R2][01:37:34.880] [ctcengine.cpp        572]D key prons [tui chu] margin -1.500000
+05-19 13:55:56.301 D/NodeDecoder( 1963): [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 13:55:56.301 D/NodeDecoder( 1963): [AddKeyWord] [she bei zhi yin,she bei zhi yin] yuzhi:-2.00
+05-19 13:55:56.301 D/NodeDecoder( 1963): [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 13:55:56.302 D/NodeDecoder( 1963): [AddKeyWord] [tui chu,tui chu] yuzhi:-1.50
+05-19 13:55:56.302 D/NodeDecoder( 1963): [AddKeyWord] [yin huan pai zhao,yin huan pai zhao] yuzhi:-2.00
+05-19 13:55:56.302 I/turen   ( 1963): [R2][01:37:34.880] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 13:55:56.520 I/InspectionCameraCoord( 4927): acquire owner=LOADING generation=1 state=OPENING needPreview=false previewAttached=false frameOpen=false enableRecovery=false
+05-19 13:55:56.521 I/RokidFrameSource( 4927): startFrameStream create helper
+05-19 13:55:56.527 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=Media
+05-19 13:55:56.528 I/SystemServer( 1963): ServicePoolImpl Service granted: Media to com.rokid.glesse
+05-19 13:55:56.531 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：Media (IMediaServer)
+05-19 13:55:56.532 D/SystemServer( 1963): MediaServerImpl startCameraNv21Export: pid=4927, enableMix=false
+05-19 13:55:56.533 D/SystemServer( 1963): CameraShareManager startNv21Export: pid=4927, callbackId=9657317e-2491-4e65-aa1c-ed0e32ccf9b3, enableMix=false
+05-19 13:55:56.533 D/SystemServer( 1963): Glass3Media::GlobalMediaManager checkNeedStart resolution = 5, mResolution = -1
+05-19 13:55:56.534 D/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera:  resolution = 5 && cameraGeneration = 7
+05-19 13:55:56.534 D/com.rokid.glesse.hiddenrisk( 4927): CameraShareHelper startCameraNv21Export called, enableMix=false
+05-19 13:55:56.553 I/SystemServer( 1963): Glass3Media::GlobalMediaManager initResolution: width = 1080 ,height =  1920
+05-19 13:55:56.553 I/Glass3Media::CameraGlassesObject( 1963): init-->
+05-19 13:55:56.556 I/SystemServer( 1963): Glass3Media::CameraGlassesObject mCameraId  0
+05-19 13:55:56.562 I/SystemServer( 1963): Glass3Media::CameraGlassesObject turnState: mState = com.rokid.glass.luban.camera.CameraGlassesObject$InitialedState@918a4c0
+05-19 13:55:56.562 I/SystemServer( 1963): Glass3Media::CameraGlassesObject configSize 1080  1920
+05-19 13:55:56.563 D/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera: 1080, 1920
+05-19 13:55:56.563 I/SystemServer( 1963): Glass3Media::CameraGlassesObject turnState: mState = com.rokid.glass.luban.camera.CameraGlassesObject$OpenWaitState@e30d5f9
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): QUALCOMM build                   : 1ee5569fc4, I7c9e039212
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Build Date                       : 12/26/24
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): OpenGL ES Shader Compiler Version: E031.49.05.00
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Local Branch                     : 
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.14.3.4.11.00.00.1126.313
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Remote Branch                    : NONE
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Reconstruct Branch               : NOTHING
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Build Config                     : S P 16.1.2 AArch64
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Driver Version                   : 0812.0
+05-19 13:55:56.573 I/AdrenoGLES-0( 1963): Process Name                     : com.rokid.security.system.server
+05-19 13:55:56.630 I/AdrenoGLES-0( 1963): PFP: 0x016dd112, ME: 0x00000000
+05-19 13:55:56.639 I/hwservicemanager(  397): Since vendor.qti.qspmhal@1.0::IQspmhal/default is not registered, trying to start it as a lazy HAL.
+05-19 13:55:56.640 W/Adreno-AppProfiles( 1963): Could not find QSPM HAL service. Skipping adreno profile processing.
+05-19 13:55:56.641 W/libc    (  397): Unable to set property "ctl.interface_start" to "vendor.qti.qspmhal@1.0::IQspmhal/default": error code: 0x20
+05-19 13:55:56.657 E/init    (    1): Control message: Could not find 'vendor.qti.qspmhal@1.0::IQspmhal/default' for ctl.interface_start from pid: 397 (/system/bin/hwservicemanager)
+05-19 13:55:56.641 I/hwservicemanager(  397): Tried to start vendor.qti.qspmhal@1.0::IQspmhal/default as a lazy service, but was unable to. Usually this happens when a service is not installed, but if the service is intended to be used as a lazy service, then it may be configured incorrectly.
+05-19 13:55:56.656 I/SystemServer( 1963): Glass3Media::CameraAndScreenRender mTextureId = 1
+05-19 13:55:56.665 I/SystemServer( 1963): setDefaultBufferSize setDefaultBufferSize mPreviewWidth=1080 mPreviewHeight=1920
+05-19 13:55:56.666 E/SystemServer( 1963): Glass3Media::CameraGlassesObject startPreview isClosingCamera is false
+05-19 13:55:56.666 I/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera mResolution = 5
+05-19 13:55:56.666 D/SystemServer( 1963): Glass3Media::GlobalMediaManager waitForCameraReady -- start
+05-19 13:55:56.681 D/SystemServer( 1963): Glass3Media::CameraGlassesObject startPreview-->null   android.graphics.SurfaceTexture@7434cec  opening= false mState = OpenWaitState, isClosingCamera = false
+05-19 13:55:56.684 I/CameraService(  887): CameraService::connect call (PID -1 "com.rokid.security.system.server", camera ID 0) and Camera API version 2
+05-19 13:55:56.685 I/CameraService(  887): No client to evict, count:0
+05-19 13:55:56.685 I/Camera2ClientBase(  887): Camera 0: Opened. Client: com.rokid.security.system.server (PID 1963, UID 1000)
+05-19 13:55:56.685 I/CameraDeviceClient(  887): CameraDeviceClient 0: Opened
+05-19 13:55:56.707 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+05-19 13:55:56.708 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+05-19 13:55:56.708 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 100
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 100
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:468 DumpState() 
+05-19 13:55:56.711 I/CamX    (  802): 
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:469 DumpState() reservation Id: 0
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:470 DumpState() ----------------------------------
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:471 DumpState()     Key      reservation
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:472 DumpState() ----------------------------------
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {1, 0} :     100
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+05-19 13:55:56.711 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+05-19 13:55:56.713 I/SDM     (  805): ResourceImpl::SetMaxBandwidthMode: new bandwidth mode=1
+05-19 13:55:56.732 E/CameraService_proxy( 1260): Recent task package name: com.rokid.glesse doesn't match with camera client package name: com.rokid.security.system.server
+05-19 13:55:56.735 I/SystemServer( 1963): Glass3Media::CameraGlassesObject onOpened-->
+05-19 13:55:56.735 D/AHAL: AudioDevice(  790): SetParameters: 1442: enter: cameraFacing=back
+05-19 13:55:56.735 D/AHAL: AudioVoice(  790): VoiceSetParameters: 86: Enter params: cameraFacing=back
+05-19 13:55:56.735 D/AHAL: AudioVoice(  790): VoiceSetParameters: 307: Exit ret: 0
+05-19 13:55:56.737 D/AHAL: hfp(  790): hfp_set_parameters: 551: enter
+05-19 13:55:56.740 D/AHAL: BTSink(  790): btsink_set_parameters: 262: Enter
+05-19 13:55:56.740 D/AHAL: BTSink(  790): btsink_set_volume: 88: Volume brought with in range (1.000000)
+05-19 13:55:56.740 D/AHAL: BTSink(  790): btsink_set_volume: 94:  BT Sink not active, ignoring set_volume call
+05-19 13:55:56.740 D/AHAL: BTSink(  790): btsink_set_parameters: 326: exit
+05-19 13:55:56.740 D/AHAL: FM(  790): fm_set_parameters: 264: Enter
+05-19 13:55:56.740 D/AHAL: FM(  790): fm_set_parameters: 322: exit
+05-19 13:55:56.740 D/AHAL: AudioDevice(  790): SetParameters: 2011: exit: cameraFacing=back
+05-19 13:55:56.752 I/SystemServer( 1963): Glass3Media::CameraGlassesObject startRecordSession is 1080P set zoom 1.2 && zoomRect is Rect(2, 252 - 3360, 2772)
+05-19 13:55:56.754 W/cameraserver(  887): createSurfaceFromGbp: Camera 0 with consumer usage flag: 256: Forcing asynchronous mode forstream
+05-19 13:55:56.755 W/cameraserver(  887): createSurfaceFromGbp: Camera 0: Overriding format 0x1 to IMPLEMENTATION_DEFINED
+05-19 13:55:56.758 I/ThermalEngine( 1830): Thermal-Server: Thermal received msg from  camera_bw_0
+05-19 13:55:56.759 I/Thermal-Lib(  802): Thermal-Lib: Client request sent for camera_bw_0 with val:0x0
+05-19 13:55:56.816 E/CamX    (  802): [ERROR][SENSOR ] camxsensornode.cpp:9254 GetSensorModuleIndexes() Sensor[0] GetDeviceIndex failure for Flash, result: CamxResultSuccess
+05-19 13:55:56.846 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+05-19 13:55:56.846 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+05-19 13:55:56.846 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+05-19 13:55:56.847 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+05-19 13:55:56.847 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {2, 0} :   50
+05-19 13:55:56.847 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+05-19 13:55:56.896 D/Camera3-Device(  887): Set real time priority for request queue thread (tid 4967)
+05-19 13:55:56.898 I/SystemServer( 1963): Glass3Media::CameraGlassesObject createCaptureSession isSuccess = true
+05-19 13:55:56.911 I/CAM_INFO( 1173): CAM-SENSOR: cam_sensor_driver_cmd: 975 CAM_ACQUIRE_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+05-19 13:55:56.903 D/CameraService(  887): connectDevice: .... 
+05-19 13:55:56.904 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+05-19 13:55:56.904 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+05-19 13:55:56.904 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+05-19 13:55:56.904 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+05-19 13:55:56.904 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {2, 0} :   50
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 50
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 50
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:179 DumpState() 
+05-19 13:55:56.905 I/CamX    (  802): 
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:180 DumpState() client {RealTimeFeatureZSLPreviewRawRokidExt1_0, 0xb40000712331c000}
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:181 DumpState() -------------------------
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:182 DumpState()     Key     Allocation
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:183 DumpState() -------------------------
+05-19 13:55:56.905 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {1, 0} :   100
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {2, 0} :   50
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {5, 1} :   50
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:468 DumpState() 
+05-19 13:55:56.906 I/CamX    (  802): 
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:469 DumpState() reservation Id: 0
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:470 DumpState() ----------------------------------
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:471 DumpState()     Key      reservation
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:472 DumpState() ----------------------------------
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {1, 0} :     0
+05-19 13:55:56.906 I/CamX    (  802): [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {5, 1} :     0
+05-19 13:55:56.913 I/LightCtrlSVC( 1260): send event 2, 2014, callUid=1047, callPid=887
+05-19 13:55:56.912 I/CAM_INFO( 1173): CAM-CSIPHY: cam_csiphy_core_cfg: 2000 CAM_ACQUIRE_DEV: 1 Type: DPHY acquire_count: 1 combo: 0 cphy+dphy combo: 0
+05-19 13:55:56.932 I/leds red( 5001): [leds-aw2110x.c:led_current_store:243] enter
+05-19 13:55:56.932 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_current:216] chan=2, curr=0x02
+05-19 13:55:56.933 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=2, brigntness=0x0000
+05-19 13:55:56.933 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=2, brigntness=0x00
+05-19 13:55:56.934 I/leds green( 5001): [leds-aw2110x.c:led_current_store:243] enter
+05-19 13:55:56.934 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_current:216] chan=1, curr=0x02
+05-19 13:55:56.934 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=1, brigntness=0x0000
+05-19 13:55:56.934 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=1, brigntness=0x00
+05-19 13:55:56.936 I/leds blue( 5001): [leds-aw2110x.c:led_current_store:243] enter
+05-19 13:55:56.936 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_current:216] chan=0, curr=0x02
+05-19 13:55:56.936 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=0, brigntness=0x0000
+05-19 13:55:56.938 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=0, brigntness=0x00
+05-19 13:55:56.939 I/leds white( 5001): [leds-aw2110x.c:led_current_store:243] enter
+05-19 13:55:56.939 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+05-19 13:55:56.939 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x0000
+05-19 13:55:56.939 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0x00
+05-19 13:55:56.940 I/leds white( 5001): [leds-aw2110x.c:led_current_store:243] enter
+05-19 13:55:56.940 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+05-19 13:55:56.941 I/CAM_ERR ( 4993): CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=116 already in list [5:55:56:925] cb=ife idx=0 handle=32144 len=589824,give same addr back
+05-19 13:55:56.941 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x00FF
+05-19 13:55:56.941 I/aw2110x 1-0030( 5001): [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0xFF
+05-19 13:55:56.941 I/CAM_ERR ( 4993): CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=92 already in list [5:55:56:926] cb=ife idx=0 handle=32144 len=483328,give same addr back
+05-19 13:55:56.942 I/CAM_ERR ( 4993): CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=99 already in list [5:55:56:926] cb=ife idx=0 handle=32144 len=495616,give same addr back
+05-19 13:55:56.945 I/synx    ( 4993): [sess: 25857] session created umd-client-4993
+05-19 13:55:56.939 I/EVA     (  802): File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/platform/android/evaSession.cpp Line: 347 Function: evaGetDebugEnable() Msg:  EVA Debug Logs Disabled 
+05-19 13:55:56.939 I/EVA     (  802): File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/platform/android/evaSession.cpp Line: 360 Function: evaGetDebugEnable() Msg:  EVA Memory Profile Disabled 
+05-19 13:55:56.955 I/msm_cvp ( 4993): sess: Opening cvp instance: 0000000000000000
+05-19 13:55:56.956 I/msm_cvp ( 4993): warn: HFI Read register failed : Power is OFF
+05-19 13:55:56.958 I/msm_cvp ( 4993): pwr: cvp (eva) powered on
+05-19 13:55:56.961 I/msm_cvp ( 3261): fw: <CFW_E:HostDr:0000feed:00:00000000bacf9cae> VenusHostDriver_SetSysProperty(599): QC_IMAGE_VERSION_STRING=EVA.FIRMWARE.3.5-33
+05-19 13:55:56.961 I/msm_cvp ( 3261): fw: <CFW_E:HostDr:0000feed:00:00000000bad0153c> VenusHostDriver_SetSysProperty(599): QC_IMAGE_VERSION_STRING=EVA.FIRMWARE.3.5-33
+05-19 13:55:56.952 I/EVA     (  802): File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/evaFaceDetection.cpp Line: 377 Function: evaFaceDetectionPrepareConfigPacket() Msg: evaFaceDetectionPrepareConfigPacket - minFace 0, dir 12, pose 2, rdfPad 15, maxRdf 2000, dir20 12, pose20 2
+05-19 13:55:56.953 I/DMABUFHEAPS(  802): Using DMA-BUF heap named: qcom,system
+05-19 13:55:56.953 I/DMABUFHEAPS(  802): Using DMA-BUF heap named: qcom,system
+05-19 13:55:56.953 I/DMABUFHEAPS(  802): Using DMA-BUF heap named: qcom,system
+05-19 13:55:56.968 I/synx    ( 4993): [sess: 5890] session created cvp-kernel-client
+05-19 13:55:56.970 I/msm_cvp ( 3261): fw: <CFW_E:RTWrkM:bad1d780:00:00000000bad811f0> cvp_Worker_ProcessControlCommand(18956): pixel persist buffer addr da400000
+05-19 13:55:56.970 I/msm_cvp ( 3261): fw: <CFW_E:RTWrkM:bad1d780:00:00000000bad86fdd> cvp_Worker_ProcessControlCommand(18967): non pixel persist buffer addr d9600000 size 14323200
+05-19 13:55:56.971 D/SystemServer( 1963): Glass3Media::GlobalMediaManager waitForCameraReady -- end
+05-19 13:55:56.971 D/SystemServer( 1963): Glass3Media::CameraAndScreenRender startExport:
+05-19 13:55:56.972 D/SystemServer( 1963): CameraShareManager Nv21 session created: 9657317e-2491-4e65-aa1c-ed0e32ccf9b3, 1080x1920, enableMix=false
+05-19 13:55:56.980 D/com.rokid.glesse.hiddenrisk( 4927): CameraShareHelper nv21 onCameraOpened: 1080x1920
+05-19 13:55:56.981 I/RokidFrameSource( 4927): applySdkZoom zoomRatio=2.0 level=2
+05-19 13:55:56.982 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=Media
+05-19 13:55:56.982 I/SystemServer( 1963): ServicePoolImpl Service granted: Media to com.rokid.glesse
+05-19 13:55:56.983 D/SystemServer( 1963): Glass3Media::CameraAndScreenRender startExport end-->com.rokid.glass.arworkflow.media.filter.ExportFilter@ac24b31
+05-19 13:55:56.983 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：Media (IMediaServer)
+05-19 13:55:56.985 D/SystemServer( 1963): MediaServerImpl zoomCamera: level= 2,  pid = 4927
+05-19 13:55:56.987 I/SystemServer( 1963): Glass3Media::CameraGlassesObject zoom is called  && widthxheight(1080x1920) set zoom 2.0 && zoomRect is Rect(1008, 756 - 3024, 2268)
+05-19 13:55:57.000 I/EVA     (  802): File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/evaFaceDetection.cpp Line: 522 Function: evaFaceDetectionReadModel() Msg: /vendor/etc/eva/facedetection/model3.dat is used
+05-19 13:55:57.012 I/InspectionCameraCoord( 4927): preview_disabled owner=LOADING generation=1 state=READY_NO_PREVIEW needPreview=false previewAttached=false frameOpen=true
+05-19 13:55:57.024 I/CAM_INFO( 4991): CAM-ISP: cam_ife_hw_mgr_print_acquire_info: 1334 5:55:57.9 Acquired Single IFE[1] with [12 pix] [0 pd] [0 rdi] ports for ctx:7
+05-19 13:55:57.035 I/CAM_INFO( 4991): CAM-CSIPHY: cam_csiphy_core_cfg: 2394 CAM_START_PHYDEV: 1, Type: DPHY, slot: 0, sec_mode: 0, Datarate: 3600000000, Settletime: 6400000000, combo: 0, cphy+dphy: 0
+05-19 13:55:57.038 I/InspectionCameraCoord( 4927): pause owner=LOADING generation=2 state=PAUSED_NO_PREVIEW needPreview=false previewAttached=false frameOpen=true reason=loading_camera_ready_pause_frame_stream
+05-19 13:55:57.108 E/TaskPersister( 1260): File error accessing recents directory (directory doesn't exist?).
+05-19 13:55:57.164 E/ANDR-PERF-OPTSHANDLER(  817): ANDR-PERF-OPTSHANDLER: modify_sysfsnode() 1017: Perflock resource /sys/devices/system/cpu/cpu0/cpufreq/schedutil/pl not supported
+05-19 13:55:57.164 E/ANDR-PERF-RESOURCEQS(  817): ANDR-PERF-RESOURCEQS: AddAndApply() 167: Failed to apply optimization [5, 17]
+05-19 13:55:57.164 E/ANDR-PERF-OPTSHANDLER(  817): ANDR-PERF-OPTSHANDLER: modify_sysfsnode() 1017: Perflock resource /sys/devices/system/cpu/cpu0/cpufreq/schedutil/hispeed_load not supported
+05-19 13:55:57.164 E/ANDR-PERF-RESOURCEQS(  817): ANDR-PERF-RESOURCEQS: AddAndApply() 167: Failed to apply optimization [5, 16]
+05-19 13:55:57.035 I/CAM_INFO( 4991): CAM-SENSOR: cam_sensor_driver_cmd: 1100 5:55:57.19 CAM_START_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+05-19 13:55:57.404 W/cam_common_util_thread_switch_delay_detect( 3398): 2 callbacks suppressed
+05-19 13:55:57.479 I/OpenGLRenderer( 4927): Davey! duration=9223366155926ms; Flags=0, FrameTimelineVsyncId=677249, IntendedVsync=5880923125384, Vsync=5880923125384, InputEventId=0, HandleInputStart=5880924506818, AnimationStart=5880924514266, PerformTraversalsStart=5880924521297, DrawStart=5880925139006, FrameDeadline=5880956458716, FrameInterval=5880924450985, FrameStartTime=16666666, SyncQueued=5880934340099, SyncStart=5880939616922, IssueDrawCommandsStart=5880939786297, SwapBuffers=5880947048901, FrameCompleted=9223372036854775807, DequeueBufferDuration=21198, QueueBufferDuration=1036302, GpuCompleted=9223372036854775807, SwapBuffersCompleted=5880949272599, DisplayPresentTime=0, 
+05-19 13:55:57.640 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 18863(2610KB) AllocSpace objects, 11(20MB) LOS objects, 34% free, 20MB/31MB, paused 971us,56us total 188.841ms
+05-19 13:55:57.831 I/OpenGLRenderer( 4927): Davey! duration=9223366155580ms; Flags=0, FrameTimelineVsyncId=677287, IntendedVsync=5881273130284, Vsync=5881273130284, InputEventId=0, HandleInputStart=5881275759995, AnimationStart=5881275766141, PerformTraversalsStart=5881275770099, DrawStart=5881277146193, FrameDeadline=5881306463616, FrameInterval=5881275716349, FrameStartTime=16666666, SyncQueued=5881278153953, SyncStart=5881279265412, IssueDrawCommandsStart=5881279446141, SwapBuffers=5881284740047, FrameCompleted=9223372036854775807, DequeueBufferDuration=34480, QueueBufferDuration=956875, GpuCompleted=9223372036854775807, SwapBuffersCompleted=5881286296141, DisplayPresentTime=0, 
+05-19 13:55:57.971 I/om.rokid.gless( 4927): Background concurrent copying GC freed 673(106KB) AllocSpace objects, 10(29MB) LOS objects, 75% free, 20MB/81MB, paused 13.924ms,264us total 237.435ms
+05-19 13:55:58.125 I/perfetto(  878): ng_service_impl.cc:1821 FlushAndDisableTracing(8) done, success=1
+05-19 13:55:58.126 I/perfetto(  877): probes_producer.cc:340  Producer stop (id=8)
+05-19 13:55:58.127 I/perfetto(  877): ftrace_procfs.cc:213    disabled ftrace in /sys/kernel/tracing/
+05-19 13:55:57.404 I/CAM_WARN( 3398): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5880:860139 cur 5880:869918 diff 9: threshold 5
+05-19 13:55:58.142 W/perfetto(  877): disabled ftrace
+05-19 13:55:58.135 I/perfetto(  878): ng_service_impl.cc:2293 Tracing session 8 ended, total sessions:0
+05-19 13:55:58.171 I/iorapd  (  867): Perfetto TraceBuffer saved to file: /data/misc/iorapd/com.rokid.glesse/1/com.rokid.glass.hiddenrisk.InspectionLoadingActivity/raw_traces/1779170158167573852.perfetto_trace.pb
+05-19 13:55:58.788 I/om.rokid.gless( 4927): Background young concurrent copying GC freed 1012(143KB) AllocSpace objects, 25(74MB) LOS objects, 78% free, 17MB/81MB, paused 159us,251us total 151.550ms
+05-19 13:55:58.813 I/OpenGLRenderer( 4927): Davey! duration=9223366154581ms; Flags=0, FrameTimelineVsyncId=677402, IntendedVsync=5882273144121, Vsync=5882273144121, InputEventId=0, HandleInputStart=5882274444630, AnimationStart=5882274448015, PerformTraversalsStart=5882274450099, DrawStart=5882277132495, FrameDeadline=5882306477453, FrameInterval=5882274412078, FrameStartTime=16666666, SyncQueued=5882278910359, SyncStart=5882279017338, IssueDrawCommandsStart=5882279491870, SwapBuffers=5882282197911, FrameCompleted=9223372036854775807, DequeueBufferDuration=49167, QueueBufferDuration=1501250, GpuCompleted=9223372036854775807, SwapBuffersCompleted=5882284445463, DisplayPresentTime=0, 
+05-19 13:55:59.635 W/cam_common_util_thread_switch_delay_detect( 3224): 12 callbacks suppressed
+05-19 13:55:59.674 I/om.rokid.gless( 4927): Background concurrent copying GC freed 1152(112KB) AllocSpace objects, 27(80MB) LOS objects, 75% free, 17MB/69MB, paused 413us,90us total 201.472ms
+05-19 13:55:59.635 I/CAM_WARN( 3224): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5883:090279 cur 5883:101088 diff 10: threshold 5
+05-19 13:55:59.892 I/(virq   ( 4113): irq_count)- GICv3:IPI(1):12807358 GICv3:arch_timer(11):5659310 ipcc:glink-native-adsp(363):784168 GICv3:ipcc_0(32):717356 GICv3:apps_rsc(22):653199 GICv3:190b6400.qcom,bwmon-llcc(26):495624 GICv3:IPI(6):426948 GICv3:IPI(2):387309 GICv3:kgsl_hfi_irq(176):353529 GICv3:msm_drm(249):325526
+05-19 13:55:59.892 I/(cpu    ( 4113): irq_count)- 0:7024604 1:6329029 2:4940688 3:4885570
+05-19 13:55:59.892 I/(ipi    ( 4113): irq_count)- 0:12807358 1:387309 2:0 3:0 4:0 5:426948 6:0
+05-19 13:56:00.314 D/SystemServer( 1963): DeviceUtil Prop ro.serialno、1901092534053550
+05-19 13:56:00.364 I/EventSequenceValidator( 1260): inc AccIntentStartedEvents to 2
+05-19 13:56:00.365 I/ActivityStarter( 1260): START u0 {cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity} from uid 10066
+05-19 13:56:00.365 D/ActivityStarter( 1260): Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 13:56:00.385 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:56:00.385 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:56:00.386 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:56:00.388 D/ActivityTrigger( 1260): ActivityTrigger activityPauseTrigger 
+05-19 13:56:00.397 I/EventSequenceValidator( 1260): dec AccIntentStartedEvents to 1
+05-19 13:56:00.407 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 13:56:00.407 I/SystemServer( 1963): ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 13:56:00.410 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 13:56:00.411 D/SystemServer( 1963): OfflineCmdImpl:: remove-->
+05-19 13:56:00.411 I/SystemServer( 1963): GlassVoiceServiceImpl:: remove-->5
+05-19 13:56:00.411 I/SystemServer( 1963): GlassVoiceServiceImpl:: remove-->>4
+05-19 13:56:00.412 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:4
+05-19 13:56:00.412 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 移除VoiceAction
+05-19 13:56:00.412 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=4
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 退出, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 退出
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.413 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:56:00.414 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.414 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:56:00.414 I/turen   ( 1963): [R2][01:37:39.008] [R2Engine.cpp         1072]D set wakewords 4
+05-19 13:56:00.414 I/turen   ( 1963): [R2][01:37:39.008] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:56:00.414 I/turen   ( 1963): [R2][01:37:39.008] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:56:00.414 I/turen   ( 1963): [R2][01:37:39.008] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:56:00.415 I/turen   ( 1963): [R2][01:37:39.008] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:56:00.415 I/turen   ( 1963): [R2][01:37:39.008] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:56:00.415 I/turen   ( 1963): [R2][01:37:39.008] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:56:00.415 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:56:00.426 I/ActivityTaskSupervisor( 1260): The Process com.rokid.glesse Already Exists in BG. So sending its PID: 4927
+05-19 13:56:00.427 W/WindowProcessController( 1260): Tried to set launchTime (0) < mLastActivityLaunchTime (5876743)
+05-19 13:56:00.430 I/turen   ( 1963): [R2][01:37:39.040] [ctcengine.cpp        562]D set key prons 4
+05-19 13:56:00.430 I/turen   ( 1963): [R2][01:37:39.040] [engine/ctc.cpp       393]D stop_lines cancel 0
+05-19 13:56:00.432 D/CompatibilityInfo( 1260): mCompatibilityFlags - 4
+05-19 13:56:00.432 D/CompatibilityInfo( 1260): applicationDensity - 240
+05-19 13:56:00.433 D/CompatibilityInfo( 1260): applicationScale - 1.0
+05-19 13:56:00.475 I/BpBinder(  826): onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+05-19 13:56:00.481 I/turen   ( 1963): [R2][01:37:39.072] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 13:56:00.482 I/turen   ( 1963): [R2][01:37:39.072] [ctcengine.cpp        572]D key prons [she bei zhi yin] margin -2.000000
+05-19 13:56:00.482 I/turen   ( 1963): [R2][01:37:39.072] [ctcengine.cpp        572]D key prons [yin huan pai zhao] margin -2.000000
+05-19 13:56:00.482 I/turen   ( 1963): [R2][01:37:39.072] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 13:56:00.483 D/NodeDecoder( 1963): [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 13:56:00.484 D/NodeDecoder( 1963): [AddKeyWord] [she bei zhi yin,she bei zhi yin] yuzhi:-2.00
+05-19 13:56:00.484 D/NodeDecoder( 1963): [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 13:56:00.485 D/NodeDecoder( 1963): [AddKeyWord] [yin huan pai zhao,yin huan pai zhao] yuzhi:-2.00
+05-19 13:56:00.485 I/turen   ( 1963): [R2][01:37:39.072] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 13:56:00.702 E/startActivity( 4927): com.rokid.glass.EnterpriseQrScanActivity
+05-19 13:56:00.727 I/EnterpriseQrScan( 4927): startCameraPipeline requestGeneration=pending completed=false status=请将企业二维码放入取景框内 recovery=true
+05-19 13:56:00.729 I/InspectionCameraCoord( 4927): acquire owner=ENTERPRISE_QR_SCAN generation=3 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true enableRecovery=true
+05-19 13:56:00.729 I/EnterpriseQrScan( 4927): startCameraPipeline requestGeneration=3 owner=ENTERPRISE_QR_SCAN
+05-19 13:56:00.765 D/ActivityRecord( 1260): setupResumeState: com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, true, booted=true
+05-19 13:56:00.780 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 13:56:00.780 I/SystemServer( 1963): ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 13:56:00.783 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 13:56:00.785 D/SystemServer( 1963): OfflineCmdImpl:: add-->
+05-19 13:56:00.785 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 (com.rokid.security.system.server) 添加VoiceAction
+05-19 13:56:00.785 I/SystemServer( 1963): GlassVoiceServiceImpl:: add-->
+05-19 13:56:00.785 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:5
+05-19 13:56:00.786 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=5
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:56:00.786 D/SystemServer( 1963): OfflineCmdImpl:: add-->
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:56:00.786 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.787 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 (com.rokid.security.system.server) 添加VoiceAction
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:56:00.787 I/SystemServer( 1963): GlassVoiceServiceImpl:: add-->
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:确认
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ren, margin: 0.000000, wordtype: 3
+05-19 13:56:00.787 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:6
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [R2Engine.cpp         1072]D set wakewords 5
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:que ren, content:确认
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:56:00.787 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:56:00.787 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=6
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:56:00.787 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确认, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确认
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.788 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:确认
+05-19 13:56:00.788 D/SystemServer( 1963): OfflineCmdImpl:: add-->
+05-19 13:56:00.790 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 (com.rokid.security.system.server) 添加VoiceAction
+05-19 13:56:00.790 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ren, margin: 0.000000, wordtype: 3
+05-19 13:56:00.790 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     621]D Is user defined wakewords, content:确定
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ding, margin: 0.000000, wordtype: 3
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [R2Engine.cpp         1072]D set wakewords 6
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:que ren, content:确认
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [ctcengine.cpp        684]D add wakewords pinyin:que ding, content:确定
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:56:00.791 I/turen   ( 1963): [R2][01:37:39.360] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:56:00.791 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:56:00.791 I/SystemServer( 1963): GlassVoiceServiceImpl:: add-->
+05-19 13:56:00.792 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:7
+05-19 13:56:00.793 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        562]D set key prons 6
+05-19 13:56:00.793 D/SystemServer( 1963): OfflineCmdImpl:: add-->
+05-19 13:56:00.793 I/turen   ( 1963): [R2][01:37:39.392] [engine/ctc.cpp       393]D stop_lines cancel 0
+05-19 13:56:00.793 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=7
+05-19 13:56:00.793 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 (com.rokid.security.system.server) 添加VoiceAction
+05-19 13:56:00.793 I/SystemServer( 1963): GlassVoiceServiceImpl:: add-->
+05-19 13:56:00.793 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:56:00.793 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:8
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确认, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确认
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确定, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确定
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.794 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:确认
+05-19 13:56:00.795 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ren, margin: 0.000000, wordtype: 3
+05-19 13:56:00.795 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:确定
+05-19 13:56:00.795 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ding, margin: 0.000000, wordtype: 3
+05-19 13:56:00.795 D/SystemServer( 1963): OfflineCmdImpl:: add-->
+05-19 13:56:00.795 D/SystemServer( 1963): OfflineCmdImpl:: 进程 4927 (com.rokid.security.system.server) 添加VoiceAction
+05-19 13:56:00.795 I/SystemServer( 1963): GlassVoiceServiceImpl:: add-->
+05-19 13:56:00.796 I/SystemServer( 1963): GlassVoiceServiceImpl:: words:9
+05-19 13:56:00.796 I/EnterpriseQrScan( 4927): 统一输入语音注册成功: 确认, 确定, 继续, 返回, 取消
+05-19 13:56:00.797 I/InspectionCameraCoord( 4927): previewBind owner=ENTERPRISE_QR_SCAN generation=3
+05-19 13:56:00.798 I/RokidCameraPreview( 4927): startPreview requested
+05-19 13:56:00.799 I/RokidCameraPreview( 4927): defer surface preview start until gl ready program=0 width=0 height=0
+05-19 13:56:00.799 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:继续
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Config.cpp     519]D Add wakeup word pinyin: ji xu, margin: 0.000000, wordtype: 3
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [R2Engine.cpp         1072]D set wakewords 7
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:que ren, content:确认
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:que ding, content:确定
+05-19 13:56:00.800 I/turen   ( 1963): [R2][01:37:39.392] [ctcengine.cpp        684]D add wakewords pinyin:ji xu, content:继续
+05-19 13:56:00.846 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 13:56:00.847 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        572]D key prons [she bei zhi yin] margin -2.000000
+05-19 13:56:00.847 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        572]D key prons [yin huan pai zhao] margin -2.000000
+05-19 13:56:00.847 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 13:56:00.847 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        572]D key prons [que ren] margin -1.500000
+05-19 13:56:00.847 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        572]D key prons [que ding] margin -1.500000
+05-19 13:56:00.852 D/NodeDecoder( 1963): [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 13:56:00.852 D/NodeDecoder( 1963): [AddKeyWord] [que ding,que ding] yuzhi:-1.50
+05-19 13:56:00.852 D/NodeDecoder( 1963): [AddKeyWord] [que ren,que ren] yuzhi:-1.50
+05-19 13:56:00.852 D/NodeDecoder( 1963): [AddKeyWord] [she bei zhi yin,she bei zhi yin] yuzhi:-2.00
+05-19 13:56:00.852 D/NodeDecoder( 1963): [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 13:56:00.852 D/NodeDecoder( 1963): [AddKeyWord] [yin huan pai zhao,yin huan pai zhao] yuzhi:-2.00
+05-19 13:56:00.852 I/turen   ( 1963): [R2][01:37:39.424] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.424] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.424] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:56:00.853 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:56:00.853 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=8
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        562]D set key prons 7
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [she bei zhi yin] margin -2.000000
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [yin huan pai zhao] margin -2.000000
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [que ren] margin -1.500000
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [que ding] margin -1.500000
+05-19 13:56:00.853 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        572]D key prons [ji xu] margin -1.200000
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [ji xu,ji xu] yuzhi:-1.20
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [que ding,que ding] yuzhi:-1.50
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [que ren,que ren] yuzhi:-1.50
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [she bei zhi yin,she bei zhi yin] yuzhi:-2.00
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 13:56:00.854 D/NodeDecoder( 1963): [AddKeyWord] [yin huan pai zhao,yin huan pai zhao] yuzhi:-2.00
+05-19 13:56:00.854 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确认, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确认
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确定, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确定
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 继续, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 继续
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:确认
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ren, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:确定
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ding, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:继续
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: ji xu, margin: 0.000000, wordtype: 3
+05-19 13:56:00.855 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:返回
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: fan hui, margin: 0.000000, wordtype: 3
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [R2Engine.cpp         1072]D set wakewords 8
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:que ren, content:确认
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:que ding, content:确定
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:ji xu, content:继续
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:fan hui, content:返回
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:56:00.856 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:56:00.856 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:56:00.856 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords, count=9
+05-19 13:56:00.865 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 13:56:00.865 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 13:56:00.866 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 13:56:00.867 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 13:56:00.867 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 13:56:00.870 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 13:56:00.871 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 13:56:00.871 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 13:56:00.872 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确认, wordtype: 3
+05-19 13:56:00.872 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确认
+05-19 13:56:00.872 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 确定, wordtype: 3
+05-19 13:56:00.872 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 确定
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 继续, wordtype: 3
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 继续
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 返回, wordtype: 3
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 返回
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.873 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 13:56:00.874 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 13:56:00.874 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:确认
+05-19 13:56:00.874 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ren, margin: 0.000000, wordtype: 3
+05-19 13:56:00.874 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:确定
+05-19 13:56:00.875 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: que ding, margin: 0.000000, wordtype: 3
+05-19 13:56:00.875 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:继续
+05-19 13:56:00.876 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: ji xu, margin: 0.000000, wordtype: 3
+05-19 13:56:00.877 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:返回
+05-19 13:56:00.877 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: fan hui, margin: 0.000000, wordtype: 3
+05-19 13:56:00.877 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     621]D Is user defined wakewords, content:取消
+05-19 13:56:00.877 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Config.cpp     519]D Add wakeup word pinyin: qu xiao, margin: 0.000000, wordtype: 3
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [R2Engine.cpp         1072]D set wakewords 9
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 13:56:00.878 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:que ren, content:确认
+05-19 13:56:00.879 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:que ding, content:确定
+05-19 13:56:00.879 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:ji xu, content:继续
+05-19 13:56:00.879 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:fan hui, content:返回
+05-19 13:56:00.879 I/turen   ( 1963): [R2][01:37:39.456] [ctcengine.cpp        684]D add wakewords pinyin:qu xiao, content:取消
+05-19 13:56:00.879 I/turen   ( 1963): [R2][01:37:39.456] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 13:56:00.879 I/turen   ( 1963): [R2][01:37:39.456] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 13:56:00.879 I/Rokid_Logger( 1963): RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 13:56:00.894 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        562]D set key prons 9
+05-19 13:56:00.894 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [she bei zhi yin] margin -2.000000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [yin huan pai zhao] margin -2.000000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [que ren] margin -1.500000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [que ding] margin -1.500000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [ji xu] margin -1.200000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [fan hui] margin -1.500000
+05-19 13:56:00.895 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        572]D key prons [qu xiao] margin -1.200000
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [fan hui,fan hui] yuzhi:-1.50
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [ji xu,ji xu] yuzhi:-1.20
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [qu xiao,qu xiao] yuzhi:-1.20
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [que ding,que ding] yuzhi:-1.50
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [que ren,que ren] yuzhi:-1.50
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [she bei zhi yin,she bei zhi yin] yuzhi:-2.00
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 13:56:00.896 D/NodeDecoder( 1963): [AddKeyWord] [yin huan pai zhao,yin huan pai zhao] yuzhi:-2.00
+05-19 13:56:00.896 I/turen   ( 1963): [R2][01:37:39.488] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 13:56:00.968 W/cam_common_util_thread_switch_delay_detect( 4859): 1 callbacks suppressed
+05-19 13:56:01.000 I/RokidCameraPreview( 4927): gl surface created program=3
+05-19 13:56:01.001 I/RokidCameraPreview( 4927): gl surface changed width=330 height=330
+05-19 13:56:01.001 I/RokidCameraPreview( 4927): resume deferred surface preview start width=330 height=330
+05-19 13:56:01.007 D/com.rokid.glesse.hiddenrisk( 4927): CameraShareHelper Texture created: id=1
+05-19 13:56:01.012 D/ProfileInstaller( 4927): Installing profile for com.rokid.glesse
+05-19 13:56:01.013 I/SystemServer( 1963): ServicePoolImpl Client request: pid=4927, uid=10066, pkg=com.rokid.glesse, service=Media
+05-19 13:56:01.013 I/SystemServer( 1963): ServicePoolImpl Service granted: Media to com.rokid.glesse
+05-19 13:56:01.022 I/com.rokid.glesse.hiddenrisk( 4927): SecurityServiceClient 服务查询成功：Media (IMediaServer)
+05-19 13:56:01.025 D/SystemServer( 1963): MediaServerImpl startCameraShare: pid=4927
+05-19 13:56:01.028 D/SystemServer( 1963): CameraShareManager startSurfaceShare: pid=4927, callbackId=25d4fd48-f0b8-414d-9da4-f597f74d1478
+05-19 13:56:01.031 D/SystemServer( 1963): Glass3Media::GlobalMediaManager checkNeedStart resolution = 5, mResolution = 5
+05-19 13:56:01.031 D/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera:  resolution = 5 && cameraGeneration = 7
+05-19 13:56:01.031 I/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera: 和相机正在使用的分辨率一致 mResolution = ResolutionInfo(displayName=1080P_Land, width=1080, height=1920)
+05-19 13:56:01.031 I/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera mResolution = 5
+05-19 13:56:01.032 D/SystemServer( 1963): Glass3Media::GlobalMediaManager waitForCameraReady -- start
+05-19 13:56:01.032 D/SystemServer( 1963): Glass3Media::GlobalMediaManager waitForCameraReady -- end
+05-19 13:56:01.035 D/com.rokid.glesse.hiddenrisk( 4927): CameraShareHelper startCameraShare called
+05-19 13:56:01.036 D/SystemServer( 1963): Glass3Media startPreview
+05-19 13:56:01.036 D/SystemServer( 1963): CameraShareManager Surface session created: 25d4fd48-f0b8-414d-9da4-f597f74d1478, 1080x1920
+05-19 13:56:01.043 D/com.rokid.glesse.hiddenrisk( 4927): CameraShareHelper surface onCameraOpened: 1080x1920
+05-19 13:56:01.043 I/RokidCameraPreview( 4927): surface preview camera opened width=1080 height=1920
+05-19 13:56:01.044 D/SystemServer( 1963): Glass3Media::GlobalMediaManager checkNeedStart resolution = 5, mResolution = 5
+05-19 13:56:01.045 D/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera:  resolution = 5 && cameraGeneration = 7
+05-19 13:56:01.045 I/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera: 和相机正在使用的分辨率一致 mResolution = ResolutionInfo(displayName=1080P_Land, width=1080, height=1920)
+05-19 13:56:01.045 I/SystemServer( 1963): Glass3Media::GlobalMediaManager initCamera mResolution = 5
+05-19 13:56:01.047 I/InspectionCameraCoord( 4927): preview_ready owner=ENTERPRISE_QR_SCAN generation=3 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true success=true
+05-19 13:56:01.047 D/SystemServer( 1963): Glass3Media::GlobalMediaManager waitForCameraReady -- start
+05-19 13:56:01.048 I/EnterpriseQrScan( 4927): camera acquire result success=true generation=3 owner=ENTERPRISE_QR_SCAN state=READY_WITH_PREVIEW
+05-19 13:56:01.048 D/SystemServer( 1963): Glass3Media::GlobalMediaManager waitForCameraReady -- end
+05-19 13:56:01.050 I/EnterpriseQrScan( 4927): scanLoop start completed=false frameReady=true generation=3
+05-19 13:56:01.053 I/RokidCameraPreview( 4927): first preview draw textureId=1 crop=[0.21875,0.0,0.5625,1.0]
+05-19 13:56:01.061 D/SystemServer( 1963): Glass3Media::CameraAndScreenRender startExport:
+05-19 13:56:00.968 I/CAM_WARN( 4859): CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 5884:422439 cur 5884:433642 diff 11: threshold 5
+05-19 13:56:01.123 I/[kworke][0x1a531c8755][13:56:01.108202] kiwi_v2( 4904): [4904:I:PMO] pmo_core_psoc_send_host_wakeup_ind_to_fw: Host wakeup indication sent to fw
+05-19 13:56:01.130 D/SystemServer( 1963): Glass3Media::CameraAndScreenRender addOtherDrawer: 
+05-19 13:56:01.147 I/Transport-sdk( 1963): ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 13:56:01.176 D/SystemServer( 1963): RemoteSurfaceDrawer EGL context initialized for remote surface, 1080x1920
+05-19 13:56:01.181 I/adbd    ( 1252): RKD-- daemon_service_to_fd : shell,v2,raw:dumpsys activity activities
+05-19 13:56:01.519 I/adbd    ( 1252): RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time'
+05-19 13:56:01.627 I/logd    (  476): logdr: UID=2000 GID=2000 PID=5032 n tail=0 logMask=99 pid=0 start=0ns deadline=0ns
+05-19 13:56:01.709 I/[dp_rx_][0x1a53c7f2ee][13:56:01.693317] kiwi_v2( 1580): [1580:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff

@@ -1,0 +1,650 @@
+--------- beginning of main
+04-18 23:33:21.972  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 254(143KB) AllocSpace objects, 18(50MB) LOS objects, 70% free, 18MB/60MB, paused 900us,53us total 134.859ms
+04-18 23:33:22.030  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:22.032  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:am start -n com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity --ez debug_snapshot true --es debug_state success --es debug_company DemoCo --es debug_region DemoRegion --es debug_category DemoCat --es debug_risk_tags Tag1 --es debug_risk_level High
+--------- beginning of system
+04-18 23:33:22.167  1249  3415 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity (has extras)} from uid 2000
+04-18 23:33:22.170  1249  3415 W ActivityTaskSupervisor: Permission Denial: starting Intent { flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity (has extras) } from null (pid=6192, uid=2000) not exported from uid 10072
+04-18 23:33:22.171  1249  1276 I EventSequenceValidator: inc AccIntentStartedEvents to 3
+--------- beginning of kernel
+04-18 23:33:21.949  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq execution delay detected 13768:122349 cur 13768:134654 diff 12: threshold 10
+04-18 23:33:22.367   795   795 W healthd : battery l=100 v=4502 t=32.5 h=2 st=2 c=18000 cc=2 chg=u
+04-18 23:33:22.604  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 255(144KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 15MB/60MB, paused 83us,79us total 173.624ms
+04-18 23:33:22.804  1565  1565 I [dp_rx_][0x3d91e93096][23:33:22.786590] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:22.907  1565  1565 I [dp_rx_][0x3d920747e2][23:33:22.889300] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:23.021   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 113100/Done 113099|Work-Rate: Q(56.7/s Avg=20.7/s) Done(56.733/s Avg=20.720/s)| Stream: 74.33fps 407.8Kbps
+04-18 23:33:23.021   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:23.132   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 111747/Done 111747|Work-Rate: Q(54.4/s Avg=20.5/s) Done(54.592/s Avg=20.452/s)| Stream: 58.16fps 591.6Kbps
+04-18 23:33:23.132   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:23.496  1930  6108 I turen   : [R2][03:10:02.880] [src/R2Module.cpp     104]D R2Rs: 2000 loops, average: 158.
+04-18 23:33:23.497  1930  6099 I turen   : [R2][03:10:02.880] [src/R2Module.cpp     288]D <Thread> R2Engine: 2000 loops, average: 558
+04-18 23:33:23.883  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 230(144KB) AllocSpace objects, 21(59MB) LOS objects, 75% free, 15MB/61MB, paused 170us,98us total 184.130ms
+04-18 23:33:23.931  1565  1565 I [dp_rx_][0x3d93333e20][23:33:23.913170] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:24.121   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:33:24.121   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:33:24.315  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:input keyevent 66
+04-18 23:33:24.455  4767  4767 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:24.488  1249  3415 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=true interactive=true keyguardActive=false policyFlags=2b000000
+04-18 23:33:24.523  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 230(143KB) AllocSpace objects, 20(56MB) LOS objects, 79% free, 12MB/61MB, paused 744us,50us total 158.731ms
+04-18 23:33:24.540  1249  1365 D WindowManager: interceptKeyTi keyCode=66 down=true repeatCount=0 keyguardOn=false canceled=false
+04-18 23:33:24.600  1249  1365 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@6bb387, title=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+04-18 23:33:24.603  1249  1365 D WindowManager: No fallback.
+04-18 23:33:24.607  1249  3415 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=false interactive=true keyguardActive=false policyFlags=2b000000
+04-18 23:33:24.608  1249  1365 D WindowManager: interceptKeyTi keyCode=66 down=false repeatCount=0 keyguardOn=false canceled=false
+04-18 23:33:24.667  5941  5941 I EnterpriseQrScan: startCameraPipeline requestGeneration=pending completed=false status=请将企业二维码放入取景框内 recovery=true
+04-18 23:33:24.692  5941  5941 I InspectionCameraCoord: acquire owner=ENTERPRISE_QR_SCAN generation=7 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true enableRecovery=true
+04-18 23:33:24.692  5941  5941 I EnterpriseQrScan: startCameraPipeline requestGeneration=7 owner=ENTERPRISE_QR_SCAN
+04-18 23:33:24.695  1249  1365 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@6bb387, title=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+04-18 23:33:24.695  1249  1365 D WindowManager: No fallback.
+04-18 23:33:24.697   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 2(614400 size) used buffers - 113182/113194 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:24.700  5941  5941 I InspectionCameraCoord: preview_reused owner=ENTERPRISE_QR_SCAN generation=7 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true
+04-18 23:33:24.700  5941  5941 I EnterpriseQrScan: camera acquire result success=true generation=7 owner=ENTERPRISE_QR_SCAN state=READY_WITH_PREVIEW
+04-18 23:33:24.700  5941  5941 I EnterpriseQrScan: scanLoop start completed=false frameReady=true generation=7
+04-18 23:33:24.742  5941  5954 I OpenGLRenderer: Davey! duration=9223358265940ms; Flags=0, FrameTimelineVsyncId=1094422, IntendedVsync=13770911912208, Vsync=13770911912208, InputEventId=0, HandleInputStart=13770913042766, AnimationStart=13770913047141, PerformTraversalsStart=13770913048339, DrawStart=13770913380422, FrameDeadline=13770945245540, FrameInterval=13770913017818, FrameStartTime=16666666, SyncQueued=13770914142037, SyncStart=13770916902245, IssueDrawCommandsStart=13770917044850, SwapBuffers=13770921596829, FrameCompleted=9223372036854775807, DequeueBufferDuration=939375, QueueBufferDuration=5062708, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13770927134537, DisplayPresentTime=0, 
+04-18 23:33:24.455  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13770:623850 cur 13770:640291 diff 16: threshold 5
+04-18 23:33:24.852  1565  1565 I [dp_rx_][0x3d9441303c][23:33:24.834585] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:25.007  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:25.057   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 113198/113216 (recycle/alloc) - 1332/113211 (fetch/transfer)
+04-18 23:33:25.187  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 405(159KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 18MB/72MB, paused 117us,608us total 163.745ms
+04-18 23:33:25.338  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:25.416   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 111850/111871 (recycle/alloc) - 1359/111867 (fetch/transfer)
+04-18 23:33:25.470   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 111856/111872 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:25.905  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 227(143KB) AllocSpace objects, 23(65MB) LOS objects, 79% free, 15MB/72MB, paused 1.699ms,129us total 135.030ms
+04-18 23:33:26.608  4767  4767 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:26.771  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 192(143KB) AllocSpace objects, 23(66MB) LOS objects, 75% free, 25MB/103MB, paused 623us,120us total 264.247ms
+04-18 23:33:26.808  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:input keyevent 66
+04-18 23:33:26.939  1249  4870 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=true interactive=true keyguardActive=false policyFlags=2b000000
+04-18 23:33:26.940  1249  1365 D WindowManager: interceptKeyTi keyCode=66 down=true repeatCount=0 keyguardOn=false canceled=false
+04-18 23:33:26.957  1249  1365 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@6bb387, title=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+04-18 23:33:26.959  1249  1365 D WindowManager: No fallback.
+04-18 23:33:26.964  1249  4870 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=false interactive=true keyguardActive=false policyFlags=2b000000
+04-18 23:33:26.965  1249  1365 D WindowManager: interceptKeyTi keyCode=66 down=false repeatCount=0 keyguardOn=false canceled=false
+04-18 23:33:26.971  5941  5941 I EnterpriseQrScan: startCameraPipeline requestGeneration=pending completed=false status=请将企业二维码放入取景框内 recovery=true
+04-18 23:33:26.971  5941  5941 I InspectionCameraCoord: acquire owner=ENTERPRISE_QR_SCAN generation=8 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true enableRecovery=true
+04-18 23:33:26.971  5941  5941 I EnterpriseQrScan: startCameraPipeline requestGeneration=8 owner=ENTERPRISE_QR_SCAN
+04-18 23:33:26.972  1249  1365 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@6bb387, title=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+04-18 23:33:26.973  1249  1365 D WindowManager: No fallback.
+04-18 23:33:26.608  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13772:782939 cur 13772:793151 diff 10: threshold 5
+04-18 23:33:27.005  1565  1565 I [dp_rx_][0x3d96b7f321][23:33:26.987584] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:26.996  5941  5941 I InspectionCameraCoord: preview_reused owner=ENTERPRISE_QR_SCAN generation=8 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true
+04-18 23:33:26.996  5941  5941 I EnterpriseQrScan: camera acquire result success=true generation=8 owner=ENTERPRISE_QR_SCAN state=READY_WITH_PREVIEW
+04-18 23:33:26.998  5941  5941 I EnterpriseQrScan: scanLoop start completed=false frameReady=true generation=8
+04-18 23:33:27.209  1565  1565 I [dp_rx_][0x3d96f39749][23:33:27.191160] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:27.347  6122  6122 I (virq   : irq_count)- GICv3:IPI(1):46711134 GICv3:arch_timer(11):17767687 GICv3:IPI(2):8316925 ipcc:glink-native-adsp(363):7589499 GICv3:ipcc_0(32):4974779 GICv3:kgsl_hfi_irq(176):2848981 GICv3:IPI(6):2759281 GICv3:csid(259):2378333 GICv3:apps_rsc(22):1393668 GICv3:ife(260):1208352
+04-18 23:33:27.347  6122  6122 I (cpu    : irq_count)- 0:34918640 1:27087766 2:19493955 3:19045066
+04-18 23:33:27.347  6122  6122 I (ipi    : irq_count)- 0:46711134 1:8316925 2:0 3:0 4:0 5:2759281 6:0
+04-18 23:33:27.643  4823  4823 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:27.770  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 497(175KB) AllocSpace objects, 31(89MB) LOS objects, 77% free, 22MB/103MB, paused 3.496ms,2.094ms total 180.976ms
+04-18 23:33:28.028   832  4710 I QC2Comp : [avcE_21] Stats: Pending(2) i/p-done(0) Works: Q: 113382/Done 113380|Work-Rate: Q(56.3/s Avg=20.8/s) Done(56.118/s Avg=20.753/s)| Stream: 85.34fps 746.3Kbps
+04-18 23:33:28.028   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:27.643  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13773:822467 cur 13773:828949 diff 6: threshold 5
+04-18 23:33:28.129  1565  1565 I [dp_rx_][0x3d98014690][23:33:28.111683] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:28.142   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 112021/Done 112020|Work-Rate: Q(54.7/s Avg=20.5/s) Done(54.491/s Avg=20.484/s)| Stream: 60.95fps 450.2Kbps
+04-18 23:33:28.142   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:28.335  1565  1565 I [dp_rx_][0x3d983db3d1][23:33:28.317940] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:28.329  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:28.657  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:28.679  6122  6122 W cam_common_util_thread_switch_delay_detect: 3 callbacks suppressed
+04-18 23:33:28.860  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 401(145KB) AllocSpace objects, 34(97MB) LOS objects, 75% free, 18MB/74MB, paused 95us,55us total 224.619ms
+04-18 23:33:28.899  5941  5956 I OpenGLRenderer: Davey! duration=9223358261798ms; Flags=0, FrameTimelineVsyncId=1094905, IntendedVsync=13775055203404, Vsync=13775055203404, InputEventId=0, HandleInputStart=13775059842660, AnimationStart=13775059846463, PerformTraversalsStart=13775059847869, DrawStart=13775074490942, FrameDeadline=13775088536736, FrameInterval=13775059812088, FrameStartTime=16666666, SyncQueued=13775075092348, SyncStart=13775076550629, IssueDrawCommandsStart=13775076863598, SwapBuffers=13775081629588, FrameCompleted=9223372036854775807, DequeueBufferDuration=53021, QueueBufferDuration=3253646, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13775085353494, DisplayPresentTime=0, 
+04-18 23:33:29.068  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:input keyevent 66
+04-18 23:33:29.164  1249  4870 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=true interactive=true keyguardActive=false policyFlags=2b000000
+04-18 23:33:29.170  1249  1365 D WindowManager: interceptKeyTi keyCode=66 down=true repeatCount=0 keyguardOn=false canceled=false
+04-18 23:33:29.172  1249  1365 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@6bb387, title=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+04-18 23:33:29.172  1249  1365 D WindowManager: No fallback.
+04-18 23:33:29.173  1249  4870 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=false interactive=true keyguardActive=false policyFlags=2b000000
+04-18 23:33:29.176  1249  1365 D WindowManager: interceptKeyTi keyCode=66 down=false repeatCount=0 keyguardOn=false canceled=false
+04-18 23:33:29.200  5941  5941 I EnterpriseQrScan: startCameraPipeline requestGeneration=pending completed=false status=请将企业二维码放入取景框内 recovery=true
+04-18 23:33:29.202  5941  5941 I InspectionCameraCoord: acquire owner=ENTERPRISE_QR_SCAN generation=9 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true enableRecovery=true
+04-18 23:33:29.202  5941  5941 I EnterpriseQrScan: startCameraPipeline requestGeneration=9 owner=ENTERPRISE_QR_SCAN
+04-18 23:33:29.208  5941  5941 I InspectionCameraCoord: preview_reused owner=ENTERPRISE_QR_SCAN generation=9 state=READY_WITH_PREVIEW needPreview=true previewAttached=true frameOpen=true
+04-18 23:33:29.208  5941  5941 I EnterpriseQrScan: camera acquire result success=true generation=9 owner=ENTERPRISE_QR_SCAN state=READY_WITH_PREVIEW
+04-18 23:33:29.209  5941  5941 I EnterpriseQrScan: scanLoop start completed=false frameReady=true generation=9
+04-18 23:33:29.213  1249  1365 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@6bb387, title=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+04-18 23:33:29.213  1249  1365 D WindowManager: No fallback.
+04-18 23:33:29.546  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 503(159KB) AllocSpace objects, 24(66MB) LOS objects, 79% free, 15MB/74MB, paused 2.868ms,81us total 124.304ms
+04-18 23:33:29.783   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 2(614400 size) used buffers - 113470/113482 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:28.679  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13774:857270 cur 13774:864543 diff 7: threshold 5
+04-18 23:33:29.908  6118  6118 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:30.202   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 113491/113509 (recycle/alloc) - 1335/113504 (fetch/transfer)
+04-18 23:33:30.306  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 306(144KB) AllocSpace objects, 23(66MB) LOS objects, 75% free, 19MB/79MB, paused 70us,70us total 177.154ms
+04-18 23:33:30.499   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 112123/112144 (recycle/alloc) - 1360/112140 (fetch/transfer)
+04-18 23:33:30.581   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 112130/112146 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:29.908  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13776:082935 cur 13776:093656 diff 10: threshold 5
+04-18 23:33:30.690  1565  1565 I [dp_rx_][0x3d9aef7f1d][23:33:30.672437] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:31.103  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 171(127KB) AllocSpace objects, 24(69MB) LOS objects, 76% free, 18MB/79MB, paused 6.887ms,61us total 132.732ms
+04-18 23:33:31.304  1565  1565 I [dp_rx_][0x3d9ba385ea][23:33:31.286928] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:31.614  1930  5514 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:33:31.629  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:31.962  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:31.999  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 251(128KB) AllocSpace objects, 26(74MB) LOS objects, 75% free, 27MB/110MB, paused 3.811ms,96us total 226.886ms
+04-18 23:33:32.022  6118  6118 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:32.022  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq execution delay detected 13778:191565 cur 13778:207141 diff 15: threshold 10
+04-18 23:33:32.535  1565  1565 I [dp_rx_][0x3d9d0bfe8e][23:33:32.517336] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:32.636  1565  1565 I [dp_rx_][0x3d9d299fc0][23:33:32.618472] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:33.029   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 113666/Done 113665|Work-Rate: Q(56.8/s Avg=20.8/s) Done(56.997/s Avg=20.786/s)| Stream: 65.62fps 421.6Kbps
+04-18 23:33:33.029   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:33.092  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 448(175KB) AllocSpace objects, 35(98MB) LOS objects, 80% free, 21MB/110MB, paused 1.421ms,175us total 187.842ms
+04-18 23:33:33.110  6118  6118 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:33.143   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 112292/Done 112291|Work-Rate: Q(54.2/s Avg=20.5/s) Done(54.191/s Avg=20.514/s)| Stream: 71.99fps 440.0Kbps
+04-18 23:33:33.143   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:33.110  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13779:288459 cur 13779:295541 diff 7: threshold 5
+04-18 23:33:33.761  1565  1565 I [dp_rx_][0x3d9e735891][23:33:33.743923] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:34.228   812  1034 E COMU    : ar_osal_mutex_try_lock:136 ar_osal_mutex_try_lock: Failed to lock ar_osal_mutex
+04-18 23:33:34.251  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 359(160KB) AllocSpace objects, 37(107MB) LOS objects, 75% free, 15MB/61MB, paused 78us,132us total 215.248ms
+04-18 23:33:34.475  4767  4767 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:34.472   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:33:34.472   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:33:34.846  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 208(143KB) AllocSpace objects, 19(53MB) LOS objects, 75% free, 15MB/61MB, paused 270us,101us total 115.970ms
+04-18 23:33:34.475  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13780:654485 cur 13780:660919 diff 6: threshold 5
+04-18 23:33:34.887  1565  1565 I [dp_rx_][0x3d9fbd3f06][23:33:34.869983] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:34.918   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 113764/113776 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:34.930  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:35.289  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:35.363   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 4(933888 size) used buffers - 113787/113805 (recycle/alloc) - 1336/113802 (fetch/transfer)
+04-18 23:33:35.564  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 271(144KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 21MB/84MB, paused 1.493ms,70us total 222.890ms
+04-18 23:33:35.567   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 112413/112434 (recycle/alloc) - 1363/112429 (fetch/transfer)
+04-18 23:33:35.679   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 112421/112437 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:35.915  5941  5955 I OpenGLRenderer: Davey! duration=9223358254765ms; Flags=0, FrameTimelineVsyncId=1095730, IntendedVsync=13782088774171, Vsync=13782088774171, InputEventId=0, HandleInputStart=13782090453231, AnimationStart=13782090456772, PerformTraversalsStart=13782090458179, DrawStart=13782096769741, FrameDeadline=13782122107503, FrameInterval=13782090419897, FrameStartTime=16666666, SyncQueued=13782097407710, SyncStart=13782097536564, IssueDrawCommandsStart=13782097789689, SwapBuffers=13782100654168, FrameCompleted=9223372036854775807, DequeueBufferDuration=41771, QueueBufferDuration=868646, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13782102025835, DisplayPresentTime=0, 
+04-18 23:33:36.400  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 266(127KB) AllocSpace objects, 25(71MB) LOS objects, 71% free, 24MB/84MB, paused 1.633ms,55us total 169.277ms
+04-18 23:33:36.145  6121  6121 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13782:324177 cur 13782:330577 diff 6: threshold 5
+04-18 23:33:36.630  1565  1565 I [dp_rx_][0x3da1bbcdf8][23:33:36.612689] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:36.819  6118  6118 I (virq   : irq_count)- GICv3:IPI(1):46756989 GICv3:arch_timer(11):17782696 GICv3:IPI(2):8324364 ipcc:glink-native-adsp(363):7594966 GICv3:ipcc_0(32):4978410 GICv3:kgsl_hfi_irq(176):2853012 GICv3:IPI(6):2761800 GICv3:csid(259):2380028 GICv3:apps_rsc(22):1395502 GICv3:ife(260):1209205
+04-18 23:33:36.819  6118  6118 I (cpu    : irq_count)- 0:34951411 1:27113582 2:19512094 3:19063631
+04-18 23:33:36.819  6118  6118 I (ipi    : irq_count)- 0:46756989 1:8324364 2:0 3:0 4:0 5:2761800 6:0
+04-18 23:33:36.920  5941  5954 I OpenGLRenderer: Davey! duration=9223358253763ms; Flags=0, FrameTimelineVsyncId=1095849, IntendedVsync=13783091183528, Vsync=13783091183528, InputEventId=0, HandleInputStart=13783093824689, AnimationStart=13783093828178, PerformTraversalsStart=13783093829428, DrawStart=13783096199064, FrameDeadline=13783124516860, FrameInterval=13783093797605, FrameStartTime=16666666, SyncQueued=13783096644532, SyncStart=13783096728699, IssueDrawCommandsStart=13783098450001, SwapBuffers=13783101191824, FrameCompleted=9223372036854775807, DequeueBufferDuration=32395, QueueBufferDuration=862083, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13783102495574, DisplayPresentTime=0, 
+04-18 23:33:37.039  1565  1565 I [dp_rx_][0x3da2337fe0][23:33:37.021247] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:37.228  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 295(128KB) AllocSpace objects, 28(81MB) LOS objects, 75% free, 16MB/67MB, paused 85us,73us total 187.093ms
+04-18 23:33:37.863  1565  1565 I [dp_rx_][0x3da3250ac5][23:33:37.845712] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:37.922  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 116(95KB) AllocSpace objects, 19(56MB) LOS objects, 70% free, 20MB/67MB, paused 675us,59us total 153.144ms
+04-18 23:33:38.029   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(1) Works: Q: 113954/Done 113953|Work-Rate: Q(57.6/s Avg=20.8/s) Done(57.595/s Avg=20.819/s)| Stream: 62.95fps 652.1Kbps
+04-18 23:33:38.029   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:38.145   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 112563/Done 112562|Work-Rate: Q(54.2/s Avg=20.5/s) Done(54.179/s Avg=20.545/s)| Stream: 60.37fps 447.1Kbps
+04-18 23:33:38.145   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:38.165  1565  1565 I [dp_rx_][0x3da37d609f][23:33:38.147230] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:38.232  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:38.565  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 257(144KB) AllocSpace objects, 23(64MB) LOS objects, 75% free, 12MB/49MB, paused 74us,95us total 176.181ms
+04-18 23:33:38.629  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:38.780  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:33:38.831  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:33:39.111  5554  5554 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:39.103  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 1411(174KB) AllocSpace objects, 16(44MB) LOS objects, 68% free, 15MB/49MB, paused 111us,52us total 157.504ms
+04-18 23:33:39.639  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 157(98KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 16MB/67MB, paused 1.939ms,1.412ms total 175.227ms
+04-18 23:33:39.734  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:33:39.764  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:33:39.798  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:33:39.818  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:33:40.049   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 114058/114070 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:39.111  5554  5554 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13785:289987 cur 13785:296725 diff 6: threshold 5
+04-18 23:33:40.303  4823  4823 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:40.291  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 2939(253KB) AllocSpace objects, 20(56MB) LOS objects, 73% free, 18MB/67MB, paused 651us,62us total 128.940ms
+04-18 23:33:40.426   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 4(933888 size) used buffers - 114076/114094 (recycle/alloc) - 1337/114091 (fetch/transfer)
+04-18 23:33:40.664   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 112689/112710 (recycle/alloc) - 1366/112706 (fetch/transfer)
+04-18 23:33:40.303  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13786:482974 cur 13786:489080 diff 6: threshold 5
+04-18 23:33:40.724  1565  1565 I [dp_rx_][0x3da66b4fbf][23:33:40.707005] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:40.775   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 112699/112715 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:40.929  1565  1565 I [dp_rx_][0x3da6a7679c][23:33:40.912124] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:40.971  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 308(146KB) AllocSpace objects, 23(65MB) LOS objects, 75% free, 12MB/49MB, paused 82us,68us total 175.570ms
+04-18 23:33:41.458  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 110(95KB) AllocSpace objects, 14(41MB) LOS objects, 68% free, 15MB/49MB, paused 2.006ms,76us total 113.288ms
+04-18 23:33:41.535  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:41.621  1930  5600 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:33:41.932  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:41.940  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 197(144KB) AllocSpace objects, 16(44MB) LOS objects, 75% free, 12MB/49MB, paused 72us,47us total 146.655ms
+04-18 23:33:41.940  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13788:119362 cur 13788:126053 diff 6: threshold 5
+04-18 23:33:42.057  1565  1565 I [dp_rx_][0x3da7f1b5b1][23:33:42.039565] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:42.367  1565  1565 I [dp_rx_][0x3da84c95fd][23:33:42.349758] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:42.400  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 114(110KB) AllocSpace objects, 14(40MB) LOS objects, 65% free, 16MB/49MB, paused 4.051ms,53us total 109.223ms
+04-18 23:33:42.849  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 185(113KB) AllocSpace objects, 15(43MB) LOS objects, 75% free, 12MB/49MB, paused 146us,55us total 121.453ms
+04-18 23:33:43.031   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 114238/Done 114237|Work-Rate: Q(56.8/s Avg=20.9/s) Done(56.776/s Avg=20.852/s)| Stream: 62.74fps 370.6Kbps
+04-18 23:33:43.032   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:43.146   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 112843/Done 112843|Work-Rate: Q(56.0/s Avg=20.6/s) Done(56.193/s Avg=20.578/s)| Stream: 62.97fps 630.8Kbps
+04-18 23:33:43.146   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:43.285  1565  1565 I [dp_rx_][0x3da9599d6b][23:33:43.268041] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:43.310  4823  4823 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:43.329  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 206(143KB) AllocSpace objects, 15(41MB) LOS objects, 74% free, 12MB/49MB, paused 2.655ms,51us total 109.209ms
+04-18 23:33:43.310  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13789:489120 cur 13789:495292 diff 6: threshold 5
+04-18 23:33:43.593  1565  1565 I [dp_rx_][0x3da9b3df95][23:33:43.576123] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:43.877  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 111(80KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 15MB/60MB, paused 82us,49us total 161.439ms
+04-18 23:33:44.479  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 230(143KB) AllocSpace objects, 19(53MB) LOS objects, 74% free, 15MB/60MB, paused 414us,350us total 116.337ms
+04-18 23:33:44.842  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:45.000  5941  5955 I OpenGLRenderer: Davey! duration=9223358245710ms; Flags=0, FrameTimelineVsyncId=1096790, IntendedVsync=13791143870325, Vsync=13791143870325, InputEventId=0, HandleInputStart=13791146646456, AnimationStart=13791146652029, PerformTraversalsStart=13791146654425, DrawStart=13791149304165, FrameDeadline=13791160536991, FrameInterval=13791146616456, FrameStartTime=16666666, SyncQueued=13791169618956, SyncStart=13791169711665, IssueDrawCommandsStart=13791169955936, SwapBuffers=13791172919842, FrameCompleted=9223372036854775807, DequeueBufferDuration=31927, QueueBufferDuration=1916250, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13791175274269, DisplayPresentTime=0, 
+04-18 23:33:45.133   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 2(614400 size) used buffers - 114348/114360 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:45.163  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 259(160KB) AllocSpace objects, 21(59MB) LOS objects, 75% free, 18MB/72MB, paused 2.686ms,58us total 225.842ms
+04-18 23:33:45.246  6122  6122 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:45.292  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:45.322   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:33:45.322   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:33:45.510   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 114365/114383 (recycle/alloc) - 1339/114378 (fetch/transfer)
+04-18 23:33:45.761   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 112963/112984 (recycle/alloc) - 1368/112980 (fetch/transfer)
+04-18 23:33:45.850   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 112970/112986 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:45.893  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 132(142KB) AllocSpace objects, 21(61MB) LOS objects, 68% free, 22MB/72MB, paused 4.026ms,49us total 162.782ms
+04-18 23:33:45.246  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13791:425547 cur 13791:431967 diff 6: threshold 5
+04-18 23:33:46.269  6118  6118 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:46.269  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13792:447515 cur 13792:454562 diff 7: threshold 5
+04-18 23:33:46.291  6118  6118 I (virq   : irq_count)- GICv3:IPI(1):46802086 GICv3:arch_timer(11):17797665 GICv3:IPI(2):8331466 ipcc:glink-native-adsp(363):7600444 GICv3:ipcc_0(32):4982043 GICv3:kgsl_hfi_irq(176):2857001 GICv3:IPI(6):2764109 GICv3:csid(259):2381718 GICv3:apps_rsc(22):1397199 GICv3:ife(260):1210055
+04-18 23:33:46.291  6118  6118 I (cpu    : irq_count)- 0:34983444 1:27139289 2:19530012 3:19081776
+04-18 23:33:46.291  6118  6118 I (ipi    : irq_count)- 0:46802086 1:8331466 2:0 3:0 4:0 5:2764109 6:0
+04-18 23:33:46.460  1565  1565 I [dp_rx_][0x3dacfbcac5][23:33:46.443046] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:46.564     0     0 I [    C1] CAM_ERR: CAM-ISP: __cam_isp_ctx_recover_sof_timestamp: 1210 ctx:5 erroneous call to SOF recovery (last:0xc8c4b57412e, prev:0xc8c495ab329, curr:0xc8c4b57412e) req: 0
+04-18 23:33:46.719  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 259(145KB) AllocSpace objects, 23(66MB) LOS objects, 75% free, 27MB/110MB, paused 322us,2.549ms total 298.905ms
+04-18 23:33:46.564     0     0 I [    C1] CAM_WARN: CAM-ISP: __cam_isp_ctx_send_sof_timestamp: 1325 Missed SOF Recovery for invalid req, Skip notificaiton to userspace Ctx: 5 frame_id 8501
+04-18 23:33:46.769  1565  1565 I [dp_rx_][0x3dad5632fc][23:33:46.751635] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:47.675  6118  6118 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:47.675  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13793:854041 cur 13793:860894 diff 6: threshold 5
+04-18 23:33:47.688  1565  1565 I [dp_rx_][0x3dae63673b][23:33:47.670519] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:47.760  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 421(175KB) AllocSpace objects, 36(101MB) LOS objects, 86% free, 15MB/110MB, paused 5.930ms,54us total 173.456ms
+04-18 23:33:47.893  1565  1565 I [dp_rx_][0x3dae9f752c][23:33:47.875505] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:47.978  5941  6120 I OpenGLRenderer: Davey! duration=9223358242703ms; Flags=0, FrameTimelineVsyncId=1097140, IntendedVsync=13794151097789, Vsync=13794151097789, InputEventId=0, HandleInputStart=13794152403695, AnimationStart=13794152407653, PerformTraversalsStart=13794152409059, DrawStart=13794162546299, FrameDeadline=13794184431121, FrameInterval=13794152369528, FrameStartTime=16666666, SyncQueued=13794163351507, SyncStart=13794163465778, IssueDrawCommandsStart=13794163784216, SwapBuffers=13794166092445, FrameCompleted=9223372036854775807, DequeueBufferDuration=47709, QueueBufferDuration=1277761, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13794167753122, DisplayPresentTime=0, 
+04-18 23:33:48.042   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 114524/Done 114523|Work-Rate: Q(57.1/s Avg=20.9/s) Done(57.081/s Avg=20.885/s)| Stream: 66.81fps 511.1Kbps
+04-18 23:33:48.042   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:48.146   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 113116/Done 113115|Work-Rate: Q(54.6/s Avg=20.6/s) Done(54.397/s Avg=20.608/s)| Stream: 76.26fps 621.5Kbps
+04-18 23:33:48.146   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:48.153  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:48.600  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:48.977  6122  6122 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:48.993  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 366(176KB) AllocSpace objects, 36(104MB) LOS objects, 75% free, 18MB/72MB, paused 110us,60us total 242.593ms
+04-18 23:33:48.977  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13795:154325 cur 13795:162205 diff 7: threshold 5
+04-18 23:33:49.019  1565  1565 I [dp_rx_][0x3dafe98640][23:33:49.002133] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:49.674  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 251(127KB) AllocSpace objects, 23(65MB) LOS objects, 79% free, 15MB/72MB, paused 567us,80us total 114.662ms
+04-18 23:33:49.840  1565  1565 I [dp_rx_][0x3db0da009a][23:33:49.822963] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:49.991  5941  6019 I OpenGLRenderer: Davey! duration=9223358240698ms; Flags=0, FrameTimelineVsyncId=1097376, IntendedVsync=13796155916101, Vsync=13796155916101, InputEventId=0, HandleInputStart=13796156795830, AnimationStart=13796156802444, PerformTraversalsStart=13796156805048, DrawStart=13796161358642, FrameDeadline=13796189249433, FrameInterval=13796156750777, FrameStartTime=16666666, SyncQueued=13796162100517, SyncStart=13796162244736, IssueDrawCommandsStart=13796162500309, SwapBuffers=13796164451871, FrameCompleted=9223372036854775807, DequeueBufferDuration=61094, QueueBufferDuration=944532, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13796167141715, DisplayPresentTime=0, 
+04-18 23:33:50.202   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 114638/114650 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:50.468  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 286(160KB) AllocSpace objects, 24(68MB) LOS objects, 75% free, 15MB/61MB, paused 670us,62us total 172.833ms
+04-18 23:33:50.663   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 4(933888 size) used buffers - 114660/114678 (recycle/alloc) - 1341/114675 (fetch/transfer)
+04-18 23:33:50.849   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 113242/113263 (recycle/alloc) - 1369/113258 (fetch/transfer)
+04-18 23:33:50.938   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 113249/113265 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:51.020  5941  5950 W om.rokid.gless: Suspending all threads took: 5.300ms
+04-18 23:33:51.088  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 112(142KB) AllocSpace objects, 17(49MB) LOS objects, 62% free, 22MB/61MB, paused 798us,5.524ms total 158.188ms
+04-18 23:33:51.458  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:51.536  2235  2498 D RokidESecurity: DeviceStatusManager:: Storage status checked: 15900MB available
+04-18 23:33:51.537  2235  2498 D DeviceStatusManager::: checkStorageStatus availableMB:15900
+04-18 23:33:51.625  1930  5597 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:33:51.627  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 230(129KB) AllocSpace objects, 19(55MB) LOS objects, 75% free, 15MB/60MB, paused 107us,62us total 133.954ms
+04-18 23:33:51.675  4823  4823 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:51.901  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:51.675  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13797:852121 cur 13797:861017 diff 8: threshold 5
+04-18 23:33:51.988  1565  1565 I [dp_rx_][0x3db34f4636][23:33:51.970878] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:52.194  1565  1565 I [dp_rx_][0x3db38b7c64][23:33:52.176401] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:52.222  4767  4767 W FG_CW221X: cw_update_data-575 : vol = 4501  current = 14000 cap = 100 temp = 325
+04-18 23:33:52.307  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 230(143KB) AllocSpace objects, 19(53MB) LOS objects, 70% free, 18MB/60MB, paused 11.448ms,55us total 154.939ms
+04-18 23:33:52.374   795   795 W healthd : battery l=100 v=4501 t=32.5 h=2 st=2 c=14000 cc=2 chg=u
+04-18 23:33:52.872  6118  6118 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:52.910  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 264(160KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 18MB/72MB, paused 1.374ms,68us total 175.458ms
+04-18 23:33:53.042   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 114809/Done 114809|Work-Rate: Q(57.0/s Avg=20.9/s) Done(57.196/s Avg=20.918/s)| Stream: 113.91fps 566.3Kbps
+04-18 23:33:53.042   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:52.872  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13799:050087 cur 13799:057827 diff 7: threshold 5
+04-18 23:33:53.115  1565  1565 I [dp_rx_][0x3db4995a59][23:33:53.097547] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:53.153   832  4653 I QC2Comp : [avcE_20] Stats: Pending(2) i/p-done(0) Works: Q: 113390/Done 113388|Work-Rate: Q(54.7/s Avg=20.6/s) Done(54.522/s Avg=20.639/s)| Stream: 78.13fps 674.0Kbps
+04-18 23:33:53.153   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:53.525  1565  1565 I [dp_rx_][0x3db5116385][23:33:53.507269] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:53.646  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 153(111KB) AllocSpace objects, 21(62MB) LOS objects, 74% free, 18MB/72MB, paused 1.327ms,55us total 126.799ms
+04-18 23:33:54.340  4767  4767 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:54.408  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 274(144KB) AllocSpace objects, 24(68MB) LOS objects, 75% free, 15MB/60MB, paused 2.673ms,80us total 183.049ms
+04-18 23:33:54.769  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:55.088   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:33:55.088   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:33:55.210  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:55.280   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 114929/114941 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:54.340  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13800:518490 cur 13800:525458 diff 6: threshold 5
+04-18 23:33:55.516  6118  6118 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:33:55.538  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 248(160KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 15MB/60MB, paused 801us,50us total 145.091ms
+04-18 23:33:55.522  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq execution delay detected 13801:686643 cur 13801:702095 diff 15: threshold 10
+04-18 23:33:55.763  4823  4823 I (virq   : irq_count)- GICv3:IPI(1):46847645 GICv3:arch_timer(11):17812574 GICv3:IPI(2):8338821 ipcc:glink-native-adsp(363):7605915 GICv3:ipcc_0(32):4985671 GICv3:kgsl_hfi_irq(176):2860995 GICv3:IPI(6):2766400 GICv3:csid(259):2383397 GICv3:apps_rsc(22):1398902 GICv3:ife(260):1210902
+04-18 23:33:55.763  4823  4823 I (cpu    : irq_count)- 0:35015872 1:27165380 2:19548098 3:19099894
+04-18 23:33:55.763  4823  4823 I (ipi    : irq_count)- 0:46847646 1:8338821 2:0 3:0 4:0 5:2766400 6:0
+04-18 23:33:55.778  1565  1565 I [dp_rx_][0x3db7a597b9][23:33:55.760765] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:55.818   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 114955/114973 (recycle/alloc) - 1343/114968 (fetch/transfer)
+04-18 23:33:55.880  1565  1565 I [dp_rx_][0x3db7c3863e][23:33:55.862932] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:55.950   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 113531/113552 (recycle/alloc) - 1373/113547 (fetch/transfer)
+04-18 23:33:56.014  5941  5956 I OpenGLRenderer: Davey! duration=9223358234667ms; Flags=0, FrameTimelineVsyncId=1098081, IntendedVsync=13802187077821, Vsync=13802187077821, InputEventId=0, HandleInputStart=13802190991400, AnimationStart=13802190997129, PerformTraversalsStart=13802190999213, DrawStart=13802195268327, FrameDeadline=13802220411153, FrameInterval=13802190948692, FrameStartTime=16666666, SyncQueued=13802197305411, SyncStart=13802197545463, IssueDrawCommandsStart=13802197703119, SwapBuffers=13802198893952, FrameCompleted=9223372036854775807, DequeueBufferDuration=29531, QueueBufferDuration=1205313, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13802200480202, DisplayPresentTime=0, 
+04-18 23:33:56.060   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 113540/113556 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:33:56.125  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 125(111KB) AllocSpace objects, 18(53MB) LOS objects, 79% free, 12MB/60MB, paused 159us,2.302ms total 107.587ms
+04-18 23:33:56.768  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 229(128KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 12MB/49MB, paused 81us,48us total 143.779ms
+04-18 23:33:57.020  5941  6200 I OpenGLRenderer: Davey! duration=9223358233659ms; Flags=0, FrameTimelineVsyncId=1098198, IntendedVsync=13803189487010, Vsync=13803189487010, InputEventId=0, HandleInputStart=13803190338743, AnimationStart=13803190345462, PerformTraversalsStart=13803190347285, DrawStart=13803195533848, FrameDeadline=13803222820342, FrameInterval=13803190313848, FrameStartTime=16666666, SyncQueued=13803196277962, SyncStart=13803201798743, IssueDrawCommandsStart=13803201969941, SwapBuffers=13803204141608, FrameCompleted=9223372036854775807, DequeueBufferDuration=557396, QueueBufferDuration=1432083, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13803206000723, DisplayPresentTime=0, 
+04-18 23:33:57.226  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 202(143KB) AllocSpace objects, 15(41MB) LOS objects, 75% free, 12MB/49MB, paused 3.108ms,59us total 102.294ms
+04-18 23:33:56.877  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13803:051584 cur 13803:062225 diff 10: threshold 5
+04-18 23:33:57.314  1565  1565 I [dp_rx_][0x3db96794cb][23:33:57.296726] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:57.621  1565  1565 I [dp_rx_][0x3db9c1a01b][23:33:57.604077] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:57.718  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 104(96KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 12MB/49MB, paused 104us,52us total 129.609ms
+04-18 23:33:58.044   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 115096/Done 115095|Work-Rate: Q(57.4/s Avg=21.0/s) Done(57.176/s Avg=20.951/s)| Stream: 92.73fps 602.8Kbps
+04-18 23:33:58.044   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:33:58.088  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:58.156   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 113660/Done 113660|Work-Rate: Q(54.0/s Avg=20.7/s) Done(54.365/s Avg=20.670/s)| Stream: 63.23fps 653.9Kbps
+04-18 23:33:58.156   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:33:58.177  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 202(127KB) AllocSpace objects, 15(41MB) LOS objects, 68% free, 15MB/49MB, paused 7.437ms,73us total 107.335ms
+04-18 23:33:58.543  1565  1565 I [dp_rx_][0x3dbacfbb94][23:33:58.526043] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:58.531  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:33:58.676  5554  5554 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:33:58.675  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 104(80KB) AllocSpace objects, 16(47MB) LOS objects, 75% free, 12MB/49MB, paused 91us,109us total 149.126ms
+04-18 23:33:58.676  5554  5554 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13804:854413 cur 13804:861589 diff 7: threshold 5
+04-18 23:33:58.849  1565  1565 I [dp_rx_][0x3dbb295d48][23:33:58.831986] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:33:59.708  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 105(96KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 15MB/62MB, paused 72us,63us total 156.453ms
+04-18 23:34:00.309  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 230(159KB) AllocSpace objects, 19(53MB) LOS objects, 80% free, 12MB/62MB, paused 750us,267us total 113.027ms
+04-18 23:34:00.402   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 115218/115230 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:00.823  4767  4767 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:00.926   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 115246/115264 (recycle/alloc) - 1344/115259 (fetch/transfer)
+04-18 23:34:00.944  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 228(144KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 12MB/49MB, paused 101us,135us total 149.721ms
+04-18 23:34:01.089   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 113809/113830 (recycle/alloc) - 1376/113825 (fetch/transfer)
+04-18 23:34:01.175   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 113816/113832 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:01.402  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:01.435  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 108(111KB) AllocSpace objects, 14(41MB) LOS objects, 62% free, 18MB/49MB, paused 624us,51us total 105.995ms
+04-18 23:34:01.628  1930  5514 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:34:00.823  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CDM workq schedule delay detected 13807:001153 cur 13807:008621 diff 7: threshold 5
+04-18 23:34:01.820  1565  1565 I [dp_rx_][0x3dbe8fbd18][23:34:01.802864] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:01.852  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:01.935  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 197(144KB) AllocSpace objects, 16(44MB) LOS objects, 75% free, 18MB/72MB, paused 3.099ms,55us total 181.749ms
+04-18 23:34:01.943  5554  5554 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13808:119995 cur 13808:128925 diff 8: threshold 5
+04-18 23:34:02.025  1565  1565 I [dp_rx_][0x3dbecbda5c][23:34:02.008053] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:02.580  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 245(127KB) AllocSpace objects, 22(62MB) LOS objects, 79% free, 15MB/72MB, paused 5.897ms,52us total 93.674ms
+04-18 23:34:02.947  1565  1565 I [dp_rx_][0x3dbfd9ba48][23:34:02.929226] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:03.047   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 115378/Done 115377|Work-Rate: Q(56.4/s Avg=21.0/s) Done(56.369/s Avg=20.984/s)| Stream: 64.91fps 655.5Kbps
+04-18 23:34:03.047   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:03.050  5941  6120 I OpenGLRenderer: Davey! duration=9223358227633ms; Flags=0, FrameTimelineVsyncId=1098900, IntendedVsync=13809220648736, Vsync=13809220648736, InputEventId=0, HandleInputStart=13809225869939, AnimationStart=13809225873637, PerformTraversalsStart=13809225875200, DrawStart=13809231630252, FrameDeadline=13809253982068, FrameInterval=13809225842752, FrameStartTime=16666666, SyncQueued=13809232736397, SyncStart=13809233773533, IssueDrawCommandsStart=13809234076189, SwapBuffers=13809235474418, FrameCompleted=9223372036854775807, DequeueBufferDuration=23646, QueueBufferDuration=740573, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13809236590043, DisplayPresentTime=0, 
+04-18 23:34:03.157   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 113943/Done 113943|Work-Rate: Q(56.6/s Avg=20.7/s) Done(56.594/s Avg=20.703/s)| Stream: 64.89fps 485.2Kbps
+04-18 23:34:03.157   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:03.361  1565  1565 I [dp_rx_][0x3dc0530515][23:34:03.343237] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:03.373  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 276(144KB) AllocSpace objects, 24(68MB) LOS objects, 75% free, 21MB/84MB, paused 12.356ms,55us total 198.474ms
+04-18 23:34:03.407  4823  4823 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:34:04.198  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 268(143KB) AllocSpace objects, 26(74MB) LOS objects, 78% free, 18MB/84MB, paused 218us,129us total 152.758ms
+04-18 23:34:04.702  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:03.407  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13809:583826 cur 13809:592306 diff 8: threshold 5
+04-18 23:34:05.141  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 286(176KB) AllocSpace objects, 29(83MB) LOS objects, 75% free, 15MB/61MB, paused 95us,71us total 232.727ms
+04-18 23:34:05.164  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:05.182   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:34:05.191   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:34:05.074  5554  5554 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13811:251695 cur 13811:259883 diff 8: threshold 5
+04-18 23:34:05.235  5554  5554 I (virq   : irq_count)- GICv3:IPI(1):46892541 GICv3:arch_timer(11):17827542 GICv3:IPI(2):8345708 ipcc:glink-native-adsp(363):7611398 GICv3:ipcc_0(32):4989303 GICv3:kgsl_hfi_irq(176):2864997 GICv3:IPI(6):2768657 GICv3:csid(259):2385078 GICv3:apps_rsc(22):1400663 GICv3:ife(260):1211751
+04-18 23:34:05.235  5554  5554 I (cpu    : irq_count)- 0:35047757 1:27191120 2:19566050 3:19117732
+04-18 23:34:05.235  5554  5554 I (ipi    : irq_count)- 0:46892543 1:8345708 2:0 3:0 4:0 5:2768658 6:0
+04-18 23:34:05.492   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 115509/115521 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:05.774  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 142(95KB) AllocSpace objects, 18(53MB) LOS objects, 69% free, 18MB/61MB, paused 905us,53us total 114.287ms
+04-18 23:34:05.823  1565  1565 I [dp_rx_][0x3dc32459a0][23:34:05.805378] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:05.916  1565  1565 I [dp_rx_][0x3dc33fcd9b][23:34:05.899083] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:06.093   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 115540/115558 (recycle/alloc) - 1346/115553 (fetch/transfer)
+04-18 23:34:06.194   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 114091/114112 (recycle/alloc) - 1378/114107 (fetch/transfer)
+04-18 23:34:06.284   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 114098/114114 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:06.419  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 248(144KB) AllocSpace objects, 21(59MB) LOS objects, 75% free, 12MB/49MB, paused 79us,50us total 157.856ms
+04-18 23:34:06.888  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 185(127KB) AllocSpace objects, 16(44MB) LOS objects, 81% free, 9514KB/49MB, paused 200us,104us total 102.525ms
+04-18 23:34:07.057  5941  5956 I OpenGLRenderer: Davey! duration=9223358223623ms; Flags=0, FrameTimelineVsyncId=1099371, IntendedVsync=13813230285432, Vsync=13813230285432, InputEventId=0, HandleInputStart=13813231270615, AnimationStart=13813231273740, PerformTraversalsStart=13813231275094, DrawStart=13813237865302, FrameDeadline=13813263618764, FrameInterval=13813231194573, FrameStartTime=16666666, SyncQueued=13813238613688, SyncStart=13813239752646, IssueDrawCommandsStart=13813240132750, SwapBuffers=13813241639469, FrameCompleted=9223372036854775807, DequeueBufferDuration=37500, QueueBufferDuration=1685052, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13813243777125, DisplayPresentTime=0, 
+04-18 23:34:06.387  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CDM workq schedule delay detected 13812:566195 cur 13812:572655 diff 6: threshold 5
+04-18 23:34:07.354  1565  1565 I [dp_rx_][0x3dc4e4f29e][23:34:07.336590] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:07.503  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 147(112KB) AllocSpace objects, 16(47MB) LOS objects, 75% free, 15MB/62MB, paused 130us,1.867ms total 172.693ms
+04-18 23:34:07.499  5554  5554 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13813:677608 cur 13813:684481 diff 6: threshold 5
+04-18 23:34:07.555  1565  1565 I [dp_rx_][0x3dc51fb456][23:34:07.537147] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:08.032  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:08.054   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 115666/Done 115665|Work-Rate: Q(57.5/s Avg=21.0/s) Done(57.516/s Avg=21.017/s)| Stream: 66.10fps 450.2Kbps
+04-18 23:34:08.054   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:08.109  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 207(143KB) AllocSpace objects, 19(53MB) LOS objects, 75% free, 15MB/62MB, paused 855us,63us total 116.307ms
+04-18 23:34:08.168   832  4653 I QC2Comp : [avcE_20] Stats: Pending(2) i/p-done(0) Works: Q: 114221/Done 114219|Work-Rate: Q(55.5/s Avg=20.7/s) Done(55.073/s Avg=20.734/s)| Stream: 67.81fps 452.0Kbps
+04-18 23:34:08.168   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:08.330  1930  6108 I turen   : [R2][03:10:47.712] [modules/R2Rdc.cpp    134]D zero drift change: times=100
+04-18 23:34:08.330  1930  6108 I turen   : [R2][03:10:47.712] [modules/R2Rdc.cpp    137]D 0.mic  dc:-0.94
+04-18 23:34:08.478  1565  1565 I [dp_rx_][0x3dc62e3807][23:34:08.460502] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:08.481  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:08.573  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13814:750262 cur 13814:758166 diff 7: threshold 5
+04-18 23:34:08.681  1565  1565 I [dp_rx_][0x3dc6699911][23:34:08.663183] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:08.772  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 257(144KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 18MB/72MB, paused 75us,88us total 177.395ms
+04-18 23:34:09.240  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:34:09.285  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:34:09.500  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 1451(190KB) AllocSpace objects, 23(65MB) LOS objects, 74% free, 18MB/72MB, paused 111us,1.422ms total 128.106ms
+04-18 23:34:10.064  5941  5956 I OpenGLRenderer: Davey! duration=9223358220616ms; Flags=0, FrameTimelineVsyncId=1099726, IntendedVsync=13816237512767, Vsync=13816237512767, InputEventId=0, HandleInputStart=13816238221499, AnimationStart=13816238227957, PerformTraversalsStart=13816238230405, DrawStart=13816242548686, FrameDeadline=13816270846099, FrameInterval=13816238197905, FrameStartTime=16666666, SyncQueued=13816243113061, SyncStart=13816243809468, IssueDrawCommandsStart=13816244553530, SwapBuffers=13816246402749, FrameCompleted=9223372036854775807, DequeueBufferDuration=28854, QueueBufferDuration=1117552, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13816250035301, DisplayPresentTime=0, 
+04-18 23:34:10.180  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:34:10.223  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:34:10.264  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:34:10.348  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:34:10.439  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 1586(192KB) AllocSpace objects, 24(68MB) LOS objects, 75% free, 24MB/96MB, paused 2.874ms,72us total 315.141ms
+04-18 23:34:10.572   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 2(614400 size) used buffers - 115801/115813 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:11.188   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 115835/115853 (recycle/alloc) - 1349/115848 (fetch/transfer)
+04-18 23:34:11.300   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 4(933888 size) used buffers - 114370/114391 (recycle/alloc) - 1379/114388 (fetch/transfer)
+04-18 23:34:11.363  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:11.388   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 114376/114392 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:11.393  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 1717(205KB) AllocSpace objects, 29(83MB) LOS objects, 72% free, 27MB/96MB, paused 4.635ms,49us total 189.418ms
+04-18 23:34:11.631  1930  5595 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:34:11.652  1565  1565 I [dp_rx_][0x3dc9d04420][23:34:11.635064] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:11.788  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:12.331  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 419(148KB) AllocSpace objects, 33(95MB) LOS objects, 75% free, 12MB/49MB, paused 178us,108us total 215.418ms
+04-18 23:34:12.776  1565  1565 I [dp_rx_][0x3dcb199159][23:34:12.759080] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:12.799  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 191(143KB) AllocSpace objects, 15(41MB) LOS objects, 68% free, 15MB/49MB, paused 1.556ms,71us total 101.931ms
+04-18 23:34:12.982  1565  1565 I [dp_rx_][0x3dcb55baa7][23:34:12.964431] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:13.055   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 115955/Done 115954|Work-Rate: Q(57.8/s Avg=21.1/s) Done(57.786/s Avg=21.050/s)| Stream: 90.99fps 327.7Kbps
+04-18 23:34:13.056   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:13.171   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 114495/Done 114494|Work-Rate: Q(54.8/s Avg=20.8/s) Done(54.965/s Avg=20.765/s)| Stream: 65.86fps 529.1Kbps
+04-18 23:34:13.172   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:13.347  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 130(128KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 12MB/49MB, paused 89us,56us total 159.941ms
+04-18 23:34:13.438  4823  4823 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:13.438  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13819:616819 cur 13819:623820 diff 7: threshold 5
+04-18 23:34:14.109  1565  1565 I [dp_rx_][0x3dcc9fff7b][23:34:14.091749] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:14.362  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 132(112KB) AllocSpace objects, 15(44MB) LOS objects, 75% free, 13MB/55MB, paused 290us,53us total 144.408ms
+04-18 23:34:14.677  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:14.707  6118  6118 I (virq   : irq_count)- GICv3:IPI(1):46938586 GICv3:arch_timer(11):17842585 GICv3:IPI(2):8353256 ipcc:glink-native-adsp(363):7616855 GICv3:ipcc_0(32):4992946 GICv3:kgsl_hfi_irq(176):2869039 GICv3:IPI(6):2770986 GICv3:csid(259):2386777 GICv3:apps_rsc(22):1402411 GICv3:ife(260):1212603
+04-18 23:34:14.707  6118  6118 I (cpu    : irq_count)- 0:35080140 1:27217404 2:19584528 3:19136131
+04-18 23:34:14.707  6118  6118 I (ipi    : irq_count)- 0:46938586 1:8353256 2:0 3:0 4:0 5:2770986 6:0
+04-18 23:34:14.951  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 199(127KB) AllocSpace objects, 17(47MB) LOS objects, 72% free, 15MB/55MB, paused 1.980ms,82us total 130.459ms
+04-18 23:34:15.090  5941  6120 I OpenGLRenderer: Davey! duration=9223358215588ms; Flags=0, FrameTimelineVsyncId=1100316, IntendedVsync=13821266265377, Vsync=13821266265377, InputEventId=0, HandleInputStart=13821267671185, AnimationStart=13821267676757, PerformTraversalsStart=13821267678268, DrawStart=13821270605507, FrameDeadline=13821299598709, FrameInterval=13821267645976, FrameStartTime=16666666, SyncQueued=13821271235664, SyncStart=13821271490247, IssueDrawCommandsStart=13821271720924, SwapBuffers=13821273305351, FrameCompleted=9223372036854775807, DequeueBufferDuration=32553, QueueBufferDuration=2729479, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13821276497487, DisplayPresentTime=0, 
+04-18 23:34:15.103  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:15.529  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 244(144KB) AllocSpace objects, 19(53MB) LOS objects, 75% free, 15MB/60MB, paused 95us,59us total 191.445ms
+04-18 23:34:15.676   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 116096/116108 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:15.138  6118  6118 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13821:315659 cur 13821:323317 diff 7: threshold 5
+04-18 23:34:15.951  1565  1565 I [dp_rx_][0x3dcebb99c3][23:34:15.933592] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:15.985   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:34:15.986   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:34:16.190  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 113(79KB) AllocSpace objects, 18(53MB) LOS objects, 64% free, 21MB/60MB, paused 1.014ms,1.016ms total 157.186ms
+04-18 23:34:16.294   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 116128/116146 (recycle/alloc) - 1351/116141 (fetch/transfer)
+04-18 23:34:16.399   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 114664/114685 (recycle/alloc) - 1382/114680 (fetch/transfer)
+04-18 23:34:16.476   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 2(614400 size) used buffers - 114671/114687 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:16.750  6122  6122 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:16.792  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 252(144KB) AllocSpace objects, 20(56MB) LOS objects, 75% free, 15MB/60MB, paused 2.070ms,67us total 162.976ms
+04-18 23:34:16.899  1930  5601 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P:  isSendH264Stream = false,  isSendingFile = false, isReceivingFile = false, mKeepP2pConnectSwitch = true
+04-18 23:34:16.900  1930  5601 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P ret = false
+04-18 23:34:16.900  1930  5601 I SystemServer: GlassP2PConnectControl 重新计时
+04-18 23:34:16.900  1930  5601 I SystemServer: GlassP2PConnectControl startCountDown: 
+04-18 23:34:16.750  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq execution delay detected 13822:916726 cur 13822:935162 diff 18: threshold 10
+04-18 23:34:16.976  1565  1565 I [dp_rx_][0x3dcfe7ed12][23:34:16.958703] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:17.485  1565  1565 I [dp_rx_][0x3dd07d147e][23:34:17.467816] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:18.011  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:18.052  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 146(127KB) AllocSpace objects, 18(53MB) LOS objects, 75% free, 21MB/86MB, paused 70us,49us total 192.475ms
+04-18 23:34:18.057   832  4710 I QC2Comp : [avcE_21] Stats: Pending(2) i/p-done(1) Works: Q: 116244/Done 116242|Work-Rate: Q(57.8/s Avg=21.1/s) Done(57.583/s Avg=21.083/s)| Stream: 46.26fps 379.1Kbps
+04-18 23:34:18.057   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:18.116  5941  6019 I OpenGLRenderer: Davey! duration=9223358212581ms; Flags=0, FrameTimelineVsyncId=1100669, IntendedVsync=13824273492954, Vsync=13824273492954, InputEventId=0, HandleInputStart=13824275540663, AnimationStart=13824275545194, PerformTraversalsStart=13824275546548, DrawStart=13824277851965, FrameDeadline=13824306826286, FrameInterval=13824275513110, FrameStartTime=16666666, SyncQueued=13824278531496, SyncStart=13824278723423, IssueDrawCommandsStart=13824279071756, SwapBuffers=13824294493267, FrameCompleted=9223372036854775807, DequeueBufferDuration=67864, QueueBufferDuration=2199166, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13824296998840, DisplayPresentTime=0, 
+04-18 23:34:18.172   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 114769/Done 114769|Work-Rate: Q(54.8/s Avg=20.8/s) Done(54.993/s Avg=20.796/s)| Stream: 75.64fps 634.3Kbps
+04-18 23:34:18.172   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:18.307  1565  1565 I [dp_rx_][0x3dd16dfa8f][23:34:18.290083] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:18.430  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:18.615  1565  1565 I [dp_rx_][0x3dd1c8064d][23:34:18.597439] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:18.881  5119  5119 W cam_common_util_thread_switch_delay_detect: 3 callbacks suppressed
+04-18 23:34:18.932  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 220(174KB) AllocSpace objects, 26(75MB) LOS objects, 73% free, 23MB/86MB, paused 594us,50us total 163.991ms
+04-18 23:34:19.882  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 446(162KB) AllocSpace objects, 30(83MB) LOS objects, 75% free, 19MB/79MB, paused 95us,51us total 261.912ms
+04-18 23:34:20.656  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 159(95KB) AllocSpace objects, 22(65MB) LOS objects, 67% free, 26MB/79MB, paused 169us,53us total 167.923ms
+04-18 23:34:18.881  5119  5119 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq execution delay detected 13825:052164 cur 13825:066804 diff 14: threshold 10
+04-18 23:34:20.765  1565  1565 I [dp_rx_][0x3dd43e1194][23:34:20.747990] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:20.769  4823  4823 W cam_common_util_thread_switch_delay_detect: 3 callbacks suppressed
+04-18 23:34:20.796   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 116388/116400 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:21.336  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:21.415   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 116422/116440 (recycle/alloc) - 1352/116435 (fetch/transfer)
+04-18 23:34:21.491   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 114942/114963 (recycle/alloc) - 1387/114958 (fetch/transfer)
+04-18 23:34:21.520  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 287(160KB) AllocSpace objects, 26(73MB) LOS objects, 75% free, 24MB/98MB, paused 966us,893us total 257.370ms
+04-18 23:34:21.560  2235  2498 D RokidESecurity: DeviceStatusManager:: Storage status checked: 15897MB available
+04-18 23:34:21.561  2235  2498 D DeviceStatusManager::: checkStorageStatus availableMB:15897
+04-18 23:34:20.769  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13826:948217 cur 13826:954842 diff 6: threshold 5
+04-18 23:34:21.583  1565  1565 I [dp_rx_][0x3dd52d91df][23:34:21.565487] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:21.633  1930  5144 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:34:21.637   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 114951/114967 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:21.744  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:22.385   795   795 W healthd : battery l=100 v=4502 t=32.5 h=2 st=2 c=13000 cc=2 chg=u
+04-18 23:34:22.432  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 305(158KB) AllocSpace objects, 30(85MB) LOS objects, 79% free, 19MB/98MB, paused 233us,50us total 139.106ms
+04-18 23:34:22.456  4767  4767 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:34:22.456  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13828:583018 cur 13828:642065 diff 59: threshold 5
+04-18 23:34:22.478  6115  6115 I CAM_INFO: CAM-CRM: __cam_req_mgr_find_dev_name: 244 Skip Frame: req: 9568 not ready on link: 0x1d0308 for pd: 1 dev: cam-isp open_req count: 1
+04-18 23:34:22.511  6115  6115 I CAM_INFO: CAM-CRM: __cam_req_mgr_find_dev_name: 244 Skip Frame: req: 9568 not ready on link: 0x1d0308 for pd: 1 dev: cam-isp open_req count: 1
+04-18 23:34:22.546  6115  6115 I CAM_INFO: CAM-CRM: __cam_req_mgr_find_dev_name: 244 Skip Frame: req: 9568 not ready on link: 0x1d0308 for pd: 1 dev: cam-isp open_req count: 1
+04-18 23:34:22.607  1565  1565 I [dp_rx_][0x3dd659a451][23:34:22.589733] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:22.812  1565  1565 I [dp_rx_][0x3dd695cf44][23:34:22.795106] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:22.945  5119  5119 W FG_CW221X: cw_update_data-575 : vol = 4502  current = 13000 cap = 100 temp = 325
+04-18 23:34:23.060   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 116529/Done 116528|Work-Rate: Q(57.0/s Avg=21.1/s) Done(57.168/s Avg=21.116/s)| Stream: 62.22fps 640.3Kbps
+04-18 23:34:23.060   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:23.079   795   795 W healthd : battery l=100 v=4502 t=32.5 h=2 st=3 c=13000 cc=2 chg=u
+04-18 23:34:23.172   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 115054/Done 115054|Work-Rate: Q(57.0/s Avg=20.8/s) Done(56.997/s Avg=20.829/s)| Stream: 63.23fps 437.8Kbps
+04-18 23:34:23.172   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:23.452  1930  1944 I y.system.serve: Background concurrent copying GC freed 484514(15MB) AllocSpace objects, 25(74MB) LOS objects, 60% free, 63MB/159MB, paused 166us,86us total 378.431ms
+04-18 23:34:23.460  1930  1946 W System  : A resource failed to call release. 
+04-18 23:34:23.594  1930  1946 W System  : A resource failed to call release. 
+04-18 23:34:23.812  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 489(161KB) AllocSpace objects, 34(97MB) LOS objects, 75% free, 21MB/84MB, paused 74us,733us total 278.416ms
+04-18 23:34:24.044  1565  1565 I [dp_rx_][0x3dd7fe87cf][23:34:24.026366] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:24.179  4767  4767 I (virq   : irq_count)- GICv3:IPI(1):46984241 GICv3:arch_timer(11):17857529 GICv3:IPI(2):8360500 ipcc:glink-native-adsp(363):7622318 GICv3:ipcc_0(32):4996577 GICv3:kgsl_hfi_irq(176):2872991 GICv3:IPI(6):2773388 GICv3:csid(259):2388437 GICv3:apps_rsc(22):1404197 GICv3:ife(260):1213454
+04-18 23:34:24.179  4767  4767 I (cpu    : irq_count)- 0:35112741 1:27243273 2:19602833 3:19154242
+04-18 23:34:24.179  4767  4767 I (ipi    : irq_count)- 0:46984242 1:8360500 2:0 3:0 4:0 5:2773389 6:0
+04-18 23:34:24.233  5119  5119 W cam_common_util_thread_switch_delay_detect: 5 callbacks suppressed
+04-18 23:34:24.509  1930  6108 I turen   : [R2][03:11:03.904] [src/R2Module.cpp     104]D R2In: 2000 loops, average: 53.
+04-18 23:34:24.509  1930  6108 I turen   : [R2][03:11:03.904] [src/R2Module.cpp     104]D R2Rdc: 2000 loops, average: 27.
+04-18 23:34:24.621  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 272(143KB) AllocSpace objects, 26(74MB) LOS objects, 78% free, 18MB/84MB, paused 3.454ms,49us total 140.661ms
+04-18 23:34:24.662  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:25.050   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:34:25.050   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:34:25.056  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:24.233  5119  5119 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13830:409415 cur 13830:418911 diff 9: threshold 5
+04-18 23:34:25.373  1565  1565 I [dp_rx_][0x3dd983f33b][23:34:25.355585] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:25.503  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 305(160KB) AllocSpace objects, 29(83MB) LOS objects, 75% free, 12MB/49MB, paused 234us,54us total 194.065ms
+04-18 23:34:25.524  4767  4767 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:34:25.926   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 116679/116691 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:26.006  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 83(95KB) AllocSpace objects, 14(41MB) LOS objects, 62% free, 18MB/49MB, paused 672us,304us total 135.988ms
+04-18 23:34:26.510   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 116709/116727 (recycle/alloc) - 1354/116722 (fetch/transfer)
+04-18 23:34:26.520  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 225(160KB) AllocSpace objects, 16(44MB) LOS objects, 75% free, 15MB/60MB, paused 146us,54us total 166.838ms
+04-18 23:34:26.573   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 115211/115232 (recycle/alloc) - 1390/115227 (fetch/transfer)
+04-18 23:34:26.772   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 115225/115241 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:25.524  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CDM workq schedule delay detected 13831:696889 cur 13831:709957 diff 13: threshold 5
+04-18 23:34:26.912  1565  1565 I [dp_rx_][0x3ddb46d751][23:34:26.894626] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:27.105  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 209(143KB) AllocSpace objects, 19(53MB) LOS objects, 74% free, 15MB/60MB, paused 288us,97us total 108.537ms
+04-18 23:34:27.197  6122  6122 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:27.197  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13833:375683 cur 13833:382173 diff 6: threshold 5
+04-18 23:34:27.215  1565  1565 I [dp_rx_][0x3ddb9faf07][23:34:27.197876] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:27.487  1930  6108 I turen   : [R2][03:11:06.880] [src/R2Module.cpp     104]D R2Rs: 2000 loops, average: 133.
+04-18 23:34:27.493  1930  6099 I turen   : [R2][03:11:06.880] [src/R2Module.cpp     288]D <Thread> R2Engine: 2000 loops, average: 500
+04-18 23:34:27.817  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 254(128KB) AllocSpace objects, 19(55MB) LOS objects, 75% free, 19MB/79MB, paused 81us,80us total 184.854ms
+04-18 23:34:27.991  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:28.034  1565  1565 I [dp_rx_][0x3ddc8fa3a8][23:34:28.016924] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:28.083   832  4710 I QC2Comp : [avcE_21] Stats: Pending(2) i/p-done(0) Works: Q: 116810/Done 116808|Work-Rate: Q(55.9/s Avg=21.1/s) Done(55.739/s Avg=21.148/s)| Stream: 102.69fps 473.8Kbps
+04-18 23:34:28.083   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:28.123  5941  6089 I OpenGLRenderer: Davey! duration=9223358202557ms; Flags=0, FrameTimelineVsyncId=1101840, IntendedVsync=13834297584506, Vsync=13834297584506, InputEventId=0, HandleInputStart=13834298652482, AnimationStart=13834298656544, PerformTraversalsStart=13834298658002, DrawStart=13834305261700, FrameDeadline=13834330917838, FrameInterval=13834298629825, FrameStartTime=16666666, SyncQueued=13834305721388, SyncStart=13834305812690, IssueDrawCommandsStart=13834306026127, SwapBuffers=13834308158732, FrameCompleted=9223372036854775807, DequeueBufferDuration=25834, QueueBufferDuration=455989, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13834308920086, DisplayPresentTime=0, 
+04-18 23:34:28.187   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 115319/Done 115318|Work-Rate: Q(52.8/s Avg=20.9/s) Done(52.650/s Avg=20.858/s)| Stream: 64.62fps 590.3Kbps
+04-18 23:34:28.187   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:28.193  1701  1701 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+04-18 23:34:28.194  1701  1701 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+04-18 23:34:28.194  1701  1701 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Writing IBS_WAKE_IND
+04-18 23:34:28.199  1701  2190 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_ACK: 0xFC
+04-18 23:34:28.199  1701  2190 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Signal wack_cond_
+04-18 23:34:28.199  1701  1701 D vendor.qti.bluetooth@1.0-ibs_handler: DeviceWakeUp: Unblocked from waiting for FC, pthread_cond_timedwait ret = 0
+04-18 23:34:28.200  1701  2190 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+04-18 23:34:28.200  1701  2190 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+04-18 23:34:28.227  1458  2206 I bt_stack: [INFO:btm_ble_bgconn.cc(429)] Already connection initiated (or) No Pending connections(or) Resources of lcb are exhausted
+04-18 23:34:28.249  1701  2190 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+04-18 23:34:28.362  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:28.532  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 154(127KB) AllocSpace objects, 23(68MB) LOS objects, 78% free, 17MB/79MB, paused 4.666ms,133us total 121.033ms
+04-18 23:34:28.547  1565  1565 I [dp_rx_][0x3ddd25b48d][23:34:28.529149] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:29.209  1701  2209 I vendor.qti.bluetooth@1.0-ibs_handler: DeviceSleep: TX Awake, Sending SLEEP_IND
+04-18 23:34:29.210  1701  2209 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+04-18 23:34:29.360  1701  1814 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+04-18 23:34:29.396  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 287(128KB) AllocSpace objects, 27(76MB) LOS objects, 75% free, 18MB/74MB, paused 2.717ms,72us total 204.624ms
+04-18 23:34:30.104  5119  5119 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:34:30.090  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 230(143KB) AllocSpace objects, 23(65MB) LOS objects, 83% free, 12MB/74MB, paused 2.482ms,53us total 108.813ms
+04-18 23:34:30.104  5119  5119 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13836:282060 cur 13836:289592 diff 7: threshold 5
+04-18 23:34:30.697  1565  1565 I [dp_rx_][0x3ddf9bb223][23:34:30.679517] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:30.879  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 271(160KB) AllocSpace objects, 24(68MB) LOS objects, 75% free, 18MB/72MB, paused 70us,137us total 197.702ms
+04-18 23:34:30.902  1565  1565 I [dp_rx_][0x3ddfd7c1df][23:34:30.884528] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:31.053   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 116966/116978 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:31.156  5941  6019 I OpenGLRenderer: Davey! duration=9223358199540ms; Flags=0, FrameTimelineVsyncId=1102189, IntendedVsync=13837304811882, Vsync=13837304811882, InputEventId=0, HandleInputStart=13837307968053, AnimationStart=13837307971595, PerformTraversalsStart=13837307973158, DrawStart=13837309940345, FrameDeadline=13837338145214, FrameInterval=13837307939824, FrameStartTime=16666666, SyncQueued=13837311127741, SyncStart=13837320287897, IssueDrawCommandsStart=13837320520814, SwapBuffers=13837328541230, FrameCompleted=9223372036854775807, DequeueBufferDuration=28645, QueueBufferDuration=715781, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13837329685762, DisplayPresentTime=0, 
+04-18 23:34:31.296  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:31.446  4823  4823 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:34:31.637  1930  4871 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:34:31.646   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 116997/117015 (recycle/alloc) - 1357/117010 (fetch/transfer)
+04-18 23:34:31.650  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 255(143KB) AllocSpace objects, 23(65MB) LOS objects, 70% free, 21MB/72MB, paused 2.695ms,53us total 171.002ms
+04-18 23:34:31.659   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 115485/115506 (recycle/alloc) - 1392/115501 (fetch/transfer)
+04-18 23:34:31.663  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:31.870   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 115500/115516 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:31.446  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13837:625294 cur 13837:631414 diff 6: threshold 5
+04-18 23:34:32.339  1565  1565 I [dp_rx_][0x3de17cbc5f][23:34:32.321467] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:32.413  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 282(144KB) AllocSpace objects, 25(71MB) LOS objects, 75% free, 18MB/72MB, paused 83us,50us total 216.747ms
+04-18 23:34:32.850  1565  1565 I [dp_rx_][0x3de2128646][23:34:32.832746] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:32.962  5904  5904 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:33.086   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 117092/Done 117091|Work-Rate: Q(56.4/s Avg=21.2/s) Done(56.568/s Avg=21.180/s)| Stream: 107.67fps 587.9Kbps
+04-18 23:34:33.086   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:33.162  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 226(159KB) AllocSpace objects, 23(65MB) LOS objects, 74% free, 18MB/72MB, paused 784us,66us total 169.295ms
+04-18 23:34:33.194   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 115588/Done 115587|Work-Rate: Q(53.7/s Avg=20.9/s) Done(53.727/s Avg=20.887/s)| Stream: 75.67fps 585.6Kbps
+04-18 23:34:33.194   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:32.962  5904  5904 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CAM-SYNC workq schedule delay detected 13839:140134 cur 13839:147745 diff 7: threshold 5
+04-18 23:34:33.565  1565  1565 I [dp_rx_][0x3de2e3f040][23:34:33.547545] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:33.651  5119  5119 I (virq   : irq_count)- GICv3:IPI(1):47029131 GICv3:arch_timer(11):17872504 GICv3:IPI(2):8367461 ipcc:glink-native-adsp(363):7627734 GICv3:ipcc_0(32):5000180 GICv3:kgsl_hfi_irq(176):2876955 GICv3:IPI(6):2775526 GICv3:csid(259):2390120 GICv3:apps_rsc(22):1405883 GICv3:ife(260):1214303
+04-18 23:34:33.651  5119  5119 I (cpu    : irq_count)- 0:35144299 1:27269046 2:19620736 3:19172252
+04-18 23:34:33.651  5119  5119 I (ipi    : irq_count)- 0:47029132 1:8367461 2:0 3:0 4:0 5:2775526 6:0
+04-18 23:34:33.871  1565  1565 I [dp_rx_][0x3de33dba42][23:34:33.854026] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:33.934  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 189(143KB) AllocSpace objects, 23(66MB) LOS objects, 75% free, 19MB/79MB, paused 1.995ms,98us total 210.162ms
+04-18 23:34:34.614  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:34.749  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 206(143KB) AllocSpace objects, 22(65MB) LOS objects, 63% free, 29MB/79MB, paused 922us,3.315ms total 199.825ms
+04-18 23:34:34.975  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:35.469  6122  6122 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:35.491  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 317(145KB) AllocSpace objects, 26(73MB) LOS objects, 75% free, 19MB/79MB, paused 868us,143us total 202.850ms
+04-18 23:34:35.906   958   958 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+04-18 23:34:35.906   958   958 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+04-18 23:34:36.139   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 1(307200 size) used buffers - 117255/117267 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:36.246  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 240(143KB) AllocSpace objects, 26(74MB) LOS objects, 84% free, 12MB/79MB, paused 103us,51us total 127.608ms
+04-18 23:34:35.469  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13841:645973 cur 13841:654328 diff 8: threshold 5
+04-18 23:34:36.502  4767  4767 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:36.502  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13842:680438 cur 13842:687890 diff 7: threshold 5
+04-18 23:34:36.739  1565  1565 I [dp_rx_][0x3de685c5dd][23:34:36.721380] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:36.765   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 4(933888 size) used buffers - 115773/115794 (recycle/alloc) - 1396/115791 (fetch/transfer)
+04-18 23:34:36.767   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 4(933888 size) used buffers - 117287/117305 (recycle/alloc) - 1358/117302 (fetch/transfer)
+04-18 23:34:36.955   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 115787/115803 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:37.046  1565  1565 I [dp_rx_][0x3de6dfd9be][23:34:37.028845] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:37.196  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 302(160KB) AllocSpace objects, 26(74MB) LOS objects, 75% free, 21MB/84MB, paused 1.839ms,53us total 234.616ms
+04-18 23:34:37.930  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:37.968  1565  1565 I [dp_rx_][0x3de7eddfbc][23:34:37.950525] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:38.012  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 271(143KB) AllocSpace objects, 26(74MB) LOS objects, 78% free, 18MB/84MB, paused 144us,61us total 146.384ms
+04-18 23:34:38.088   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 117377/Done 117376|Work-Rate: Q(57.0/s Avg=21.2/s) Done(56.979/s Avg=21.212/s)| Stream: 64.58fps 579.9Kbps
+04-18 23:34:38.088   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:38.194   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 115864/Done 115864|Work-Rate: Q(55.2/s Avg=20.9/s) Done(55.397/s Avg=20.919/s)| Stream: 63.34fps 455.3Kbps
+04-18 23:34:38.194   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:38.276  1565  1565 I [dp_rx_][0x3de84840d0][23:34:38.259019] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:38.284  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:38.331  4823  4823 W cam_common_util_thread_switch_delay_detect: 1 callbacks suppressed
+04-18 23:34:38.916  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 304(144KB) AllocSpace objects, 28(80MB) LOS objects, 75% free, 15MB/60MB, paused 75us,56us total 205.594ms
+04-18 23:34:39.469  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 228(143KB) AllocSpace objects, 19(53MB) LOS objects, 74% free, 15MB/60MB, paused 2.612ms,113us total 124.044ms
+04-18 23:34:39.859  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:34:39.888  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:34:38.331  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13844:509185 cur 13844:516726 diff 7: threshold 5
+04-18 23:34:39.928  4823  4823 W cam_common_util_thread_switch_delay_detect: 4 callbacks suppressed
+04-18 23:34:40.164  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 1454(191KB) AllocSpace objects, 21(59MB) LOS objects, 75% free, 18MB/72MB, paused 127us,90us total 234.983ms
+04-18 23:34:40.784  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:34:40.801  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:34:39.928  4823  4823 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13846:106999 cur 13846:113720 diff 6: threshold 5
+04-18 23:34:40.837  1565  1565 I [dp_rx_][0x3deb366bf8][23:34:40.819595] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:40.839  5941  6101 D TransportRuntime.SQLiteEventStore: Storing event with priority=VERY_LOW, name=FIREBASE_ML_SDK for destination cct
+04-18 23:34:40.872  5941  6101 D TransportRuntime.JobInfoScheduler: Upload for context TransportContext(cct, VERY_LOW, MSRodHRwczovL2ZpcmViYXNlbG9nZ2luZy5nb29nbGVhcGlzLmNvbS92MGNjL2xvZy9iYXRjaD9mb3JtYXQ9anNvbl9wcm90bzNc) is already scheduled. Returning...
+04-18 23:34:40.961  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 1704(204KB) AllocSpace objects, 23(65MB) LOS objects, 74% free, 18MB/72MB, paused 1.140ms,61us total 171.929ms
+04-18 23:34:41.232  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:41.267   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 4(1228800 size) total buffers - 2(614400 size) used buffers - 117547/117559 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:41.585  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:34:41.645  1930  5601 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:34:41.777  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 1621(195KB) AllocSpace objects, 24(69MB) LOS objects, 75% free, 22MB/91MB, paused 141us,66us total 246.360ms
+04-18 23:34:41.894   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 8(1867776 size) total buffers - 5(1167360 size) used buffers - 116055/116076 (recycle/alloc) - 1398/116072 (fetch/transfer)
+04-18 23:34:41.919   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 9(2101248 size) total buffers - 5(1167360 size) used buffers - 117582/117600 (recycle/alloc) - 1361/117595 (fetch/transfer)
+04-18 23:34:42.053   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 3(921600 size) total buffers - 1(307200 size) used buffers - 116067/116083 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:34:42.270  1565  1565 I [dp_rx_][0x3decda4bb6][23:34:42.252765] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:42.576  1565  1565 I [dp_rx_][0x3ded33c41c][23:34:42.558157] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:42.595  4767  4767 W cam_common_util_thread_switch_delay_detect: 2 callbacks suppressed
+04-18 23:34:42.637  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 281(143KB) AllocSpace objects, 28(80MB) LOS objects, 81% free, 16MB/91MB, paused 142us,53us total 148.817ms
+04-18 23:34:43.100   832  4710 I QC2Comp : [avcE_21] Stats: Pending(1) i/p-done(0) Works: Q: 117664/Done 117663|Work-Rate: Q(57.3/s Avg=21.2/s) Done(57.256/s Avg=21.245/s)| Stream: 59.39fps 567.5Kbps
+04-18 23:34:43.100   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-30: 12 bufs 5.812 MB] [1D-29: 18 bufs 4.008 MB] [1D-31: 8 bufs 0.125 MB] | Total: 18.777 MB
+04-18 23:34:42.595  4767  4767 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13848:773671 cur 13848:781108 diff 7: threshold 5
+04-18 23:34:43.123  4767  4767 I (virq   : irq_count)- GICv3:IPI(1):47074924 GICv3:arch_timer(11):17887511 GICv3:IPI(2):8374976 ipcc:glink-native-adsp(363):7633206 GICv3:ipcc_0(32):5003814 GICv3:kgsl_hfi_irq(176):2880973 GICv3:IPI(6):2777878 GICv3:csid(259):2391809 GICv3:apps_rsc(22):1407695 GICv3:ife(260):1215153
+04-18 23:34:43.123  4767  4767 I (cpu    : irq_count)- 0:35177088 1:27295207 2:19638981 3:19190240
+04-18 23:34:43.123  4767  4767 I (ipi    : irq_count)- 0:47074924 1:8374976 2:0 3:0 4:0 5:2777879 6:0
+04-18 23:34:43.180  5941  5955 I OpenGLRenderer: Davey! duration=9223358187497ms; Flags=0, FrameTimelineVsyncId=1103600, IntendedVsync=13849350428533, Vsync=13849350428533, InputEventId=0, HandleInputStart=13849350970757, AnimationStart=13849350975393, PerformTraversalsStart=13849350976643, DrawStart=13849352558570, FrameDeadline=13849383761865, FrameInterval=13849350945653, FrameStartTime=16666666, SyncQueued=13849353534820, SyncStart=13849360740913, IssueDrawCommandsStart=13849361058257, SwapBuffers=13849362724768, FrameCompleted=9223372036854775807, DequeueBufferDuration=36302, QueueBufferDuration=860156, GpuCompleted=9223372036854775807, SwapBuffersCompleted=13849364091174, DisplayPresentTime=0, 
+04-18 23:34:43.210   832  4653 I QC2Comp : [avcE_20] Stats: Pending(1) i/p-done(0) Works: Q: 116149/Done 116148|Work-Rate: Q(56.8/s Avg=21.0/s) Done(56.613/s Avg=20.951/s)| Stream: 62.92fps 507.9Kbps
+04-18 23:34:43.210   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 7 bufs 8.832 MB] [2D-Conv-27: 16 bufs 7.750 MB] [1D-26: 21 bufs 4.676 MB] [1D-28: 8 bufs 0.125 MB] | Total: 21.383 MB
+04-18 23:34:43.293  1565  1565 I [dp_rx_][0x3dee0619c4][23:34:43.276099] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:43.568  5941  5950 I om.rokid.gless: Background concurrent copying GC freed 326(144KB) AllocSpace objects, 30(85MB) LOS objects, 75% free, 15MB/61MB, paused 141us,53us total 190.528ms
+04-18 23:34:43.804  1565  1565 I [dp_rx_][0x3dee9bcdfe][23:34:43.787089] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+04-18 23:34:44.099  6122  6122 W cam_common_util_thread_switch_delay_detect: 4 callbacks suppressed
+04-18 23:34:44.148  5941  5950 I om.rokid.gless: Background young concurrent copying GC freed 109(79KB) AllocSpace objects, 18(53MB) LOS objects, 74% free, 15MB/61MB, paused 4.815ms,72us total 108.580ms
+04-18 23:34:44.322  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'threadtime'
+04-18 23:34:44.099  6122  6122 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13850:278154 cur 13850:284743 diff 6: threshold 5
+04-18 23:34:44.423   520   520 I logd    : logdr: UID=2000 GID=2000 PID=6216 n tail=0 logMask=99 pid=0 start=0ns deadline=0ns

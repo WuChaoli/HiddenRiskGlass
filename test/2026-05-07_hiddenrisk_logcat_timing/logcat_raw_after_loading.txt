@@ -1,0 +1,936 @@
+--------- beginning of main
+04-18 23:25:56.543  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:am force-stop com.rokid.glesse
+--------- beginning of system
+04-18 23:25:56.598  1249  4203 I ActivityManager: Force stopping com.rokid.glesse appid=10072 user=0: from pid 5734
+04-18 23:25:56.602  1249  4203 I ActivityManager: Killing 5622:com.rokid.glesse/u0a72 (adj 0): stop com.rokid.glesse due to from pid 5734
+04-18 23:25:56.608  1249  4203 W ActivityRecord: Force removing ActivityRecord{767c8ae u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t473 f}}: app died, no saved state
+04-18 23:25:56.609  1249  1281 W UsageStatsService: Unexpected activity event reported! (com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity event : 23 instanceId : 207616688)
+04-18 23:25:56.609  1249  1284 I libprocessgroup: Successfully killed process cgroup uid 10072 pid 5622 in 5ms
+04-18 23:25:56.611  1249  4203 W InputManager-JNI: Input channel object '4e1047 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity (client)' was disposed without first being removed with the input manager!
+04-18 23:25:56.620   359   359 I hwservicemanager: getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+04-18 23:25:56.630   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 1(307200 size) total buffers - 1(307200 size) used buffers - 97499/97510 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:25:56.633   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 1(307200 size) total buffers - 1(307200 size) used buffers - 98176/98182 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:25:56.639   743   743 I Zygote  : Process 5622 exited due to signal 9 (Killed)
+04-18 23:25:56.639  1930  5314 I SystemServer: ClientManager Client died: com.rokid.glesse (pid=5622)
+04-18 23:25:56.639  1930  5314 D SystemServer: ClientManager Cleaning up resources for client: com.rokid.glesse
+04-18 23:25:56.641  1249  3415 V ActivityManager: Got obituary of 5622:com.rokid.glesse
+04-18 23:25:56.642  1249  1276 W ActivityManager: setHasOverlayUi called on unknown pid: 5622
+04-18 23:25:56.644  1930  4137 D SystemServer: FileSystemServiceImpl_S:: clientDeadEvent->0
+04-18 23:25:56.644  1930  5514 D SystemServer: BluetoothRingServiceImpl setBluetoothRingState->remove 
+04-18 23:25:56.647   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 5(1167360 size) total buffers - 5(1167360 size) used buffers - 97499/97514 (recycle/alloc) - 1225/97509 (fetch/transfer)
+04-18 23:25:56.648   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 5(1167360 size) total buffers - 5(1167360 size) used buffers - 98175/98186 (recycle/alloc) - 1202/98181 (fetch/transfer)
+04-18 23:25:57.730  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:am start -n com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity
+04-18 23:25:57.780  1249  5737 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity} from uid 2000
+04-18 23:25:57.780  1249  1276 I EventSequenceValidator: inc AccIntentStartedEvents to 2
+04-18 23:25:57.780  1249  5737 D ActivityStarter: Background activity start allowed: START_ACTIVITIES_FROM_BACKGROUND permission granted for uid 2000
+04-18 23:25:57.784   359   359 I hwservicemanager: getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+04-18 23:25:57.787   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98192/Done 98192|Work-Rate: Q(2.2/s Avg=19.6/s) Done(2.200/s Avg=19.587/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:25:57.787   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 6 bufs 2.906 MB] [1D-29: 11 bufs 2.449 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.051 MB
+04-18 23:25:57.793  1249  5737 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:25:57.793  1249  5737 D CompatibilityInfo: applicationDensity - 240
+04-18 23:25:57.794  1249  5737 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:25:57.803  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10072; state: DISABLED
+04-18 23:25:57.804  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 177438394; UID 10072; state: DISABLED
+04-18 23:25:57.804  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 135772972; UID 10072; state: DISABLED
+04-18 23:25:57.804  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 135754954; UID 10072; state: ENABLED
+04-18 23:25:57.806  1249  1283 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10072; state: ENABLED
+04-18 23:25:57.809   910   910 I perfetto: ing_service_impl.cc:912 Configured tracing session 7, #sources:1, duration:5000 ms, #buffers:1, total buffer size:4096 KB, total sessions:1, uid:1071 session name: ""
+04-18 23:25:57.809   904   904 I perfetto: probes_producer.cc:241  Ftrace setup (target_buf=7)
+04-18 23:25:57.813   904   904 I perfetto: ftrace_procfs.cc:206    enabled ftrace in /sys/kernel/tracing/
+--------- beginning of kernel
+04-18 23:25:57.831   904   904 W perfetto: enabled ftrace
+04-18 23:25:57.817   743   743 D Zygote  : Forked child process 5752
+04-18 23:25:57.819  1249  1283 I ActivityManager: Start proc 5752:com.rokid.glesse/u0a72 for top-activity {com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity}
+04-18 23:25:57.837  5752  5752 I om.rokid.gless: Late-enabling -Xcheck:jni
+04-18 23:25:57.872  1291  1297 I adbd    : jdwp connection from 5752
+04-18 23:25:57.889  1249  5737 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:25:57.889  1249  5737 D CompatibilityInfo: applicationDensity - 240
+04-18 23:25:57.889  1249  5737 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:25:57.898  1249  5737 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:25:57.898  1249  5737 D CompatibilityInfo: applicationDensity - 240
+04-18 23:25:57.898  1249  5737 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:25:57.903  1249  5737 D ActivityTrigger: ActivityTrigger activityPauseTrigger 
+04-18 23:25:57.917  5752  5752 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10072; state: ENABLED
+04-18 23:25:57.935   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97520/Done 97520|Work-Rate: Q(2.2/s Avg=19.4/s) Done(2.200/s Avg=19.432/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:25:57.935   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 11 bufs 5.328 MB] [1D-26: 15 bufs 3.340 MB] [1D-28: 8 bufs 0.125 MB] | Total: 16.363 MB
+04-18 23:25:58.405  1249  1276 W ActivityTaskSupervisor: Activity top resumed state loss timeout for ActivityRecord{8458ced u0 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity t474}
+04-18 23:25:58.405  1249  1276 W ActivityRecord: Activity pause timeout for ActivityRecord{8458ced u0 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity t474}
+04-18 23:25:58.448  5752  5752 I Perf    : Connecting to perf service.
+04-18 23:25:58.455  5752  5752 V GraphicsEnvironment: ANGLE Developer option for 'com.rokid.glesse' set to: 'default'
+04-18 23:25:58.455  5752  5752 V GraphicsEnvironment: ANGLE GameManagerService for com.rokid.glesse: false
+04-18 23:25:58.456  5752  5752 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+04-18 23:25:58.458  5752  5752 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: true
+04-18 23:25:58.462  5752  5752 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: true
+04-18 23:25:58.476  5752  5752 W FirebaseApp: Default FirebaseApp failed to initialize because no default options were found. This usually means that com.google.gms:google-services was not applied to your gradle project.
+04-18 23:25:58.476  5752  5752 I FirebaseInitProvider: FirebaseApp initialization unsuccessful
+04-18 23:25:58.630  5752  5752 I InspectionConfig: config loaded flavor=standard overlay=inspection_config.standard.jsonc
+04-18 23:25:58.633   359   359 I hwservicemanager: getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+04-18 23:25:58.634   979  1000 E ANDR-IOP: IIop:: Iop HAL Service is not available.
+04-18 23:25:58.739  5752  5752 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+04-18 23:25:58.840  5752  5752 W om.rokid.gless: Accessing hidden method Landroid/view/ViewGroup;->makeOptionalFitsSystemWindows()V (unsupported, reflection, allowed)
+04-18 23:25:58.938  5752  5752 I Open-SDK: SecurityServiceClient 绑定服务请求发送：bindSuccess = true
+04-18 23:25:58.983  5752  5752 E startActivity: com.rokid.glass.hiddenrisk.InspectionLoadingActivity
+04-18 23:25:59.017  1249  5737 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity, true, booted=true
+04-18 23:25:59.042  5752  5752 I Open-SDK: SecurityServiceClient 服务绑定成功：onServiceConnected
+04-18 23:25:59.079  1930  5314 I SystemServer: ClientManager registerClient pid=5752, uid=10072, pkg=com.rokid.glesse, clientId=com.rokid.glesse.hiddenrisk
+04-18 23:25:59.080  1930  1930 I SystemServer: ServicePoolImpl registerClient: onReady
+04-18 23:25:59.083  1930  1930 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=device
+04-18 23:25:59.083  1930  1930 I SystemServer: ServicePoolImpl Service granted: device to com.rokid.glesse
+04-18 23:25:59.083  5752  5752 D com.rokid.glesse.hiddenrisk: SecurityServiceClient 死亡通知注册成功
+04-18 23:25:59.084  5752  5752 I InspectionLoading: SDK state=BINDING
+04-18 23:25:59.085  5752  5767 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：device (IDeviceService)
+04-18 23:25:59.087  5752  5752 I InspectionLoading: SDK state=READY
+04-18 23:25:59.311  5752  5752 I InspectionCameraCoord: acquire owner=LOADING generation=1 state=OPENING needPreview=false previewAttached=false frameOpen=false enableRecovery=false
+04-18 23:25:59.312  5752  5752 I RokidFrameSource: startFrameStream create helper
+04-18 23:25:59.321  1930  5314 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:25:59.321  1930  5314 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:25:59.327  5752  5752 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:25:59.328  1930  5314 D SystemServer: MediaServerImpl startCameraNv21Export: pid=5752, enableMix=false
+04-18 23:25:59.329  1930  5314 D SystemServer: CameraShareManager startNv21Export: pid=5752, callbackId=1999f09e-5ed8-4ad2-b61d-94bcad81f04d, enableMix=false
+04-18 23:25:59.330  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager checkNeedStart resolution = 5, mResolution = -1
+04-18 23:25:59.331  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper startCameraNv21Export called, enableMix=false
+04-18 23:25:59.331  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager initCamera:  resolution = 5 && cameraGeneration = 10
+04-18 23:25:59.331  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager initResolution: width = 1080 ,height =  1920
+04-18 23:25:59.331  1930  2470 I Glass3Media::CameraGlassesObject: init-->
+04-18 23:25:59.336  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject mCameraId  0
+04-18 23:25:59.338  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject turnState: mState = com.rokid.glass.luban.camera.CameraGlassesObject$InitialedState@fb75ed9
+04-18 23:25:59.339  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject configSize 1080  1920
+04-18 23:25:59.339  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager initCamera: 1080, 1920
+04-18 23:25:59.339  1930  5777 I SystemServer: Glass3Media::CameraGlassesObject turnState: mState = com.rokid.glass.luban.camera.CameraGlassesObject$OpenWaitState@4cfb09e
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: QUALCOMM build                   : 1ee5569fc4, I7c9e039212
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: Build Date                       : 12/26/24
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: E031.49.05.00
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: Local Branch                     : 
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.14.3.4.11.00.00.1126.313
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: Remote Branch                    : NONE
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
+04-18 23:25:59.340  1930  5779 I AdrenoGLES-0: Build Config                     : S P 16.1.2 AArch64
+04-18 23:25:59.341  1930  5779 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+04-18 23:25:59.341  1930  5779 I AdrenoGLES-0: Driver Version                   : 0812.0
+04-18 23:25:59.341  1930  5779 I AdrenoGLES-0: Process Name                     : com.rokid.security.system.server
+04-18 23:25:59.369  1930  5779 I AdrenoGLES-0: PFP: 0x016dd112, ME: 0x00000000
+04-18 23:25:59.379   359   359 I hwservicemanager: Since vendor.qti.qspmhal@1.0::IQspmhal/default is not registered, trying to start it as a lazy HAL.
+04-18 23:25:59.379  1930  5779 W Adreno-AppProfiles: Could not find QSPM HAL service. Skipping adreno profile processing.
+04-18 23:25:59.398     1     1 E init    : Control message: Could not find 'vendor.qti.qspmhal@1.0::IQspmhal/default' for ctl.interface_start from pid: 359 (/system/bin/hwservicemanager)
+04-18 23:25:59.381   359  5780 W libc    : Unable to set property "ctl.interface_start" to "vendor.qti.qspmhal@1.0::IQspmhal/default": error code: 0x20
+04-18 23:25:59.381   359  5780 I hwservicemanager: Tried to start vendor.qti.qspmhal@1.0::IQspmhal/default as a lazy service, but was unable to. Usually this happens when a service is not installed, but if the service is intended to be used as a lazy service, then it may be configured incorrectly.
+04-18 23:25:59.391  1930  5779 I SystemServer: Glass3Media::CameraAndScreenRender mTextureId = 1
+04-18 23:25:59.395  1930  2470 I SystemServer: setDefaultBufferSize setDefaultBufferSize mPreviewWidth=1080 mPreviewHeight=1920
+04-18 23:25:59.395  1930  2470 E SystemServer: Glass3Media::CameraGlassesObject startPreview isClosingCamera is false
+04-18 23:25:59.396  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager initCamera mResolution = 5
+04-18 23:25:59.396  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager waitForCameraReady -- start
+04-18 23:25:59.396  1930  5777 D SystemServer: Glass3Media::CameraGlassesObject startPreview-->null   android.graphics.SurfaceTexture@b60f95  opening= false mState = OpenWaitState, isClosingCamera = false
+04-18 23:25:59.398   959  1341 I CameraService: CameraService::connect call (PID -1 "com.rokid.security.system.server", camera ID 0) and Camera API version 2
+04-18 23:25:59.399   959  1341 I CameraService: No client to evict, count:0
+04-18 23:25:59.399   959  1341 I Camera2ClientBase: Camera 0: Opened. Client: com.rokid.security.system.server (PID 1930, UID 1000)
+04-18 23:25:59.399   959  1341 I CameraDeviceClient: CameraDeviceClient 0: Opened
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 100
+04-18 23:25:59.401   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 100
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:468 DumpState() 
+04-18 23:25:59.402   810  1982 I CamX    : 
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:469 DumpState() reservation Id: 0
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:470 DumpState() ----------------------------------
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:471 DumpState()     Key      reservation
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:472 DumpState() ----------------------------------
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {1, 0} :     100
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:25:59.402   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+04-18 23:25:59.403   818   818 I SDM     : ResourceImpl::SetMaxBandwidthMode: new bandwidth mode=1
+04-18 23:25:59.407  1249  2988 E CameraService_proxy: Recent task package name: com.rokid.glesse doesn't match with camera client package name: com.rokid.security.system.server
+04-18 23:25:59.409  1930  5777 I SystemServer: Glass3Media::CameraGlassesObject onOpened-->
+04-18 23:25:59.409   794   823 D AHAL: AudioDevice: SetParameters: 1442: enter: cameraFacing=back
+04-18 23:25:59.409   794   823 D AHAL: AudioVoice: VoiceSetParameters: 86: Enter params: cameraFacing=back
+04-18 23:25:59.409   794   823 D AHAL: AudioVoice: VoiceSetParameters: 307: Exit ret: 0
+04-18 23:25:59.410   794   823 D AHAL: hfp: hfp_set_parameters: 551: enter
+04-18 23:25:59.410   794   823 D AHAL: BTSink: btsink_set_parameters: 262: Enter
+04-18 23:25:59.410   794   823 D AHAL: BTSink: btsink_set_volume: 88: Volume brought with in range (1.000000)
+04-18 23:25:59.410   794   823 D AHAL: BTSink: btsink_set_volume: 94:  BT Sink not active, ignoring set_volume call
+04-18 23:25:59.410   794   823 D AHAL: BTSink: btsink_set_parameters: 326: exit
+04-18 23:25:59.410   794   823 D AHAL: FM: fm_set_parameters: 264: Enter
+04-18 23:25:59.410   794   823 D AHAL: FM: fm_set_parameters: 322: exit
+04-18 23:25:59.410   794   823 D AHAL: AudioDevice: SetParameters: 2011: exit: cameraFacing=back
+04-18 23:25:59.412  1930  5777 I SystemServer: Glass3Media::CameraGlassesObject startRecordSession is 1080P set zoom 1.2 && zoomRect is Rect(2, 252 - 3360, 2772)
+04-18 23:25:59.412   959  1341 W cameraserver: createSurfaceFromGbp: Camera 0 with consumer usage flag: 256: Forcing asynchronous mode forstream
+04-18 23:25:59.413   959  1341 W cameraserver: createSurfaceFromGbp: Camera 0: Overriding format 0x1 to IMPLEMENTATION_DEFINED
+04-18 23:25:59.415  1828  1909 I ThermalEngine: Thermal-Server: Thermal received msg from  camera_bw_0
+04-18 23:25:59.416   810  5785 I Thermal-Lib: Thermal-Lib: Client request sent for camera_bw_0 with val:0x0
+04-18 23:25:59.438   810  1982 E CamX    : [ERROR][SENSOR ] camxsensornode.cpp:9254 GetSensorModuleIndexes() Sensor[0] GetDeviceIndex failure for Flash, result: CamxResultSuccess
+04-18 23:25:59.445   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:25:59.445   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:25:59.445   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:25:59.445   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+04-18 23:25:59.445   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {2, 0} :   50
+04-18 23:25:59.445   810  1982 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+04-18 23:25:59.462   959  1341 D Camera3-Device: Set real time priority for request queue thread (tid 5783)
+04-18 23:25:59.463  1930  5777 I SystemServer: Glass3Media::CameraGlassesObject createCaptureSession isSuccess = true
+04-18 23:25:59.467   959  5782 D CameraService: connectDevice: .... 
+04-18 23:25:59.467   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:25:59.467   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:25:59.467   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:25:59.467   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+04-18 23:25:59.467   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {2, 0} :   50
+04-18 23:25:59.468  1249  5737 I LightCtrlSVC: send event 2, 2014, callUid=1047, callPid=959
+04-18 23:25:59.468   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+04-18 23:25:59.468   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+04-18 23:25:59.468   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 50
+04-18 23:25:59.468   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+04-18 23:25:59.468   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+04-18 23:25:59.469   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 50
+04-18 23:25:59.469   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:179 DumpState() 
+04-18 23:25:59.469   810  5806 I CamX    : 
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:180 DumpState() client {RealTimeFeatureZSLPreviewRawRokidExt1_0, 0xb400006f456e7000}
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:181 DumpState() -------------------------
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:182 DumpState()     Key     Allocation
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:183 DumpState() -------------------------
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {1, 0} :   100
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {2, 0} :   50
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {5, 1} :   50
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:468 DumpState() 
+04-18 23:25:59.470   810  5806 I CamX    : 
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:469 DumpState() reservation Id: 0
+04-18 23:25:59.470   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:470 DumpState() ----------------------------------
+04-18 23:25:59.471   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:471 DumpState()     Key      reservation
+04-18 23:25:59.471   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:472 DumpState() ----------------------------------
+04-18 23:25:59.471   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {1, 0} :     0
+04-18 23:25:59.471   810  5806 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {5, 1} :     0
+04-18 23:25:59.472   810  5808 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/platform/android/evaSession.cpp Line: 347 Function: evaGetDebugEnable() Msg:  EVA Debug Logs Disabled 
+04-18 23:25:59.472   810  5808 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/platform/android/evaSession.cpp Line: 360 Function: evaGetDebugEnable() Msg:  EVA Memory Profile Disabled 
+04-18 23:25:59.488  5808  5808 I CAM_ERR : CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=30 already in list [15:25:59:470] cb=ife idx=0 handle=55577 len=589824,give same addr back
+04-18 23:25:59.488  5808  5808 I CAM_ERR : CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=81 already in list [15:25:59:470] cb=ife idx=0 handle=55577 len=483328,give same addr back
+04-18 23:25:59.488  5808  5808 I CAM_ERR : CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=82 already in list [15:25:59:470] cb=ife idx=0 handle=55577 len=495616,give same addr back
+04-18 23:25:59.489  5808  5808 I synx    : [sess: 35329] session created umd-client-5808
+04-18 23:25:59.489  5816  5816 I leds red: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:25:59.489  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=2, curr=0x02
+04-18 23:25:59.490  5808  5808 I msm_cvp : sess: Opening cvp instance: 0000000000000000
+04-18 23:25:59.490  5808  5808 I msm_cvp : warn: HFI Read register failed : Power is OFF
+04-18 23:25:59.490  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=2, brigntness=0x0000
+04-18 23:25:59.490  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=2, brigntness=0x00
+04-18 23:25:59.491  5816  5816 I leds green: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:25:59.491  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=1, curr=0x02
+04-18 23:25:59.491  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=1, brigntness=0x0000
+04-18 23:25:59.491  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=1, brigntness=0x00
+04-18 23:25:59.492  5816  5816 I leds blue: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:25:59.492  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=0, curr=0x02
+04-18 23:25:59.492  5808  5808 I msm_cvp : pwr: cvp (eva) powered on
+04-18 23:25:59.492  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=0, brigntness=0x0000
+04-18 23:25:59.494  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=0, brigntness=0x00
+04-18 23:25:59.494  5816  5816 I leds white: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:25:59.494  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+04-18 23:25:59.494  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x0000
+04-18 23:25:59.494  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0x00
+04-18 23:25:59.495  5816  5816 I leds white: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:25:59.495  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+04-18 23:25:59.495  4823  4823 I msm_cvp : fw: <CFW_E:HostDr:0000feed:00:00000000dda0c640> VenusHostDriver_SetSysProperty(599): QC_IMAGE_VERSION_STRING=EVA.FIRMWARE.3.5-33
+04-18 23:25:59.495  4823  4823 I msm_cvp : fw: <CFW_E:HostDr:0000feed:00:00000000dda1350f> VenusHostDriver_SetSysProperty(599): QC_IMAGE_VERSION_STRING=EVA.FIRMWARE.3.5-33
+04-18 23:25:59.495  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x00FF
+04-18 23:25:59.495  5816  5816 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0xFF
+04-18 23:25:59.482   810  5808 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/evaFaceDetection.cpp Line: 377 Function: evaFaceDetectionPrepareConfigPacket() Msg: evaFaceDetectionPrepareConfigPacket - minFace 0, dir 12, pose 2, rdfPad 15, maxRdf 2000, dir20 12, pose20 2
+04-18 23:25:59.482   810  5821 I DMABUFHEAPS: Using DMA-BUF heap named: qcom,system
+04-18 23:25:59.482   810  5808 I DMABUFHEAPS: Using DMA-BUF heap named: qcom,system
+04-18 23:25:59.482   810  5821 I DMABUFHEAPS: Using DMA-BUF heap named: qcom,system
+04-18 23:25:59.499  5808  5808 I synx    : [sess: 46082] session created cvp-kernel-client
+04-18 23:25:59.501  4823  4823 I msm_cvp : fw: <CFW_E:RTWrkM:a2ab9180:00:00000000dda78291> cvp_Worker_ProcessControlCommand(18956): pixel persist buffer addr da400000
+04-18 23:25:59.501  4823  4823 I msm_cvp : fw: <CFW_E:RTWrkM:a2ab9180:00:00000000dda7e59c> cvp_Worker_ProcessControlCommand(18967): non pixel persist buffer addr d9600000 size 14323200
+04-18 23:25:59.486   810  5808 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/evaFaceDetection.cpp Line: 522 Function: evaFaceDetectionReadModel() Msg: /vendor/etc/eva/facedetection/model3.dat is used
+04-18 23:25:59.503  1148  1148 I CAM_INFO: CAM-SENSOR: cam_sensor_driver_cmd: 975 CAM_ACQUIRE_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+04-18 23:25:59.496  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager waitForCameraReady -- end
+04-18 23:25:59.504  1148  1148 I CAM_INFO: CAM-CSIPHY: cam_csiphy_core_cfg: 2000 CAM_ACQUIRE_DEV: 1 Type: DPHY acquire_count: 1 combo: 0 cphy+dphy combo: 0
+04-18 23:25:59.497  1930  5779 D SystemServer: Glass3Media::CameraAndScreenRender startExport:
+04-18 23:25:59.497  1930  2470 D SystemServer: CameraShareManager Nv21 session created: 1999f09e-5ed8-4ad2-b61d-94bcad81f04d, 1080x1920, enableMix=false
+04-18 23:25:59.499  5752  5767 D com.rokid.glesse.hiddenrisk: CameraShareHelper nv21 onCameraOpened: 1080x1920
+04-18 23:25:59.499  5752  5767 I RokidFrameSource: applySdkZoom zoomRatio=2.0 level=2
+04-18 23:25:59.500  1930  2470 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:25:59.500  1930  2470 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:25:59.500  1930  5779 D SystemServer: Glass3Media::CameraAndScreenRender startExport end-->com.rokid.glass.arworkflow.media.filter.ExportFilter@1233576
+04-18 23:25:59.511  5806  5806 I CAM_INFO: CAM-ISP: cam_ife_hw_mgr_print_acquire_info: 1334 15:25:59.493 Acquired Single IFE[1] with [12 pix] [0 pd] [0 rdi] ports for ctx:2
+04-18 23:25:59.501  5752  5767 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:25:59.517  5806  5806 I CAM_INFO: CAM-CSIPHY: cam_csiphy_core_cfg: 2394 CAM_START_PHYDEV: 1, Type: DPHY, slot: 0, sec_mode: 0, Datarate: 3600000000, Settletime: 6400000000, combo: 0, cphy+dphy: 0
+04-18 23:25:59.501  1930  2470 D SystemServer: MediaServerImpl zoomCamera: level= 2,  pid = 5752
+04-18 23:25:59.503  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject zoom is called  && widthxheight(1080x1920) set zoom 2.0 && zoomRect is Rect(1008, 756 - 3024, 2268)
+04-18 23:25:59.516  5752  5752 I InspectionCameraCoord: preview_disabled owner=LOADING generation=1 state=READY_NO_PREVIEW needPreview=false previewAttached=false frameOpen=true
+04-18 23:25:59.517  5806  5806 I CAM_INFO: CAM-SENSOR: cam_sensor_driver_cmd: 1100 15:25:59.499 CAM_START_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+04-18 23:25:59.647  5560  5560 W cam_common_util_thread_switch_delay_detect: 3 callbacks suppressed
+04-18 23:25:59.948  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:25:59.950  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:25:59.973  1930  1944 I y.system.serve: Background young concurrent copying GC freed 172018(6015KB) AllocSpace objects, 19(44MB) LOS objects, 38% free, 65MB/105MB, paused 278us,125us total 129.128ms
+04-18 23:26:00.642  1249  1950 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+04-18 23:26:00.802  1249  1276 I EventSequenceValidator: dec AccIntentStartedEvents to 1
+04-18 23:26:01.379  1930  5536 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:25:59.648  5560  5560 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CAM-SYNC workq schedule delay detected 13325:825757 cur 13325:833100 diff 7: threshold 5
+04-18 23:26:02.163  5554  5554 I (virq   : irq_count)- GICv3:IPI(1):44997223 GICv3:arch_timer(11):17151880 GICv3:IPI(2):8006424 ipcc:glink-native-adsp(363):7361104 GICv3:ipcc_0(32):4829858 GICv3:kgsl_hfi_irq(176):2723237 GICv3:IPI(6):2654648 GICv3:csid(259):2311630 GICv3:apps_rsc(22):1313616 GICv3:ife(260):1170233
+04-18 23:26:02.163  5554  5554 I (cpu    : irq_count)- 0:33675036 1:26034865 2:18797494 3:18355840
+04-18 23:26:02.163  5554  5554 I (ipi    : irq_count)- 0:44997224 1:8006424 2:0 3:0 4:0 5:2654648 6:0
+04-18 23:26:02.787   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98203/Done 98203|Work-Rate: Q(2.2/s Avg=19.6/s) Done(2.200/s Avg=19.569/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:02.787   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 6 bufs 2.906 MB] [1D-29: 11 bufs 2.449 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.051 MB
+04-18 23:26:02.817   910   910 I perfetto: ng_service_impl.cc:1821 FlushAndDisableTracing(7) done, success=1
+04-18 23:26:02.817   904   904 I perfetto: probes_producer.cc:340  Producer stop (id=7)
+04-18 23:26:02.818   904   904 I perfetto: ftrace_procfs.cc:213    disabled ftrace in /sys/kernel/tracing/
+04-18 23:26:02.826   910   910 I perfetto: ng_service_impl.cc:2293 Tracing session 7 ended, total sessions:0
+04-18 23:26:02.252  5560  5560 I CAM_WARN: CAM-UTIL: cam_common_util_thread_switch_delay_detect: 158 CRM workq schedule delay detected 13328:428620 cur 13328:437278 diff 8: threshold 5
+04-18 23:26:02.835   904   904 W perfetto: disabled ftrace
+04-18 23:26:02.936   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97531/Done 97531|Work-Rate: Q(2.2/s Avg=19.4/s) Done(2.200/s Avg=19.415/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:02.936   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 11 bufs 5.328 MB] [1D-26: 15 bufs 3.340 MB] [1D-28: 8 bufs 0.125 MB] | Total: 16.363 MB
+04-18 23:26:03.264  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:26:03.343  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:26:04.356  5752  5829 D ProfileInstaller: Installing profile for com.rokid.glesse
+04-18 23:26:05.297  1930  3894 D SystemServer: DeviceUtil Prop ro.serialno、1901092524001683
+04-18 23:26:05.321  1249  2988 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity} from uid 10072
+04-18 23:26:05.322  1249  1276 I EventSequenceValidator: inc AccIntentStartedEvents to 2
+04-18 23:26:05.322  1249  2988 W ActivityStarter: Background activity start for com.rokid.glesse allowed because SYSTEM_ALERT_WINDOW permission is granted.
+04-18 23:26:05.331  1249  2988 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:26:05.331  1249  2988 D CompatibilityInfo: applicationDensity - 240
+04-18 23:26:05.331  1249  2988 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:26:05.332  1249  2988 I ActivityTaskSupervisor: The Process com.rokid.glesse Already Exists in BG. So sending its PID: 5752
+04-18 23:26:05.333  1249  2988 W WindowProcessController: Tried to set launchTime (0) < mLastActivityLaunchTime (13324100)
+04-18 23:26:05.337  1249  2988 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:26:05.337  1249  2988 D CompatibilityInfo: applicationDensity - 240
+04-18 23:26:05.337  1249  2988 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:26:05.341  1249  2988 D ActivityTrigger: ActivityTrigger activityPauseTrigger 
+04-18 23:26:05.482  5752  5752 E startActivity: com.rokid.glass.EnterpriseQrScanActivity
+04-18 23:26:05.495  5752  5752 I EnterpriseQrScan: startCameraPipeline requestGeneration=pending completed=false status=请将企业二维码放入取景框内 recovery=true
+04-18 23:26:05.496  5752  5752 I InspectionCameraCoord: acquire owner=ENTERPRISE_QR_SCAN generation=2 state=READY_NO_PREVIEW needPreview=true previewAttached=true frameOpen=true enableRecovery=true
+04-18 23:26:05.496  5752  5752 I EnterpriseQrScan: startCameraPipeline requestGeneration=2 owner=ENTERPRISE_QR_SCAN
+04-18 23:26:05.510  1249  2988 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, true, booted=true
+04-18 23:26:05.512  5752  5752 I EnterpriseQrScan: stopCameraPipeline reason=on_pause owner=ENTERPRISE_QR_SCAN generation=2 completed=false frameReady=false processing=false
+04-18 23:26:05.514  5752  5752 I InspectionCameraCoord: release owner=ENTERPRISE_QR_SCAN generation=3 state=RELEASING needPreview=false previewAttached=true frameOpen=true reason=on_pause
+04-18 23:26:05.514  5752  5752 I InspectionCameraCoord: previewUnbind owner=ENTERPRISE_QR_SCAN generation=3
+04-18 23:26:05.514  5752  5752 I RokidFrameSource: stopFrameStream helperExists=true
+04-18 23:26:05.516  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper releaseNv21Export
+04-18 23:26:05.517  1930  3894 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:26:05.517  1930  3894 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:26:05.518  5752  5752 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:26:05.518  1930  3894 D SystemServer: MediaServerImpl stopCameraNv21Export: pid=5752
+04-18 23:26:05.522  1930  3894 I SystemServer: Glass3Media::GlobalMediaManager checkNeedStop:
+04-18 23:26:05.524  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper nv21 onCameraClosed
+04-18 23:26:05.524  5752  5752 I RokidFrameSource: ignore stale onCameraClosed callbackGeneration=1 activeGeneration=0
+04-18 23:26:05.524  1930  3894 D SystemServer: CameraShareManager Nv21 session removed: 1999f09e-5ed8-4ad2-b61d-94bcad81f04d, enableMix=false
+04-18 23:26:05.531  5752  5752 I InspectionCameraCoord: release_complete owner=ENTERPRISE_QR_SCAN generation=3 state=IDLE needPreview=false previewAttached=false frameOpen=false reason=on_pause
+04-18 23:26:05.544  5752  5752 W om.rokid.gless: Accessing hidden field Landroid/view/inputmethod/InputMethodManager;->mCurRootView:Landroid/view/ViewRootImpl; (blocked, reflection, denied)
+04-18 23:26:05.545  5752  5752 I InspectionCameraCoord: ignore release owner=LOADING reason=loading_on_destroy activeOwner=null generation=3
+04-18 23:26:05.552  1249  5737 W InputManager-JNI: Input channel object 'd8ec915 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (client)' was disposed without first being removed with the input manager!
+04-18 23:26:05.564  5752  5752 I InspectionCameraCoord: ignore stale preview bind owner=ENTERPRISE_QR_SCAN generation=2 currentOwner=null currentGeneration=3
+04-18 23:26:05.568  1249  1281 W UsageStatsService: Unexpected activity event reported! (com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity event : 23 instanceId : 170393367)
+04-18 23:26:05.569   832  4653 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 1(307200 size) total buffers - 1(307200 size) used buffers - 97521/97532 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:26:05.572   832  4710 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 1(307200 size) total buffers - 1(307200 size) used buffers - 98198/98204 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:26:05.581   832  4659 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 5(1167360 size) total buffers - 5(1167360 size) used buffers - 97521/97536 (recycle/alloc) - 1228/97531 (fetch/transfer)
+04-18 23:26:05.582   832  4716 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 5(1167360 size) total buffers - 5(1167360 size) used buffers - 98197/98208 (recycle/alloc) - 1205/98203 (fetch/transfer)
+04-18 23:26:05.586  1249  5737 D ActivityTrigger: ActivityTrigger activityPauseTrigger 
+04-18 23:26:05.632  5752  5752 E startActivity: com.rokid.glass.EnterpriseQrScanActivity
+04-18 23:26:05.642  5752  5752 I EnterpriseQrScan: startCameraPipeline requestGeneration=pending completed=false status=请将企业二维码放入取景框内 recovery=true
+04-18 23:26:05.643  5752  5752 I InspectionCameraCoord: acquire owner=ENTERPRISE_QR_SCAN generation=4 state=OPENING needPreview=true previewAttached=true frameOpen=false enableRecovery=true
+04-18 23:26:05.643  5752  5752 I RokidFrameSource: startFrameStream create helper
+04-18 23:26:05.643  1930  3894 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:26:05.643  1930  3894 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:26:05.644  5752  5752 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:26:05.645  1930  3894 D SystemServer: MediaServerImpl startCameraNv21Export: pid=5752, enableMix=false
+04-18 23:26:05.645  1930  3894 D SystemServer: CameraShareManager startNv21Export: pid=5752, callbackId=ab8d7000-2738-4b79-bf3c-d3796774a26a, enableMix=false
+04-18 23:26:05.645  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager checkNeedStart resolution = 5, mResolution = 5
+04-18 23:26:05.646  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager initCamera:  resolution = 5 && cameraGeneration = 10
+04-18 23:26:05.646  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper startCameraNv21Export called, enableMix=false
+04-18 23:26:05.646  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager initCamera: 和相机正在使用的分辨率一致 mResolution = ResolutionInfo(displayName=1080P_Land, width=1080, height=1920)
+04-18 23:26:05.646  5752  5752 I EnterpriseQrScan: startCameraPipeline requestGeneration=4 owner=ENTERPRISE_QR_SCAN
+04-18 23:26:05.646  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager initCamera mResolution = 5
+04-18 23:26:05.646  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager waitForCameraReady -- start
+04-18 23:26:05.646  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager waitForCameraReady -- end
+04-18 23:26:05.646  1930  5779 D SystemServer: Glass3Media::CameraAndScreenRender startExport:
+04-18 23:26:05.647  1930  2470 D SystemServer: CameraShareManager Nv21 session created: ab8d7000-2738-4b79-bf3c-d3796774a26a, 1080x1920, enableMix=false
+04-18 23:26:05.647  5752  5832 D com.rokid.glesse.hiddenrisk: CameraShareHelper nv21 onCameraOpened: 1080x1920
+04-18 23:26:05.648  5752  5832 I RokidFrameSource: applySdkZoom zoomRatio=2.0 level=2
+04-18 23:26:05.648  1249  5737 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity, true, booted=true
+04-18 23:26:05.648  1930  2470 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:26:05.648  1930  2470 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:26:05.649  5752  5832 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:26:05.650  1930  2470 D SystemServer: MediaServerImpl zoomCamera: level= 2,  pid = 5752
+04-18 23:26:05.650  5752  5752 I EnterpriseQrScan: stopCameraPipeline reason=on_pause owner=ENTERPRISE_QR_SCAN generation=4 completed=false frameReady=false processing=false
+04-18 23:26:05.650  5752  5752 I InspectionCameraCoord: release owner=ENTERPRISE_QR_SCAN generation=5 state=RELEASING needPreview=false previewAttached=true frameOpen=true reason=on_pause
+04-18 23:26:05.650  5752  5752 I InspectionCameraCoord: previewUnbind owner=ENTERPRISE_QR_SCAN generation=5
+04-18 23:26:05.651  5752  5752 I RokidFrameSource: stopFrameStream helperExists=true
+04-18 23:26:05.651  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper releaseNv21Export
+04-18 23:26:05.651  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject zoom is called  && widthxheight(1080x1920) set zoom 2.0 && zoomRect is Rect(1008, 756 - 3024, 2268)
+04-18 23:26:05.652  1930  3894 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:26:05.652  1930  3894 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:26:05.652  5752  5752 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:26:05.653  1930  3894 D SystemServer: MediaServerImpl stopCameraNv21Export: pid=5752
+04-18 23:26:05.654  1930  3894 I SystemServer: Glass3Media::GlobalMediaManager checkNeedStop:
+04-18 23:26:05.655  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper nv21 onCameraClosed
+04-18 23:26:05.655  5752  5752 I RokidFrameSource: ignore stale onCameraClosed callbackGeneration=2 activeGeneration=0
+04-18 23:26:05.655  1930  3894 D SystemServer: CameraShareManager Nv21 session removed: ab8d7000-2738-4b79-bf3c-d3796774a26a, enableMix=false
+04-18 23:26:05.656  5752  5752 I InspectionCameraCoord: release_complete owner=ENTERPRISE_QR_SCAN generation=5 state=IDLE needPreview=false previewAttached=false frameOpen=false reason=on_pause
+04-18 23:26:05.678  5752  5752 I InspectionCameraCoord: ignore late stream callback owner=ENTERPRISE_QR_SCAN generation=4 currentOwner=null currentGeneration=5 reason=acquire
+04-18 23:26:05.703  1249  2988 I ActivityRecord: Activity reported stop, but no longer stopping: ActivityRecord{e73cdd0 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t474} STOPPED
+04-18 23:26:06.156  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager ReleaseRunnable -- run false photoFileCallbacks:true frameCallbacks:true mRTCFrameCallback:true true
+04-18 23:26:06.157  1930  2470 D SystemServer: Glass3Media::CameraAndScreenRender shouldDraw mExportFilter--》:true mShareFilter:false mMixFilter:true hasOtherEGL:false mediaRecorder:true mH264Recorder:true
+04-18 23:26:06.157  1930  5779 I SystemServer: Glass3Media::CameraAndScreenRender stopExport
+04-18 23:26:06.157  1930  5779 D SystemServer: Glass3Media release-->com.rokid.glass.arworkflow.media.filter.ExportFilter@1233576
+04-18 23:26:06.160  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager ReleaseRunnable -- shouldDraw：false
+04-18 23:26:06.160  1930  2470 D SystemServer: Glass3Media::CameraAndScreenRender shouldDraw mExportFilter--》:false mShareFilter:false mMixFilter:true hasOtherEGL:false mediaRecorder:true mH264Recorder:true
+04-18 23:26:06.162  1930  5779 W y.system.serve: [SurfaceTexture-1-1930-10] bindTextureImage: clearing GL error: 0x501
+04-18 23:26:06.163  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager ReleaseRunnable -- closeCamera
+04-18 23:26:06.164  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager closeCamera -- start && cameraGeneration, 11
+04-18 23:26:06.165  1930  2470 W SystemServer: Glass3Media::CameraGlassesObject closeCamera waiting for opening camera to complete
+04-18 23:26:06.366  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject closeCamera-->start
+04-18 23:26:06.367   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:2843 LogRequest() Frame Number ## REQUEST_ERROR ## RESULT_ERROR ## BUFFER_ERROR ## Shutter ##  Metadata[Rcvd/Tot] ## Output[Rcvd/Tot(inErr)] ## Input ## S0[Rcvd/StatusOK/BufErrNotify](0xb400006f455120e8)[0] ## 
+04-18 23:26:06.388  5550  5550 I CAM_INFO: CAM-CRM: cam_req_mgr_process_flush_req: 2719 Last request id to flush is 208
+04-18 23:26:06.388  5550  5550 I CAM_INFO: CAM-ISP: __cam_isp_ctx_flush_req_in_top_state: 4692 Last request id to flush is 208, ctx_id:2
+04-18 23:26:06.389  5550  5550 I CAM_INFO: CAM-ISP: __cam_isp_ctx_flush_req_in_top_state: 4708 Stop HW complete. Reset HW next.
+04-18 23:26:06.398  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject closeCamera: CaptureSession stopped and closed
+04-18 23:26:06.400   959  5782 E CameraService: finishCameraStreamingOps: finishCameraStreamingOps
+04-18 23:26:06.402  1249  5737 I LightCtrlSVC: cancel event: type=2, id=2014, calling 959
+04-18 23:26:06.412  5550  5550 I CAM_INFO: CAM-CRM: cam_req_mgr_process_flush_req: 2719 Last request id to flush is 208
+04-18 23:26:06.422  5836  5836 I leds red: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:06.422  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=2, curr=0x02
+04-18 23:26:06.424  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=2, brigntness=0x0000
+04-18 23:26:06.424  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=2, brigntness=0x00
+04-18 23:26:06.424  5836  5836 I leds green: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:06.424  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=1, curr=0x02
+04-18 23:26:06.424  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=1, brigntness=0x0000
+04-18 23:26:06.424  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=1, brigntness=0x00
+04-18 23:26:06.424  5836  5836 I leds blue: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:06.424  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=0, curr=0x02
+04-18 23:26:06.425  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=0, brigntness=0x0000
+04-18 23:26:06.425  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=0, brigntness=0x00
+04-18 23:26:06.425  5836  5836 I leds white: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:06.425  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+04-18 23:26:06.425  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x0000
+04-18 23:26:06.425  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0x00
+04-18 23:26:06.426  5836  5836 I leds blue: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:06.426  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=0, curr=0x02
+04-18 23:26:06.426  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=0, brigntness=0x00FF
+04-18 23:26:06.426  5836  5836 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=0, brigntness=0xFF
+04-18 23:26:06.412   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:2843 LogRequest() Frame Number ## REQUEST_ERROR ## RESULT_ERROR ## BUFFER_ERROR ## Shutter ##  Metadata[Rcvd/Tot] ## Output[Rcvd/Tot(inErr)] ## Input ## S0[Rcvd/StatusOK/BufErrNotify](0xb400006f455120e8)[0] ## 
+04-18 23:26:06.414   959  1341 I Camera3-Device: disconnectImpl: E
+04-18 23:26:06.414   959  1341 I CameraLatencyHistogram: ProcessCaptureRequest latency histogram (209) samples:
+04-18 23:26:06.414   959  1341 I CameraLatencyHistogram:        40     80    120    160    200    240    280    320    360    inf (max ms)
+04-18 23:26:06.414   959  1341 I CameraLatencyHistogram:      97.13   2.39   0.00   0.00   0.48   0.00   0.00   0.00   0.00   0.00 (%)
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 50
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 50
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:179 DumpState() 
+04-18 23:26:06.415   810  1979 I CamX    : 
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:180 DumpState() client {RealTimeFeatureZSLPreviewRawRokidExt1_0, 0xb400006f456e7000}
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:181 DumpState() -------------------------
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:182 DumpState()     Key     Allocation
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:183 DumpState() -------------------------
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {1, 0} :   100
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {2, 0} :   50
+04-18 23:26:06.415   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {5, 1} :   50
+04-18 23:26:06.415   818   818 I SDM     : ResourceImpl::SetMaxBandwidthMode: new bandwidth mode=0
+04-18 23:26:06.416   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:2843 LogRequest() Frame Number ## REQUEST_ERROR ## RESULT_ERROR ## BUFFER_ERROR ## Shutter ##  Metadata[Rcvd/Tot] ## Output[Rcvd/Tot(inErr)] ## Input ## S0[Rcvd/StatusOK/BufErrNotify](0xb400006f455120e8)[0] ## 
+04-18 23:26:06.430  5550  5550 I CAM_INFO: CAM-CRM: cam_req_mgr_process_flush_req: 2719 Last request id to flush is 208
+04-18 23:26:06.431  5550  5550 I CAM_INFO: CAM-CRM: cam_req_mgr_process_flush_req: 2719 Last request id to flush is 208
+04-18 23:26:06.434  5550  5550 I CAM_INFO: CAM-CRM: cam_req_mgr_process_flush_req: 2719 Last request id to flush is 208
+04-18 23:26:06.436  1979  1979 I msm_cvp : sess: Stop session: 0000000000000000 session_id = -1565814400
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 100
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 100
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 100
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:179 DumpState() 
+04-18 23:26:06.423   810  1979 I CamX    : 
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:180 DumpState() client {RealTimeFeatureZSLPreviewRawRokidExt1_0, 0xb400006f456e7000}
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:181 DumpState() -------------------------
+04-18 23:26:06.423   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:182 DumpState()     Key     Allocation
+04-18 23:26:06.424   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:183 DumpState() -------------------------
+04-18 23:26:06.440  1979  1979 I CAM_INFO: CAM-SENSOR: cam_sensor_driver_cmd: 1135 15:26:6.422 CAM_STOP_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+04-18 23:26:06.440  1979  1979 I CAM_INFO: CAM-CSIPHY: cam_csiphy_core_cfg: 2103 CAM_STOP_PHYDEV: 1, Type: DPHY, slot: 0, Datarate: 3600000000, Settletime: 6400000000
+04-18 23:26:06.440  1979  1979 I CAM_INFO: CAM-ISP: cam_ife_mgr_release_hw: 6932 15:26:6.423 Release HW success ctx id: 2
+04-18 23:26:06.451  5788  5788 I CAM_INFO: CAM-SENSOR: cam_sensor_driver_cmd: 1034 CAM_RELEASE_DEV Success for imx681 sensor_id:0x681, slave_addr:0x20
+04-18 23:26:06.506  5788  5788 I msm_cvp : sess: Closed cvp instance: 0000000000000000 session_id = 0
+04-18 23:26:06.506  5550  5550 I synx    : [sess: 46082] session destroyed cvp-kernel-client, uid: 46082
+04-18 23:26:06.521  5550  5550 I synx    : [sess: 35329] session destroyed umd-client-5808, uid: 35329
+04-18 23:26:06.533   829   849 E ANDR-PERF-OPTSHANDLER: ANDR-PERF-OPTSHANDLER: modify_sysfsnode() 1017: Perflock resource /sys/devices/system/cpu/cpu0/cpufreq/schedutil/hispeed_load not supported
+04-18 23:26:06.533   829   849 E ANDR-PERF-RESOURCEQS: ANDR-PERF-RESOURCEQS: RemoveAndApply() 380: Failed to reset optimization [5, 16]
+04-18 23:26:06.533   829   849 E ANDR-PERF-OPTSHANDLER: ANDR-PERF-OPTSHANDLER: modify_sysfsnode() 1017: Perflock resource /sys/devices/system/cpu/cpu0/cpufreq/schedutil/pl not supported
+04-18 23:26:06.533   829   849 E ANDR-PERF-RESOURCEQS: ANDR-PERF-RESOURCEQS: RemoveAndApply() 380: Failed to reset optimization [5, 17]
+04-18 23:26:06.533  1828  1909 I ThermalEngine: Thermal-Server: removing client on fd 41
+04-18 23:26:06.533   810  1979 I Thermal-Lib: thermal_bandwidth_client_cancel_request: Removing all bw request for camera_bw_0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3515 PrintErrorSummary() ==================================================================================
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3517 PrintErrorSummary() + Num Unknown Frame Error                   : 0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3519 PrintErrorSummary() + Num Unexpected Shutter                    : 0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3521 PrintErrorSummary() + Num Unexpected Request Error Notification : 0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3523 PrintErrorSummary() + Num Unexpected Buffer Error Notification  : 2
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3525 PrintErrorSummary() + Num Unexpected Metadata Error Notification: 0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3527 PrintErrorSummary() + Num Unexpected Output buffer result       : 0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3529 PrintErrorSummary() + Num Unexpected metadata result            : 0
+04-18 23:26:06.534   810  1979 I CamX    : [ DUMP][HAL    ] camxhaldevice.cpp:3530 PrintErrorSummary() ==================================================================================
+04-18 23:26:06.543   959  1341 I CameraLatencyHistogram: Stream 0 dequeueBuffer latency histogram (206) samples:
+04-18 23:26:06.543   959  1341 I CameraLatencyHistogram:         5     10     15     20     25     30     35     40     45    inf (max ms)
+04-18 23:26:06.543   959  1341 I CameraLatencyHistogram:      99.51   0.49   0.00   0.00   0.00   0.00   0.00   0.00   0.00   0.00 (%)
+04-18 23:26:06.543   959  1341 I Camera3-Device: disconnectImpl: X
+04-18 23:26:06.544   959  1341 I CameraService: disconnect: Disconnected client for camera 0 for PID 1930
+04-18 23:26:06.545  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject closeCamera: CameraDevice closed
+04-18 23:26:06.645  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject closeCamera: CameraActionHandler looper quited
+04-18 23:26:06.646  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject closeCamera: ImageHandler looper quited
+04-18 23:26:06.647  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject closeCamera completed
+04-18 23:26:06.948  1930  2470 D SystemServer: Glass3Media::CameraAndScreenRender release 
+04-18 23:26:06.948  1930  2470 D SystemServer: Glass3Media::CameraAndScreenRender releaseFilter  releaseFilter
+04-18 23:26:06.949  1930  2470 D SystemServer: Glass3Media release-->com.rokid.glass.arworkflow.media.filter.CameraFilter@a21ffe4
+04-18 23:26:06.950  1930  2470 D SystemServer: Glass3Media egl release GlobalMediaManager
+04-18 23:26:06.981  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager closeCamera -- end
+04-18 23:26:07.787   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98224/Done 98224|Work-Rate: Q(4.2/s Avg=19.6/s) Done(4.200/s Avg=19.554/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:07.788   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 6 bufs 2.906 MB] [1D-29: 11 bufs 2.449 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.051 MB
+04-18 23:26:07.936   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97552/Done 97552|Work-Rate: Q(4.2/s Avg=19.4/s) Done(4.200/s Avg=19.400/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:07.936   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 11 bufs 5.328 MB] [1D-26: 15 bufs 3.340 MB] [1D-28: 8 bufs 0.125 MB] | Total: 16.363 MB
+04-18 23:26:08.353  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 174042980; UID 10072; state: DISABLED
+04-18 23:26:08.354  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 184838306; UID 10072; state: DISABLED
+04-18 23:26:08.355  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 185004937; UID 10072; state: DISABLED
+04-18 23:26:08.356  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 181136395; UID 10072; state: DISABLED
+04-18 23:26:08.357  1249  1276 D CompatibilityChangeReporter: Compat change id reported: 174042936; UID 10072; state: DISABLED
+04-18 23:26:08.359  1249  1276 I EventSequenceValidator: dec AccIntentStartedEvents to 1
+04-18 23:26:08.847  1249  1950 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+04-18 23:26:08.883  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:26:08.884  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:26:09.735  5554  5554 I msm_cvp : warn: DBLP Set: status 0 0
+04-18 23:26:09.736  5554  5554 I msm_cvp : warn: reset pulse executed successfully
+04-18 23:26:09.737  5554  5554 I msm_cvp : pwr: cvp (eva) power collapsed
+04-18 23:26:11.382  1930  5598 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:26:11.412  5554  5554 W FG_CW221X: cw_update_data-575 : vol = 4416  current = -61000 cap = 100 temp = 310
+04-18 23:26:11.515   795   795 W healthd : battery l=100 v=4416 t=31.0 h=2 st=3 c=-61000 cc=1 chg=u
+04-18 23:26:11.637  4823  4823 I (virq   : irq_count)- GICv3:IPI(1):45013085 GICv3:arch_timer(11):17161320 GICv3:IPI(2):8009687 ipcc:glink-native-adsp(363):7363185 GICv3:ipcc_0(32):4831106 GICv3:kgsl_hfi_irq(176):2723715 GICv3:IPI(6):2656149 GICv3:csid(259):2312393 GICv3:apps_rsc(22):1314747 GICv3:ife(260):1170613
+04-18 23:26:11.637  4823  4823 I (cpu    : irq_count)- 0:33688900 1:26044921 2:18804544 3:18363082
+04-18 23:26:11.637  4823  4823 I (ipi    : irq_count)- 0:45013086 1:8009687 2:0 3:0 4:0 5:2656149 6:0
+04-18 23:26:12.636   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 1(307200 size) total buffers - 0(0 size) used buffers - 98218/98224 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:26:12.636   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 5(1167360 size) total buffers - 4(933888 size) used buffers - 98217/98228 (recycle/alloc) - 1206/98224 (fetch/transfer)
+04-18 23:26:12.636   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 5(1167360 size) total buffers - 4(933888 size) used buffers - 97541/97556 (recycle/alloc) - 1229/97552 (fetch/transfer)
+04-18 23:26:12.636   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 1(307200 size) total buffers - 0(0 size) used buffers - 97541/97552 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:26:12.636   832  1505 D BufferPoolAccessor2.0: evictor expired: 4, evicted: 4
+04-18 23:26:12.788   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98224/Done 98224|Work-Rate: Q(0.0/s Avg=19.5/s) Done(0.000/s Avg=19.535/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:12.788   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 6 bufs 2.906 MB] [1D-29: 11 bufs 2.449 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.051 MB
+04-18 23:26:12.938   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97552/Done 97552|Work-Rate: Q(0.0/s Avg=19.4/s) Done(0.000/s Avg=19.380/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:12.938   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 11 bufs 5.328 MB] [1D-26: 15 bufs 3.340 MB] [1D-28: 8 bufs 0.125 MB] | Total: 16.363 MB
+04-18 23:26:13.864  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:am start -n com.rokid.glesse/com.rokid.glass.hiddenrisk.AiInspectionActivity
+04-18 23:26:13.922  1249  2988 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.AiInspectionActivity} from uid 2000
+04-18 23:26:13.922  1249  1276 I EventSequenceValidator: inc AccIntentStartedEvents to 2
+04-18 23:26:13.923  1249  2988 D ActivityStarter: Background activity start allowed: START_ACTIVITIES_FROM_BACKGROUND permission granted for uid 2000
+04-18 23:26:13.926   359   359 I hwservicemanager: getTransport: Cannot find entry vendor.qti.hardware.iop@2.0::IIop/default in either framework or device VINTF manifest.
+04-18 23:26:13.933  1249  2988 D CompatibilityChangeReporter: Compat change id reported: 168419799; UID 10072; state: DISABLED
+04-18 23:26:13.933  1249  2988 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:26:13.933  1249  2988 D CompatibilityInfo: applicationDensity - 240
+04-18 23:26:13.933  1249  2988 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:26:13.934  1249  2988 I ActivityTaskSupervisor: The Process com.rokid.glesse Already Exists in BG. So sending its PID: 5752
+04-18 23:26:13.934  1249  2988 W WindowProcessController: Tried to set launchTime (0) < mLastActivityLaunchTime (13331540)
+04-18 23:26:13.937  1249  2988 D CompatibilityInfo: mCompatibilityFlags - 4
+04-18 23:26:13.937  1249  2988 D CompatibilityInfo: applicationDensity - 240
+04-18 23:26:13.937  1249  2988 D CompatibilityInfo: applicationScale - 1.0
+04-18 23:26:13.940  1249  2988 D ActivityTrigger: ActivityTrigger activityPauseTrigger 
+04-18 23:26:14.076  5752  5752 D CompatibilityChangeReporter: Compat change id reported: 171228096; UID 10072; state: ENABLED
+04-18 23:26:14.098  1249  5737 W ServiceManager: Permission failure: android.permission.HIGH_SAMPLING_RATE_SENSORS from uid=10072 pid=5752
+04-18 23:26:14.102  5752  5752 I AiInspection: showPage state=DETECTING shouldShowLivePreview=true shouldKeepPreviewRunning=true resumed=false workflowActive=false
+04-18 23:26:14.102  5752  5752 I AiInspection: skip start left-top live preview resumed=false destroyed=false pageState=DETECTING
+04-18 23:26:14.109  5752  5752 I AiInspection: defer detection start until active lifecycle resumed=false active=false frameReady=false frameOpen=false modelLoaded=false
+04-18 23:26:14.117  5752  5752 I AiInspection: onStart pageState=DETECTING resumed=false pendingDetectionStart=true frameReady=false frameOpen=false
+04-18 23:26:14.119  5752  5752 E startActivity: com.rokid.glass.hiddenrisk.AiInspectionActivity
+04-18 23:26:14.120  5752  5752 I AiInspection: onResume pageState=DETECTING active=true pendingDetectionStart=true frameReady=false frameOpen=false
+04-18 23:26:14.121  1249  5737 W ServiceManager: Permission failure: android.permission.HIGH_SAMPLING_RATE_SENSORS from uid=10072 pid=5752
+04-18 23:26:14.122  1249  5737 W ServiceManager: Permission failure: android.permission.HIGH_SAMPLING_RATE_SENSORS from uid=10072 pid=5752
+04-18 23:26:14.123   798   798 I sensors-hal: batch:205, android.sensor.gyroscope/41, period=20000000, max_latency=0
+04-18 23:26:14.123   798   798 I sensors-hal: set_config:57, sample_period_ns is adjusted to 20000000 based on min/max delay_ns
+04-18 23:26:14.123   798   798 I sensors-hal: batch:214, android.sensor.gyroscope/41, period=20000000, max_latency=0 request completed
+04-18 23:26:14.123   798   798 I sensors-hal: activate:172, android.sensor.gyroscope/41 en=1
+04-18 23:26:14.123   798   798 I sensors-hal: get_qmi_debug_flag:239, support_qmi_debug : false
+04-18 23:26:14.124   798   798 E Diag_Lib: diag: Diag_LSM_Init: invoked for pid: 798 with init_count: 0
+04-18 23:26:14.124   798   798 E Diag_Lib: diag:failed to connect to diag socket
+04-18 23:26:14.124   798   798 E Diag_Lib:  Diag_LSM_Init: Failed to open handle to diag driver, error = 111
+04-18 23:26:14.125   798   798 I sensors-hal: set_config:57, sample_period_ns is adjusted to 1000000000 based on min/max delay_ns
+04-18 23:26:14.125   798   798 I sensors-hal: get_qmi_debug_flag:239, support_qmi_debug : false
+04-18 23:26:14.126   798   798 E Diag_Lib: diag: Diag_LSM_Init: invoked for pid: 798 with init_count: 0
+04-18 23:26:14.126   798   798 E Diag_Lib: diag:failed to connect to diag socket
+04-18 23:26:14.126   798   798 E Diag_Lib:  Diag_LSM_Init: Failed to open handle to diag driver, error = 111
+04-18 23:26:14.126   798   798 I sensors-hal: send_sync_sensor_request:340, send sync request
+04-18 23:26:14.126   798   798 I sensors-hal: send_sync_sensor_request:366, wait for notification of response
+04-18 23:26:14.126   798  5852 I sensors-hal: ssc_conn_resp_cb:629, resp_value = 0
+04-18 23:26:14.127   798   798 I sensors-hal: send_sync_sensor_request:372, takes 0 ms to receive the response with 0
+04-18 23:26:14.127   798  5849 I sensors-hal: handle_indication_realtime:467,  SCHED_FIFO(10) for qmi_cbk
+04-18 23:26:14.127   798   798 I sensors-hal: get_qmi_debug_flag:239, support_qmi_debug : false
+04-18 23:26:14.127   798   798 E Diag_Lib: diag: Diag_LSM_Init: invoked for pid: 798 with init_count: 0
+04-18 23:26:14.127   798   798 E Diag_Lib: diag:failed to connect to diag socket
+04-18 23:26:14.127   798   798 E Diag_Lib:  Diag_LSM_Init: Failed to open handle to diag driver, error = 111
+04-18 23:26:14.127   798   798 I sensors-hal: send_sensor_config_request:394, resampler is used, set resampler config
+04-18 23:26:14.128   798   798 I sensors-hal: send_sync_sensor_request:340, send sync request
+04-18 23:26:14.128   798   798 I sensors-hal: send_sync_sensor_request:366, wait for notification of response
+04-18 23:26:14.128   798  5854 I sensors-hal: ssc_conn_resp_cb:629, resp_value = 0
+04-18 23:26:14.128   798   798 I sensors-hal: send_sync_sensor_request:372, takes 0 ms to receive the response with 0
+04-18 23:26:14.128   798   798 I sensors-hal: activate:183, android.sensor.gyroscope/41 en=1 completed
+04-18 23:26:14.131  5752  5752 I AiInspection: initFrameStreamAndTransition pageState=DETECTING resumed=true active=true initializing=false frameReady=false frameOpen=false warm=false
+04-18 23:26:14.131  5752  5752 I InspectionCameraCoord: acquire owner=AI_INSPECTION generation=6 state=OPENING needPreview=true previewAttached=true frameOpen=false enableRecovery=true
+04-18 23:26:14.131  5752  5752 I RokidFrameSource: startFrameStream create helper
+04-18 23:26:14.132  1930  5314 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:26:14.132  1930  5314 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:26:14.133  5752  5752 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:26:14.134  1930  5314 D SystemServer: MediaServerImpl startCameraNv21Export: pid=5752, enableMix=false
+04-18 23:26:14.134  1930  5314 D SystemServer: CameraShareManager startNv21Export: pid=5752, callbackId=5ce3926f-1587-4814-8b44-dd9d602ecc3f, enableMix=false
+04-18 23:26:14.135  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager checkNeedStart resolution = 5, mResolution = -1
+04-18 23:26:14.135  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager initCamera:  resolution = 5 && cameraGeneration = 11
+04-18 23:26:14.135  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager initResolution: width = 1080 ,height =  1920
+04-18 23:26:14.135  1930  2470 I Glass3Media::CameraGlassesObject: init-->
+04-18 23:26:14.135  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper startCameraNv21Export called, enableMix=false
+04-18 23:26:14.137  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject mCameraId  0
+04-18 23:26:14.137  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject turnState: mState = com.rokid.glass.luban.camera.CameraGlassesObject$InitialedState@6053302
+04-18 23:26:14.138  1930  2470 I SystemServer: Glass3Media::CameraGlassesObject configSize 1080  1920
+04-18 23:26:14.138  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager initCamera: 1080, 1920
+04-18 23:26:14.138  1930  5855 I SystemServer: Glass3Media::CameraGlassesObject turnState: mState = com.rokid.glass.luban.camera.CameraGlassesObject$OpenWaitState@b4d8413
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: QUALCOMM build                   : 1ee5569fc4, I7c9e039212
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Build Date                       : 12/26/24
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: E031.49.05.00
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Local Branch                     : 
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.14.3.4.11.00.00.1126.313
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Remote Branch                    : NONE
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Build Config                     : S P 16.1.2 AArch64
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Driver Version                   : 0812.0
+04-18 23:26:14.138  1930  5779 I AdrenoGLES-0: Process Name                     : com.rokid.security.system.server
+04-18 23:26:14.145  1249  5737 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.hiddenrisk.AiInspectionActivity, true, booted=true
+04-18 23:26:14.147   798   798 I sensors-hal: activate:172, android.sensor.gyroscope/41 en=0
+04-18 23:26:14.149   798   798 I sensors-hal: activate:183, android.sensor.gyroscope/41 en=0 completed
+04-18 23:26:14.150  5752  5752 I AiInspection: stop left-top live preview pageState=DETECTING stopRenderer=true previewStarted=false
+04-18 23:26:14.151  5752  5752 I InspectionCameraCoord: updatePreview owner=AI_INSPECTION generation=7 state=OPENING needPreview=false previewAttached=false frameOpen=false
+04-18 23:26:14.151  5752  5752 I RokidFrameSource: startFrameStream reuse helper opened=false
+04-18 23:26:14.152  5752  5752 I AiInspection: audio_diag stage=stop_auto_inference_pipelines:start elapsedMs=13340354 thread=main pageState=DETECTING captureInProgress=false inferenceRunning=false itemOnlineFrameSelectionInProgress=false itemOnlineRequestInFlight=false sceneOnlineFrameSelectionInProgress=false sceneOnlineRequestInFlight=false streamingInProgress=false pendingStreamStart=false heapUsed=3423464 heapFree=7749312 heapTotal=11172776 heapMax=268435456 reason=onPause clearPendingStreamState=true
+04-18 23:26:14.152  5752  5752 I AiInspection: stop auto inference pipelines reason=onPause
+04-18 23:26:14.152  5752  5752 I InspectionCameraCoord: consumerWaiting owner=AI_INSPECTION waiting=false generation=7 state=OPENING
+04-18 23:26:14.160  1930  5779 I AdrenoGLES-0: PFP: 0x016dd112, ME: 0x00000000
+04-18 23:26:14.166   359   359 I hwservicemanager: Since vendor.qti.qspmhal@1.0::IQspmhal/default is not registered, trying to start it as a lazy HAL.
+04-18 23:26:14.167  1930  5779 W Adreno-AppProfiles: Could not find QSPM HAL service. Skipping adreno profile processing.
+04-18 23:26:14.175  1930  5779 I SystemServer: Glass3Media::CameraAndScreenRender mTextureId = 4
+04-18 23:26:14.178  1930  2470 I SystemServer: setDefaultBufferSize setDefaultBufferSize mPreviewWidth=1080 mPreviewHeight=1920
+04-18 23:26:14.178  1930  2470 E SystemServer: Glass3Media::CameraGlassesObject startPreview isClosingCamera is false
+04-18 23:26:14.178  1930  2470 I SystemServer: Glass3Media::GlobalMediaManager initCamera mResolution = 5
+04-18 23:26:14.178  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager waitForCameraReady -- start
+04-18 23:26:14.178  1930  5855 D SystemServer: Glass3Media::CameraGlassesObject startPreview-->null   android.graphics.SurfaceTexture@f177d4e  opening= false mState = OpenWaitState, isClosingCamera = false
+04-18 23:26:14.180   959  1341 I CameraService: CameraService::connect call (PID -1 "com.rokid.security.system.server", camera ID 0) and Camera API version 2
+04-18 23:26:14.181   959  1341 I CameraService: No client to evict, count:0
+04-18 23:26:14.181   959  1341 I Camera2ClientBase: Camera 0: Opened. Client: com.rokid.security.system.server (PID 1930, UID 1000)
+04-18 23:26:14.181   959  1341 I CameraDeviceClient: CameraDeviceClient 0: Opened
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 100
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 100
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:468 DumpState() 
+04-18 23:26:14.182   810  1979 I CamX    : 
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:469 DumpState() reservation Id: 0
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:470 DumpState() ----------------------------------
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:471 DumpState()     Key      reservation
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:472 DumpState() ----------------------------------
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {1, 0} :     100
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:26:14.182   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+04-18 23:26:14.293  5752  5752 I AiInspection: audio_diag stage=stop_auto_inference_pipelines:end elapsedMs=13340496 thread=main pageState=DETECTING captureInProgress=false inferenceRunning=false itemOnlineFrameSelectionInProgress=false itemOnlineRequestInFlight=false sceneOnlineFrameSelectionInProgress=false sceneOnlineRequestInFlight=false streamingInProgress=false pendingStreamStart=false heapUsed=3969224 heapFree=7203552 heapTotal=11172776 heapMax=268435456 reason=onPause clearPendingStreamState=true
+04-18 23:26:14.293  5752  5752 I InspectionCameraCoord: release owner=AI_INSPECTION generation=8 state=RELEASING needPreview=false previewAttached=false frameOpen=false reason=ai_on_pause
+04-18 23:26:14.293  5752  5752 I RokidFrameSource: stopFrameStream helperExists=true
+04-18 23:26:14.294  5752  5752 D com.rokid.glesse.hiddenrisk: CameraShareHelper releaseNv21Export
+04-18 23:26:14.294  1930  3894 I SystemServer: ServicePoolImpl Client request: pid=5752, uid=10072, pkg=com.rokid.glesse, service=Media
+04-18 23:26:14.295  1930  3894 I SystemServer: ServicePoolImpl Service granted: Media to com.rokid.glesse
+04-18 23:26:14.295  5752  5752 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：Media (IMediaServer)
+04-18 23:26:14.296  1930  3894 D SystemServer: MediaServerImpl stopCameraNv21Export: pid=5752
+04-18 23:26:14.297  5752  5752 I InspectionCameraCoord: release_complete owner=AI_INSPECTION generation=8 state=IDLE needPreview=false previewAttached=false frameOpen=false reason=ai_on_pause
+04-18 23:26:14.298   818   818 I SDM     : ResourceImpl::SetMaxBandwidthMode: new bandwidth mode=1
+04-18 23:26:14.298   359  5857 W libc    : Unable to set property "ctl.interface_start" to "vendor.qti.qspmhal@1.0::IQspmhal/default": error code: 0x20
+04-18 23:26:14.298   359  5857 I hwservicemanager: Tried to start vendor.qti.qspmhal@1.0::IQspmhal/default as a lazy service, but was unable to. Usually this happens when a service is not installed, but if the service is intended to be used as a lazy service, then it may be configured incorrectly.
+04-18 23:26:14.316     1     1 E init    : Control message: Could not find 'vendor.qti.qspmhal@1.0::IQspmhal/default' for ctl.interface_start from pid: 359 (/system/bin/hwservicemanager)
+04-18 23:26:14.302  5752  5752 I AiInspection: sdk state=READY error=N/A
+04-18 23:26:14.303  1249  5737 E CameraService_proxy: Recent task package name: com.rokid.glesse doesn't match with camera client package name: com.rokid.security.system.server
+04-18 23:26:14.304  1930  5855 I SystemServer: Glass3Media::CameraGlassesObject onOpened-->
+04-18 23:26:14.304   794   823 D AHAL: AudioDevice: SetParameters: 1442: enter: cameraFacing=back
+04-18 23:26:14.304   794   823 D AHAL: AudioVoice: VoiceSetParameters: 86: Enter params: cameraFacing=back
+04-18 23:26:14.304   794   823 D AHAL: AudioVoice: VoiceSetParameters: 307: Exit ret: 0
+04-18 23:26:14.304   794   823 D AHAL: hfp: hfp_set_parameters: 551: enter
+04-18 23:26:14.304   794   823 D AHAL: BTSink: btsink_set_parameters: 262: Enter
+04-18 23:26:14.304   794   823 D AHAL: BTSink: btsink_set_volume: 88: Volume brought with in range (1.000000)
+04-18 23:26:14.304   794   823 D AHAL: BTSink: btsink_set_volume: 94:  BT Sink not active, ignoring set_volume call
+04-18 23:26:14.304   794   823 D AHAL: BTSink: btsink_set_parameters: 326: exit
+04-18 23:26:14.304   794   823 D AHAL: FM: fm_set_parameters: 264: Enter
+04-18 23:26:14.304   794   823 D AHAL: FM: fm_set_parameters: 322: exit
+04-18 23:26:14.304   794   823 D AHAL: AudioDevice: SetParameters: 2011: exit: cameraFacing=back
+04-18 23:26:14.307  1930  5855 I SystemServer: Glass3Media::CameraGlassesObject startRecordSession is 1080P set zoom 1.2 && zoomRect is Rect(2, 252 - 3360, 2772)
+04-18 23:26:14.307   959  1341 W cameraserver: createSurfaceFromGbp: Camera 0 with consumer usage flag: 256: Forcing asynchronous mode forstream
+04-18 23:26:14.308   959  1341 W cameraserver: createSurfaceFromGbp: Camera 0: Overriding format 0x1 to IMPLEMENTATION_DEFINED
+04-18 23:26:14.309  1828  1909 I ThermalEngine: Thermal-Server: Thermal received msg from  camera_bw_0
+04-18 23:26:14.309   810  5862 I Thermal-Lib: Thermal-Lib: Client request sent for camera_bw_0 with val:0x0
+04-18 23:26:14.328   810  1979 E CamX    : [ERROR][SENSOR ] camxsensornode.cpp:9254 GetSensorModuleIndexes() Sensor[0] GetDeviceIndex failure for Flash, result: CamxResultSuccess
+04-18 23:26:14.334   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:26:14.335   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:26:14.335   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:26:14.335   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+04-18 23:26:14.335   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {2, 0} :   50
+04-18 23:26:14.335   810  1979 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+04-18 23:26:14.352   959  1341 D Camera3-Device: Set real time priority for request queue thread (tid 5860)
+04-18 23:26:14.353  1930  5855 I SystemServer: Glass3Media::CameraGlassesObject createCaptureSession isSuccess = true
+04-18 23:26:14.356   959  5859 D CameraService: connectDevice: .... 
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1456 Dump() --------------------
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1457 Dump()     Key      Cost   
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1458 Dump() --------------------
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {1, 0} :   100
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {2, 0} :   50
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:1467 Dump()   {5, 1} :   50
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IPEHw : 0], AvailableResource = 100
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 0], AvailableResource = 50
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [IFEHw : 1], AvailableResource = 100
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [SensorHw : 0], AvailableResource = 0
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:106 DumpState() [CSIPHYHw : 1], AvailableResource = 50
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:179 DumpState() 
+04-18 23:26:14.356   810  5883 I CamX    : 
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:180 DumpState() client {RealTimeFeatureZSLPreviewRawRokidExt1_0, 0xb400006f456e7000}
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:181 DumpState() -------------------------
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:182 DumpState()     Key     Allocation
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:183 DumpState() -------------------------
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {1, 0} :   100
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {2, 0} :   50
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.cpp:192 DumpState()   {5, 1} :   50
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:468 DumpState() 
+04-18 23:26:14.356   810  5883 I CamX    : 
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:469 DumpState() reservation Id: 0
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:470 DumpState() ----------------------------------
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:471 DumpState()     Key      reservation
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:472 DumpState() ----------------------------------
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {1, 0} :     0
+04-18 23:26:14.356   810  5883 I CamX    : [ DUMP][CORE   ] camxresourcemanager.h:481 DumpState()   {5, 1} :     0
+04-18 23:26:14.357  1249  5737 I LightCtrlSVC: send event 2, 2014, callUid=1047, callPid=959
+04-18 23:26:14.378  5893  5893 I leds red: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:14.378  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=2, curr=0x02
+04-18 23:26:14.364   810  5885 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/platform/android/evaSession.cpp Line: 347 Function: evaGetDebugEnable() Msg:  EVA Debug Logs Disabled 
+04-18 23:26:14.364   810  5885 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/platform/android/evaSession.cpp Line: 360 Function: evaGetDebugEnable() Msg:  EVA Memory Profile Disabled 
+04-18 23:26:14.379  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=2, brigntness=0x0000
+04-18 23:26:14.379  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=2, brigntness=0x00
+04-18 23:26:14.380  5885  5885 I CAM_ERR : CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=28 already in list [15:26:14:362] cb=ife idx=0 handle=55577 len=589824,give same addr back
+04-18 23:26:14.380  5885  5885 I CAM_ERR : CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=79 already in list [15:26:14:362] cb=ife idx=0 handle=55577 len=483328,give same addr back
+04-18 23:26:14.380  5885  5885 I CAM_ERR : CAM-SMMU: cam_smmu_map_user_iova: 3299 fd=80 already in list [15:26:14:362] cb=ife idx=0 handle=55577 len=495616,give same addr back
+04-18 23:26:14.381  5893  5893 I leds green: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:14.381  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=1, curr=0x02
+04-18 23:26:14.381  5885  5885 I synx    : [sess: 33281] session created umd-client-5885
+04-18 23:26:14.381  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=1, brigntness=0x0000
+04-18 23:26:14.381  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=1, brigntness=0x00
+04-18 23:26:14.381  5893  5893 I leds blue: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:14.381  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=0, curr=0x02
+04-18 23:26:14.382  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=0, brigntness=0x0000
+04-18 23:26:14.382  5885  5885 I msm_cvp : sess: Opening cvp instance: 0000000000000000
+04-18 23:26:14.382  5885  5885 I msm_cvp : warn: HFI Read register failed : Power is OFF
+04-18 23:26:14.368  5752  5752 I AiInspection: audio_diag stage=stop_auto_inference_pipelines:start elapsedMs=13340571 thread=main pageState=DETECTING captureInProgress=false inferenceRunning=false itemOnlineFrameSelectionInProgress=false itemOnlineRequestInFlight=false sceneOnlineFrameSelectionInProgress=false sceneOnlineRequestInFlight=false streamingInProgress=false pendingStreamStart=false heapUsed=4002024 heapFree=7170752 heapTotal=11172776 heapMax=268435456 reason=onStop clearPendingStreamState=true
+04-18 23:26:14.384  5885  5885 I msm_cvp : pwr: cvp (eva) powered on
+04-18 23:26:14.368  5752  5752 I AiInspection: stop auto inference pipelines reason=onStop
+04-18 23:26:14.369  5752  5752 I AiInspection: audio_diag stage=stop_auto_inference_pipelines:end elapsedMs=13340571 thread=main pageState=DETECTING captureInProgress=false inferenceRunning=false itemOnlineFrameSelectionInProgress=false itemOnlineRequestInFlight=false sceneOnlineFrameSelectionInProgress=false sceneOnlineRequestInFlight=false streamingInProgress=false pendingStreamStart=false heapUsed=4002024 heapFree=7170752 heapTotal=11172776 heapMax=268435456 reason=onStop clearPendingStreamState=true
+04-18 23:26:14.384  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=0, brigntness=0x00
+04-18 23:26:14.384  5893  5893 I leds white: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:14.384  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+04-18 23:26:14.384  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x0000
+04-18 23:26:14.384  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0x00
+04-18 23:26:14.385  5893  5893 I leds white: [leds-aw2110x.c:led_current_store:243] enter
+04-18 23:26:14.385  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_current:216] chan=3, curr=0x02
+04-18 23:26:14.385  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_brightness:201] led->led_reg=3, brigntness=0x00FF
+04-18 23:26:14.385  5893  5893 I aw2110x 1-0030: [leds-aw2110x.c:aw2110x_set_led_brightness:183] chan=3, brigntness=0xFF
+04-18 23:26:14.386  5554  5554 I msm_cvp : fw: <CFW_E:HostDr:0000feed:00:00000000f1700a5c> VenusHostDriver_SetSysProperty(599): QC_IMAGE_VERSION_STRING=EVA.FIRMWARE.3.5-33
+04-18 23:26:14.386  5554  5554 I msm_cvp : fw: <CFW_E:HostDr:0000feed:00:00000000f1706fb7> VenusHostDriver_SetSysProperty(599): QC_IMAGE_VERSION_STRING=EVA.FIRMWARE.3.5-33
+04-18 23:26:14.373   810  5885 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/evaFaceDetection.cpp Line: 377 Function: evaFaceDetectionPrepareConfigPacket() Msg: evaFaceDetectionPrepareConfigPacket - minFace 0, dir 12, pose 2, rdfPad 15, maxRdf 2000, dir20 12, pose20 2
+04-18 23:26:14.374   810  5885 I DMABUFHEAPS: Using DMA-BUF heap named: qcom,system
+04-18 23:26:14.374   810  5898 I DMABUFHEAPS: Using DMA-BUF heap named: qcom,system
+04-18 23:26:14.374   810  5898 I DMABUFHEAPS: Using DMA-BUF heap named: qcom,system
+04-18 23:26:14.391  5885  5885 I synx    : [sess: 64770] session created cvp-kernel-client
+04-18 23:26:14.392  5554  5554 I msm_cvp : fw: <CFW_E:RTWrkM:c8cf0d00:00:00000000f1766dc2> cvp_Worker_ProcessControlCommand(18956): pixel persist buffer addr da400000
+04-18 23:26:14.392  5554  5554 I msm_cvp : fw: <CFW_E:RTWrkM:c8cf0d00:00:00000000f176d4a2> cvp_Worker_ProcessControlCommand(18967): non pixel persist buffer addr d9600000 size 14323200
+04-18 23:26:14.378   810  5885 I EVA     : File: vendor/qcom/proprietary/cv-noship/eva/3.0/src/cpu/evaFaceDetection.cpp Line: 522 Function: evaFaceDetectionReadModel() Msg: /vendor/etc/eva/facedetection/model3.dat is used
+04-18 23:26:14.379  1930  2470 D SystemServer: Glass3Media::GlobalMediaManager waitForCameraReady -- end
+04-18 23:26:14.379  1930  5779 D SystemServer: Glass3Media::CameraAndScreenRender startExport:
+04-18 23:26:14.380  1930  2470 D SystemServer: CameraShareManager Nv21 session created: 5ce3926f-1587-4814-8b44-dd9d602ecc3f, 1080x1920, enableMix=false
+04-18 23:26:14.395  1147  1147 I CAM_INFO: CAM-SENSOR: cam_sensor_driver_cmd: 975 CAM_ACQUIRE_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+04-18 23:26:14.382  5752  5832 D com.rokid.glesse.hiddenrisk: CameraShareHelper nv21 onCameraOpened: 1080x1920
+04-18 23:26:14.383  1930  5779 D SystemServer: Glass3Media::CameraAndScreenRender startExport end-->com.rokid.glass.arworkflow.media.filter.ExportFilter@98f628b
+04-18 23:26:14.397  1147  1147 I CAM_INFO: CAM-CSIPHY: cam_csiphy_core_cfg: 2000 CAM_ACQUIRE_DEV: 1 Type: DPHY acquire_count: 1 combo: 0 cphy+dphy combo: 0
+04-18 23:26:14.404  5883  5883 I CAM_INFO: CAM-ISP: cam_ife_hw_mgr_print_acquire_info: 1334 15:26:14.386 Acquired Single IFE[1] with [12 pix] [0 pd] [0 rdi] ports for ctx:3
+04-18 23:26:14.409  5883  5883 I CAM_INFO: CAM-CSIPHY: cam_csiphy_core_cfg: 2394 CAM_START_PHYDEV: 1, Type: DPHY, slot: 0, sec_mode: 0, Datarate: 3600000000, Settletime: 6400000000, combo: 0, cphy+dphy: 0
+04-18 23:26:14.731  1930  1944 I y.system.serve: Background concurrent copying GC freed 124104(4683KB) AllocSpace objects, 31(80MB) LOS objects, 74% free, 32MB/128MB, paused 1.991ms,238us total 125.237ms
+04-18 23:26:14.731   959  1341 I Camera3-Device: disconnectImpl: E
+04-18 23:26:14.731   959  1341 I Camera2ClientBase: Closed Camera 0. Client was: com.rokid.security.system.server (PID 1930, UID 1000)
+04-18 23:26:14.731   959  1341 I Camera3-Device: disconnectImpl: E
+04-18 23:26:14.731   959  1341 I Camera3DeviceInjectionMethods: injectionDisconnectImpl: Injection camera disconnect
+04-18 23:26:14.731   959  2459 I Camera3-Device: disconnectImpl: E
+04-18 23:26:14.731   959  2459 I Camera2ClientBase: Closed Camera 0. Client was: com.rokid.security.system.server (PID 1930, UID 1000)
+04-18 23:26:14.731   959  2459 I Camera3-Device: disconnectImpl: E
+04-18 23:26:14.731   959  2459 I Camera3DeviceInjectionMethods: injectionDisconnectImpl: Injection camera disconnect
+04-18 23:26:14.737  1930  1946 W System  : A resource failed to call release. 
+04-18 23:26:16.790  1930  5514 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P:  isSendH264Stream = false,  isSendingFile = false, isReceivingFile = false, mKeepP2pConnectSwitch = true
+04-18 23:26:16.790  1930  5514 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P ret = false
+04-18 23:26:16.791  1930  5514 I SystemServer: GlassP2PConnectControl 重新计时
+04-18 23:26:16.792  1930  5514 I SystemServer: GlassP2PConnectControl startCountDown: 
+04-18 23:26:16.942  1249  1950 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+04-18 23:26:16.952  1249  1276 I EventSequenceValidator: dec AccIntentStartedEvents to 1
+04-18 23:26:17.622  4623  4649 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:26:17.622  4680  4706 D PipelineWatcher: DEBUG: elapsed 0 / 12
+04-18 23:26:17.789   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(2.2/s Avg=19.5/s) Done(2.200/s Avg=19.518/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:17.789   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:17.938   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(2.2/s Avg=19.4/s) Done(2.200/s Avg=19.363/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:17.938   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:20.305   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007e28564828 : 5(1167360 size) total buffers - 4(933888 size) used buffers - 97551/97567 (recycle/alloc) - 1231/97563 (fetch/transfer)
+04-18 23:26:20.305   832  1505 D BufferPoolAccessor2.0: evictor expired: 1, evicted: 1
+04-18 23:26:14.409  5883  5883 I CAM_INFO: CAM-SENSOR: cam_sensor_driver_cmd: 1100 15:26:14.392 CAM_START_DEV Success for imx681 sensor_id:0x681,sensor_slave_addr:0x20
+04-18 23:26:21.107  4823  4823 I (virq   : irq_count)- GICv3:IPI(1):45032735 GICv3:arch_timer(11):17170437 GICv3:IPI(2):8013984 ipcc:glink-native-adsp(363):7366455 GICv3:ipcc_0(32):4833068 GICv3:kgsl_hfi_irq(176):2724349 GICv3:IPI(6):2657914 GICv3:csid(259):2313188 GICv3:apps_rsc(22):1316163 GICv3:ife(260):1171214
+04-18 23:26:21.107  4823  4823 I (cpu    : irq_count)- 0:33706839 1:26056477 2:18812857 3:18371190
+04-18 23:26:21.107  4823  4823 I (ipi    : irq_count)- 0:45032735 1:8013984 2:0 3:0 4:0 5:2657914 6:0
+04-18 23:26:21.305   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e828 : 1(307200 size) total buffers - 0(0 size) used buffers - 98228/98235 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:26:21.305   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007d8801e628 : 5(1167360 size) total buffers - 4(933888 size) used buffers - 98227/98239 (recycle/alloc) - 1208/98235 (fetch/transfer)
+04-18 23:26:21.306   832  1505 D BufferPoolAccessor2.0: bufferpool2 0xb400007e286c9a28 : 1(307200 size) total buffers - 0(0 size) used buffers - 97551/97563 (recycle/alloc) - 0/0 (fetch/transfer)
+04-18 23:26:21.306   832  1505 D BufferPoolAccessor2.0: evictor expired: 3, evicted: 3
+04-18 23:26:21.347  2235  2498 D RokidESecurity: DeviceStatusManager:: Storage status checked: 15897MB available
+04-18 23:26:21.348  2235  2498 D DeviceStatusManager::: checkStorageStatus availableMB:15897
+04-18 23:26:21.384  1930  5595 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:26:22.354   795   795 W healthd : battery l=100 v=4352 t=31.0 h=2 st=3 c=-208000 cc=1 chg=u
+04-18 23:26:22.789   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.5/s) Done(0.000/s Avg=19.498/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:22.789   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:22.938   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.344/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:22.939   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:27.792   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.5/s) Done(0.000/s Avg=19.479/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:27.792   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:27.939   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.325/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:27.939   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:29.645     0     0 W [    C0] __cam_isp_ctx_epoch_in_applied: 18 callbacks suppressed
+04-18 23:26:29.645     0     0 I [    C0] CAM_INFO: CAM-ISP: __cam_isp_ctx_epoch_in_applied: 2798 ctx:3 Report Bubble flag 1 req id:455
+04-18 23:26:29.645     0     0 I [    C0] CAM_WARN: CAM-ISP: __cam_isp_ctx_notify_error_util: 706 Notify CRM about bubble req: 455 frame: 457 in ctx: 3 on link: 0xd00308
+04-18 23:26:29.645  5101  5101 I CAM_WARN: CAM-CRM: __cam_req_mgr_process_req: 1999 Err recovery done idx 22
+04-18 23:26:29.646     0     0 W [    C1] __cam_isp_ctx_reg_upd_in_epoch_bubble_state: 18 callbacks suppressed
+04-18 23:26:29.646     0     0 I [    C1] CAM_WARN: CAM-ISP: __cam_isp_ctx_reg_upd_in_epoch_bubble_state: 2459 ctx_id:3 Unexpected reg update in activated Substate[BUBBLE] for frame_id:457
+04-18 23:26:30.579  5554  5554 I (virq   : irq_count)- GICv3:IPI(1):45058095 GICv3:arch_timer(11):17180690 GICv3:IPI(2):8020375 ipcc:glink-native-adsp(363):7371062 GICv3:ipcc_0(32):4835822 GICv3:kgsl_hfi_irq(176):2725202 GICv3:IPI(6):2660562 GICv3:csid(259):2314314 GICv3:apps_rsc(22):1317977 GICv3:ife(260):1172065
+04-18 23:26:30.579  5554  5554 I (cpu    : irq_count)- 0:33729278 1:26073229 2:18823106 3:18381455
+04-18 23:26:30.579  5554  5554 I (ipi    : irq_count)- 0:45058096 1:8020375 2:0 3:0 4:0 5:2660562 6:0
+04-18 23:26:31.386  1930  5599 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:26:32.793   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.5/s) Done(0.000/s Avg=19.459/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:32.793   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:32.939   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.306/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:32.940   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:37.793   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.4/s) Done(0.000/s Avg=19.440/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:37.793   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:37.940   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.287/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:37.940   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:40.051  4767  4767 I (virq   : irq_count)- GICv3:IPI(1):45084198 GICv3:arch_timer(11):17191010 GICv3:IPI(2):8025636 ipcc:glink-native-adsp(363):7375687 GICv3:ipcc_0(32):4838584 GICv3:kgsl_hfi_irq(176):2726053 GICv3:IPI(6):2662569 GICv3:csid(259):2315438 GICv3:apps_rsc(22):1319809 GICv3:ife(260):1172913
+04-18 23:26:40.051  4767  4767 I (cpu    : irq_count)- 0:33749228 1:26091653 2:18833282 3:18391623
+04-18 23:26:40.051  4767  4767 I (ipi    : irq_count)- 0:45084198 1:8025636 2:0 3:0 4:0 5:2662569 6:0
+04-18 23:26:41.389  1930  5600 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:26:42.131  5554  5554 W FG_CW221X: cw_update_data-575 : vol = 4308  current = -268000 cap = 100 temp = 315
+04-18 23:26:42.236   795   795 W healthd : battery l=100 v=4308 t=31.5 h=2 st=3 c=-268000 cc=1 chg=u
+04-18 23:26:42.794   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.4/s) Done(0.000/s Avg=19.421/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:42.794   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:42.943   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.268/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:42.943   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:47.794   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.4/s) Done(0.000/s Avg=19.402/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:47.794   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:47.943   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.249/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:47.943   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:49.523  5554  5554 I (virq   : irq_count)- GICv3:IPI(1):45110532 GICv3:arch_timer(11):17201388 GICv3:IPI(2):8030933 ipcc:glink-native-adsp(363):7380315 GICv3:ipcc_0(32):4841346 GICv3:kgsl_hfi_irq(176):2726903 GICv3:IPI(6):2664276 GICv3:csid(259):2316568 GICv3:apps_rsc(22):1321634 GICv3:ife(260):1173763
+04-18 23:26:49.523  5554  5554 I (cpu    : irq_count)- 0:33768533 1:26110181 2:18844052 3:18401934
+04-18 23:26:49.523  5554  5554 I (ipi    : irq_count)- 0:45110532 1:8030933 2:0 3:0 4:0 5:2664276 6:0
+04-18 23:26:51.358  2235  2498 D RokidESecurity: DeviceStatusManager:: Storage status checked: 15897MB available
+04-18 23:26:51.359  2235  2498 D DeviceStatusManager::: checkStorageStatus availableMB:15897
+04-18 23:26:51.392  1930  4137 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:26:52.795   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.4/s) Done(0.000/s Avg=19.383/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:52.795   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:52.944   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.230/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:52.944   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:57.795   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.4/s) Done(0.000/s Avg=19.364/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:26:57.795   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:26:57.944   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.211/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:26:57.944   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:26:58.995  4767  4767 I (virq   : irq_count)- GICv3:IPI(1):45136555 GICv3:arch_timer(11):17211781 GICv3:IPI(2):8036187 ipcc:glink-native-adsp(363):7384776 GICv3:ipcc_0(32):4843927 GICv3:kgsl_hfi_irq(176):2727751 GICv3:IPI(6):2666206 GICv3:csid(259):2317699 GICv3:apps_rsc(22):1323408 GICv3:ife(260):1174615
+04-18 23:26:58.995  4767  4767 I (cpu    : irq_count)- 0:33787252 1:26128720 2:18854434 3:18412480
+04-18 23:26:58.995  4767  4767 I (ipi    : irq_count)- 0:45136556 1:8036187 2:0 3:0 4:0 5:2666206 6:0
+04-18 23:27:01.394  1930  5534 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:27:02.795   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.345/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:27:02.796   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:27:02.944   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.192/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:27:02.945   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:27:06.051  4767  4767 I mp2724-charger 1-003f: recharge
+04-18 23:27:06.152   471   471 I mp2724-charger 1-003f: vin_gd:1, chg_stat:3, chg_fault:0, bfet_stat:0
+04-18 23:27:06.219   795   795 W healthd : battery l=99 v=4292 t=31.5 h=2 st=2 c=-279000 cc=1 chg=u
+04-18 23:27:06.257   794  1175 I audio_hw::BatteryListener: healthInfo cb thread: cb CHARGING
+04-18 23:27:06.257   794  1175 D AHAL: AudioDevice: adev_on_battery_status_changed: 631: battery status changed to charging
+04-18 23:27:06.258   794  1175 D AHAL: AudioDevice: SetChargingMode: 2228: enter, is_charging 1
+04-18 23:27:06.258   794  1175 D AHAL: AudioDevice: SetChargingMode: 2238: exit
+04-18 23:27:06.260   827   827 E vendor.qti.lights: Tri Leds device doesn't exist
+04-18 23:27:06.262  1549  1549 I SysCfg-BatteryLight: BATTERY_CHANGED: level 99
+04-18 23:27:06.263  1930  1930 D SystemServer: PowerMonitor:: mPowerReceiver-->charging:true powerNumber:99
+04-18 23:27:06.286  1549  1633 I SysCfg-BatteryLight: isCharging true,  level 99, state 3, isTakeOn false
+04-18 23:27:06.287  1249  2988 I LightCtrlSVC: cancel event: type=1, id=1013, calling 1549
+04-18 23:27:06.287  1249  2988 I LightCtrlSVC: send event 1, 1014, callUid=1000, callPid=1549
+04-18 23:27:06.287  1249  1309 W LightCtrlSVC: cancelEvent: no event type 1, id 1013
+04-18 23:27:06.408  1930  1930 D SystemServer: IDeviceServiceImpl:: updateDevicePower->99 true
+04-18 23:27:06.422  2235  2235 D RokidESecurity: DeviceStatusManager:: powerUpdate->99 true
+04-18 23:27:06.423  1930  5314 I SystemServer: ServicePoolImpl Client request: pid=2235, uid=10047, pkg=com.rokid.security.zjsj, service=Message
+04-18 23:27:06.424  1930  5314 I SystemServer: ServicePoolImpl Service granted: Message to com.rokid.security.zjsj
+04-18 23:27:06.441  2235  2235 I RokidESecurity: SecurityServiceClient 服务查询成功：Message (IMessageServer)
+04-18 23:27:06.442  1930  5314 D SystemServer: MessageServerImpl sendTextMessageByClassicBTWithClient-->1930 2235
+04-18 23:27:06.443  1930  5314 E SystemServer: MessageServerImpl phoneAppInfo = null
+04-18 23:27:07.796   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.325/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:27:07.796   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:27:07.945   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.173/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:27:07.945   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:27:08.467  4823  4823 I (virq   : irq_count)- GICv3:IPI(1):45162422 GICv3:arch_timer(11):17222157 GICv3:IPI(2):8041503 ipcc:glink-native-adsp(363):7389152 GICv3:ipcc_0(32):4846324 GICv3:kgsl_hfi_irq(176):2728600 GICv3:IPI(6):2668006 GICv3:csid(259):2318822 GICv3:apps_rsc(22):1325210 GICv3:ife(260):1175463
+04-18 23:27:08.467  4823  4823 I (cpu    : irq_count)- 0:33805903 1:26147486 2:18864767 3:18422707
+04-18 23:27:08.467  4823  4823 I (ipi    : irq_count)- 0:45162424 1:8041503 2:0 3:0 4:0 5:2668006 6:0
+04-18 23:27:11.395  1930  5514 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:27:12.796   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.307/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:27:12.797   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:27:12.851  4823  4823 W FG_CW221X: cw_update_data-575 : vol = 4482  current = 192000 cap = 99 temp = 305
+04-18 23:27:12.959   795   795 W healthd : battery l=99 v=4482 t=30.5 h=2 st=2 c=192000 cc=1 chg=u
+04-18 23:27:12.945   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.154/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:27:12.946   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:27:16.794  1930  4137 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P:  isSendH264Stream = false,  isSendingFile = false, isReceivingFile = false, mKeepP2pConnectSwitch = true
+04-18 23:27:16.795  1930  4137 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P ret = false
+04-18 23:27:16.795  1930  4137 I SystemServer: GlassP2PConnectControl 重新计时
+04-18 23:27:16.795  1930  4137 I SystemServer: GlassP2PConnectControl startCountDown: 
+04-18 23:27:17.797   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.288/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:27:17.797   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:27:17.940  5554  5554 I (virq   : irq_count)- GICv3:IPI(1):45187730 GICv3:arch_timer(11):17232638 GICv3:IPI(2):8047181 ipcc:glink-native-adsp(363):7393451 GICv3:ipcc_0(32):4848684 GICv3:kgsl_hfi_irq(176):2729451 GICv3:IPI(6):2670101 GICv3:csid(259):2319952 GICv3:apps_rsc(22):1327005 GICv3:ife(260):1176314
+04-18 23:27:17.940  5554  5554 I (cpu    : irq_count)- 0:33823994 1:26166872 2:18875113 3:18432881
+04-18 23:27:17.940  5554  5554 I (ipi    : irq_count)- 0:45187730 1:8047181 2:0 3:0 4:0 5:2670101 6:0
+04-18 23:27:17.946   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.1/s) Done(0.000/s Avg=19.135/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:27:17.946   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:27:21.363  2235  2498 D RokidESecurity: DeviceStatusManager:: Storage status checked: 15897MB available
+04-18 23:27:21.363  2235  2498 D DeviceStatusManager::: checkStorageStatus availableMB:15897
+04-18 23:27:21.397  1930  5536 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+04-18 23:27:20.805  5904  5904 I CAM_INFO: CAM-CRM: __cam_req_mgr_find_dev_name: 244 Skip Frame: req: 1990 not ready on link: 0xd00308 for pd: 2 dev: cam-sensor open_req count: 3
+04-18 23:27:22.356   795   795 W healthd : battery l=100 v=4495 t=30.5 h=2 st=2 c=147000 cc=1 chg=u
+04-18 23:27:22.404  1549  1549 I SysCfg-BatteryLight: BATTERY_CHANGED: level 100
+04-18 23:27:22.404  1930  1930 D SystemServer: PowerMonitor:: mPowerReceiver-->charging:true powerNumber:100
+04-18 23:27:22.405  1930  1930 D SystemServer: IDeviceServiceImpl:: updateDevicePower->100 true
+04-18 23:27:22.407  2235  2235 D RokidESecurity: DeviceStatusManager:: powerUpdate->100 true
+04-18 23:27:22.407  1930  5314 I SystemServer: ServicePoolImpl Client request: pid=2235, uid=10047, pkg=com.rokid.security.zjsj, service=Message
+04-18 23:27:22.407  1930  5314 I SystemServer: ServicePoolImpl Service granted: Message to com.rokid.security.zjsj
+04-18 23:27:22.408  2235  2235 I RokidESecurity: SecurityServiceClient 服务查询成功：Message (IMessageServer)
+04-18 23:27:22.408  1930  3894 D SystemServer: MessageServerImpl sendTextMessageByClassicBTWithClient-->1930 2235
+04-18 23:27:22.408  1930  3894 E SystemServer: MessageServerImpl phoneAppInfo = null
+04-18 23:27:22.422  1549  1633 I SysCfg-BatteryLight: isCharging true,  level 100, state 4, isTakeOn false
+04-18 23:27:22.422  1249  2988 I LightCtrlSVC: cancel event: type=1, id=1014, calling 1549
+04-18 23:27:22.423  1249  1309 W LightCtrlSVC: cancelEvent: no event type 1, id 1014
+04-18 23:27:22.423  1249  2988 I LightCtrlSVC: send event 1, 1013, callUid=1000, callPid=1549
+04-18 23:27:22.797   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.3/s) Done(0.000/s Avg=19.269/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:27:22.797   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:27:22.947   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.1/s) Done(0.000/s Avg=19.117/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:27:22.947   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:27:27.173     0     0 I [    C1] CAM_INFO: CAM-ISP: __cam_isp_ctx_epoch_in_applied: 2798 ctx:3 Report Bubble flag 1 req id:2178
+04-18 23:27:27.173     0     0 I [    C1] CAM_WARN: CAM-ISP: __cam_isp_ctx_notify_error_util: 706 Notify CRM about bubble req: 2178 frame: 2183 in ctx: 3 on link: 0xd00308
+04-18 23:27:27.173  5101  5101 I CAM_WARN: CAM-CRM: __cam_req_mgr_process_req: 1999 Err recovery done idx 17
+04-18 23:27:27.173     0     0 I [    C1] CAM_WARN: CAM-ISP: __cam_isp_ctx_reg_upd_in_epoch_bubble_state: 2459 ctx_id:3 Unexpected reg update in activated Substate[BUBBLE] for frame_id:2183
+04-18 23:27:27.411  4767  4767 I (virq   : irq_count)- GICv3:IPI(1):45212705 GICv3:arch_timer(11):17243147 GICv3:IPI(2):8052891 ipcc:glink-native-adsp(363):7397888 GICv3:ipcc_0(32):4851150 GICv3:kgsl_hfi_irq(176):2730288 GICv3:IPI(6):2672293 GICv3:csid(259):2321063 GICv3:apps_rsc(22):1328769 GICv3:ife(260):1177160
+04-18 23:27:27.411  4767  4767 I (cpu    : irq_count)- 0:33842269 1:26185813 2:18885687 3:18442964
+04-18 23:27:27.411  4767  4767 I (ipi    : irq_count)- 0:45212705 1:8052891 2:0 3:0 4:0 5:2672293 6:0
+04-18 23:27:27.798   832  4710 I QC2Comp : [avcE_21] Stats: Pending(0) i/p-done(0) Works: Q: 98235/Done 98235|Work-Rate: Q(0.0/s Avg=19.2/s) Done(0.000/s Avg=19.250/s)| Stream: 10.00fps 22.9Kbps
+04-18 23:27:27.798   832  4710 I QC2Comp : [avcE_21] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-30: 7 bufs 3.391 MB] [1D-29: 12 bufs 2.672 MB] [1D-31: 8 bufs 0.125 MB] | Total: 13.758 MB
+04-18 23:27:27.947   832  4653 I QC2Comp : [avcE_20] Stats: Pending(0) i/p-done(0) Works: Q: 97563/Done 97563|Work-Rate: Q(0.0/s Avg=19.1/s) Done(0.000/s Avg=19.098/s)| Stream: 10.00fps 25.7Kbps
+04-18 23:27:27.947   832  4653 I QC2Comp : [avcE_20] Mem-usage:  [In-2D: 6 bufs 7.570 MB] [2D-Conv-27: 12 bufs 5.812 MB] [1D-26: 16 bufs 3.562 MB] [1D-28: 8 bufs 0.125 MB] | Total: 17.070 MB
+04-18 23:27:29.024  1291  1291 I adbd    : RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'threadtime'
+04-18 23:27:29.091   520   520 I logd    : logdr: UID=2000 GID=2000 PID=5905 n tail=0 logMask=99 pid=0 start=0ns deadline=0ns

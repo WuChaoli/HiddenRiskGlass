@@ -1,0 +1,38 @@
+--------- beginning of kernel
+05-19 11:59:45.719  6873  6873 I (virq   : irq_count)- GICv3:IPI(1):51352932 GICv3:arch_timer(11):36043427 GICv3:IPI(6):5232261 GICv3:i2c_geni(172):3322029 GICv3:apps_rsc(22):2471930 GICv3:IPI(2):1875486 ipcc:glink-native-adsp(363):1811445 GICv3:ipcc_0(32):1676886 GICv3:190b6400.qcom,bwmon-llcc(26):1237711 GICv3:kgsl_hfi_irq(176):884615
+05-19 11:59:45.719  6873  6873 I (cpu    : irq_count)- 0:29783150 1:30770337 2:23738571 3:23623809
+05-19 11:59:45.719  6873  6873 I (ipi    : irq_count)- 0:51352933 1:1875486 2:0 3:0 4:0 5:5232261 6:0
+--------- beginning of main
+05-19 11:59:52.128  1917  5594 I turen   : [R2][03:55:20.320] [src/R2Module.cpp     104]D R2In: 2000 loops, average: 18.
+05-19 11:59:52.129  1917  5594 I turen   : [R2][03:55:20.320] [src/R2Module.cpp     104]D R2Rdc: 2000 loops, average: 8.
+05-19 11:59:52.247  1917  6868 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 11:59:52.994   883   883 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+05-19 11:59:52.994   883   883 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+05-19 11:59:55.107  1917  5594 I turen   : [R2][03:55:23.296] [src/R2Module.cpp     104]D R2Rs: 2000 loops, average: 61.
+05-19 11:59:55.108  1917  5590 I turen   : [R2][03:55:23.296] [src/R2Module.cpp     288]D <Thread> R2Engine: 2000 loops, average: 122
+05-19 11:59:55.191  5577  5577 I (virq   : irq_count)- GICv3:IPI(1):51360714 GICv3:arch_timer(11):36049266 GICv3:IPI(6):5232870 GICv3:i2c_geni(172):3322299 GICv3:apps_rsc(22):2472403 GICv3:IPI(2):1875696 ipcc:glink-native-adsp(363):1812416 GICv3:ipcc_0(32):1677856 GICv3:190b6400.qcom,bwmon-llcc(26):1238034 GICv3:kgsl_hfi_irq(176):884615
+05-19 11:59:55.191  5577  5577 I (cpu    : irq_count)- 0:29787894 1:30776262 2:23741736 3:23627566
+05-19 11:59:55.191  5577  5577 I (ipi    : irq_count)- 0:51360714 1:1875696 2:0 3:0 4:0 5:5232870 6:0
+05-19 11:59:59.395   786   786 W healthd : battery l=100 v=4484 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 12:00:00.087  5110  5110 W FG_CW221X: cw_update_data-575 : vol = 4484  current = 0 cap = 100 temp = 295
+05-19 12:00:00.237   786   786 W healthd : battery l=100 v=4484 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 12:00:02.093   883   883 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+05-19 12:00:02.093   883   883 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+05-19 12:00:02.248  1917  6867 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 12:00:03.835  1917  6868 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P:  isSendH264Stream = false,  isSendingFile = false, isReceivingFile = false, mKeepP2pConnectSwitch = false
+05-19 12:00:03.836  1917  6868 I SystemServer: GlassP2PConnectControl isNeedCloseWifiP2P ret = true
+05-19 12:00:03.838  1917  6868 I SystemServer: GlassP2PConnectControl isWifiConnected: hasConnectWifi = true
+05-19 12:00:03.838  1917  6868 I SystemServer: GlassP2PConnectControl 重新计时
+05-19 12:00:03.839  1917  6868 I SystemServer: GlassP2PConnectControl startCountDown: 
+05-19 12:00:04.662  5577  5577 I (virq   : irq_count)- GICv3:IPI(1):51368944 GICv3:arch_timer(11):36055258 GICv3:IPI(6):5233479 GICv3:i2c_geni(172):3322842 GICv3:apps_rsc(22):2472880 GICv3:IPI(2):1875935 ipcc:glink-native-adsp(363):1813384 GICv3:ipcc_0(32):1678824 GICv3:190b6400.qcom,bwmon-llcc(26):1238369 GICv3:kgsl_hfi_irq(176):884615
+05-19 12:00:04.663  5577  5577 I (cpu    : irq_count)- 0:29793041 1:30782209 2:23745370 3:23631335
+05-19 12:00:04.663  5577  5577 I (ipi    : irq_count)- 0:51368945 1:1875935 2:0 3:0 4:0 5:5233479 6:0
+05-19 12:00:09.375  2195  2514 D RokidESecurity: DeviceStatusManager:: Storage status checked: 17425MB available
+05-19 12:00:09.375  2195  2514 D DeviceStatusManager::: checkStorageStatus availableMB:17425
+05-19 12:00:12.249  1917  6867 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 12:00:14.136  5577  5577 I (virq   : irq_count)- GICv3:IPI(1):51376772 GICv3:arch_timer(11):36061256 GICv3:IPI(6):5234087 GICv3:i2c_geni(172):3323085 GICv3:apps_rsc(22):2473353 GICv3:IPI(2):1876145 ipcc:glink-native-adsp(363):1814352 GICv3:ipcc_0(32):1679789 GICv3:190b6400.qcom,bwmon-llcc(26):1238692 GICv3:kgsl_hfi_irq(176):884615
+05-19 12:00:14.136  5577  5577 I (cpu    : irq_count)- 0:29797644 1:30788102 2:23748855 3:23635115
+05-19 12:00:14.136  5577  5577 I (ipi    : irq_count)- 0:51376773 1:1876145 2:0 3:0 4:0 5:5234087 6:0
+05-19 12:00:14.242   883   883 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+05-19 12:00:14.242   883   883 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+05-19 12:00:14.351  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d'

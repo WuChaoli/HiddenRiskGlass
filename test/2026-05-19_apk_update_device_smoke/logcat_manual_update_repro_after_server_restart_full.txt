@@ -1,0 +1,648 @@
+--------- beginning of main
+05-19 11:58:24.992  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:input keyevent 66
+05-19 11:58:25.045  1251  1322 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=true interactive=true keyguardActive=false policyFlags=2b000000
+05-19 11:58:25.046  1251  1348 D WindowManager: interceptKeyTi keyCode=66 down=true repeatCount=0 keyguardOn=false canceled=false
+--------- beginning of system
+05-19 11:58:25.048  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@de8e8a7, title=com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:58:25.049  1251  1348 D WindowManager: No fallback.
+05-19 11:58:25.049  1251  1322 D WindowManager: interceptKeyTq keycode=KEYCODE_ENTER, down=false interactive=true keyguardActive=false policyFlags=2b000000
+05-19 11:58:25.049  1251  1348 D WindowManager: interceptKeyTi keyCode=66 down=false repeatCount=0 keyguardOn=false canceled=false
+05-19 11:58:25.052  1917  3254 I SystemServer: ServicePoolImpl Client request: pid=6409, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 11:58:25.052  1917  3254 I SystemServer: ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 11:58:25.054  6409  6409 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 11:58:25.054  1917  3254 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.054  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->8
+05-19 11:58:25.055  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->>7
+05-19 11:58:25.055  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:7
+05-19 11:58:25.055  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.055  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=7
+05-19 11:58:25.055  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.055  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.055  1917  1949 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.055  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.055  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.056  1917  1949 I SystemServer: GlassVoiceServiceImpl:: remove-->7
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.056  1917  1949 I SystemServer: GlassVoiceServiceImpl:: remove-->>6
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.056  1917  1949 I SystemServer: GlassVoiceServiceImpl:: words:6
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.056  1917  1949 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:58:25.056  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.057  1917  1949 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  1949 I SystemServer: GlassVoiceServiceImpl:: remove-->6
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  1949 I SystemServer: GlassVoiceServiceImpl:: remove-->>5
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  1949 I SystemServer: GlassVoiceServiceImpl:: words:5
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.057  1917  1949 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [R2Engine.cpp         1072]D set wakewords 7
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:58:25.057  1917  2411 I turen   : [R2][03:53:53.216] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.058  1917  3254 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.058  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.058  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=6
+05-19 11:58:25.058  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->5
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.058  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->>4
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.058  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:4
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.058  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.058  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [R2Engine.cpp         1072]D set wakewords 6
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.059  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.060  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.060  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=5
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.060  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [R2Engine.cpp         1072]D set wakewords 5
+05-19 11:58:25.061  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.062  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.062  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.062  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.062  1917  2411 I turen   : [R2][03:53:53.216] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:58:25.062  1917  2411 I turen   : [R2][03:53:53.216] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.062  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.062  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.062  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@de8e8a7, title=com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:58:25.062  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=4
+05-19 11:58:25.062  1251  1348 D WindowManager: No fallback.
+05-19 11:58:25.062  1917  1949 I SystemServer: ServicePoolImpl Client request: pid=6409, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 11:58:25.062  1917  1949 I SystemServer: ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 11:58:25.063  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.063  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.063  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.063  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.063  6409  6409 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 11:58:25.063  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.216] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.248] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.248] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.248] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.248] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.064  1917  2411 I turen   : [R2][03:53:53.248] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.065  1917  2411 I turen   : [R2][03:53:53.248] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.065  1917  2411 I turen   : [R2][03:53:53.248] [R2Engine.cpp         1072]D set wakewords 4
+05-19 11:58:25.065  1917  2411 I turen   : [R2][03:53:53.248] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.065  1917  2411 I turen   : [R2][03:53:53.248] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.065  1917  2411 I turen   : [R2][03:53:53.248] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.065  1917  2411 I turen   : [R2][03:53:53.248] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.065  1917  1949 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.065  1917  5590 I turen   : [R2][03:53:53.248] [ctcengine.cpp        562]D set key prons 5
+05-19 11:58:25.065  1917  5590 I turen   : [R2][03:53:53.248] [engine/ctc.cpp       393]D stop_lines cancel 0
+05-19 11:58:25.065  1917  1949 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.065  1917  1949 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.065  1917  1949 I SystemServer: GlassVoiceServiceImpl:: words:5
+05-19 11:58:25.067  1917  1949 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.067  1917  1949 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.067  1917  1949 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.068  1917  1949 I SystemServer: GlassVoiceServiceImpl:: words:6
+05-19 11:58:25.069  1917  1949 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.069  1917  1949 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.069  1917  1949 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.070  1917  1949 I SystemServer: GlassVoiceServiceImpl:: words:7
+05-19 11:58:25.070  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照
+--------- beginning of kernel
+05-19 11:58:25.093  6876  6876 I [kworke][0x160a1d2279f][11:58:25.078129] kiwi_v2: [6876:I:PMO] pmo_core_psoc_send_host_wakeup_ind_to_fw: Host wakeup indication sent to fw
+05-19 11:58:25.116  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [fen xi] margin -2.000000
+05-19 11:58:25.116  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [shen du fen xi] margin -2.000000
+05-19 11:58:25.116  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [jie shu ren wu] margin -1.700000
+05-19 11:58:25.116  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [jie su ren wu] margin -2.000000
+05-19 11:58:25.117  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 11:58:25.118  1917  5590 D NodeDecoder: [AddKeyWord] [fen xi,fen xi] yuzhi:-2.00
+05-19 11:58:25.118  1917  5590 D NodeDecoder: [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 11:58:25.119  1917  5590 D NodeDecoder: [AddKeyWord] [jie shu ren wu,jie shu ren wu] yuzhi:-1.70
+05-19 11:58:25.119  1917  5590 D NodeDecoder: [AddKeyWord] [jie su ren wu,jie su ren wu] yuzhi:-2.00
+05-19 11:58:25.119  1917  5590 D NodeDecoder: [AddKeyWord] [shen du fen xi,shen du fen xi] yuzhi:-2.00
+05-19 11:58:25.119  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 11:58:25.120  1917  2411 I turen   : [R2][03:53:53.280] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.120  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.120  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        562]D set key prons 4
+05-19 11:58:25.120  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.121  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [fen xi] margin -2.000000
+05-19 11:58:25.121  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=5
+05-19 11:58:25.121  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [shen du fen xi] margin -2.000000
+05-19 11:58:25.121  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [jie shu ren wu] margin -1.700000
+05-19 11:58:25.121  1917  5590 I turen   : [R2][03:53:53.280] [ctcengine.cpp        572]D key prons [jie su ren wu] margin -2.000000
+05-19 11:58:25.121  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.121  1917  2411 I turen   : [R2][03:53:53.280] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.122  1917  5590 D NodeDecoder: [AddKeyWord] [fen xi,fen xi] yuzhi:-2.00
+05-19 11:58:25.122  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.123  1917  2411 I turen   : [R2][03:53:53.280] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.123  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.123  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.123  1917  5590 D NodeDecoder: [AddKeyWord] [jie shu ren wu,jie shu ren wu] yuzhi:-1.70
+05-19 11:58:25.123  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.124  1917  5590 D NodeDecoder: [AddKeyWord] [jie su ren wu,jie su ren wu] yuzhi:-2.00
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 5
+05-19 11:58:25.124  1917  5590 D NodeDecoder: [AddKeyWord] [shen du fen xi,shen du fen xi] yuzhi:-2.00
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.124  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.124  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.125  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.125  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        562]D set key prons 5
+05-19 11:58:25.125  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.125  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        572]D key prons [fen xi] margin -2.000000
+05-19 11:58:25.125  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=6
+05-19 11:58:25.125  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        572]D key prons [shen du fen xi] margin -2.000000
+05-19 11:58:25.125  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        572]D key prons [jie shu ren wu] margin -1.700000
+05-19 11:58:25.126  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        572]D key prons [jie su ren wu] margin -2.000000
+05-19 11:58:25.126  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.126  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.127  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.127  1917  5590 D NodeDecoder: [AddKeyWord] [fen xi,fen xi] yuzhi:-2.00
+05-19 11:58:25.127  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.127  1917  5590 D NodeDecoder: [AddKeyWord] [jie shu ren wu,jie shu ren wu] yuzhi:-1.70
+05-19 11:58:25.127  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.127  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.127  1917  5590 D NodeDecoder: [AddKeyWord] [jie su ren wu,jie su ren wu] yuzhi:-2.00
+05-19 11:58:25.127  1917  5590 D NodeDecoder: [AddKeyWord] [shen du fen xi,shen du fen xi] yuzhi:-2.00
+05-19 11:58:25.128  1917  5590 D NodeDecoder: [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 11:58:25.128  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.128  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.128  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.129  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.129  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.129  1917  5590 I turen   : [R2][03:53:53.312] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 11:58:25.129  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.129  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.129  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.129  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 6
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.130  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.131  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.131  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=7
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.131  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.131  1917  1949 I SystemServer: ServicePoolImpl Client request: pid=6409, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 11:58:25.132  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.132  1917  1949 I SystemServer: ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 11:58:25.132  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.132  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.132  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.132  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.133  6409  6409 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 7
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.133  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.134  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.134  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.134  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.134  1917  1949 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.134  1917  1949 I SystemServer: GlassVoiceServiceImpl:: remove-->7
+05-19 11:58:25.134  1917  1949 I SystemServer: GlassVoiceServiceImpl:: remove-->>6
+05-19 11:58:25.134  1917  1949 I SystemServer: GlassVoiceServiceImpl:: words:6
+05-19 11:58:25.135  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=6
+05-19 11:58:25.135  1917  1949 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.135  1917  3254 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.135  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.136  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->6
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.136  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->>5
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.136  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:5
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.136  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.136  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.137  1917  3254 D SystemServer: OfflineCmdImpl:: remove-->
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.137  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->5
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 6
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.137  1917  3254 I SystemServer: GlassVoiceServiceImpl:: remove-->>4
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.137  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:4
+05-19 11:58:25.137  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.138  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 移除VoiceAction
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.138  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.138  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=5
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.138  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 5
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.139  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.139  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=4
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.139  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 4
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.140  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.140  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.144  1917  3254 I SystemServer: ServicePoolImpl Client request: pid=6409, uid=10066, pkg=com.rokid.glesse, service=OfflineCmd
+05-19 11:58:25.144  1917  3254 I SystemServer: ServicePoolImpl Service granted: OfflineCmd to com.rokid.glesse
+05-19 11:58:25.145  6409  6409 I com.rokid.glesse.hiddenrisk: SecurityServiceClient 服务查询成功：OfflineCmd (IOfflineCmdService)
+05-19 11:58:25.146  1917  3254 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.146  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.146  1917  3254 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.146  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:5
+05-19 11:58:25.147  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=5
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.147  1917  3254 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.147  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.147  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.147  1917  3254 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 5
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.148  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:6
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.148  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.148  1917  3254 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.148  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.148  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=6
+05-19 11:58:25.148  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.149  1917  3254 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.149  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:7
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.149  1917  3254 D SystemServer: OfflineCmdImpl:: add-->
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.149  1917  3254 D SystemServer: OfflineCmdImpl:: 进程 6409 (com.rokid.security.system.server) 添加VoiceAction
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.149  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 6
+05-19 11:58:25.149  1917  3254 I SystemServer: GlassVoiceServiceImpl:: add-->
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.150  1917  3254 I SystemServer: GlassVoiceServiceImpl:: words:8
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.150  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.150  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=7
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.150  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.150  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 7
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.151  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.152  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.152  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords, count=8
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 分析, wordtype: 3
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 分析
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 深度分析, wordtype: 3
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 深度分析
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结束任务, wordtype: 3
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结束任务
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 结速任务, wordtype: 3
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 结速任务
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 实时分析, wordtype: 3
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 实时分析
+05-19 11:58:25.152  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 设备指引, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 设备指引
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 隐患拍照, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 隐患拍照
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:分析
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:深度分析
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shen du fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结束任务
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie shu ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:结速任务
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jie su ren wu, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:实时分析
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: shi shi fen xi, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:设备指引
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: she bei zhi yin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:隐患拍照
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: yin huan pai zhao, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Config.cpp     519]D Add wakeup word pinyin: jian cha geng xin, margin: 0.000000, wordtype: 3
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   240]D Call R2_API_SET_WAKEWORDS in R2Engine
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1072]D set wakewords 8
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:fen xi, content:分析
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shen du fen xi, content:深度分析
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie shu ren wu, content:结束任务
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jie su ren wu, content:结速任务
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:shi shi fen xi, content:实时分析
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:she bei zhi yin, content:设备指引
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:yin huan pai zhao, content:隐患拍照
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [R2Engine.cpp         1105]D set R2_API_SET_WAKEWORDS success
+05-19 11:58:25.153  1917  2411 I turen   : [R2][03:53:53.312] [src/R2Pipeline.cpp   250]D cal method: R2_API_SET_WAKEWORDS end
+05-19 11:58:25.153  1917  2411 I Rokid_Logger: RKGlassVoice:updateOfflineWords applied to Lothal
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        562]D set key prons 8
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [fen xi] margin -2.000000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [shen du fen xi] margin -2.000000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [jie shu ren wu] margin -1.700000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [jie su ren wu] margin -2.000000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [shi shi fen xi] margin -2.000000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [she bei zhi yin] margin -2.000000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [yin huan pai zhao] margin -2.000000
+05-19 11:58:25.163  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        572]D key prons [jian cha geng xin] margin -2.000000
+05-19 11:58:25.163  1917  5590 D NodeDecoder: [AddKeyWord] [fen xi,fen xi] yuzhi:-2.00
+05-19 11:58:25.163  1917  5590 D NodeDecoder: [AddKeyWord] [jian cha geng xin,jian cha geng xin] yuzhi:-2.00
+05-19 11:58:25.163  1917  5590 D NodeDecoder: [AddKeyWord] [jie shu ren wu,jie shu ren wu] yuzhi:-1.70
+05-19 11:58:25.164  1917  5590 D NodeDecoder: [AddKeyWord] [jie su ren wu,jie su ren wu] yuzhi:-2.00
+05-19 11:58:25.164  1917  5590 D NodeDecoder: [AddKeyWord] [she bei zhi yin,she bei zhi yin] yuzhi:-2.00
+05-19 11:58:25.164  1917  5590 D NodeDecoder: [AddKeyWord] [shen du fen xi,shen du fen xi] yuzhi:-2.00
+05-19 11:58:25.164  1917  5590 D NodeDecoder: [AddKeyWord] [shi shi fen xi,shi shi fen xi] yuzhi:-2.00
+05-19 11:58:25.164  1917  5590 D NodeDecoder: [AddKeyWord] [yin huan pai zhao,yin huan pai zhao] yuzhi:-2.00
+05-19 11:58:25.164  1917  5590 I turen   : [R2][03:53:53.344] [ctcengine.cpp        583]D rasr_set_key_pronunciations ==> 0
+05-19 11:58:25.480  1565  1565 I [dp_rx_][0x160a2436656][11:58:25.464672] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 11:58:26.084  6876  6876 I [kworke][0x160a2f4693a][11:58:26.068870] kiwi_v2: [6876:I:PMO] pmo_core_enable_wow_in_fw: drv wow is enabled
+05-19 11:58:27.927  6873  6873 W FG_CW221X: cw_update_data-575 : vol = 4483  current = 0 cap = 100 temp = 295
+05-19 11:58:28.006   883   883 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+05-19 11:58:28.006   883   883 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+05-19 11:58:28.038   786   786 W healthd : battery l=100 v=4483 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 11:58:29.942  5110  5110 I (virq   : irq_count)- GICv3:IPI(1):51288946 GICv3:arch_timer(11):35996419 GICv3:IPI(6):5227398 GICv3:i2c_geni(172):3319538 GICv3:apps_rsc(22):2468117 GICv3:IPI(2):1873739 ipcc:glink-native-adsp(363):1803687 GICv3:ipcc_0(32):1669131 GICv3:190b6400.qcom,bwmon-llcc(26):1235129 GICv3:kgsl_hfi_irq(176):884607
+05-19 11:58:29.943  5110  5110 I (cpu    : irq_count)- 0:29743775 1:30723639 2:23709407 3:23595763
+05-19 11:58:29.943  5110  5110 I (ipi    : irq_count)- 0:51288946 1:1873739 2:0 3:0 4:0 5:5227398 6:0
+05-19 11:58:30.207  6876  6876 I [kworke][0x160a7ac5086][11:58:30.191848] kiwi_v2: [6876:I:PMO] pmo_core_psoc_send_host_wakeup_ind_to_fw: Host wakeup indication sent to fw
+05-19 11:58:30.296  1565  1565 I [dp_rx_][0x160a7c6429d][11:58:30.280409] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 11:58:31.420  1565  1565 I [dp_rx_][0x160a90f99ca][11:58:31.404559] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:87:be:88 DA:ff:ff:ff:ff:ff:ff
+05-19 11:58:32.234  1917  6865 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 11:58:32.546  1565  1565 I [dp_rx_][0x160aa598ace][11:58:32.530759] kiwi_v2: [1565:I:QDF] DHCP-D RX: SA:54:16:51:69:a7:a7 DA:ff:ff:ff:ff:ff:ff
+05-19 11:58:33.154  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d'
+05-19 11:58:33.193   491   491 I logd    : logdr: UID=2000 GID=2000 PID=7072 n tail=0 logMask=99 pid=0 start=0ns deadline=0ns

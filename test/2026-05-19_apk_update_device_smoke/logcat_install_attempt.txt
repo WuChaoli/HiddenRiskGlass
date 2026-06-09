@@ -1,0 +1,11 @@
+05-19 11:41:26.227  1251  2853 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (has extras)} from uid 2000
+05-19 11:41:26.229  1251  2853 D ActivityStarter: Background activity start allowed: START_ACTIVITIES_FROM_BACKGROUND permission granted for uid 2000
+05-19 11:41:29.120  1251  5138 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras)} from uid 10066
+05-19 11:41:29.120  1251  5138 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:41:29.336  5652  5652 E startActivity: com.rokid.glass.updater.AppUpdatePromptActivity
+05-19 11:41:29.355  1251  5138 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, true, booted=true
+05-19 11:41:29.427  5652  5652 I AppUpdatePrompt: 统一输入语音注册成功: 立即安装, 跳过本次
+05-19 11:41:29.428  1251  1274 I ActivityMetricsLogger: Displayed com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity: +305ms
+05-19 11:41:32.591  1251  1266 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity} from uid 10066
+05-19 11:41:32.591  1251  1266 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:41:33.300  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:screencap -p /sdcard/05_package_installer_or_permission.png

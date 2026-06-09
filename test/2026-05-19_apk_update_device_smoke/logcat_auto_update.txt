@@ -1,0 +1,15 @@
+05-19 11:39:25.997  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:am start -n com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity --ez force_loading_flow true
+05-19 11:39:26.049  1251  1378 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (has extras)} from uid 2000
+05-19 11:39:26.090  1251  1284 I ActivityManager: Start proc 5418:com.rokid.glesse/u0a66 for top-activity {com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity}
+05-19 11:39:26.703  1251  1277 W ActivityTaskSupervisor: Activity top resumed state loss timeout for ActivityRecord{948fa8f u0 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity t32}
+05-19 11:39:26.703  1251  1277 W ActivityRecord: Activity pause timeout for ActivityRecord{948fa8f u0 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity t32}
+05-19 11:39:27.552  5418  5418 E startActivity: com.rokid.glass.hiddenrisk.InspectionLoadingActivity
+05-19 11:39:27.576  1251  1378 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity, true, booted=true
+05-19 11:39:27.604  5418  5418 I InspectionLoading: SDK state=BINDING
+05-19 11:39:27.666  5418  5418 I InspectionLoading: SDK state=BINDING
+05-19 11:39:27.671  5418  5418 I InspectionLoading: SDK state=READY
+05-19 11:39:27.831  1251  1378 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras)} from uid 10066
+05-19 11:39:27.907  5418  5418 E startActivity: com.rokid.glass.updater.AppUpdatePromptActivity
+05-19 11:39:27.917  1251  1378 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, true, booted=true
+05-19 11:39:34.043  1251  1510 W InputManager-JNI: Input channel object '26285e4 com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (client)' was disposed without first being removed with the input manager!
+05-19 11:39:34.052  1251  1282 W UsageStatsService: Unexpected activity event reported! (com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity event : 23 instanceId : 44337686)

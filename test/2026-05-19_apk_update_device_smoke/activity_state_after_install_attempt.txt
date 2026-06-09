@@ -1,0 +1,44 @@
+    topResumedActivity=ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+    * Hist  #1: ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+      Intent { act=android.intent.action.VIEW dat=file:///data/user_de/0/com.android.packageinstaller/no_backup/package6601119603826536199.apk flg=0x10000 cmp=com.android.packageinstaller/.PackageInstallerActivity (has extras) }
+      mActivityComponent=com.android.packageinstaller/.PackageInstallerActivity
+      baseDir=/system/priv-app/PackageInstaller/PackageInstaller.apk
+      windows=[Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}]
+      baseDir=/system/priv-app/PackageInstaller/PackageInstaller.apk
+  * Task{a389625 #36 type=standard A=10066:com.rokid.glesse U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+    mLastPausedActivity: ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+    * Hist  #1: ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+      packageName=com.rokid.glesse processName=com.rokid.glesse
+      launchedFromUid=10066 launchedFromPackage=com.rokid.glesse launchedFromFeature=null userId=0
+      app=ProcessRecord{cc51145 6046:com.rokid.glesse/u0a66}
+      Intent { cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity }
+      rootOfTask=false task=Task{a389625 #36 type=standard A=10066:com.rokid.glesse U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+      taskAffinity=10066:com.rokid.glesse
+      mActivityComponent=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity
+      baseDir=/data/app/~~6ihvVjYesG2eTzFCsbcJ_A==/com.rokid.glesse-bxgKvRpyh3UM1aqi4XO0MQ==/base.apk
+      dataDir=/data/user/0/com.rokid.glesse
+      windows=[Window{e7ebd6b u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}]
+    * Hist  #0: ActivityRecord{f9b9a02 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t36}
+      packageName=com.rokid.glesse processName=com.rokid.glesse
+      launchedFromUid=10066 launchedFromPackage=com.rokid.glesse launchedFromFeature=null userId=0
+      app=ProcessRecord{cc51145 6046:com.rokid.glesse/u0a66}
+      Intent { cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras) }
+      rootOfTask=true task=Task{a389625 #36 type=standard A=10066:com.rokid.glesse U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+      taskAffinity=10066:com.rokid.glesse
+      mActivityComponent=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity
+      baseDir=/data/app/~~6ihvVjYesG2eTzFCsbcJ_A==/com.rokid.glesse-bxgKvRpyh3UM1aqi4XO0MQ==/base.apk
+      dataDir=/data/user/0/com.rokid.glesse
+      windows=[Window{186967c u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity}]
+    Resumed: ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+  ResumedActivity: ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+  deepestLastOrientationSource=ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+  mCurrentFocus=Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}
+  mFocusedApp=ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+        * ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+      * Task{a389625 #36 type=standard A=10066:com.rokid.glesse U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+        * ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+        * ActivityRecord{f9b9a02 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t36}
+    mFocusedWindow=Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}
+    mTopFullscreenOpaqueWindowState=Window{e7ebd6b u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}
+        (fullscreen) Task{a389625 #36 type=standard A=10066:com.rokid.glesse U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+  VisibleActivityProcess:[ ProcessRecord{f27807d 5976:com.android.packageinstaller/u0a26} ProcessRecord{cc51145 6046:com.rokid.glesse/u0a66}]

@@ -1,0 +1,18 @@
+05-19 11:42:25.965  1251  1373 I ActivityStarter: START u0 {flg=0x10000000 cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (has extras)} from uid 2000
+05-19 11:42:25.966  1251  1373 D ActivityStarter: Background activity start allowed: START_ACTIVITIES_FROM_BACKGROUND permission granted for uid 2000
+05-19 11:42:29.343  1251  5634 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras)} from uid 10066
+05-19 11:42:29.344  1251  5634 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:42:29.573  6046  6046 E startActivity: com.rokid.glass.updater.AppUpdatePromptActivity
+05-19 11:42:29.592  1251  1266 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, true, booted=true
+05-19 11:42:29.681  6046  6046 I AppUpdatePrompt: 统一输入语音注册成功: 立即安装, 跳过本次
+05-19 11:42:29.683  1251  1274 I ActivityMetricsLogger: Displayed com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity: +334ms
+05-19 11:42:29.863  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:29.878  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:30.768  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=0, flags=0, keyCode=0, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:30.779  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=1, flags=0, keyCode=0, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:32.995  1251  1266 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity} from uid 10066
+05-19 11:42:32.996  1251  1266 D ActivityStarter: Activity start allowed: callingUidHasAnyVisibleWindow = 10066, isCallingUidPersistentSystemProcess = false
+05-19 11:42:37.341   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.404   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.507   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.641   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:89 MB} {name:com.android.packageinstaller} {oom_score:1156}

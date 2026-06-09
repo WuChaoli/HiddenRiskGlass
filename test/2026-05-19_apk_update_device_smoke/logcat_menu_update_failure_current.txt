@@ -1,0 +1,192 @@
+05-19 11:42:29.343  1251  5634 I ActivityStarter: START u0 {cmp=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (has extras)} from uid 10066
+05-19 11:42:29.573  6046  6046 E startActivity: com.rokid.glass.updater.AppUpdatePromptActivity
+05-19 11:42:29.592  1251  1266 D ActivityRecord: setupResumeState: com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, true, booted=true
+05-19 11:42:29.681  6046  6046 I AppUpdatePrompt: 统一输入语音注册成功: 立即安装, 跳过本次
+05-19 11:42:29.683  1251  1274 I ActivityMetricsLogger: Displayed com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity: +334ms
+05-19 11:42:29.863  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=0, flags=0, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:29.878  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=1, flags=32, keyCode=66, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:30.768  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=0, flags=0, keyCode=0, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:30.779  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@8100b05, title=com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity, action=1, flags=0, keyCode=0, scanCode=0, metaState=0, repeatCount=0, policyFlags=1795162112
+05-19 11:42:37.341   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.404   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.507   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:90 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:37.641   282   282 E lowmemorykiller: Memory Load: [3] {pid:5976} {size:89 MB} {name:com.android.packageinstaller} {oom_score:1156}
+05-19 11:42:46.421  1251  5634 I ActivityStarter: START u0 {act=android.intent.action.VIEW dat=content://com.rokid.glesse.appupdate.fileprovider/app_updates/latest.apk typ=application/vnd.android.package-archive flg=0x10000001 cmp=com.android.packageinstaller/.InstallStart} from uid 10066
+05-19 11:42:46.624  1251  5634 W StartingSurfaceController: TaskSnapshotSurface.create: Failed to find top fullscreen for task=Task{2fc5bb3 #35 type=standard A=10026:com.android.packageinstaller U=0 visible=true visibleRequested=false mode=fullscreen translucent=true sz=2}
+05-19 11:42:47.601  1251  3582 D ActivityRecord: setupResumeState: com.android.packageinstaller/.PackageInstallerActivity, true, booted=true
+05-19 11:42:47.660  5976  5993 I AdrenoGLES-0: Process Name                     : com.android.packageinstaller
+05-19 11:44:14.837  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@43bfbcd, title=com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity, action=0, flags=8, keyCode=22, scanCode=106, metaState=0, repeatCount=0, policyFlags=1644167168
+05-19 11:44:14.857  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@43bfbcd, title=com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity, action=1, flags=8, keyCode=22, scanCode=106, metaState=0, repeatCount=0, policyFlags=1644167168
+05-19 11:44:14.972  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@43bfbcd, title=com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity, action=0, flags=8, keyCode=20, scanCode=108, metaState=0, repeatCount=0, policyFlags=1644167168
+05-19 11:44:14.982  1251  1348 D WindowManager: Unhandled key: inputToken=android.os.BinderProxy@43bfbcd, title=com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity, action=1, flags=8, keyCode=20, scanCode=108, metaState=0, repeatCount=0, policyFlags=1644167168
+05-19 11:44:17.293  1251  1266 I ActivityStarter: START u0 {dat=file:///data/user_de/0/com.android.packageinstaller/no_backup/package6601119603826536199.apk flg=0x2000000 cmp=com.android.packageinstaller/.InstallInstalling (has extras)} from uid 10026
+05-19 11:44:17.410  1251  1266 I ActivityTaskSupervisor: The Process com.android.packageinstaller Already Exists in BG. So sending its PID: 5976
+05-19 11:44:17.462  5121  5121 I (virq   : irq_count)- GICv3:IPI(1):49808041 GICv3:arch_timer(11):35253323 GICv3:IPI(6):5155898 GICv3:i2c_geni(172):3289329 GICv3:apps_rsc(22):2396288 GICv3:IPI(2):1778783 ipcc:glink-native-adsp(363):1668015 GICv3:ipcc_0(32):1550494 GICv3:190b6400.qcom,bwmon-llcc(26):1185773 GICv3:kgsl_hfi_irq(176):847950
+05-19 11:44:17.463  5121  5121 I (ipi    : irq_count)- 0:49808041 1:1778783 2:0 3:0 4:0 5:5155898 6:0
+05-19 11:44:18.174  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onCreated() sessionId = 2100619794
+05-19 11:44:18.180  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onActiveChanged() sessionId = 2100619794, active = true
+05-19 11:44:18.213  1251  1373 D ActivityRecord: setupResumeState: com.android.packageinstaller/.InstallInstalling, true, booted=true
+05-19 11:44:18.216  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.0
+05-19 11:44:18.370  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.007529076
+05-19 11:44:18.426  1251  1274 I ActivityMetricsLogger: Displayed com.android.packageinstaller/.InstallInstalling: +1s57ms
+05-19 11:44:18.521  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.022587229
+05-19 11:44:18.546  1251  5634 W InputManager-JNI: Input channel object '56c2d64 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity (client)' was disposed without first being removed with the input manager!
+05-19 11:44:18.671  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.03764538
+05-19 11:44:18.821  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.052703537
+05-19 11:44:18.913  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.06776168
+05-19 11:44:19.056  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.082819834
+05-19 11:44:19.188  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.09787798
+05-19 11:44:19.280  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.11293614
+05-19 11:44:19.380  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.1279943
+05-19 11:44:19.507  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.14305246
+05-19 11:44:19.647  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.15811062
+05-19 11:44:19.987  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.17316878
+05-19 11:44:20.069  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.18822694
+05-19 11:44:20.138  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.2032851
+05-19 11:44:20.204  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.21834324
+05-19 11:44:20.271  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.23340137
+05-19 11:44:20.347  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.2484595
+05-19 11:44:20.438  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.26351765
+05-19 11:44:20.576  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.27857578
+05-19 11:44:20.664  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.2936339
+05-19 11:44:20.780  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.30869207
+05-19 11:44:20.859  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.3237502
+05-19 11:44:20.987  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.33880833
+05-19 11:44:21.141  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.35386646
+05-19 11:44:21.215  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.3689246
+05-19 11:44:21.268  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.38398275
+05-19 11:44:21.323  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.39904088
+05-19 11:44:21.393  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.41409904
+05-19 11:44:21.473  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.42915717
+05-19 11:44:21.540  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.4442153
+05-19 11:44:21.587  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.45927343
+05-19 11:44:21.685  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.4743316
+05-19 11:44:21.817  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.48938972
+05-19 11:44:21.900  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.5044479
+05-19 11:44:21.988  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.519506
+05-19 11:44:22.114  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.53456414
+05-19 11:44:22.181  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.54962224
+05-19 11:44:22.295  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.5646804
+05-19 11:44:22.403  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.57973856
+05-19 11:44:22.539  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.59479666
+05-19 11:44:22.659  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.6098548
+05-19 11:44:22.792  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.6249129
+05-19 11:44:22.977  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.6399711
+05-19 11:44:23.059  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.65502924
+05-19 11:44:23.165  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.67008734
+05-19 11:44:23.277  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.6851455
+05-19 11:44:23.448  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.7002036
+05-19 11:44:23.503  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.71526176
+05-19 11:44:23.647  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.7303199
+05-19 11:44:23.769  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.745378
+05-19 11:44:23.978  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.7604362
+05-19 11:44:24.120  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.7754943
+05-19 11:44:24.274  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.79055244
+05-19 11:44:27.908  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.8
+05-19 11:44:28.997  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onProgressChanged() sessionId = 2100619794, progress = 0.90000004
+05-19 11:44:29.634  1251  1283 W ActivityRecord: Force removing ActivityRecord{f9b9a02 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t36 f}}: app died, no saved state
+05-19 11:44:29.645  1251  1283 W InputManager-JNI: Input channel object '186967c com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity (client)' was disposed without first being removed with the input manager!
+05-19 11:44:29.916  1251  1282 W UsageStatsService: Unexpected activity event reported! (com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity event : 23 instanceId : 143806180)
+05-19 11:44:30.405  1251  1283 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.intent.action.PACKAGE_ADDED dat=package:com.rokid.glesse flg=0x4000010 (has extras) } to com.android.packageinstaller/.PackageInstalledReceiver
+05-19 11:44:30.917  2028  2028 D Launcher_Log: PackageInstaller.SessionCallback -> onFinished() sessionId = 2100619794
+05-19 11:44:31.037  1251  1379 I ActivityStarter: START u0 {dat=file:///data/user_de/0/com.android.packageinstaller/no_backup/package6601119603826536199.apk flg=0x2000000 cmp=com.android.packageinstaller/.InstallSuccess (has extras)} from uid 10026
+05-19 11:44:31.211  1251  5634 I ActivityTaskSupervisor: The Process com.android.packageinstaller Already Exists in BG. So sending its PID: 5976
+05-19 11:44:31.429  1251  2853 D ActivityRecord: setupResumeState: com.android.packageinstaller/.InstallSuccess, true, booted=true
+05-19 11:44:31.596  1251  1274 I ActivityMetricsLogger: Displayed com.android.packageinstaller/.InstallSuccess: +508ms
+05-19 11:44:31.633  1251  2853 W InputManager-JNI: Input channel object '700368f com.android.packageinstaller/com.android.packageinstaller.InstallInstalling (client)' was disposed without first being removed with the input manager!
+05-19 11:44:37.547  1251  6022 W InputManager-JNI: Input channel object 'bd9c355 com.android.packageinstaller/com.android.packageinstaller.InstallSuccess (client)' was disposed without first being removed with the input manager!
+05-19 11:44:37.565  1251  1282 W UsageStatsService: Unexpected activity event reported! (com.android.packageinstaller/com.android.packageinstaller.DeleteStagedFileOnResult event : 23 instanceId : 131307427)
+05-19 11:45:46.938  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:45:47.025  1917  2411 I turen   : [R2][03:41:15.232] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:47.026  1917  2411 I turen   : [R2][03:41:15.232] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:56.555  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:56.555  1917  2411 I turen   : [R2][03:41:24.736] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:56.556  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:56.557  1917  2411 I turen   : [R2][03:41:24.736] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:56.558  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:56.558  1917  2411 I turen   : [R2][03:41:24.736] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:56.559  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:56.559  1917  2411 I turen   : [R2][03:41:24.736] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:56.560  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:56.560  1917  2411 I turen   : [R2][03:41:24.736] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:56.561  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:56.561  1917  2411 I turen   : [R2][03:41:24.736] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:56.561  1917  2411 I turen   : [R2][03:41:24.736] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:56.562  1917  2411 I turen   : [R2][03:41:24.736] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:56.604  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:45:56.639  1917  2411 I turen   : [R2][03:41:24.832] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:56.639  1917  2411 I turen   : [R2][03:41:24.832] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:59.210  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:59.210  1917  2411 I turen   : [R2][03:41:27.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:59.211  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:59.212  1917  2411 I turen   : [R2][03:41:27.392] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:59.213  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:59.213  1917  2411 I turen   : [R2][03:41:27.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:59.214  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:59.214  1917  2411 I turen   : [R2][03:41:27.392] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:59.215  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:59.215  1917  2411 I turen   : [R2][03:41:27.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:59.215  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:59.215  1917  2411 I turen   : [R2][03:41:27.392] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:45:59.216  1917  2411 I turen   : [R2][03:41:27.392] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:45:59.216  1917  2411 I turen   : [R2][03:41:27.392] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:45:59.241  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:45:59.297  1917  2411 I turen   : [R2][03:41:27.488] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:45:59.298  1917  2411 I turen   : [R2][03:41:27.488] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:00.747  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:00.747  1917  2411 I turen   : [R2][03:41:28.960] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:00.749  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:00.750  1917  2411 I turen   : [R2][03:41:28.960] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:00.751  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:00.751  1917  2411 I turen   : [R2][03:41:28.960] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:00.751  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:00.752  1917  2411 I turen   : [R2][03:41:28.960] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:00.757  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:00.757  1917  2411 I turen   : [R2][03:41:28.960] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:00.757  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:00.757  1917  2411 I turen   : [R2][03:41:28.960] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:00.759  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:00.759  1917  2411 I turen   : [R2][03:41:28.960] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:00.776  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:46:00.777  1917  2411 I turen   : [R2][03:41:28.960] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:00.777  1917  2411 I turen   : [R2][03:41:28.960] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:41.502   282   282 E lowmemorykiller: Memory Load: [4] {pid:5976} {size:80 MB} {name:com.android.packageinstaller} {oom_score:1154}
+05-19 11:46:41.619  1917  2411 I turen   : [R2][03:42:09.792] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:41.619  1917  2411 I turen   : [R2][03:42:09.792] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:41.620  1917  2411 I turen   : [R2][03:42:09.792] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:41.621  1917  2411 I turen   : [R2][03:42:09.824] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:41.623  1917  2411 I turen   : [R2][03:42:09.824] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:41.623  1917  2411 I turen   : [R2][03:42:09.824] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:41.624  1917  2411 I turen   : [R2][03:42:09.824] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:41.625  1917  2411 I turen   : [R2][03:42:09.824] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:41.626  1917  2411 I turen   : [R2][03:42:09.824] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:41.626  1917  2411 I turen   : [R2][03:42:09.824] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:41.627  1917  2411 I turen   : [R2][03:42:09.824] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:46:41.627  1917  2411 I turen   : [R2][03:42:09.824] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:46:41.628  1917  2411 I turen   : [R2][03:42:09.824] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:46:41.628  1917  2411 I turen   : [R2][03:42:09.824] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:46:41.653  1251  1266 D ActivityRecord: setupResumeState: com.android.packageinstaller/.DeleteStagedFileOnResult, true, booted=true
+05-19 11:46:41.695  1251  1321 W InputManager-JNI: Input channel object 'd29edb8 com.android.packageinstaller/com.android.packageinstaller.DeleteStagedFileOnResult (client)' was disposed without first being removed with the input manager!
+05-19 11:47:01.843   282   282 E lowmemorykiller: Memory Load: [4] {pid:5976} {size:79 MB} {name:com.android.packageinstaller} {oom_score:1290}
+05-19 11:47:23.011  6409  6635 E TransportRuntime.CctTransportBackend: java.net.SocketTimeoutException: failed to connect to firebaselogging.googleapis.com/216.239.34.223 (port 443) from /192.168.1.68 (port 59432) after 30000ms
+05-19 11:52:41.333  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:52:41.343  1917  2411 I turen   : [R2][03:48:09.536] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:52:41.344  1917  2411 I turen   : [R2][03:48:09.536] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:52:54.985  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:52:54.985  1917  2411 I turen   : [R2][03:48:23.168] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:52:54.986  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:52:54.987  1917  2411 I turen   : [R2][03:48:23.168] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:52:54.988  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:52:54.988  1917  2411 I turen   : [R2][03:48:23.168] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:52:54.989  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:52:54.990  1917  2411 I turen   : [R2][03:48:23.168] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:52:54.992  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:52:54.992  1917  2411 I turen   : [R2][03:48:23.168] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:52:54.993  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:52:54.994  1917  2411 I turen   : [R2][03:48:23.168] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:52:54.996  1917  2411 I turen   : [R2][03:48:23.168] [src/R2Config.cpp     563]D Remove wakeup word pinyin: 检查更新, wordtype: 3
+05-19 11:52:54.996  1917  2411 I turen   : [R2][03:48:23.168] [R2LothalImpl.cpp     496]D wakeword need remove type:3, 检查更新
+05-19 11:52:55.021  6409  6409 I AiInspectionMenu: 统一输入语音注册成功: 实时分析, 设备指引, 隐患拍照, 检查更新
+05-19 11:52:55.078  1917  2411 I turen   : [R2][03:48:23.264] [src/R2Config.cpp     621]D Is user defined wakewords, content:检查更新
+05-19 11:52:55.079  1917  2411 I turen   : [R2][03:48:23.264] [ctcengine.cpp        684]D add wakewords pinyin:jian cha geng xin, content:检查更新
+05-19 11:52:56.035   282   282 E lowmemorykiller: Memory Load: [4] {pid:5976} {size:79 MB} {name:com.android.packageinstaller} {oom_score:1290}

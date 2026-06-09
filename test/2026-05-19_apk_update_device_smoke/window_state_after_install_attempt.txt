@@ -1,0 +1,28 @@
+      Window #1: WindowStateAnimator{cb37064 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity}
+      Window #2: WindowStateAnimator{5fd82cd com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}
+      Window #4: WindowStateAnimator{9400e93 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}
+    mPackageName=com.rokid.glesse
+  deepestLastOrientationSource=ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+  mCurrentFocus=Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}
+  mFocusedApp=ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+        * ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+      * Task{a389625 #36 type=standard A=10066:com.rokid.glesse U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=2}
+        * ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+        * ActivityRecord{f9b9a02 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t36}
+    mFocusedWindow=Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}
+    mTopFullscreenOpaqueWindowState=Window{e7ebd6b u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}
+  ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+  ActivityRecord{bf84162 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity t36}
+  ActivityRecord{f9b9a02 u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity t36}
+  Window #3 Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}:
+    WindowStateAnimator{9400e93 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}:
+  Window #5 Window{e7ebd6b u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}:
+    mOwnerUid=10066 showForAllUsers=false package=com.rokid.glesse appop=NONE
+    WindowStateAnimator{5fd82cd com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}:
+  Window #6 Window{186967c u0 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity}:
+    mOwnerUid=10066 showForAllUsers=false package=com.rokid.glesse appop=NONE
+    WindowStateAnimator{cb37064 com.rokid.glesse/com.rokid.glass.updater.AppUpdatePromptActivity}:
+  #0 Window{56c2d64 u0 com.android.packageinstaller/com.android.packageinstaller.PackageInstallerActivity}
+  mLastDisplayFreezeDuration=0 due to Window{d6ed224 u0 com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity}
+      topApp=ActivityRecord{5b8322a u0 com.android.packageinstaller/.PackageInstallerActivity t35}
+      snapshot=TaskSnapshot{ mId=1779162149124 mTopActivityComponent=com.android.packageinstaller/.PackageInstallerActivity mSnapshot=android.hardware.HardwareBuffer@e903e01 (480x640) mColorSpace=sRGB IEC61966-2.1 (id=0, model=RGB) mOrientation=1 mRotation=0 mTaskSize=Point(480, 640) mContentInsets=[0,0][0,0] mLetterboxInsets=[0,0][0,0] mIsLowResolution=false mIsRealSnapshot=true mWindowingMode=1 mAppearance=0 mIsTranslucent=true mHasImeSurface=false

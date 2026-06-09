@@ -1,0 +1,12 @@
+--------- beginning of main
+05-19 11:59:24.975  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2,raw:input tap 405 250
+--------- beginning of kernel
+05-19 11:59:26.775  5577  5577 I (virq   : irq_count)- GICv3:IPI(1):51337154 GICv3:arch_timer(11):36031744 GICv3:IPI(6):5231044 GICv3:i2c_geni(172):3321357 GICv3:apps_rsc(22):2470993 GICv3:IPI(2):1875050 ipcc:glink-native-adsp(363):1809505 GICv3:ipcc_0(32):1674947 GICv3:190b6400.qcom,bwmon-llcc(26):1237069 GICv3:kgsl_hfi_irq(176):884615
+05-19 11:59:26.775  5577  5577 I (cpu    : irq_count)- 0:29773220 1:30758502 2:23731523 3:23617116
+05-19 11:59:26.775  5577  5577 I (ipi    : irq_count)- 0:51337154 1:1875050 2:0 3:0 4:0 5:5231044 6:0
+05-19 11:59:28.698   883   883 I CNSS    : /sys/wifi/dump_in_progress doesn't exist
+05-19 11:59:28.698   883   883 I CNSS    : /sys/wifi/max_chipset_log_size doesn't exist
+05-19 11:59:29.367  6873  6873 W FG_CW221X: cw_update_data-575 : vol = 4484  current = 0 cap = 100 temp = 295
+05-19 11:59:29.471   786   786 W healthd : battery l=100 v=4484 t=29.5 h=2 st=5 c=0 cc=7 chg=u
+05-19 11:59:32.244  1917  6342 I Transport-sdk: ClassicBluetoothService  ---MonitorSocket messageRunState = true, audioRunState = true, streamRunState = true, fileRunState = true
+05-19 11:59:33.336  1244  1244 I adbd    : RKD-- daemon_service_to_fd : shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d'
