@@ -40,8 +40,17 @@ class MyApplication : Application() {
 
         // 获取全局 Context 的方法
         var sendVideoStatus = false
+        @Volatile
+        private var wifiConnectedToastShown = false
+
         fun getContext(): MyApplication {
             return mContext ?: throw IllegalStateException("Application not initialized")
+        }
+
+        fun consumeWifiConnectedToast(): Boolean {
+            if (wifiConnectedToastShown) return false
+            wifiConnectedToastShown = true
+            return true
         }
     }
 
@@ -94,6 +103,7 @@ class MyApplication : Application() {
                 // 所有 Activity 均已销毁，应用已退出，清除企业信息和本轮巡检累计结果。
                 InspectionWorkflowSession.clearInspectionAccumulatedResults()
                 InspectionWorkflowSession.clearEnterpriseData()
+                wifiConnectedToastShown = false
                 AppFileLogger.i("MyApplication", "app exited, enterprise and inspection session cleared")
             }
         }

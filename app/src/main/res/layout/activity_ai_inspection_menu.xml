@@ -17,6 +17,22 @@
         android:textColor="@color/green"
         android:textSize="12sp" />
 
+    <TextView
+        android:id="@+id/tvWifiConnectedToast"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="@dimen/inspection_upload_success_toast_margin_bottom"
+        android:background="@drawable/glass_card_outline"
+        android:gravity="center"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:text="@string/ai_entry_wifi_connected"
+        android:textColor="@color/green"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -100,17 +116,35 @@
             android:textSize="18sp"
             android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/tvWifiRequiredConfirm"
-            android:layout_width="120dp"
-            android:layout_height="42dp"
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:background="@drawable/inspection_mode_item_bg_selected"
             android:gravity="center"
-            android:text="@string/ai_entry_wifi_required_confirm"
-            android:textColor="@color/green"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tvWifiRetry"
+                android:layout_width="86dp"
+                android:layout_height="40dp"
+                android:background="@drawable/glass_card_outline_selected"
+                android:gravity="center"
+                android:text="@string/ai_entry_wifi_retry"
+                android:textColor="@color/green"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvWifiExit"
+                android:layout_width="86dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/glass_card_outline"
+                android:gravity="center"
+                android:text="@string/ai_entry_wifi_exit"
+                android:textColor="@color/green"
+                android:textSize="15sp" />
+        </LinearLayout>
     </LinearLayout>
 
     <!-- 退出确认覆盖层 -->

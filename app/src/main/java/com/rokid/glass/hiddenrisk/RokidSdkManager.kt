@@ -8,7 +8,11 @@ import com.rokid.security.glass3.open.sdk.client.IServiceConnectionCallback
 import com.rokid.security.system.server.IClientCallback
 import com.rokid.security.system.server.device.IDeviceService
 import com.rokid.security.system.server.device.listener.IAppVisibilityListener
+import com.rokid.security.system.server.device.listener.IWifiOperationCallback
+import com.rokid.security.glass3.sdk.base.data.device.wifi.WifiConnectRequest
+import com.rokid.security.glass3.sdk.base.data.device.wifi.WifiOperationCode
 import com.rokid.glass.utils.AppFileLogger
+import com.rokid.glass.wifi.WifiQrPayload
 import java.util.concurrent.CopyOnWriteArraySet
 
 object RokidSdkManager {
@@ -134,6 +138,74 @@ object RokidSdkManager {
             ?.let { parts.add("Power:${it}%") }
 
         return parts.takeIf { it.isNotEmpty() }?.joinToString(" ")
+    }
+
+    fun connectWifi(payload: WifiQrPayload, callback: (Boolean, String?) -> Unit) {
+        val service = deviceService
+        if (state != SdkState.READY || service == null) {
+            if (state == SdkState.FAILED) {
+                mainHandler.post { callback(false, lastErrorMessage ?: "Rokid SDK 连接失败") }
+                return
+            }
+            val listener = object : Listener {
+                override fun onSdkStateChanged(state: SdkState) {
+                    when (state) {
+                        SdkState.READY -> {
+                            removeListener(this)
+                            connectWifi(payload, callback)
+                        }
+                        SdkState.FAILED -> {
+                            removeListener(this)
+                            callback(false, lastErrorMessage ?: "Rokid SDK 连接失败")
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+            addListener(listener)
+            ensureInitialized()
+            return
+        }
+
+        val securityType = when (payload.securityType) {
+            WifiQrPayload.SecurityType.OPEN -> WifiConnectRequest.SECURITY_OPEN
+            WifiQrPayload.SecurityType.WEP -> WifiConnectRequest.SECURITY_WEP
+            WifiQrPayload.SecurityType.WPA_PSK -> WifiConnectRequest.SECURITY_WPA_PSK
+            WifiQrPayload.SecurityType.WPA3_SAE -> WifiConnectRequest.SECURITY_WPA3_SAE
+        }
+        val request = WifiConnectRequest(
+            ssid = payload.ssid,
+            bssid = "",
+            securityType = securityType,
+            password = payload.password.orEmpty(),
+            hiddenSsid = payload.hiddenSsid,
+            enterprise = null,
+            removeExisting = true,
+            connectTimeoutMs = WifiConnectRequest.DEFAULT_TIMEOUT_MS,
+        )
+        AppFileLogger.i(TAG, "connectWifi request ssid=${payload.ssid} security=${payload.securityType} hidden=${payload.hiddenSsid}")
+        runCatching {
+            service.connectWifi(
+                request,
+                object : IWifiOperationCallback.Stub() {
+                    override fun onProgress(stage: Int, message: String?) {
+                        AppFileLogger.i(TAG, "connectWifi progress ssid=${payload.ssid} stage=$stage message=$message")
+                    }
+
+                    override fun onResult(resultCode: Int, message: String?, networkId: Int, ssid: String?) {
+                        val success = resultCode == WifiOperationCode.SUCCESS
+                        AppFileLogger.i(
+                            TAG,
+                            "connectWifi result ssid=${ssid ?: payload.ssid} resultCode=$resultCode networkId=$networkId success=$success message=$message",
+                        )
+                        mainHandler.post { callback(success, message) }
+                    }
+                },
+            )
+        }.onFailure { error ->
+            AppFileLogger.e(TAG, "connectWifi failed ssid=${payload.ssid}", error)
+            mainHandler.post { callback(false, error.message) }
+        }
     }
 
     fun release() {

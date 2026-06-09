@@ -54,6 +54,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = '1.8'
+        freeCompilerArgs += '-Xskip-metadata-version-check'
     }
     buildFeatures {
         buildConfig true
@@ -92,8 +93,12 @@ dependencies {
     implementation libs.androidx.ui.tooling.preview
     implementation libs.androidx.material3
     implementation libs.androidx.constraintlayout
-    implementation ('com.rokid.security:glass3.open.sdk:2.1.9-E'){
+    implementation ('com.rokid.security:glass3.open.sdk:2.2.0-E'){
         exclude group: "org.slf4j"
+    }
+    implementation ('com.rokid.security.glass3.qrcode:scanner:1.0.3') {
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-metadata-jvm'
     }
 //    implementation ('com.rokid.security:glass3.open.sdk:2.1.04-E'){
 //        exclude group: "org.slf4j"
