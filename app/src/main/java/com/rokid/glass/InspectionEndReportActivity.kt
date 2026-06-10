@@ -188,13 +188,13 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         if (finishExitTriggered) return
         finishExitTriggered = true
         if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
-            exitAppAfterFinishSubmitted()
+            returnToMainMenuAfterFinish()
             return
         }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         if (enterprisePayload == null) {
             android.util.Log.w(TAG, "skip finish background upload: missing enterprise payload")
-            exitAppAfterFinishSubmitted()
+            returnToMainMenuAfterFinish()
             return
         }
         val taskId = InspectionBackgroundUploadQueue.enqueueFinishInspection(
@@ -208,7 +208,7 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         if (!taskId.isNullOrBlank()) {
             InspectionBackgroundUploadService.start(this, taskId)
         }
-        exitAppAfterFinishSubmitted()
+        returnToMainMenuAfterFinish()
     }
 
     private fun buildFinishUploadTaskKey(payload: InspectionWorkflowSession.EnterpriseQrPayload): String {
@@ -244,6 +244,23 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         }
     }
 
+    /**
+     * 提交成功后返回主菜单，清空巡检状态但保留企业信息，暂停相机但不释放。
+     */
+    private fun returnToMainMenuAfterFinish() {
+        if (isFinishing || isDestroyed) return
+        InspectionWorkflowSession.clearInspectionAccumulatedResults()
+        InspectionCameraCoordinator.pause(
+            InspectionCameraCoordinator.CameraOwner.AI_INSPECTION,
+            reason = "inspection_end_return_to_main_menu",
+        )
+        startActivity(Intent(this, MainMenuActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+        })
+        finish()
+    }
+
+    @Deprecated("已废弃，提交成功后统一返回主菜单，不再退出应用。")
     private fun exitAppAfterFinishSubmitted() {
         if (isFinishing || isDestroyed) return
         InspectionWorkflowSession.resetAll()
