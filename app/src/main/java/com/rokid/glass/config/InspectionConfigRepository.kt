@@ -109,6 +109,7 @@ object InspectionConfigRepository {
             enterpriseInfo = merge(base.enterpriseInfo, override.enterpriseInfo),
             aiInspection = merge(base.aiInspection, override.aiInspection),
             network = merge(base.network, override.network),
+            appVisibility = merge(base.appVisibility, override.appVisibility),
         )
     }
 
@@ -266,6 +267,15 @@ object InspectionConfigRepository {
             connectTimeoutMs = override?.connectTimeoutMs ?: base.connectTimeoutMs,
             readTimeoutMs = override?.readTimeoutMs ?: base.readTimeoutMs,
             writeTimeoutMs = override?.writeTimeoutMs ?: base.writeTimeoutMs,
+        )
+    }
+
+    private fun merge(
+        base: AppVisibilityConfig,
+        override: AppVisibilityConfigOverride?,
+    ): AppVisibilityConfig {
+        return AppVisibilityConfig(
+            mode = override?.mode ?: base.mode,
         )
     }
 
