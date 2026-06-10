@@ -11,6 +11,7 @@ object AppVisibilityConfigFactory {
     const val SCANNER_APP_NAME = "扫一扫"
 
     val supportedBuiltInApps = listOf(
+        GlassAppType.XPERT,
         GlassAppType.AI_WORK_ASSISTANT,
         GlassAppType.AI_CHAT,
         GlassAppType.AI_INSPECTION,
@@ -21,12 +22,12 @@ object AppVisibilityConfigFactory {
     )
 
     fun create(config: com.rokid.glass.config.InspectionAppConfig = com.rokid.glass.config.InspectionAppConfig()): GlassAppConfig {
-        val builtInApps = when (config.appVisibility.mode) {
-            com.rokid.glass.config.AppVisibilityMode.FULL -> supportedBuiltInApps
-            com.rokid.glass.config.AppVisibilityMode.MINIMAL -> emptyList()
+        val hiddenBuiltInApps = when (config.appVisibility.mode) {
+            com.rokid.glass.config.AppVisibilityMode.FULL -> emptyList()
+            com.rokid.glass.config.AppVisibilityMode.MINIMAL -> supportedBuiltInApps
         }
         return GlassAppConfig(
-            builtInApps,
+            hiddenBuiltInApps,
             listOf(
                 ThirdPartyApp(INSPECTION_APP_PACKAGE, INSPECTION_APP_NAME),
                 ThirdPartyApp(SCANNER_APP_PACKAGE, SCANNER_APP_NAME),

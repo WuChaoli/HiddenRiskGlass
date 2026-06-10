@@ -1,0 +1,5 @@
+device=1901092544019017
+process_id=6830
+screen_on_schedules=3
+screen_on_first_success=3
+screen_on_second_success=3

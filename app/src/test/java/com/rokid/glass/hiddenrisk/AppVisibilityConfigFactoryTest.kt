@@ -10,15 +10,34 @@ import org.junit.Test
 class AppVisibilityConfigFactoryTest {
 
     @Test
-    fun `create with FULL mode shows all built-in apps`() {
+    fun `create with FULL mode hides no built-in apps`() {
         val config = AppVisibilityConfigFactory.create(
             InspectionAppConfig(
                 appVisibility = AppVisibilityConfig(mode = AppVisibilityMode.FULL),
             ),
         )
 
+        assertEquals(emptyList<GlassAppType>(), config.appList)
         assertEquals(
             listOf(
+                AppVisibilityConfigFactory.INSPECTION_APP_PACKAGE,
+                AppVisibilityConfigFactory.SCANNER_APP_PACKAGE,
+            ),
+            requireNotNull(config.thirdApps).map { it.packageName },
+        )
+    }
+
+    @Test
+    fun `create with MINIMAL mode hides all supported built-in apps`() {
+        val config = AppVisibilityConfigFactory.create(
+            InspectionAppConfig(
+                appVisibility = AppVisibilityConfig(mode = AppVisibilityMode.MINIMAL),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                GlassAppType.XPERT,
                 GlassAppType.AI_WORK_ASSISTANT,
                 GlassAppType.AI_CHAT,
                 GlassAppType.AI_INSPECTION,
@@ -39,28 +58,10 @@ class AppVisibilityConfigFactoryTest {
     }
 
     @Test
-    fun `create with MINIMAL mode hides all built-in apps`() {
-        val config = AppVisibilityConfigFactory.create(
-            InspectionAppConfig(
-                appVisibility = AppVisibilityConfig(mode = AppVisibilityMode.MINIMAL),
-            ),
-        )
-
-        assertEquals(emptyList<Any>(), config.appList)
-        assertEquals(
-            listOf(
-                AppVisibilityConfigFactory.INSPECTION_APP_PACKAGE,
-                AppVisibilityConfigFactory.SCANNER_APP_PACKAGE,
-            ),
-            requireNotNull(config.thirdApps).map { it.packageName },
-        )
-    }
-
-    @Test
     fun `create with default config uses FULL mode`() {
         val config = AppVisibilityConfigFactory.create()
 
-        // 默认配置下应该显示所有内置应用
-        assertEquals(7, config.appList?.size ?: 0)
+        // 默认配置下不隐藏内置应用
+        assertEquals(0, config.appList?.size ?: 0)
     }
 }

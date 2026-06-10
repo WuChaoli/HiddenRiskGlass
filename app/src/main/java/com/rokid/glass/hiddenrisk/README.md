@@ -153,12 +153,15 @@ DeviceGuideActivity:
 | `ResolvedHazardContent.kt` | 解析后隐患内容数据类 | |
 | `InspectionRetryExecutor.kt` | 重试执行器（最多 4 次，1s/2s/3s 递增延迟）| |
 
-### 基础/系统（4 个）
+### 基础/系统
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
 | `BaseGlassActivity.kt` | Activity 基类 | |
-| `RokidSdkManager.kt` | Rokid SDK 管理器 | `ensureInitialized()` |
+| `RokidSdkManager.kt` | Rokid SDK 管理器；负责 SDK 初始化、重连及应用可见性配置串行提交 | `ensureInitialized()`, `requestAppVisibilityConfiguration()` |
+| `AppVisibilityConfigFactory.kt` | 按运行时模式生成 Launcher 隐藏列表和第三方应用顺序 | `create()` |
+| `AppVisibilityRefreshScheduler.kt` | 亮屏后两次延迟重配并去重待执行任务 | `scheduleScreenOnRefresh()`, `cancel()` |
+| `AppVisibilityKeepAliveService.kt` | 提升应用退到 Launcher 后的进程存活优先级 | `onCreate()`, `onStartCommand()` |
 | `HeadGestureManager.kt` | 头部手势管理 | |
 | `MotionStabilityTracker.kt` | 头部稳定性跟踪 | |
 | `GlassKeyEvent.kt` | 眼镜按键事件 | |
@@ -242,6 +245,25 @@ DeviceGuideActivity (DETECTING)
   → AiArSseService.requestDeepAnalysis() → /ai/deep
   → RESULT/DETAIL
   → Activity 退出: detectSseService.releaseConnections()
+```
+
+### 链路 7：Launcher 应用可见性
+```
+MyApplication
+  → SDK 首次就绪/服务重连
+    → RokidSdkManager.requestAppVisibilityConfiguration(reason)
+      → AppVisibilityConfigFactory.create()
+      → IDeviceService.configureAppVisibility()
+
+  → ACTION_SCREEN_ON
+    → AppVisibilityRefreshScheduler.scheduleScreenOnRefresh()
+      → 300ms 后提交 screen_on_first
+      → 1500ms 后提交 screen_on_second
+
+AppVisibilityKeepAliveService
+  → Activity 前台恢复后启动
+  → startForeground() + START_STICKY
+  → 提高退到 Launcher 后的进程存活优先级
 ```
 
 ---

@@ -123,6 +123,7 @@ graph TD
 | JNI 推理 | `jni/` HiddenRiskNcnn.detect() | `hiddenrisk/` InspectionSession | NV21帧 -> `DetectionResult[]` |
 | SSE 通信 | `hiddenrisk/` AiArSseService | `hiddenrisk/` OnlineHazardDetectionService | OkHttp SSE -> `ResolvedHazardContent` |
 | HTTP 客户端 | `network/` HttpClientProvider | `hiddenrisk/`, `updater/` | OkHttpClient (单例) |
+| Launcher 应用可见性 | `MyApplication` + `hiddenrisk/` RokidSdkManager | Rokid Glass SDK / Launcher | `GlassAppConfig(hiddenApps, thirdApps)`；亮屏后延迟两次幂等提交 |
 
 ---
 
@@ -275,6 +276,31 @@ sequenceDiagram
     Remote-->>DG: RESULT/DETAIL 展示
 ```
 
+### 3.7 系统链路：Launcher 应用可见性恢复
+
+```mermaid
+sequenceDiagram
+    participant App as MyApplication
+    participant KeepAlive as 可见性保活服务
+    participant Scheduler as 亮屏重配调度器
+    participant SDK as RokidSdkManager
+    participant Launcher as Rokid Launcher
+    participant Phone as 手机侧应用配置
+
+    App->>SDK: SDK 首次就绪或服务重连
+    SDK->>Launcher: configureAppVisibility(隐藏业务应用, 本App/扫一扫排序)
+    App->>KeepAlive: Activity 前台恢复后启动
+    KeepAlive->>KeepAlive: startForeground + START_STICKY
+    Phone->>Launcher: 亮屏后可能下发默认配置
+    App->>Scheduler: ACTION_SCREEN_ON
+    Scheduler->>SDK: 300ms screen_on_first
+    SDK->>Launcher: 重新提交目标配置
+    Scheduler->>SDK: 1500ms screen_on_second
+    SDK->>Launcher: 再次覆盖手机侧默认配置
+```
+
+`MyApplication` 持有动态 `SCREEN_ON` 监听；保活服务只提高进程存活优先级。`RokidSdkManager` 对 Binder 请求做单次执行保护，并将执行期间的新原因合并为最后一次待提交请求。
+
 ---
 
 ## 4. 架构不变量与边界规则
@@ -288,6 +314,7 @@ sequenceDiagram
 | R5 | **配置只从 InspectionConfigRepository 读取**，禁止硬编码推理参数/API 端点 | 保证风味覆盖机制生效，避免"改了配置不生效"的调试陷阱 |
 | R6 | **input/ 的 HEAD_GESTURE_LISTENING_ENABLED 当前全局关闭**，不要在生产代码中重新开启 | 头部手势尚未充分验证稳定性，误触发会干扰用户体验 |
 | R7 | **上传前必须按 hidNum 去重，跳过空 hidNum** | `LocalHazardUploadItemBuilder.build()` 的职责，防止重复推送和空数据浪费带宽 |
+| R8 | **Launcher 可见性配置必须可重复提交，不能只在 SDK 首次就绪时执行一次** | 重新佩戴亮屏后 Launcher 与手机侧会重新下发默认配置，需由亮屏延迟任务覆盖 |
 
 ---
 
@@ -329,6 +356,7 @@ sequenceDiagram
 | 调试 NCNN 推理问题 | `hiddenrisk/HiddenRiskProbeActivity.kt` (探针页) + adb logcat 过滤 `detect ` | hiddenrisk/README.md |
 | App 版本更新流程 | `updater/AppUpdateManager.kt` (入口) + `updater/AppUpdatePromptActivity.kt` (UI) | 见源码注释 |
 | 修改应用初始化或开机自启动 | `MyApplication.kt` (初始化) + `utils/DeviceUtil.java` (系统属性访问) | utils/README.md |
+| 修改 Launcher 应用显示、隐藏或排序 | `hiddenrisk/AppVisibilityConfigFactory.kt` (配置) + `hiddenrisk/RokidSdkManager.kt` (提交) + `MyApplication.kt` (亮屏触发) | hiddenrisk/README.md |
 
 ---
 

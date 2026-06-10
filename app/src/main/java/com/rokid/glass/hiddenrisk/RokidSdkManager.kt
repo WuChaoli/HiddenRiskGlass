@@ -42,7 +42,10 @@ object RokidSdkManager {
     private var deviceService: IDeviceService? = null
 
     @Volatile
-    private var appVisibilityConfigurationStarted = false
+    private var appVisibilityConfigurationInFlight = false
+
+    @Volatile
+    private var pendingAppVisibilityReason: String? = null
 
     @Volatile
     var state: SdkState = SdkState.IDLE
@@ -56,6 +59,19 @@ object RokidSdkManager {
         bindSdk(force = true, rebinding = true)
     }
 
+    private val appVisibilityRefreshScheduler = AppVisibilityRefreshScheduler(
+        scheduler = object : AppVisibilityRefreshScheduler.Scheduler {
+            override fun postDelayed(runnable: Runnable, delayMs: Long) {
+                mainHandler.postDelayed(runnable, delayMs)
+            }
+
+            override fun removeCallbacks(runnable: Runnable) {
+                mainHandler.removeCallbacks(runnable)
+            }
+        },
+        refresh = ::requestAppVisibilityConfiguration,
+    )
+
     private val clientCallback = object : IClientCallback.Stub() {
         override fun onReady() {
             val serviceResult = runCatching { GlassSdk.getGlassDeviceService() }
@@ -67,7 +83,7 @@ object RokidSdkManager {
 
             deviceService = serviceResult.getOrNull()
             updateState(SdkState.READY, null)
-            configureAppVisibilityOnce()
+            requestAppVisibilityConfiguration("sdk_client_ready")
         }
     }
 
@@ -101,6 +117,54 @@ object RokidSdkManager {
 
     fun ensureInitialized() {
         bindSdk(force = false, rebinding = false)
+    }
+
+    internal fun scheduleScreenOnAppVisibilityRefresh() {
+        AppFileLogger.i(TAG, "schedule app visibility refresh reason=screen_on")
+        appVisibilityRefreshScheduler.scheduleScreenOnRefresh()
+    }
+
+    internal fun requestAppVisibilityConfiguration(reason: String) {
+        val service = deviceService
+        if (state != SdkState.READY || service == null) {
+            AppFileLogger.i(
+                TAG,
+                "configureAppVisibility deferred reason=$reason state=$state serviceAvailable=${service != null}",
+            )
+            ensureInitialized()
+            return
+        }
+
+        synchronized(stateLock) {
+            if (appVisibilityConfigurationInFlight) {
+                pendingAppVisibilityReason = reason
+                AppFileLogger.i(TAG, "configureAppVisibility queued reason=$reason")
+                return
+            }
+            appVisibilityConfigurationInFlight = true
+        }
+
+        val config = AppVisibilityConfigFactory.create(
+            com.rokid.glass.config.InspectionConfigRepository.get(),
+        )
+        AppFileLogger.i(TAG, "configureAppVisibility request reason=$reason config=$config")
+        runCatching {
+            service.configureAppVisibility(
+                config,
+                object : IAppVisibilityListener.Stub() {
+                    override fun onResult(success: Boolean) {
+                        AppFileLogger.i(
+                            TAG,
+                            "configureAppVisibility result reason=$reason success=$success",
+                        )
+                        completeAppVisibilityConfiguration()
+                    }
+                },
+            )
+        }.onFailure { error ->
+            AppFileLogger.e(TAG, "configureAppVisibility failed reason=$reason", error)
+            completeAppVisibilityConfiguration()
+        }
     }
 
     fun addListener(listener: Listener) {
@@ -210,8 +274,13 @@ object RokidSdkManager {
 
     fun release() {
         mainHandler.removeCallbacks(rebindRunnable)
+        appVisibilityRefreshScheduler.cancel()
         runCatching { GlassSdk.release() }
         deviceService = null
+        synchronized(stateLock) {
+            appVisibilityConfigurationInFlight = false
+            pendingAppVisibilityReason = null
+        }
         updateState(SdkState.IDLE, null)
         listeners.clear()
     }
@@ -240,7 +309,7 @@ object RokidSdkManager {
 
                 deviceService = deviceServiceResult.getOrNull()
                 updateState(SdkState.READY, null)
-                configureAppVisibilityOnce()
+                requestAppVisibilityConfiguration("sdk_already_ready")
                 return
             }
 
@@ -267,35 +336,17 @@ object RokidSdkManager {
         }
     }
 
-    private fun configureAppVisibilityOnce() {
-        synchronized(stateLock) {
-            if (appVisibilityConfigurationStarted) {
-                return
+    private fun completeAppVisibilityConfiguration() {
+        val pendingReason = synchronized(stateLock) {
+            appVisibilityConfigurationInFlight = false
+            pendingAppVisibilityReason.also {
+                pendingAppVisibilityReason = null
             }
-            appVisibilityConfigurationStarted = true
         }
-
-        val service = deviceService
-        if (service == null) {
-            AppFileLogger.e(TAG, "configureAppVisibility skipped: device service unavailable")
-            return
-        }
-
-        val config = AppVisibilityConfigFactory.create(
-            com.rokid.glass.config.InspectionConfigRepository.get(),
-        )
-        AppFileLogger.i(TAG, "configureAppVisibility request config=$config")
-        runCatching {
-            service.configureAppVisibility(
-                config,
-                object : IAppVisibilityListener.Stub() {
-                    override fun onResult(success: Boolean) {
-                        AppFileLogger.i(TAG, "configureAppVisibility result success=$success")
-                    }
-                },
-            )
-        }.onFailure { error ->
-            AppFileLogger.e(TAG, "configureAppVisibility failed", error)
+        if (pendingReason != null) {
+            mainHandler.post {
+                requestAppVisibilityConfiguration(pendingReason)
+            }
         }
     }
 

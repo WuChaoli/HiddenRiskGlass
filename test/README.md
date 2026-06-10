@@ -1,5 +1,20 @@
 # Test Evidence
 
+## 2026-06-10_app_visibility
+
+- 目标：验证隐藏远程协作及其他业务应用，并在三轮息屏、亮屏后保持目标应用顺序。
+- 设备：`1901092544019017`，adb 状态为 `device`。
+- 构建：`:app:testStandardDebugUnitTest` 定向测试与 `:app:assembleStandardDebug` 通过，`adb install -r` 安装成功。
+- 结论：
+  - 最终顺序为隐患巡检、扫一扫、设置、系统切换。
+  - 远程协作、AI 工作助手、AI 问答、AI 巡检、离线人脸、离线车牌、拍照和 AI 识别均隐藏。
+  - 三轮亮屏均触发两次延迟配置，第一次与第二次回调各 `3/3` 次成功。
+  - 三轮结束后应用进程仍存活，Launcher 未恢复被隐藏应用。
+- 证据：
+  - `launcher_after_three_screen_cycles.png`
+  - `visibility_refresh_logcat.txt`
+  - `verification_summary.txt`
+
 ## 2026-06-10_boot_auto_start
 
 - 目标：验证应用写入 `persist.vendor.boot.pkg` 后，Rokid Glass 重启可自动拉起应用。

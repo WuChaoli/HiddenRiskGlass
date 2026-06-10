@@ -2,10 +2,15 @@ package com.rokid.glass
 
 import android.app.Activity
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.hiddenrisk.AppVisibilityKeepAliveService
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.RokidSdkManager
 import com.rokid.glass.input.WearStateManager
@@ -58,6 +63,15 @@ class MyApplication : Application() {
 
     // 追踪当前存活的 Activity 数量，用于判断应用是否完全退出
     private var activityCount = 0
+    private var appVisibilityKeepAliveServiceStarted = false
+    private var appVisibilityKeepAliveServiceStartScheduled = false
+    private val screenOnReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_ON) {
+                RokidSdkManager.scheduleScreenOnAppVisibilityRefresh()
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -70,8 +84,15 @@ class MyApplication : Application() {
         ensureBootAutoStart()
         InspectionConfigRepository.init(this)
         WearStateManager.init(this)
+        registerReceiver(screenOnReceiver, IntentFilter(Intent.ACTION_SCREEN_ON))
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
         RokidSdkManager.initialize(this)
+    }
+
+    override fun onTerminate() {
+        runCatching { unregisterReceiver(screenOnReceiver) }
+        RokidSdkManager.release()
+        super.onTerminate()
     }
 
     private fun ensureBootAutoStart() {
@@ -113,7 +134,27 @@ class MyApplication : Application() {
         }
 
         override fun onActivityStarted(activity: Activity) {}
-        override fun onActivityResumed(activity: Activity) {}
+
+        override fun onActivityResumed(activity: Activity) {
+            if (appVisibilityKeepAliveServiceStarted || appVisibilityKeepAliveServiceStartScheduled) {
+                return
+            }
+            appVisibilityKeepAliveServiceStartScheduled = true
+            gMainHandler?.postDelayed({
+                appVisibilityKeepAliveServiceStartScheduled = false
+                runCatching {
+                    startService(Intent(this@MyApplication, AppVisibilityKeepAliveService::class.java))
+                }.onSuccess {
+                    appVisibilityKeepAliveServiceStarted = true
+                }.onFailure { throwable ->
+                    AppFileLogger.e(
+                        "MyApplication",
+                        "start app visibility keep-alive service failed",
+                        throwable,
+                    )
+                }
+            }, 500L)
+        }
         override fun onActivityPaused(activity: Activity) {}
         override fun onActivityStopped(activity: Activity) {}
         override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
