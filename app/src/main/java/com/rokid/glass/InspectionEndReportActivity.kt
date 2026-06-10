@@ -245,12 +245,12 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     /**
-     * 提交成功后返回主菜单，清空巡检状态但保留企业信息，暂停相机但不释放。
+     * 提交成功后返回主菜单，清空巡检状态，释放相机。
      */
     private fun returnToMainMenuAfterFinish() {
         if (isFinishing || isDestroyed) return
         InspectionWorkflowSession.clearInspectionAccumulatedResults()
-        InspectionCameraCoordinator.pause(
+        InspectionCameraCoordinator.releaseForNavigation(
             InspectionCameraCoordinator.CameraOwner.AI_INSPECTION,
             reason = "inspection_end_return_to_main_menu",
         )

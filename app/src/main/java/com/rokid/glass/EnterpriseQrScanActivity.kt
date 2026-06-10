@@ -376,7 +376,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         isFrameStreamReady = false
         isProcessingFrame = false
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.pause(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
     }
 
     private fun startScanLoop() {
