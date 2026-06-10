@@ -69,6 +69,7 @@ class EntryGuardCoordinator(
     // 线程安全的状态标记
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
+    private val allGuardsReadyFired = AtomicBoolean(false)
     private val wifiCheckCompleted = AtomicBoolean(false)
     private val sdkCheckCompleted = AtomicBoolean(false)
     private val cameraCheckCompleted = AtomicBoolean(false)
@@ -166,6 +167,25 @@ class EntryGuardCoordinator(
             AppFileLogger.e(TAG, "launch wifi scanner failed", error)
             postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
         }
+    }
+
+    /**
+     * 重新验证 WiFi 状态。
+     * 当 Activity 从后台返回时调用，如果之前已就绪但 WiFi 已断开，
+     * 重置 WiFi 状态并触发重新检查。
+     * @return true 表示 WiFi 仍然正常或不需要处理；false 表示 WiFi 已断开，需要重新连接
+     */
+    fun revalidateWifiState(): Boolean {
+        if (released.get()) return true
+        if (!allGuardsReadyFired.get()) return true
+        if (SystemStateUtils.getCurrentWifiSsid(context) != null) return true
+
+        AppFileLogger.w(TAG, "wifi disconnected after all guards ready, resetting wifi state")
+        // WiFi 已断开，重置相关状态
+        allGuardsReadyFired.set(false)
+        wifiCheckCompleted.set(false)
+        postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
+        return false
     }
 
     /**
@@ -378,12 +398,14 @@ class EntryGuardCoordinator(
 
     private fun tryNotifyAllGuardsReady() {
         if (released.get()) return
+        if (allGuardsReadyFired.get()) return
         // WiFi 必须完成，其他阶段独立失败不阻塞
+        // 自动更新检查是后台独立执行，不阻塞入口
         if (!wifiCheckCompleted.get()) return
         if (!sdkCheckCompleted.get()) return
         if (!cameraCheckCompleted.get()) return
-        if (!updateCheckCompleted.get()) return
         AppFileLogger.i(TAG, "all guards ready")
+        allGuardsReadyFired.set(true)
         postCallback { it.onAllGuardsReady() }
     }
 

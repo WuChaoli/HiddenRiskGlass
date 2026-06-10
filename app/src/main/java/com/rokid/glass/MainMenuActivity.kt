@@ -136,6 +136,11 @@ class MainMenuActivity : BaseGlassActivity() {
         inputSession.updateActions(buildInputActions())
         statusBarUpdater.start(statusBar)
         entryGuardCoordinator.startBackgroundGuards()
+        // 如果之前已就绪，重新验证 WiFi 状态（从第二层返回时可能已断开）
+        if (allGuardsReady && !entryGuardCoordinator.revalidateWifiState()) {
+            allGuardsReady = false
+            tvInitStatus.visibility = View.GONE
+        }
         if (!allGuardsReady) {
             tvInitStatus.visibility = View.VISIBLE
         }
