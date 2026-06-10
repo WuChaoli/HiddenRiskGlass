@@ -27,13 +27,13 @@ import com.rokid.glass.updater.AppUpdateManager
 import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.OfflineTtsPlayer
+import com.rokid.glass.utils.WifiScanConfigFactory
 import com.rokid.glass.wifi.WifiQrParseResult
 import com.rokid.glass.wifi.WifiQrParser
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import com.rokid.security.glass3.qrcode.api.GlassScanCallback
 import com.rokid.security.glass3.qrcode.api.GlassScanner
-import com.rokid.security.glass3.qrcode.model.GlassScanConfig
 import com.google.mlkit.vision.barcode.common.Barcode
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -200,7 +200,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         runCatching {
             GlassScanner.launch(
                 this,
-                GlassScanConfig(),
+                WifiScanConfigFactory.create(this),
                 object : GlassScanCallback {
                     override fun onScanSuccess(content: String?, barcode: Barcode) {
                         wifiScannerLaunching = false
