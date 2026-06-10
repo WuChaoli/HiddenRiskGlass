@@ -1,15 +1,17 @@
 package com.rokid.glass
 
 import android.app.Activity
+import android.app.Application
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.hiddenrisk.RokidSdkManager
 import com.rokid.glass.updater.AppUpdateManager
+import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.WifiScanConfigFactory
 import com.rokid.glass.wifi.WifiQrParseResult
@@ -20,6 +22,7 @@ import com.rokid.security.glass3.qrcode.api.GlassScanner
 import com.google.mlkit.vision.barcode.common.Barcode
 import java.io.IOException
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -65,14 +68,20 @@ class EntryGuardCoordinator(
 
     // 线程安全的状态标记
     private val released = AtomicBoolean(false)
+    private val started = AtomicBoolean(false)
     private val wifiCheckCompleted = AtomicBoolean(false)
     private val sdkCheckCompleted = AtomicBoolean(false)
     private val cameraCheckCompleted = AtomicBoolean(false)
     private val updateCheckCompleted = AtomicBoolean(false)
 
-    // WiFi 相关状态
-    private var wifiScannerLaunching = false
-    private var wifiConnectInProgress = false
+    // WiFi 相关状态（线程安全）
+    private val wifiScannerLaunching = AtomicBoolean(false)
+    private val wifiConnectInProgress = AtomicBoolean(false)
+
+    // 懒加载的 AppUpdateManager，避免重复创建
+    private val updateManager: AppUpdateManager by lazy {
+        AppUpdateManager(context.applicationContext)
+    }
 
     // SDK 监听器
     private val sdkListener = object : RokidSdkManager.Listener {
@@ -104,13 +113,18 @@ class EntryGuardCoordinator(
     /**
      * 启动所有后台检查。
      * 顺序：WiFi -> SDK -> 相机 -> 更新检查（各阶段独立）。
+     * 幂等：多次调用只有第一次生效。
      */
     fun startBackgroundGuards() {
         if (released.get()) {
-            Log.w(TAG, "startBackgroundGuards called after release")
+            AppFileLogger.w(TAG, "startBackgroundGuards called after release")
             return
         }
-        Log.i(TAG, "startBackgroundGuards")
+        if (!started.compareAndSet(false, true)) {
+            AppFileLogger.w(TAG, "startBackgroundGuards already started, ignoring")
+            return
+        }
+        AppFileLogger.i(TAG, "startBackgroundGuards")
         startWifiCheck()
     }
 
@@ -119,8 +133,8 @@ class EntryGuardCoordinator(
      * 由 Activity 在用户触发时调用。
      */
     fun launchWifiScanner(activity: Activity) {
-        if (released.get() || wifiScannerLaunching || wifiConnectInProgress) return
-        wifiScannerLaunching = true
+        if (released.get() || wifiScannerLaunching.get() || wifiConnectInProgress.get()) return
+        wifiScannerLaunching.set(true)
         postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
         runCatching {
             GlassScanner.launch(
@@ -128,7 +142,7 @@ class EntryGuardCoordinator(
                 WifiScanConfigFactory.create(activity),
                 object : GlassScanCallback {
                     override fun onScanSuccess(content: String?, barcode: Barcode) {
-                        wifiScannerLaunching = false
+                        wifiScannerLaunching.set(false)
                         if (content == null) {
                             postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
                         } else {
@@ -137,19 +151,19 @@ class EntryGuardCoordinator(
                     }
 
                     override fun onScanFailure(error: String) {
-                        wifiScannerLaunching = false
+                        wifiScannerLaunching.set(false)
                         postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
                     }
 
                     override fun onScanCancelled() {
-                        wifiScannerLaunching = false
+                        wifiScannerLaunching.set(false)
                         postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
                     }
                 },
             )
         }.onFailure { error ->
-            wifiScannerLaunching = false
-            Log.e(TAG, "launch wifi scanner failed", error)
+            wifiScannerLaunching.set(false)
+            AppFileLogger.e(TAG, "launch wifi scanner failed", error)
             postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
         }
     }
@@ -161,11 +175,11 @@ class EntryGuardCoordinator(
         if (released.get()) return
         updateExecutor.execute {
             try {
-                val result = AppUpdateManager(context.applicationContext).checkForUpdate(ignoreSkipped = true)
+                val result = updateManager.checkForUpdate(ignoreSkipped = true)
                 val json = result.info?.let { Gson().toJson(it) }
                 uiHandler.post { listener.onComplete(result.hasUpdate, json) }
             } catch (error: IOException) {
-                Log.e(TAG, "manual update check failed", error)
+                AppFileLogger.e(TAG, "manual update check failed", error)
                 uiHandler.post { listener.onComplete(false, null) }
             }
         }
@@ -173,13 +187,36 @@ class EntryGuardCoordinator(
 
     /**
      * 释放资源。
+     * 优雅关闭：先 shutdown() 等待任务完成，超时后再 shutdownNow()。
+     * 同时清除所有 pending 回调并强制设置各阶段完成标记。
      */
     fun release() {
         if (released.getAndSet(true)) return
-        Log.i(TAG, "release")
+        AppFileLogger.i(TAG, "release")
+
+        // 清除所有 pending 的 UI 回调
         uiHandler.removeCallbacksAndMessages(null)
+
+        // 移除 SDK 监听器
         RokidSdkManager.removeListener(sdkListener)
-        updateExecutor.shutdownNow()
+
+        // 强制设置所有完成标记，避免 release() 中间卡住其他流程
+        wifiCheckCompleted.set(true)
+        sdkCheckCompleted.set(true)
+        cameraCheckCompleted.set(true)
+        updateCheckCompleted.set(true)
+
+        // 优雅关闭线程池
+        updateExecutor.shutdown()
+        try {
+            if (!updateExecutor.awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
+                AppFileLogger.w(TAG, "updateExecutor did not terminate in time, forcing shutdown")
+                updateExecutor.shutdownNow()
+            }
+        } catch (e: InterruptedException) {
+            updateExecutor.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -188,7 +225,7 @@ class EntryGuardCoordinator(
 
     private fun startWifiCheck() {
         if (SystemStateUtils.getCurrentWifiSsid(context) != null) {
-            Log.i(TAG, "wifi already connected")
+            AppFileLogger.i(TAG, "wifi already connected")
             wifiCheckCompleted.set(true)
             postCallback { it.onWifiConnected() }
             // WiFi 就绪后继续 SDK 初始化
@@ -203,16 +240,16 @@ class EntryGuardCoordinator(
     private fun handleWifiQrContent(content: String) {
         when (val result = WifiQrParser.parse(content)) {
             is WifiQrParseResult.Error -> {
-                Log.w(TAG, "wifi qr rejected reason=${result.reason}")
+                AppFileLogger.w(TAG, "wifi qr rejected reason=${result.reason}")
                 postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
             }
             is WifiQrParseResult.Success -> {
-                wifiConnectInProgress = true
+                wifiConnectInProgress.set(true)
                 postCallback { it.onWifiConnecting() }
                 RokidSdkManager.connectWifi(result.payload) { success, errorMessage ->
-                    wifiConnectInProgress = false
+                    wifiConnectInProgress.set(false)
                     if (!success) {
-                        Log.w(TAG, "wifi connect failed message=$errorMessage")
+                        AppFileLogger.w(TAG, "wifi connect failed message=$errorMessage")
                         val message = if (RokidSdkManager.state == RokidSdkManager.SdkState.READY) {
                             R.string.ai_entry_wifi_connect_failed
                         } else {
@@ -230,17 +267,17 @@ class EntryGuardCoordinator(
     private fun confirmWifiConnected(attempt: Int = 0) {
         if (released.get()) return
         if (SystemStateUtils.getCurrentWifiSsid(context) != null) {
-            Log.i(TAG, "wifi connected confirmed")
+            AppFileLogger.i(TAG, "wifi connected confirmed")
             wifiCheckCompleted.set(true)
             postCallback { it.onWifiConnected() }
             startSdkInit()
             return
         }
-        if (attempt >= WIFI_CONFIRM_MAX_ATTEMPTS) {
+        if (attempt >= getWifiConfirmMaxAttempts()) {
             postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_connect_failed) }
             return
         }
-        uiHandler.postDelayed({ confirmWifiConnected(attempt + 1) }, WIFI_CONFIRM_INTERVAL_MS)
+        uiHandler.postDelayed({ confirmWifiConnected(attempt + 1) }, getWifiConfirmIntervalMs())
     }
 
     // -------------------------------------------------------------------------
@@ -249,10 +286,14 @@ class EntryGuardCoordinator(
 
     private fun startSdkInit() {
         if (released.get()) return
-        Log.i(TAG, "startSdkInit")
+        AppFileLogger.i(TAG, "startSdkInit")
         postSdkState(SdkInitState.INITIALIZING)
-        RokidSdkManager.initialize(context.applicationContext as android.app.Application)
+
+        // 先注册监听器，再 ensureInitialized，避免错过状态变更
         RokidSdkManager.addListener(sdkListener)
+        val app = context.applicationContext as? Application
+            ?: error("context.applicationContext is not an Application")
+        RokidSdkManager.initialize(app)
         RokidSdkManager.ensureInitialized()
 
         // 如果 SDK 已经就绪，可能不会有状态回调，直接检查
@@ -275,7 +316,7 @@ class EntryGuardCoordinator(
 
     private fun tryStartCameraWarmup() {
         if (released.get() || cameraCheckCompleted.get()) return
-        Log.i(TAG, "startCameraWarmup")
+        AppFileLogger.i(TAG, "startCameraWarmup")
         postCameraState(CameraWarmupState.WARMING_UP)
         InspectionCameraCoordinator.acquire(
             owner = CameraOwner.LOADING,
@@ -289,7 +330,7 @@ class EntryGuardCoordinator(
                 )
                 postCameraState(CameraWarmupState.READY)
             } else {
-                Log.w(TAG, "camera warmup failed")
+                AppFileLogger.w(TAG, "camera warmup failed")
                 postCameraState(CameraWarmupState.FAILED)
             }
             cameraCheckCompleted.set(true)
@@ -305,10 +346,10 @@ class EntryGuardCoordinator(
 
     private fun startAutoUpdateCheck() {
         if (released.get() || updateCheckCompleted.get()) return
-        Log.i(TAG, "startAutoUpdateCheck")
+        AppFileLogger.i(TAG, "startAutoUpdateCheck")
         updateExecutor.execute {
             try {
-                val result = AppUpdateManager(context.applicationContext).checkForUpdate(ignoreSkipped = false)
+                val result = updateManager.checkForUpdate(ignoreSkipped = false)
                 val json = result.info?.let { Gson().toJson(it) }
                 uiHandler.post {
                     if (released.get()) return@post
@@ -320,7 +361,7 @@ class EntryGuardCoordinator(
                     tryNotifyAllGuardsReady()
                 }
             } catch (error: IOException) {
-                Log.i(TAG, "auto update check skipped: ${error.message}")
+                AppFileLogger.i(TAG, "auto update check skipped: ${error.message}")
                 uiHandler.post {
                     if (released.get()) return@post
                     callback.onAutoUpdateCheckComplete(false)
@@ -342,7 +383,7 @@ class EntryGuardCoordinator(
         if (!sdkCheckCompleted.get()) return
         if (!cameraCheckCompleted.get()) return
         if (!updateCheckCompleted.get()) return
-        Log.i(TAG, "all guards ready")
+        AppFileLogger.i(TAG, "all guards ready")
         postCallback { it.onAllGuardsReady() }
     }
 
@@ -371,9 +412,28 @@ class EntryGuardCoordinator(
         }
     }
 
+    /**
+     * 获取 WiFi 确认间隔，优先从配置读取，否则使用默认值。
+     */
+    private fun getWifiConfirmIntervalMs(): Long {
+        return runCatching {
+            InspectionConfigRepository.get().aiInspection.wifiConfirmIntervalMs
+        }.getOrDefault(DEFAULT_WIFI_CONFIRM_INTERVAL_MS)
+    }
+
+    /**
+     * 获取 WiFi 确认最大重试次数，优先从配置读取，否则使用默认值。
+     */
+    private fun getWifiConfirmMaxAttempts(): Int {
+        return runCatching {
+            InspectionConfigRepository.get().aiInspection.wifiConfirmMaxAttempts
+        }.getOrDefault(DEFAULT_WIFI_CONFIRM_MAX_ATTEMPTS)
+    }
+
     companion object {
         private const val TAG = "EntryGuardCoordinator"
-        private const val WIFI_CONFIRM_INTERVAL_MS = 500L
-        private const val WIFI_CONFIRM_MAX_ATTEMPTS = 10
+        private const val DEFAULT_WIFI_CONFIRM_INTERVAL_MS = 500L
+        private const val DEFAULT_WIFI_CONFIRM_MAX_ATTEMPTS = 10
+        private const val EXECUTOR_SHUTDOWN_TIMEOUT_MS = 3000L
     }
 }
