@@ -428,6 +428,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var frameStreamReadyAtElapsedMs = 0L
     private var previewRecreateAttempted = false
     private var cameraSessionGeneration = 0L
+    private var cameraRequestToken: Long = -1L
     private var sdkReadyAtElapsedMs = 0L
     private var pendingDetectionStart = false
     private var pageState = PageState.DETECTING
@@ -875,7 +876,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReadyAtElapsedMs = 0L
         cameraSessionGeneration = 0L
         cameraRecoveryController.stop()
-        InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_on_pause")
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.AI_INSPECTION, reason = "ai_on_pause")
         super.onPause()
     }
 
@@ -926,7 +927,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRecoveryController.setRecoveryEnabled(false)
         cameraRecoveryController.notifyConsumerWaitStopped()
         cameraRecoveryController.stop()
-        InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_on_destroy")
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_on_destroy")
         RokidSdkManager.removeListener(this)
         // 注意：不单独释放 RokidFrameSource 和 hiddenRiskNcnn，由 InspectionSession 管理生命周期
         nativeExecutor.shutdown()
@@ -1117,53 +1118,45 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
         frameStreamInitializing = true
         val needPreview = shouldKeepDetectionPreviewRunning(pageState)
-        var requestGeneration = 0L
-        requestGeneration = InspectionCameraCoordinator.acquire(
+        cameraRequestToken = InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.AI_INSPECTION,
             needPreview = needPreview,
             previewView = viewLivePreview,
             enableRecovery = pageState == PageState.DETECTING,
         ) { success ->
             frameStreamInitializing = false
-            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
-                Log.i(
-                    TAG,
-                    "ignore stale ai acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
-                )
-                return@acquire
-            }
-            cameraSessionGeneration = requestGeneration
+            cameraSessionGeneration = InspectionCameraCoordinator.getGeneration()
             frameStreamReady = success
             frameStreamReadyAtElapsedMs = if (success) SystemClock.elapsedRealtime() else 0L
             if (destroyed) {
-                InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_destroyed_after_ready")
-                return@acquire
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_destroyed_after_ready")
+                return@acquireForActivity
             }
             if (!isActivityResumed || !isWorkflowActive) {
                 frameStreamReady = false
                 frameStreamReadyAtElapsedMs = 0L
-                InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_inactive_after_ready")
+                InspectionCameraCoordinator.pauseTemporarily(CameraOwner.AI_INSPECTION, reason = "ai_inactive_after_ready")
                 Log.i(
                     TAG,
                     "release frame stream after late callback resumed=$isActivityResumed active=$isWorkflowActive pageState=$pageState",
                 )
-                return@acquire
+                return@acquireForActivity
             }
             if (!success) {
                 failWorkflow("相机帧流初始化失败")
-                return@acquire
+                return@acquireForActivity
             }
             Log.i(
                 TAG,
-                "frame stream ready generation=$requestGeneration autoStartRequested=$autoInferenceStartRequested pageState=$pageState state=${InspectionCameraCoordinator.getState()}",
+                "frame stream ready generation=$cameraSessionGeneration autoStartRequested=$autoInferenceStartRequested pageState=$pageState state=${InspectionCameraCoordinator.getState()}",
             )
             Log.i(
                 TAG,
-                "diagnostic frame_stream_ready generation=$requestGeneration localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} autoInferenceStartRequested=$autoInferenceStartRequested frameStreamReady=$frameStreamReady cameraSessionGeneration=$cameraSessionGeneration",
+                "diagnostic frame_stream_ready generation=$cameraSessionGeneration localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} autoInferenceStartRequested=$autoInferenceStartRequested frameStreamReady=$frameStreamReady cameraSessionGeneration=$cameraSessionGeneration",
             )
             if (!viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
                 recreateDetectionPreviewView(reason = "frame_stream_ready_preview_not_started")
-                return@acquire
+                return@acquireForActivity
             }
             if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
                 startDetectionPreviewIfNeeded()
@@ -1176,7 +1169,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             transitionToDetection()
             refreshInputActions()
         }
-        cameraSessionGeneration = requestGeneration
     }
 
     private fun transitionToDetection() {
@@ -1288,6 +1280,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         localLabelCooldownUntilMs.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_nav_menu")
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })
@@ -1311,6 +1304,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_nav_end_report")
         startActivity(
             InspectionEndReportActivity.createIntent(
                 this,
@@ -2253,7 +2247,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.pause(CameraOwner.AI_INSPECTION, reason = "ai_wear_sleep")
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.AI_INSPECTION, reason = "ai_wear_sleep")
         tvDetectingBottomHint.visibility = View.GONE
         operationGuideDetecting.visibility = View.GONE
         statusAlertOverlay.render(
@@ -2637,6 +2631,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("设备指引", "she bei zhi yin")),
                 enabled = { canHandleDetectingInput() },
             ) {
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_nav_device_guide")
                 startActivity(Intent(this, DeviceGuideActivity::class.java))
                 finish()
             },
@@ -2650,6 +2645,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     TAG,
                     "navigateToHazardRecord pageState=$pageState resumed=$isActivityResumed active=$isWorkflowActive frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} previewStarted=${viewLivePreview.isPreviewStarted()}",
                 )
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_nav_hazard_record")
                 startActivity(Intent(this, HazardRecordActivity::class.java))
                 finish()
             },
