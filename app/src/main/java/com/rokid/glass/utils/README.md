@@ -9,7 +9,7 @@
 |------|------|----------|
 | `AppFileLogger.kt` | 应用内诊断日志落盘，写入私有外部目录便于 adb 拉取 | `log()` |
 | `BitmapUtils.kt` | Bitmap 工具：NV21 转 Bitmap、缩放、裁剪、旋转 | `nv21ToBitmap()`、`resizeBitmap()` |
-| `DeviceUtil.java` | 设备信息：序列号、型号、系统版本、屏幕参数、电量 | `getSerialNumber()`、`getDeviceModel()` |
+| `DeviceUtil.java` | 设备信息与系统属性访问：序列号、型号、系统版本、屏幕参数、电量、Rokid 系统属性 | `getSystemProp()`、`setSystemProp()`、`getSerialNumber()`、`getDeviceModel()` |
 | `DisplayUtils.kt` | dp/px 转换扩展函数 | `Context.dpToPx()`、`View.dpToPx()` |
 | `OfflineTtsPlayer.kt` | 本地提示音播放器，使用 raw 音频资源，支持抢占式播放 | `play()` |
 | `SSEUtil.kt` | SSE 服务端推送工具，封装 OkHttp EventSource 连接 | `connect()` |

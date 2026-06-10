@@ -10,6 +10,7 @@ import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.RokidSdkManager
 import com.rokid.glass.input.WearStateManager
 import com.rokid.glass.utils.AppFileLogger
+import com.rokid.glass.utils.DeviceUtil
 import com.rokid.glass.utils.ToastUtil
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.BuildConfig
@@ -35,6 +36,7 @@ class MyApplication : Application() {
         const val ACTION_BUTTON_UP: String = "com.android.action.ACTION_SPRITE_BUTTON_UP"
         const val ACTION_DOUBLE_CLICK: String = "com.android.action.ACTION_SPRITE_BUTTON_DOUBLE_CLICK"
         const val ACTION_AI_START: String = "com.android.action.ACTION_AI_START"
+        private const val BOOT_PACKAGE_PROPERTY = "persist.vendor.boot.pkg"
 
         var gMainHandler: Handler? = null
 
@@ -65,10 +67,30 @@ class MyApplication : Application() {
         ToastUtil.init(this)
         AppFileLogger.init(this, enabled = BuildConfig.DEBUG)
         installCrashLogger()
+        ensureBootAutoStart()
         InspectionConfigRepository.init(this)
         WearStateManager.init(this)
         registerActivityLifecycleCallbacks(AppLifecycleCallbacks())
         RokidSdkManager.initialize(this)
+    }
+
+    private fun ensureBootAutoStart() {
+        val currentPackage = DeviceUtil.getSystemProp(BOOT_PACKAGE_PROPERTY)
+        if (currentPackage == packageName) {
+            AppFileLogger.i("MyApplication", "boot auto-start already configured package=$packageName")
+            return
+        }
+
+        DeviceUtil.setSystemProp(BOOT_PACKAGE_PROPERTY, packageName)
+        val updatedPackage = DeviceUtil.getSystemProp(BOOT_PACKAGE_PROPERTY)
+        if (updatedPackage == packageName) {
+            AppFileLogger.i("MyApplication", "boot auto-start configured package=$packageName")
+        } else {
+            AppFileLogger.e(
+                "MyApplication",
+                "boot auto-start configuration failed expected=$packageName actual=$updatedPackage",
+            )
+        }
     }
 
     private fun installCrashLogger() {
@@ -108,6 +130,5 @@ class MyApplication : Application() {
             }
         }
     }
-
 
 }

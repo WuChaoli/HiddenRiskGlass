@@ -145,3 +145,16 @@ Start-Sleep -Seconds 2
 Write-Host ('Streaming filtered logcat to ' + $logFile)
 adb logcat -v time | Select-String -Pattern $patterns | Tee-Object -FilePath $logFile
 '''
+
+[[actions]]
+name = "Get Enterprise QR Code"
+icon = "run"
+command = '''
+Push-Location .\scripts\android-py
+try {
+    python -m android_py get-qrcode --account hzfj01 --code 21A
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+} finally {
+    Pop-Location
+}
+'''

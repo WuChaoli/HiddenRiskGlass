@@ -1,5 +1,21 @@
 # Test Evidence
 
+## 2026-06-10_boot_auto_start
+
+- 目标：验证应用写入 `persist.vendor.boot.pkg` 后，Rokid Glass 重启可自动拉起应用。
+- 设备：`1901092544019017`，adb 状态为 `device`。
+- 构建：`:app:assembleStandardDebug` 通过，`adb install -r -d` 安装成功。
+- 结论：
+  - 首次启动将空属性写为 `com.rokid.glesse`，回读成功。
+  - 再次启动识别属性已配置并跳过重复写入。
+  - 设备重启后，`RokidLauncher` 自动拉起 `AiInspectionMenuActivity`。
+  - 应用按既有启动流程进入 `EnterpriseQrScanActivity`，进程和前台 Activity 正常。
+- 证据：
+  - `property_after_reboot.txt`
+  - `logcat_boot_auto_start.txt`
+  - `activity_after_reboot.txt`
+  - `01_after_reboot.png`
+
 ## 2026-05-19_menu_confirm_focus_fix
 
 - 目标：验证菜单确认只走统一输入，避免点击时 RecyclerView 子项抢焦点导致跳到“检查更新”。

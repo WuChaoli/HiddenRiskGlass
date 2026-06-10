@@ -1,0 +1,8 @@
+06-10 09:59:53.181 I/RokidLauncher( 2093): BootChecker startAppByPackageName:com.rokid.glesse com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity
+06-10 09:59:53.183 I/ActivityStarter( 1226): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 pkg=com.rokid.glesse cmp=com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity} from uid 1000
+06-10 09:59:53.251 I/ActivityManager( 1226): Start proc 2703:com.rokid.glesse/u0a67 for pre-top-activity {com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity}
+06-10 09:59:53.778 I/ActivityManager( 1226): Start proc 2744:com.rokid.glesse/u0a67 for top-activity {com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity}
+06-10 09:59:53.528 I/MyApplication( 2744): boot auto-start already configured package=com.rokid.glesse
+06-10 09:59:54.076 I/ActivityStarter( 1226): START u0 {cmp=com.rokid.glesse/com.rokid.glass.hiddenrisk.InspectionLoadingActivity (has extras)} from uid 10067
+06-10 09:59:58.779 I/ActivityStarter( 1226): START u0 {cmp=com.rokid.glesse/com.rokid.glass.AiInspectionMenuActivity} from uid 10067
+06-10 09:59:58.948 I/ActivityStarter( 1226): START u0 {cmp=com.rokid.glesse/com.rokid.glass.EnterpriseQrScanActivity (has extras)} from uid 10067

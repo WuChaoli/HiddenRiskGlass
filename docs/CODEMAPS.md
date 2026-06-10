@@ -328,6 +328,7 @@ sequenceDiagram
 | 修改 QR 码解析格式 | `workflow/InspectionWorkflowSession.kt` 中 `updateEnterpriseFromQr()` | workflow/README.md |
 | 调试 NCNN 推理问题 | `hiddenrisk/HiddenRiskProbeActivity.kt` (探针页) + adb logcat 过滤 `detect ` | hiddenrisk/README.md |
 | App 版本更新流程 | `updater/AppUpdateManager.kt` (入口) + `updater/AppUpdatePromptActivity.kt` (UI) | 见源码注释 |
+| 修改应用初始化或开机自启动 | `MyApplication.kt` (初始化) + `utils/DeviceUtil.java` (系统属性访问) | utils/README.md |
 
 ---
 
