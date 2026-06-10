@@ -11,6 +11,7 @@ import com.rokid.glass.hiddenrisk.RokidSdkManager
 import com.rokid.glass.updater.AppUpdateManager
 import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.GlassScannerLauncher
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.WifiScanConfigFactory
 import com.rokid.glass.wifi.WifiQrParseResult
@@ -128,7 +129,6 @@ class EntryGuardCoordinator(
     fun launchWifiScanner(activity: Activity) {
         if (released.get() || wifiScannerLaunching.get() || wifiConnectInProgress.get()) return
         wifiScannerLaunching.set(true)
-        postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
         GlassScannerLauncher.launch(
             activity,
             WifiScanConfigFactory.create(activity),
@@ -277,6 +277,7 @@ class EntryGuardCoordinator(
             AppFileLogger.i(TAG, "wifi connected confirmed")
             wifiCheckCompleted.set(true)
             postCallback { it.onWifiConnected() }
+            OfflineTtsPlayer.play(context, TAG, R.raw.wifi_success)
             startSdkInit()
             return
         }
