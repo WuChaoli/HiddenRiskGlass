@@ -25,7 +25,7 @@ class InspectionConfigRepositoryTest {
         )
 
         assertEquals("http://183.147.142.133:10012/ai/gm", config.network.aiGmApi.url)
-        assertEquals(1500L, config.network.aiGmApi.detectTimeoutMs)
+        assertEquals(4000L, config.network.aiGmApi.detectTimeoutMs)
     }
 
     @Test
@@ -153,5 +153,53 @@ class InspectionConfigRepositoryTest {
         assertTrue(config.network.saveResultApi.enableBackupUpload)
         assertEquals("http://backup.test/hxy/apis/hazardCheckRecord/saveHazard", config.network.saveResultApi.backupSaveResultUrl)
         assertEquals("http://backup.test/hxy/apis/hazardCheckRecord/hazardIsEnd", config.network.saveResultApi.backupFinishResultUrl)
+    }
+
+    @Test
+    fun `app visibility defaults to FULL`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = null,
+        )
+
+        assertEquals(AppVisibilityMode.FULL, config.appVisibility.mode)
+    }
+
+    @Test
+    fun `app visibility can be overridden to MINIMAL from jsonc`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "appVisibility": {
+                    "mode": "MINIMAL"
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = null,
+        )
+
+        assertEquals(AppVisibilityMode.MINIMAL, config.appVisibility.mode)
+    }
+
+    @Test
+    fun `app visibility can be overridden by overlay`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "appVisibility": {
+                    "mode": "FULL"
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = """
+                {
+                  "appVisibility": {
+                    "mode": "MINIMAL"
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(AppVisibilityMode.MINIMAL, config.appVisibility.mode)
     }
 }
