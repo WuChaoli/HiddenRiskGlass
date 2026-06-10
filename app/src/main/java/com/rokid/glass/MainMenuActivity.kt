@@ -1,12 +1,17 @@
 package com.rokid.glass
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.rokid.glass.adapter.MenuCardAdapter
@@ -18,6 +23,7 @@ import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glesse.R
 import com.google.gson.Gson
 import com.rokid.glass.updater.AppUpdatePromptActivity
+import com.rokid.glass.utils.OfflineTtsPlayer
 
 /**
  * 主菜单 Activity，作为 App 的 LAUNCHER 入口。
@@ -65,11 +71,6 @@ class MainMenuActivity : BaseGlassActivity() {
                 Log.d(TAG, "SDK state changed: $state")
             }
 
-            override fun onCameraStateChanged(state: EntryGuardCoordinator.CameraWarmupState) {
-                // 相机状态变更，不单独显示，由 onAllGuardsReady 统一处理
-                Log.d(TAG, "Camera state changed: $state")
-            }
-
             override fun onAutoUpdateAvailable(updateInfoJson: String) {
                 startActivity(
                     Intent(this@MainMenuActivity, AppUpdatePromptActivity::class.java).apply {
@@ -105,6 +106,7 @@ class MainMenuActivity : BaseGlassActivity() {
     private var allGuardsReady = false
     private var checkingUpdate = false
     private var wifiRequiredDialogVisible = false
+    private var wifiDialogSelectedRetry = true // true=重新扫码, false=退出应用
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -172,20 +174,39 @@ class MainMenuActivity : BaseGlassActivity() {
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         if (wifiRequiredDialogVisible) {
             return listOf(
+                // 前后滑动切换焦点
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Previous,
+                    label = "上一个",
+                    triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
+                ) {
+                    moveWifiDialogFocus()
+                },
+                UnifiedInputSession.InputActionSpec(
+                    id = UnifiedInputSession.InputActionId.Next,
+                    label = "下一个",
+                    triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
+                ) {
+                    moveWifiDialogFocus()
+                },
+                // 单击确认当前选中的按钮
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Confirm,
-                    label = getString(R.string.ai_entry_wifi_retry),
+                    label = if (wifiDialogSelectedRetry) getString(R.string.ai_entry_wifi_retry) else getString(R.string.ai_entry_wifi_exit),
                     triggers = listOf(
                         UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
                         UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_wifi_retry), "chong xin sao ma"),
                     ),
                 ) {
-                    entryGuardCoordinator.launchWifiScanner(this)
+                    executeWifiDialogAction()
                 },
+                // 双击/返回 = 退出应用（保留语音退出指令）
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Exit,
                     label = getString(R.string.ai_entry_wifi_exit),
                     triggers = listOf(
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
+                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
                         UnifiedInputSession.InputTrigger.Voice(
                             getString(R.string.main_menu_voice_exit_app),
                             getString(R.string.main_menu_voice_exit_app_pinyin),
@@ -305,9 +326,28 @@ class MainMenuActivity : BaseGlassActivity() {
         if (wifiRequiredDialogVisible) return
         when (index) {
             0 -> startInspection()
-            1 -> entryGuardCoordinator.launchWifiScanner(this)
+            1 -> launchWifiScannerWithPermissionCheck()
             2 -> checkUpdateManually()
             else -> Unit
+        }
+    }
+
+    private fun launchWifiScannerWithPermissionCheck() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            entryGuardCoordinator.launchWifiScanner(this)
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.CAMERA), REQUEST_CODE_CAMERA_PERMISSION)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_CODE_CAMERA_PERMISSION) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                entryGuardCoordinator.launchWifiScanner(this)
+            } else {
+                Toast.makeText(this, R.string.ai_entry_wifi_connect_failed, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -345,12 +385,16 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private fun showWifiRequiredDialog(messageResId: Int) {
         wifiRequiredDialogVisible = true
+        wifiDialogSelectedRetry = true // 默认选中"重新扫码"
         tvWifiRequiredMessage.setText(messageResId)
         layoutWifiRequiredDialog.visibility = View.VISIBLE
         recyclerMenu.isEnabled = false
         tvBottomHint.visibility = View.GONE
         tvInitStatus.visibility = View.GONE
+        updateWifiDialogSelection()
         inputSession.updateActions(buildInputActions())
+        // 语音提示：需要连接WiFi
+        OfflineTtsPlayer.play(this, TAG, R.raw.need_scan_wifi)
     }
 
     private fun hideWifiRequiredDialog() {
@@ -360,6 +404,33 @@ class MainMenuActivity : BaseGlassActivity() {
         tvBottomHint.visibility = View.VISIBLE
         if (!allGuardsReady) {
             tvInitStatus.visibility = View.VISIBLE
+        }
+    }
+
+    private fun moveWifiDialogFocus() {
+        wifiDialogSelectedRetry = !wifiDialogSelectedRetry
+        updateWifiDialogSelection()
+    }
+
+    private fun updateWifiDialogSelection() {
+        if (wifiDialogSelectedRetry) {
+            tvWifiRetry.setBackgroundResource(R.drawable.glass_card_outline_selected)
+            tvWifiRetry.setTypeface(null, android.graphics.Typeface.BOLD)
+            tvWifiExit.setBackgroundResource(R.drawable.glass_card_outline)
+            tvWifiExit.setTypeface(null, android.graphics.Typeface.NORMAL)
+        } else {
+            tvWifiRetry.setBackgroundResource(R.drawable.glass_card_outline)
+            tvWifiRetry.setTypeface(null, android.graphics.Typeface.NORMAL)
+            tvWifiExit.setBackgroundResource(R.drawable.glass_card_outline_selected)
+            tvWifiExit.setTypeface(null, android.graphics.Typeface.BOLD)
+        }
+    }
+
+    private fun executeWifiDialogAction() {
+        if (wifiDialogSelectedRetry) {
+            entryGuardCoordinator.launchWifiScanner(this)
+        } else {
+            exitAppDirectly()
         }
     }
 
@@ -375,5 +446,6 @@ class MainMenuActivity : BaseGlassActivity() {
 
     companion object {
         private const val TAG = "MainMenuActivity"
+        private const val REQUEST_CODE_CAMERA_PERMISSION = 7001
     }
 }

@@ -7,8 +7,6 @@ import android.os.Handler
 import android.os.Looper
 import com.google.gson.Gson
 import com.rokid.glass.config.InspectionConfigRepository
-import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
-import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.hiddenrisk.RokidSdkManager
 import com.rokid.glass.updater.AppUpdateManager
 import com.rokid.glass.utils.AppFileLogger
@@ -27,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * 入口守卫协调器。
- * 封装后台静默初始化流程：WiFi 检测与连接、SDK 初始化、相机预热、自动更新检查。
+ * 封装后台静默初始化流程：WiFi 检测与连接、SDK 初始化、自动更新检查。
  * 各阶段独立失败不影响其他阶段，所有回调通过主线程 Handler 投递。
  */
 class EntryGuardCoordinator(
@@ -46,8 +44,6 @@ class EntryGuardCoordinator(
         fun onWifiConnectionFailed(messageResId: Int)
         /** SDK 状态变更 */
         fun onSdkStateChanged(state: SdkInitState)
-        /** 相机预热状态变更 */
-        fun onCameraStateChanged(state: CameraWarmupState)
         /** 有可用更新（JSON 字符串） */
         fun onAutoUpdateAvailable(updateInfoJson: String)
         /** 自动更新检查完成 */
@@ -57,7 +53,6 @@ class EntryGuardCoordinator(
     }
 
     enum class SdkInitState { IDLE, INITIALIZING, READY, FAILED }
-    enum class CameraWarmupState { IDLE, WARMING_UP, READY, FAILED }
 
     interface UpdateCheckListener {
         fun onComplete(hasUpdate: Boolean, updateInfoJson: String?)
@@ -72,7 +67,6 @@ class EntryGuardCoordinator(
     private val allGuardsReadyFired = AtomicBoolean(false)
     private val wifiCheckCompleted = AtomicBoolean(false)
     private val sdkCheckCompleted = AtomicBoolean(false)
-    private val cameraCheckCompleted = AtomicBoolean(false)
     private val updateCheckCompleted = AtomicBoolean(false)
 
     // WiFi 相关状态（线程安全）
@@ -92,14 +86,13 @@ class EntryGuardCoordinator(
                 RokidSdkManager.SdkState.READY -> {
                     postSdkState(SdkInitState.READY)
                     sdkCheckCompleted.set(true)
-                    tryStartCameraWarmup()
+                    startAutoUpdateCheck()
                     tryNotifyAllGuardsReady()
                 }
                 RokidSdkManager.SdkState.FAILED -> {
                     postSdkState(SdkInitState.FAILED)
                     sdkCheckCompleted.set(true)
-                    // SDK 失败不阻塞相机预热
-                    tryStartCameraWarmup()
+                    startAutoUpdateCheck()
                     tryNotifyAllGuardsReady()
                 }
                 RokidSdkManager.SdkState.BINDING,
@@ -113,7 +106,7 @@ class EntryGuardCoordinator(
 
     /**
      * 启动所有后台检查。
-     * 顺序：WiFi -> SDK -> 相机 -> 更新检查（各阶段独立）。
+     * 顺序：WiFi -> SDK -> 更新检查（各阶段独立）。
      * 幂等：多次调用只有第一次生效。
      */
     fun startBackgroundGuards() {
@@ -223,7 +216,6 @@ class EntryGuardCoordinator(
         // 强制设置所有完成标记，避免 release() 中间卡住其他流程
         wifiCheckCompleted.set(true)
         sdkCheckCompleted.set(true)
-        cameraCheckCompleted.set(true)
         updateCheckCompleted.set(true)
 
         // 优雅关闭线程池
@@ -320,41 +312,11 @@ class EntryGuardCoordinator(
         if (RokidSdkManager.state == RokidSdkManager.SdkState.READY && !sdkCheckCompleted.get()) {
             postSdkState(SdkInitState.READY)
             sdkCheckCompleted.set(true)
-            tryStartCameraWarmup()
+            startAutoUpdateCheck()
             tryNotifyAllGuardsReady()
         } else if (RokidSdkManager.state == RokidSdkManager.SdkState.FAILED && !sdkCheckCompleted.get()) {
             postSdkState(SdkInitState.FAILED)
             sdkCheckCompleted.set(true)
-            tryStartCameraWarmup()
-            tryNotifyAllGuardsReady()
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // 相机预热
-    // -------------------------------------------------------------------------
-
-    private fun tryStartCameraWarmup() {
-        if (released.get() || cameraCheckCompleted.get()) return
-        AppFileLogger.i(TAG, "startCameraWarmup")
-        postCameraState(CameraWarmupState.WARMING_UP)
-        InspectionCameraCoordinator.acquire(
-            owner = CameraOwner.LOADING,
-            needPreview = false,
-        ) { success ->
-            if (released.get()) return@acquire
-            if (success) {
-                InspectionCameraCoordinator.pause(
-                    CameraOwner.LOADING,
-                    reason = "main_menu_camera_warmup_ready",
-                )
-                postCameraState(CameraWarmupState.READY)
-            } else {
-                AppFileLogger.w(TAG, "camera warmup failed")
-                postCameraState(CameraWarmupState.FAILED)
-            }
-            cameraCheckCompleted.set(true)
-            // 相机完成后启动更新检查
             startAutoUpdateCheck()
             tryNotifyAllGuardsReady()
         }
@@ -403,7 +365,6 @@ class EntryGuardCoordinator(
         // 自动更新检查是后台独立执行，不阻塞入口
         if (!wifiCheckCompleted.get()) return
         if (!sdkCheckCompleted.get()) return
-        if (!cameraCheckCompleted.get()) return
         AppFileLogger.i(TAG, "all guards ready")
         allGuardsReadyFired.set(true)
         postCallback { it.onAllGuardsReady() }
@@ -417,13 +378,6 @@ class EntryGuardCoordinator(
         uiHandler.post {
             if (released.get()) return@post
             callback.onSdkStateChanged(state)
-        }
-    }
-
-    private fun postCameraState(state: CameraWarmupState) {
-        uiHandler.post {
-            if (released.get()) return@post
-            callback.onCameraStateChanged(state)
         }
     }
 
