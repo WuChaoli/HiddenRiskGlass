@@ -10,6 +10,7 @@ data class InspectionAppConfig(
     val enterpriseInfo: EnterpriseInfoConfig = EnterpriseInfoConfig(),
     val aiInspection: AiInspectionConfig = AiInspectionConfig(),
     val network: NetworkConfig = NetworkConfig(),
+    val appVisibility: AppVisibilityConfig = AppVisibilityConfig(),
 )
 
 data class FeatureFlagsConfig(
@@ -131,6 +132,31 @@ data class MayHazardVerifyApiConfig(
     val writeTimeoutMs: Long = 30_000L,
 )
 
+/**
+ * 应用可见性模式。
+ * 控制眼镜系统应用列表中显示哪些内置应用。
+ */
+enum class AppVisibilityMode {
+    /** 显示所有内置应用 + 第三方应用（调试用）。 */
+    FULL,
+    /** 仅显示隐患巡检 + 扫一扫（生产用）。 */
+    MINIMAL,
+}
+
+/**
+ * 应用可见性配置。
+ */
+data class AppVisibilityConfig(
+    val mode: AppVisibilityMode = AppVisibilityMode.FULL,
+)
+
+/**
+ * JSONC 解析用的 nullable override 模型。
+ */
+data class AppVisibilityConfigOverride(
+    val mode: AppVisibilityMode? = null,
+)
+
 enum class AutoInferenceMode {
     LOCAL_ONLY,
     ONLINE_ONLY,
@@ -165,6 +191,7 @@ data class InspectionAppConfigOverride(
     val enterpriseInfo: EnterpriseInfoConfigOverride? = null,
     val aiInspection: AiInspectionConfigOverride? = null,
     val network: NetworkConfigOverride? = null,
+    val appVisibility: AppVisibilityConfigOverride? = null,
 )
 
 data class FeatureFlagsConfigOverride(
