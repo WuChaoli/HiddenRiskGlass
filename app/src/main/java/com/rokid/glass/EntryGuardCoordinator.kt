@@ -10,13 +10,12 @@ import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.hiddenrisk.RokidSdkManager
 import com.rokid.glass.updater.AppUpdateManager
 import com.rokid.glass.utils.AppFileLogger
+import com.rokid.glass.utils.GlassScannerLauncher
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.utils.WifiScanConfigFactory
 import com.rokid.glass.wifi.WifiQrParseResult
 import com.rokid.glass.wifi.WifiQrParser
 import com.rokid.glesse.R
-import com.rokid.security.glass3.qrcode.api.GlassScanCallback
-import com.rokid.security.glass3.qrcode.api.GlassScanner
 import com.google.mlkit.vision.barcode.common.Barcode
 import java.io.IOException
 import java.util.concurrent.Executors
@@ -130,36 +129,32 @@ class EntryGuardCoordinator(
         if (released.get() || wifiScannerLaunching.get() || wifiConnectInProgress.get()) return
         wifiScannerLaunching.set(true)
         postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
-        runCatching {
-            GlassScanner.launch(
-                activity,
-                WifiScanConfigFactory.create(activity),
-                object : GlassScanCallback {
-                    override fun onScanSuccess(content: String?, barcode: Barcode) {
-                        wifiScannerLaunching.set(false)
-                        if (content == null) {
-                            postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
-                        } else {
-                            handleWifiQrContent(content)
-                        }
-                    }
-
-                    override fun onScanFailure(error: String) {
-                        wifiScannerLaunching.set(false)
+        GlassScannerLauncher.launch(
+            activity,
+            WifiScanConfigFactory.create(activity),
+            object : GlassScannerLauncher.LauncherCallback {
+                override fun onSuccess(content: String?, barcode: Barcode) {
+                    wifiScannerLaunching.set(false)
+                    if (content == null) {
                         postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
+                    } else {
+                        handleWifiQrContent(content)
                     }
-
-                    override fun onScanCancelled() {
-                        wifiScannerLaunching.set(false)
-                        postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
-                    }
-                },
-            )
-        }.onFailure { error ->
-            wifiScannerLaunching.set(false)
-            AppFileLogger.e(TAG, "launch wifi scanner failed", error)
-            postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
-        }
+                }
+                override fun onFailure(error: String) {
+                    wifiScannerLaunching.set(false)
+                    postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
+                }
+                override fun onCancelled() {
+                    wifiScannerLaunching.set(false)
+                    postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
+                }
+                override fun onCameraUnavailable() {
+                    wifiScannerLaunching.set(false)
+                    postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_connect_failed) }
+                }
+            },
+        )
     }
 
     /**
