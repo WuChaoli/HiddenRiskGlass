@@ -281,7 +281,9 @@ object RokidSdkManager {
             return
         }
 
-        val config = AppVisibilityConfigFactory.create()
+        val config = AppVisibilityConfigFactory.create(
+            com.rokid.glass.config.InspectionConfigRepository.get(),
+        )
         AppFileLogger.i(TAG, "configureAppVisibility request config=$config")
         runCatching {
             service.configureAppVisibility(
