@@ -20,11 +20,17 @@ object AppVisibilityConfigFactory {
         GlassAppType.HG_IDENTIFICATION,
     )
 
-    fun create(): GlassAppConfig = GlassAppConfig(
-        supportedBuiltInApps,
-        listOf(
-            ThirdPartyApp(INSPECTION_APP_PACKAGE, INSPECTION_APP_NAME),
-            ThirdPartyApp(SCANNER_APP_PACKAGE, SCANNER_APP_NAME),
-        ),
-    )
+    fun create(config: com.rokid.glass.config.InspectionAppConfig = com.rokid.glass.config.InspectionAppConfig()): GlassAppConfig {
+        val builtInApps = when (config.appVisibility.mode) {
+            com.rokid.glass.config.AppVisibilityMode.FULL -> supportedBuiltInApps
+            com.rokid.glass.config.AppVisibilityMode.MINIMAL -> emptyList()
+        }
+        return GlassAppConfig(
+            builtInApps,
+            listOf(
+                ThirdPartyApp(INSPECTION_APP_PACKAGE, INSPECTION_APP_NAME),
+                ThirdPartyApp(SCANNER_APP_PACKAGE, SCANNER_APP_NAME),
+            ),
+        )
+    }
 }
