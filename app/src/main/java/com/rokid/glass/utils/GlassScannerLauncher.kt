@@ -67,7 +67,7 @@ object GlassScannerLauncher {
                         callback.onSuccess(content, barcode)
                     }
                     override fun onScanFailure(error: String) {
-                        handleResult(error, null, callback, activity, config, isRetry)
+                        handleResult(error, callback, activity, config, isRetry)
                     }
                     override fun onScanCancelled() {
                         callback.onCancelled()
@@ -77,13 +77,12 @@ object GlassScannerLauncher {
         } catch (e: Exception) {
             val errorMsg = e.message ?: e.javaClass.simpleName
             AppFileLogger.e(TAG, "launch exception: $errorMsg", e)
-            handleResult(errorMsg, null, callback, activity, config, isRetry)
+            handleResult(errorMsg, callback, activity, config, isRetry)
         }
     }
 
     private fun handleResult(
         errorMsg: String,
-        exception: Exception?,
         callback: LauncherCallback,
         activity: Activity,
         config: com.rokid.security.glass3.qrcode.model.GlassScanConfig,

@@ -28,16 +28,6 @@ class EntryGuardCoordinatorTest {
         assertTrue(states.contains(EntryGuardCoordinator.SdkInitState.FAILED))
     }
 
-    @Test
-    fun cameraWarmupState_values() {
-        val states = EntryGuardCoordinator.CameraWarmupState.values()
-        assertEquals(4, states.size)
-        assertTrue(states.contains(EntryGuardCoordinator.CameraWarmupState.IDLE))
-        assertTrue(states.contains(EntryGuardCoordinator.CameraWarmupState.WARMING_UP))
-        assertTrue(states.contains(EntryGuardCoordinator.CameraWarmupState.READY))
-        assertTrue(states.contains(EntryGuardCoordinator.CameraWarmupState.FAILED))
-    }
-
     // -------------------------------------------------------------------------
     // UpdateCheckListener 测试
     // -------------------------------------------------------------------------
@@ -97,9 +87,6 @@ class EntryGuardCoordinatorTest {
             override fun onSdkStateChanged(state: EntryGuardCoordinator.SdkInitState) {
                 events.add("sdk:$state")
             }
-            override fun onCameraStateChanged(state: EntryGuardCoordinator.CameraWarmupState) {
-                events.add("camera:$state")
-            }
             override fun onAutoUpdateAvailable(updateInfoJson: String) {
                 events.add("updateAvailable")
             }
@@ -116,21 +103,19 @@ class EntryGuardCoordinatorTest {
         callback.onWifiConnected()
         callback.onWifiConnectionFailed(200)
         callback.onSdkStateChanged(EntryGuardCoordinator.SdkInitState.IDLE)
-        callback.onCameraStateChanged(EntryGuardCoordinator.CameraWarmupState.IDLE)
         callback.onAutoUpdateAvailable("{}")
         callback.onAutoUpdateCheckComplete(false)
         callback.onAllGuardsReady()
 
-        assertEquals(9, events.size)
+        assertEquals(8, events.size)
         assertEquals("wifiRequired:100", events[0])
         assertEquals("wifiConnecting", events[1])
         assertEquals("wifiConnected", events[2])
         assertEquals("wifiFailed:200", events[3])
         assertEquals("sdk:IDLE", events[4])
-        assertEquals("camera:IDLE", events[5])
-        assertEquals("updateAvailable", events[6])
-        assertEquals("updateComplete:false", events[7])
-        assertEquals("allReady", events[8])
+        assertEquals("updateAvailable", events[5])
+        assertEquals("updateComplete:false", events[6])
+        assertEquals("allReady", events[7])
     }
 
     // -------------------------------------------------------------------------
@@ -146,27 +131,11 @@ class EntryGuardCoordinatorTest {
     }
 
     @Test
-    fun cameraWarmupState_enumOrdinals() {
-        assertEquals(0, EntryGuardCoordinator.CameraWarmupState.IDLE.ordinal)
-        assertEquals(1, EntryGuardCoordinator.CameraWarmupState.WARMING_UP.ordinal)
-        assertEquals(2, EntryGuardCoordinator.CameraWarmupState.READY.ordinal)
-        assertEquals(3, EntryGuardCoordinator.CameraWarmupState.FAILED.ordinal)
-    }
-
-    @Test
     fun sdkInitState_nameConsistency() {
         assertEquals("IDLE", EntryGuardCoordinator.SdkInitState.IDLE.name)
         assertEquals("INITIALIZING", EntryGuardCoordinator.SdkInitState.INITIALIZING.name)
         assertEquals("READY", EntryGuardCoordinator.SdkInitState.READY.name)
         assertEquals("FAILED", EntryGuardCoordinator.SdkInitState.FAILED.name)
-    }
-
-    @Test
-    fun cameraWarmupState_nameConsistency() {
-        assertEquals("IDLE", EntryGuardCoordinator.CameraWarmupState.IDLE.name)
-        assertEquals("WARMING_UP", EntryGuardCoordinator.CameraWarmupState.WARMING_UP.name)
-        assertEquals("READY", EntryGuardCoordinator.CameraWarmupState.READY.name)
-        assertEquals("FAILED", EntryGuardCoordinator.CameraWarmupState.FAILED.name)
     }
 
     // -------------------------------------------------------------------------
@@ -184,7 +153,7 @@ class EntryGuardCoordinatorTest {
     fun callbackInterface_exists() {
         val clazz = EntryGuardCoordinator.Callback::class.java
         assertTrue(clazz.isInterface)
-        assertEquals(9, clazz.declaredMethods.size)
+        assertEquals(8, clazz.declaredMethods.size)
     }
 
     @Test
@@ -204,6 +173,7 @@ class EntryGuardCoordinatorTest {
         assertTrue("应有 launchWifiScanner", methodNames.contains("launchWifiScanner"))
         assertTrue("应有 checkUpdateManually", methodNames.contains("checkUpdateManually"))
         assertTrue("应有 release", methodNames.contains("release"))
+        assertTrue("应有 revalidateWifiState", methodNames.contains("revalidateWifiState"))
     }
 
     // -------------------------------------------------------------------------
@@ -219,7 +189,6 @@ class EntryGuardCoordinatorTest {
             override fun onWifiConnected() {}
             override fun onWifiConnectionFailed(messageResId: Int) {}
             override fun onSdkStateChanged(state: EntryGuardCoordinator.SdkInitState) {}
-            override fun onCameraStateChanged(state: EntryGuardCoordinator.CameraWarmupState) {}
             override fun onAutoUpdateAvailable(updateInfoJson: String) {}
             override fun onAutoUpdateCheckComplete(hasUpdate: Boolean) {}
             override fun onAllGuardsReady() {
@@ -238,8 +207,6 @@ class EntryGuardCoordinatorTest {
 
     @Test
     fun revalidateWifiState_returnsTrue_whenNotReady() {
-        // revalidateWifiState 在 allGuardsReadyFired=false 时应返回 true（无需要处理）
-        // 此测试验证接口契约：未就绪时直接返回，不触发回调
         var wifiRequiredCalled = false
         val callback = object : EntryGuardCoordinator.Callback {
             override fun onWifiRequired(messageResId: Int) { wifiRequiredCalled = true }
@@ -247,22 +214,17 @@ class EntryGuardCoordinatorTest {
             override fun onWifiConnected() {}
             override fun onWifiConnectionFailed(messageResId: Int) {}
             override fun onSdkStateChanged(state: EntryGuardCoordinator.SdkInitState) {}
-            override fun onCameraStateChanged(state: EntryGuardCoordinator.CameraWarmupState) {}
             override fun onAutoUpdateAvailable(updateInfoJson: String) {}
             override fun onAutoUpdateCheckComplete(hasUpdate: Boolean) {}
             override fun onAllGuardsReady() {}
         }
 
-        // 纯 JVM 环境下无法构造真正的 Coordinator（需要 Android Context），
-        // 但我们可以验证 Callback 接口的 revalidateWifiState 相关行为
-        // 通过模拟 onWifiRequired 被调用来验证 WiFi 断开时的回调路径
         callback.onWifiRequired(100)
         assertTrue("onWifiRequired 应被触发", wifiRequiredCalled)
     }
 
     @Test
     fun updateCheckListener_doesNotBlockEntry() {
-        // 验证更新检查是独立的后台操作，不应阻塞入口
         var updateCompleteCalled = false
         val listener = object : EntryGuardCoordinator.UpdateCheckListener {
             override fun onComplete(hasUpdate: Boolean, updateInfoJson: String?) {
@@ -270,7 +232,6 @@ class EntryGuardCoordinatorTest {
             }
         }
 
-        // 手动触发回调（模拟后台线程完成后的回调）
         listener.onComplete(false, null)
 
         assertTrue("更新检查完成后应触发回调", updateCompleteCalled)
@@ -278,8 +239,6 @@ class EntryGuardCoordinatorTest {
 
     @Test
     fun callback_tracksEventsBeforeRelease() {
-        // 验证回调可以正确记录事件（release 抑制逻辑在 Coordinator 内部实现，
-        // 纯 JVM 环境无法构造真正的 Coordinator，此处验证回调接口完整性）
         val events = mutableListOf<String>()
         val callback = object : EntryGuardCoordinator.Callback {
             override fun onWifiRequired(messageResId: Int) { events.add("wifiRequired") }
@@ -287,32 +246,27 @@ class EntryGuardCoordinatorTest {
             override fun onWifiConnected() { events.add("wifiConnected") }
             override fun onWifiConnectionFailed(messageResId: Int) { events.add("wifiFailed") }
             override fun onSdkStateChanged(state: EntryGuardCoordinator.SdkInitState) { events.add("sdk") }
-            override fun onCameraStateChanged(state: EntryGuardCoordinator.CameraWarmupState) { events.add("camera") }
             override fun onAutoUpdateAvailable(updateInfoJson: String) { events.add("update") }
             override fun onAutoUpdateCheckComplete(hasUpdate: Boolean) { events.add("updateComplete") }
             override fun onAllGuardsReady() { events.add("allReady") }
         }
 
-        // 触发一系列事件
         callback.onWifiRequired(100)
         callback.onWifiConnecting()
         callback.onWifiConnected()
         callback.onSdkStateChanged(EntryGuardCoordinator.SdkInitState.READY)
-        callback.onCameraStateChanged(EntryGuardCoordinator.CameraWarmupState.READY)
         callback.onAutoUpdateAvailable("{}")
         callback.onAutoUpdateCheckComplete(false)
         callback.onAllGuardsReady()
 
-        // 验证所有事件被正确记录
-        assertEquals(8, events.size)
+        assertEquals(7, events.size)
         assertEquals("wifiRequired", events[0])
         assertEquals("wifiConnecting", events[1])
         assertEquals("wifiConnected", events[2])
         assertEquals("sdk", events[3])
-        assertEquals("camera", events[4])
-        assertEquals("update", events[5])
-        assertEquals("updateComplete", events[6])
-        assertEquals("allReady", events[7])
+        assertEquals("update", events[4])
+        assertEquals("updateComplete", events[5])
+        assertEquals("allReady", events[6])
     }
 
     // -------------------------------------------------------------------------
@@ -339,9 +293,6 @@ class EntryGuardCoordinatorTest {
             override fun onSdkStateChanged(state: EntryGuardCoordinator.SdkInitState) {
                 synchronized(lock) { events.add("sdk") }
             }
-            override fun onCameraStateChanged(state: EntryGuardCoordinator.CameraWarmupState) {
-                synchronized(lock) { events.add("camera") }
-            }
             override fun onAutoUpdateAvailable(updateInfoJson: String) {
                 synchronized(lock) { events.add("update") }
             }
@@ -354,18 +305,17 @@ class EntryGuardCoordinatorTest {
         }
 
         // 模拟多线程并发调用回调
-        val threads = (1..20).map { index ->
+        val threads = (1..16).map { index ->
             Thread {
-                when (index % 9) {
+                when (index % 8) {
                     0 -> callback.onWifiRequired(0)
                     1 -> callback.onWifiConnecting()
                     2 -> callback.onWifiConnected()
                     3 -> callback.onSdkStateChanged(EntryGuardCoordinator.SdkInitState.READY)
-                    4 -> callback.onCameraStateChanged(EntryGuardCoordinator.CameraWarmupState.READY)
-                    5 -> callback.onAutoUpdateAvailable("{}")
-                    6 -> callback.onAutoUpdateCheckComplete(true)
-                    7 -> callback.onAllGuardsReady()
-                    8 -> callback.onWifiConnectionFailed(0)
+                    4 -> callback.onAutoUpdateAvailable("{}")
+                    5 -> callback.onAutoUpdateCheckComplete(true)
+                    6 -> callback.onAllGuardsReady()
+                    7 -> callback.onWifiConnectionFailed(0)
                 }
             }
         }
@@ -373,6 +323,6 @@ class EntryGuardCoordinatorTest {
         threads.forEach { it.start() }
         threads.forEach { it.join(1000) }
 
-        assertEquals(20, events.size)
+        assertEquals(16, events.size)
     }
 }
