@@ -49,6 +49,7 @@ bash scripts/validate_hiddenrisk_assets.sh
 
 | 模块 | 包/路径 | README | 覆盖范围 |
 |------|---------|--------|----------|
+| 入口/菜单 | `com.rokid.glass/` 根包 | -- | MainMenuActivity (LAUNCHER)、AiInspectionMenuActivity、EntryGuardCoordinator、EnterpriseQrScanActivity 等 |
 | 隐患识别/推理 | `hiddenrisk/` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | 巡检页面、在线/本地推理、自动链路、隐患上传、设备指引、拍照录入 (~50文件) |
 | 相机/帧流 | `camera/` | [README](app/src/main/java/com/rokid/glass/camera/README.md) | 相机管理、帧捕获、预览、恢复控制 |
 | 统一输入 | `input/` | [README](app/src/main/java/com/rokid/glass/input/README.md) | 触控、语音、头部动作映射、自动休眠 |
