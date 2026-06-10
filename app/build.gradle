@@ -80,6 +80,15 @@ android {
         pickFirst 'lib/armeabi-v7a/libr2aud.so'
     }
 
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            all {
+                it.jvmArgs '-noverify'
+            }
+        }
+    }
+
 }
 
 dependencies {
