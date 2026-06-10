@@ -6,8 +6,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
-import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import android.view.animation.Animation
@@ -25,7 +23,6 @@ import androidx.core.content.ContextCompat
 import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.config.AutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
-import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.AppFileLogger
 import com.rokid.glass.utils.DeviceUtil
@@ -38,7 +35,7 @@ import kotlin.math.max
 
 /**
  * 巡检加载页面。
- * 执行实际的 SDK 初始化、相机预热，完成后直接执行 Wi-Fi 判定分流。
+ * 执行实际的 SDK 初始化与模型预加载，完成后直接执行 Wi-Fi 判定分流。
  */
 class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
@@ -55,7 +52,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private enum class LoadingStage {
         IDLE,           // 初始状态
         SDK_INIT,       // SDK 初始化
-        CAMERA_INIT,    // 相机初始化
         COMPLETE,       // 加载完成，立即分流
         ERROR           // 错误状态
     }
@@ -86,10 +82,8 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var loadingStage = LoadingStage.IDLE
     private var mediaPermissionRequested = false
     private var activityDestroyed = false
-    private var cameraInitStarted = false
     private var initializationCompleted = false
     private var completionUiCommitted = false
-    private var cameraSessionGeneration = 0L
     private var debugSnapshotMode = false
     private var debugAnimateMode = false
     private var subtitleBaseText = ""
@@ -140,10 +134,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             }
             uiHandler.postDelayed(this, SUBTITLE_FRAME_DELAY_MS)
         }
-    }
-
-    private val startCameraInitRunnable = Runnable {
-        startCameraInit()
     }
 
     private val finishNavigationRunnable = Runnable {
@@ -223,7 +213,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         }
         RokidSdkManager.removeListener(this)
         modelLoadExecutor.shutdownNow()
-        InspectionCameraCoordinator.pause(CameraOwner.LOADING, reason = "loading_on_destroy")
 
         // 如果初始化未完成且出现错误，清理资源
         if (loadingStage == LoadingStage.ERROR) {
@@ -258,9 +247,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
                 RokidSdkManager.SdkState.READY -> {
                     setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
                     animateProgressTo(30)
-                    // 延迟一下确保 SDK 完全就绪
-                    uiHandler.removeCallbacks(startCameraInitRunnable)
-                    uiHandler.postDelayed(startCameraInitRunnable, 200)
+                    preloadLocalModelIfNeeded()
                 }
                 RokidSdkManager.SdkState.FAILED -> {
                     showError(RokidSdkManager.lastErrorMessage ?: getString(R.string.ai_inspection_loading_error_sdk_init))
@@ -339,7 +326,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     private fun requiredPermissions(): Array<String> = buildList {
-        add(Manifest.permission.CAMERA)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             add(Manifest.permission.READ_MEDIA_IMAGES)
         } else {
@@ -363,59 +349,14 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_init), animated = true)
         refreshInputActions()
 
-        // SDK 初始化由 RokidSdkManager 处理，等待回调
-        // 如果 SDK 已经就绪，直接开始相机预热。
+        // 如果 SDK 已经就绪，直接开始模型预加载
         if (RokidSdkManager.state == RokidSdkManager.SdkState.READY) {
             setSubtitle(getString(R.string.ai_inspection_loading_subtitle_sdk_ready), animated = true)
             animateProgressTo(30)
-            startCameraInit()
+            preloadLocalModelIfNeeded()
         }
     }
 
-    private fun startCameraInit() {
-        if (activityDestroyed || cameraInitStarted || initializationCompleted || loadingStage == LoadingStage.ERROR) {
-            Log.i(
-                TAG,
-                "skip startCameraInit destroyed=$activityDestroyed cameraInitStarted=$cameraInitStarted complete=$initializationCompleted stage=$loadingStage"
-            )
-            return
-        }
-
-        cameraInitStarted = true
-        loadingStage = LoadingStage.CAMERA_INIT
-        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_camera_init), animated = true)
-        animateProgressTo(90)
-        refreshInputActions()
-
-        var requestGeneration = 0L
-        requestGeneration = InspectionCameraCoordinator.acquire(
-            owner = CameraOwner.LOADING,
-            needPreview = false,
-        ) { success ->
-            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
-                Log.i(
-                    TAG,
-                    "ignore stale loading acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
-                )
-                return@acquire
-            }
-            uiHandler.post {
-                if (activityDestroyed) return@post
-                cameraSessionGeneration = requestGeneration
-                if (success) {
-                    InspectionCameraCoordinator.pause(
-                        CameraOwner.LOADING,
-                        reason = "loading_camera_ready_pause_frame_stream",
-                    )
-                    cameraSessionGeneration = 0L
-                    preloadLocalModelIfNeeded()
-                } else {
-                    showError(InspectionSession.errorMessage ?: getString(R.string.ai_inspection_loading_error_frame_stream))
-                }
-            }
-        }
-        cameraSessionGeneration = requestGeneration
-    }
 
     private fun preloadLocalModelIfNeeded() {
         if (!requiresLocalModelPreload()) {
@@ -423,7 +364,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             onInitializationComplete()
             return
         }
-        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_camera_init), animated = true)
+        setSubtitle(getString(R.string.ai_inspection_loading_subtitle_model_loading), animated = true)
         animateProgressTo(95)
         Log.i(TAG, "preload local NCNN model start")
         modelLoadExecutor.execute {
@@ -490,7 +431,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         currentProgress = 0
         targetProgress = 0
         progressRunnablePosted = false
-        cameraInitStarted = false
         initializationCompleted = false
         completionUiCommitted = false
         progressBar.progress = 0
@@ -592,9 +532,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         stopSpinner()
         stopSubtitleAnimation()
         uiHandler.removeCallbacks(progressRunnable)
-        uiHandler.removeCallbacks(startCameraInitRunnable)
         uiHandler.removeCallbacks(finishNavigationRunnable)
         progressRunnablePosted = false
-        cameraSessionGeneration = 0L
     }
 }
