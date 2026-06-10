@@ -25,13 +25,12 @@ App 启动 (LAUNCHER) → MainMenuActivity
 
 AiInspectionMenuActivity（第二层）:
   → 入口守卫 (onResume 自动执行):
-      WiFi 未连接 → 显示 WiFi 必需对话框
-      InspectionSession 未初始化 → InspectionLoadingActivity → 回到 AiInspectionMenuActivity
       企业信息为空 → EnterpriseQrScanActivity
   → 菜单可操作:
       实时分析 → AiInspectionActivity (DETECTING)
       设备指引 → DeviceGuideActivity
       隐患拍照 → HazardRecordActivity
+  → 双击/后退 → 结束巡检确认 → InspectionEndReportActivity
 
 AiInspectionActivity:
   DETECTING → 自动/手动命中隐患 → STREAM_RESPONSE(DESCRIPTION)
@@ -193,21 +192,12 @@ MainMenuActivity (LAUNCHER 启动)
 
 AiInspectionMenuActivity (点击"实时分析")
   → runEntryGuards() (onResume 自动执行)
-    → WiFi 已连接?
-      → NO: 显示 WiFi 必需对话框，等待用户确认退出
-      → YES: 继续
-    → InspectionSession.isInitialized?
-      → NO: InspectionLoadingActivity
-          → RokidSdkManager.ensureInitialized()
-          → InspectionSession.initFrameStream()
-          → InspectionSession.markInitialized()
-          → 创建 sessionId (InspectionWorkflowSession.beginInspection())
-          → 回到 AiInspectionMenuActivity
-      → YES: 继续
-    → 企业信息已获取 (enterpriseQrPayload != null)?
+    → 企业信息已获取 (enterpriseQrPayload != null && enterpriseInfo != null)?
       → NO: EnterpriseQrScanActivity (佩戴状态机集成: 摘镜暂停/戴回恢复)
-      → YES: 菜单可操作
+      → YES: 更新底部企业摘要，菜单可操作
   → 选择"实时分析" → AiInspectionActivity
+  → 选择"设备指引" → DeviceGuideActivity
+  → 双击/后退 → 结束巡检确认对话框 → InspectionEndReportActivity
 ```
 
 ### 链路 2：在线自动识别

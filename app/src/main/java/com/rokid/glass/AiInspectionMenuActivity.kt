@@ -1,7 +1,6 @@
 package com.rokid.glass
 
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -17,26 +16,11 @@ import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.DeviceGuideActivity
+import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HazardRecordActivity
-import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
-import com.rokid.glass.hiddenrisk.InspectionSession
-import com.rokid.glass.hiddenrisk.RokidSdkManager
-import com.google.gson.Gson
 import com.rokid.glass.input.UnifiedInputSession
-import com.rokid.glass.updater.AppUpdateManager
-import com.rokid.glass.updater.AppUpdatePromptActivity
-import com.rokid.glass.utils.SystemStateUtils
-import com.rokid.glass.utils.OfflineTtsPlayer
-import com.rokid.glass.utils.WifiScanConfigFactory
-import com.rokid.glass.wifi.WifiQrParseResult
-import com.rokid.glass.wifi.WifiQrParser
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
-import com.rokid.security.glass3.qrcode.api.GlassScanCallback
-import com.rokid.security.glass3.qrcode.api.GlassScanner
-import com.google.mlkit.vision.barcode.common.Barcode
-import java.io.IOException
-import java.util.concurrent.Executors
 
 class AiInspectionMenuActivity : BaseGlassActivity() {
 
@@ -47,32 +31,16 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
-    private val updateExecutor = Executors.newSingleThreadExecutor()
-    private val updateManager by lazy { AppUpdateManager(applicationContext) }
-    private var checkingUpdate = false
-    private var autoUpdateChecked = false
     private var selectedIndex = 0
 
-    private lateinit var layoutWifiRequiredDialog: LinearLayout
-    private lateinit var tvWifiRequiredMessage: TextView
-    private lateinit var tvWifiRetry: TextView
-    private lateinit var tvWifiExit: TextView
-    private lateinit var tvWifiConnectedToast: TextView
     private lateinit var layoutExitConfirmDialog: LinearLayout
     private lateinit var tvExitConfirmConfirm: TextView
     private lateinit var tvExitConfirmCancel: TextView
     private lateinit var exitConfirmButtons: List<TextView>
     private var entryGuardNavigating = false
-    private var wifiRequiredDialogVisible = false
-    private var wifiScannerLaunching = false
-    private var wifiConnectInProgress = false
-    private var autoWifiScanAttempted = false
     private var exitConfirmDialogVisible = false
     private var exitConfirmSelectedIndex = EXIT_CONFIRM_CONFIRM
     private val uiHandler = Handler(Looper.getMainLooper())
-    private val hideWifiConnectedToastRunnable = Runnable {
-        tvWifiConnectedToast.visibility = View.GONE
-    }
 
     private val menuAdapter by lazy {
         MenuCardAdapter(
@@ -80,7 +48,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 MenuCardAdapter.MenuCardData(R.drawable.ic_menu_ai_analysis, R.string.ai_entry_menu_analysis),
                 MenuCardAdapter.MenuCardData(R.drawable.ic_menu_device_guide, R.string.ai_entry_menu_guide),
                 MenuCardAdapter.MenuCardData(R.drawable.ic_menu_hazard_record, R.string.ai_entry_menu_record),
-                MenuCardAdapter.MenuCardData(0, R.string.ai_entry_menu_update, iconChar = "↻"),
             ),
         )
     }
@@ -101,18 +68,11 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         // 初始选中第一张卡片
         menuAdapter.selectedIndex = 0
 
-        layoutWifiRequiredDialog = findViewById(R.id.layoutWifiRequiredDialog)
-        tvWifiRequiredMessage = findViewById(R.id.tvWifiRequiredMessage)
-        tvWifiRetry = findViewById(R.id.tvWifiRetry)
-        tvWifiExit = findViewById(R.id.tvWifiExit)
-        tvWifiConnectedToast = findViewById(R.id.tvWifiConnectedToast)
-        tvWifiRetry.setOnClickListener { launchWifiScanner() }
-        tvWifiExit.setOnClickListener { exitAppDirectly() }
         layoutExitConfirmDialog = findViewById(R.id.layoutExitConfirmDialog)
         tvExitConfirmConfirm = findViewById(R.id.tvExitConfirmConfirm)
         tvExitConfirmCancel = findViewById(R.id.tvExitConfirmCancel)
         exitConfirmButtons = listOf(tvExitConfirmConfirm, tvExitConfirmCancel)
-        tvExitConfirmConfirm.setOnClickListener { exitAppDirectly() }
+        tvExitConfirmConfirm.setOnClickListener { startEndReport() }
         tvExitConfirmCancel.setOnClickListener { hideExitConfirmDialog() }
         updateInspectionSummary()
     }
@@ -134,39 +94,21 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     }
 
     override fun onDestroy() {
-        uiHandler.removeCallbacks(hideWifiConnectedToastRunnable)
-        OfflineTtsPlayer.release(WIFI_AUDIO_OWNER)
         statusBarUpdater.stop()
-        updateExecutor.shutdownNow()
         inputSession.release()
         super.onDestroy()
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        if (keyEvent == GlassKeyEvent.KEYCODE_DOUBLE_CLICK || keyEvent == GlassKeyEvent.KEYCODE_BACK) {
+            showExitConfirmDialog()
+            return true
+        }
         return inputSession.dispatchTouch(keyEvent) || super.onGlassKeyEvent(keyEvent)
     }
 
     private fun runEntryGuards() {
-        if (entryGuardNavigating || wifiRequiredDialogVisible || exitConfirmDialogVisible) return
-
-        if (SystemStateUtils.getCurrentWifiSsid(this) == null) {
-            showWifiRequiredDialog(R.string.ai_entry_wifi_required_message)
-            if (!autoWifiScanAttempted && !wifiScannerLaunching && !wifiConnectInProgress) {
-                autoWifiScanAttempted = true
-                launchWifiScanner()
-            }
-            return
-        }
-
-        hideWifiRequiredDialog()
-
-        if (!InspectionSession.isInitialized) {
-            entryGuardNavigating = true
-            startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
-                putExtra(InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY, AiInspectionMenuActivity::class.java.name)
-            })
-            return
-        }
+        if (entryGuardNavigating || exitConfirmDialogVisible) return
 
         if (
             InspectionWorkflowSession.enterpriseQrPayload == null ||
@@ -178,114 +120,9 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         }
 
         updateInspectionSummary()
-        startAutoUpdateCheck()
-        showWifiConnectedToastIfNeeded()
-    }
-
-    private fun showWifiRequiredDialog(messageResId: Int) {
-        wifiRequiredDialogVisible = true
-        tvWifiRequiredMessage.setText(messageResId)
-        hideExitConfirmDialog(refreshInput = false)
-        layoutWifiRequiredDialog.visibility = View.VISIBLE
-        recyclerMenu.isEnabled = false
-        tvBottomHint.visibility = View.GONE
-        inputSession.updateActions(buildInputActions())
-    }
-
-    private fun launchWifiScanner() {
-        if (wifiScannerLaunching || wifiConnectInProgress) return
-        wifiScannerLaunching = true
-        showWifiRequiredDialog(R.string.ai_entry_wifi_required_message)
-        OfflineTtsPlayer.play(this, WIFI_AUDIO_OWNER, R.raw.need_scan_wifi)
-        runCatching {
-            GlassScanner.launch(
-                this,
-                WifiScanConfigFactory.create(this),
-                object : GlassScanCallback {
-                    override fun onScanSuccess(content: String?, barcode: Barcode) {
-                        wifiScannerLaunching = false
-                        if (content == null) {
-                            showWifiRequiredDialog(R.string.ai_entry_wifi_invalid_qr)
-                        } else {
-                            handleWifiQrContent(content)
-                        }
-                    }
-
-                    override fun onScanFailure(message: String) {
-                        wifiScannerLaunching = false
-                        showWifiRequiredDialog(R.string.ai_entry_wifi_invalid_qr)
-                    }
-
-                    override fun onScanCancelled() {
-                        wifiScannerLaunching = false
-                        showWifiRequiredDialog(R.string.ai_entry_wifi_required_message)
-                    }
-                },
-            )
-        }.onFailure { error ->
-            wifiScannerLaunching = false
-            Log.e(TAG, "launch wifi scanner failed", error)
-            showWifiRequiredDialog(R.string.ai_entry_wifi_invalid_qr)
-        }
-    }
-
-    private fun handleWifiQrContent(content: String) {
-        when (val result = WifiQrParser.parse(content)) {
-            is WifiQrParseResult.Error -> {
-                Log.w(TAG, "wifi qr rejected reason=${result.reason}")
-                showWifiRequiredDialog(R.string.ai_entry_wifi_invalid_qr)
-            }
-            is WifiQrParseResult.Success -> {
-                wifiConnectInProgress = true
-                showWifiRequiredDialog(R.string.ai_entry_wifi_connecting)
-                RokidSdkManager.connectWifi(result.payload) { success, errorMessage ->
-                    wifiConnectInProgress = false
-                    if (!success) {
-                        Log.w(TAG, "wifi connect failed message=$errorMessage")
-                        val message = if (RokidSdkManager.state == RokidSdkManager.SdkState.READY) {
-                            R.string.ai_entry_wifi_connect_failed
-                        } else {
-                            R.string.ai_entry_wifi_sdk_unavailable
-                        }
-                        showWifiRequiredDialog(message)
-                        return@connectWifi
-                    }
-                    confirmWifiConnected()
-                }
-            }
-        }
-    }
-
-    private fun confirmWifiConnected(attempt: Int = 0) {
-        if (SystemStateUtils.getCurrentWifiSsid(this) != null) {
-            OfflineTtsPlayer.play(this, WIFI_AUDIO_OWNER, R.raw.wifi_success)
-            hideWifiRequiredDialog()
-            runEntryGuards()
-            return
-        }
-        if (attempt >= WIFI_CONFIRM_MAX_ATTEMPTS) {
-            showWifiRequiredDialog(R.string.ai_entry_wifi_connect_failed)
-            return
-        }
-        uiHandler.postDelayed({ confirmWifiConnected(attempt + 1) }, WIFI_CONFIRM_INTERVAL_MS)
-    }
-
-    private fun showWifiConnectedToastIfNeeded() {
-        if (!MyApplication.consumeWifiConnectedToast()) return
-        tvWifiConnectedToast.visibility = View.VISIBLE
-        uiHandler.removeCallbacks(hideWifiConnectedToastRunnable)
-        uiHandler.postDelayed(hideWifiConnectedToastRunnable, WIFI_CONNECTED_TOAST_VISIBLE_MS)
-    }
-
-    private fun hideWifiRequiredDialog() {
-        wifiRequiredDialogVisible = false
-        layoutWifiRequiredDialog.visibility = View.GONE
-        recyclerMenu.isEnabled = true
-        tvBottomHint.visibility = View.VISIBLE
     }
 
     private fun showExitConfirmDialog() {
-        if (wifiRequiredDialogVisible) return
         exitConfirmDialogVisible = true
         exitConfirmSelectedIndex = EXIT_CONFIRM_CONFIRM
         layoutExitConfirmDialog.visibility = View.VISIBLE
@@ -307,42 +144,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         }
     }
 
-    private fun exitAppDirectly() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            finishAffinity()
-            finishAndRemoveTask()
-        } else {
-            finishAffinity()
-            finish()
-        }
-    }
-
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
-        if (wifiRequiredDialogVisible) {
-            return listOf(
-                UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.Confirm,
-                    label = getString(R.string.ai_entry_wifi_retry),
-                    triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_wifi_retry), "chong xin sao ma"),
-                    ),
-                ) {
-                    launchWifiScanner()
-                },
-                UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.Cancel,
-                    label = getString(R.string.ai_entry_wifi_exit),
-                    triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_wifi_exit), "tui chu ying yong"),
-                    ),
-                ) {
-                    exitAppDirectly()
-                },
-            )
-        }
         if (exitConfirmDialogVisible) {
             return listOf(
                 UnifiedInputSession.InputActionSpec(
@@ -361,25 +163,25 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 },
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Confirm,
-                    label = getString(R.string.ai_entry_exit_confirm_confirm),
+                    label = getString(R.string.ai_entry_end_inspection_confirm),
                     triggers = listOf(
                         UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_exit_confirm_confirm), "que ren"),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_end_inspection_confirm), "que ren"),
                     ),
                 ) { event ->
                     if (event.trigger is UnifiedInputSession.InputTrigger.Voice) {
-                        exitAppDirectly()
+                        startEndReport()
                     } else {
                         executeExitConfirmSelection()
                     }
                 },
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Cancel,
-                    label = getString(R.string.ai_entry_exit_confirm_cancel),
+                    label = getString(R.string.ai_entry_end_inspection_cancel),
                     triggers = listOf(
                         UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
                         UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_exit_confirm_cancel), "qu xiao"),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_end_inspection_cancel), "qu xiao"),
                     ),
                 ) {
                     hideExitConfirmDialog()
@@ -430,14 +232,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 onItemConfirmed(2)
             },
             UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_update"),
-                label = "检查更新",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("检查更新", "jian cha geng xin")),
-                enabled = { !checkingUpdate },
-            ) {
-                checkUpdateManually()
-            },
-            UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_menu_finish_inspection"),
                 label = "结束巡查",
                 triggers = listOf(
@@ -454,17 +248,6 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("检查扫码", "jian cha sao ma")),
             ) {
                 startEnterpriseQrScan(forceScan = true)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Exit,
-                label = "退出",
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                    UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_exit), "tui chu"),
-                ),
-            ) {
-                showExitConfirmDialog()
             },
         )
     }
@@ -537,44 +320,27 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private fun executeExitConfirmSelection() {
         when (exitConfirmSelectedIndex) {
-            EXIT_CONFIRM_CONFIRM -> exitAppDirectly()
+            EXIT_CONFIRM_CONFIRM -> startEndReport()
             EXIT_CONFIRM_CANCEL -> hideExitConfirmDialog()
         }
     }
 
     private fun onItemConfirmed(index: Int) {
-        if (entryGuardNavigating || wifiRequiredDialogVisible || exitConfirmDialogVisible) return
+        if (entryGuardNavigating || exitConfirmDialogVisible) return
         when (index) {
             0 -> startHazardAnalysis()
             1 -> startDeviceGuide()
             2 -> startActivity(Intent(this, HazardRecordActivity::class.java))
-            3 -> checkUpdateManually()
             else -> Unit
         }
     }
 
     private fun startHazardAnalysis() {
-        val targetActivity = if (InspectionSession.isInitialized) {
-            AiInspectionActivity::class.java
-        } else {
-            InspectionLoadingActivity::class.java
-        }
-        startActivity(Intent(this, targetActivity))
+        startActivity(Intent(this, AiInspectionActivity::class.java))
     }
 
     private fun startDeviceGuide() {
-        val targetActivity = if (InspectionSession.isInitialized) {
-            DeviceGuideActivity::class.java
-        } else {
-            InspectionLoadingActivity::class.java
-        }
-        startActivity(
-            Intent(this, targetActivity).apply {
-                if (targetActivity == InspectionLoadingActivity::class.java) {
-                    putExtra(InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY, DeviceGuideActivity::class.java.name)
-                }
-            },
-        )
+        startActivity(Intent(this, DeviceGuideActivity::class.java))
     }
 
     private fun startEnterpriseQrScan(forceScan: Boolean) {
@@ -592,66 +358,9 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    private fun startAutoUpdateCheck() {
-        if (autoUpdateChecked) return
-        autoUpdateChecked = true
-        updateExecutor.execute {
-            try {
-                val result = updateManager.checkForUpdate(ignoreSkipped = false)
-                if (!result.hasUpdate || result.info == null) return@execute
-                runOnUiThread {
-                    if (!updateManager.markAutoPromptShownIfAllowed()) return@runOnUiThread
-                    startActivity(
-                        Intent(this, AppUpdatePromptActivity::class.java).apply {
-                            putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
-                        },
-                    )
-                }
-            } catch (error: IOException) {
-                Log.i(TAG, "auto update check skipped: ${error.message}")
-            }
-        }
-    }
-
-    private fun checkUpdateManually() {
-        if (checkingUpdate) return
-        checkingUpdate = true
-        tvBottomHint.setText(R.string.ai_entry_menu_update_checking)
-        inputSession.updateActions(buildInputActions())
-        updateExecutor.execute {
-            try {
-                val result = updateManager.checkForUpdate(ignoreSkipped = true)
-                runOnUiThread {
-                    checkingUpdate = false
-                    inputSession.updateActions(buildInputActions())
-                    if (result.hasUpdate && result.info != null) {
-                        startActivity(
-                            Intent(this, AppUpdatePromptActivity::class.java).apply {
-                                putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
-                            },
-                        )
-                    } else {
-                        tvBottomHint.setText(R.string.ai_entry_menu_update_latest)
-                    }
-                }
-            } catch (error: IOException) {
-                Log.e(TAG, "检查更新失败", error)
-                runOnUiThread {
-                    checkingUpdate = false
-                    tvBottomHint.setText(R.string.ai_entry_menu_update_failed)
-                    inputSession.updateActions(buildInputActions())
-                }
-            }
-        }
-    }
-
     companion object {
         private const val TAG = "AiInspectionMenu"
         private const val EXIT_CONFIRM_CONFIRM = 0
         private const val EXIT_CONFIRM_CANCEL = 1
-        private const val WIFI_AUDIO_OWNER = "AiInspectionMenuWifi"
-        private const val WIFI_CONNECTED_TOAST_VISIBLE_MS = 2000L
-        private const val WIFI_CONFIRM_INTERVAL_MS = 500L
-        private const val WIFI_CONFIRM_MAX_ATTEMPTS = 10
     }
 }

@@ -152,15 +152,7 @@ sequenceDiagram
     end
     User->>MainMenu: 点击"基层应消"
     MainMenu->>Menu: 跳转二级菜单
-    Menu->>Menu: 入口守卫: WiFi / 初始化 / 企业信息检查
-    alt 未初始化
-        Menu->>Loading: 跳转
-        Loading->>Session: ensureInitialized() + initFrameStream()
-        Session->>Camera: initialize() + 帧流启动
-        Camera-->>Session: GpuFrame 流就绪
-        Loading->>Menu: markInitialized() + 回到菜单
-    end
-    Menu->>Menu: 企业信息已获取?
+    Menu->>Menu: 入口守卫: 仅检查企业信息
     alt 企业信息为空
         Menu->>QrScan: 跳转企业扫码
         QrScan-->>Menu: 扫码完成 → 回到菜单
