@@ -174,5 +174,13 @@
       // 保存类接口 write timeout，单位 ms。
       "writeTimeoutMs": 30000
     }
+  },
+
+  /* 应用可见性配置。
+   * 控制眼镜系统应用列表中显示哪些内置应用。
+   */
+  "appVisibility": {
+    // 应用可见性模式。可选值：FULL（显示所有内置应用）| MINIMAL（仅隐患巡检+扫一扫）。
+    "mode": "FULL"
   }
 }
