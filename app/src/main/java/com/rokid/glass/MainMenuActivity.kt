@@ -221,11 +221,11 @@ class MainMenuActivity : BaseGlassActivity() {
             }
         }
         return buildList {
-            // 页面通用动作：确认→点击卡片，取消→退出应用
+            // 页面通用动作：确认→点击卡片，取消→主菜单为根页面不做操作
             addAll(
                 UnifiedInputSession.buildPageCommonActions(
                     onConfirm = { onItemConfirmed(selectedIndex) },
-                    onCancel = { exitAppDirectly() },
+                    onCancel = { /* 主菜单根页面，返回/取消不操作 */ },
                 ),
             )
             // 导航：前后滑动选卡片
