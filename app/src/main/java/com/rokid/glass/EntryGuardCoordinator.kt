@@ -137,14 +137,14 @@ class EntryGuardCoordinator(
                 override fun onSuccess(content: String?, barcode: Barcode) {
                     wifiScannerLaunching.set(false)
                     if (content == null) {
-                        postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
+                        postWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr)
                     } else {
                         handleWifiQrContent(content)
                     }
                 }
                 override fun onFailure(error: String) {
                     wifiScannerLaunching.set(false)
-                    postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
+                    postWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr)
                 }
                 override fun onCancelled() {
                     wifiScannerLaunching.set(false)
@@ -152,7 +152,7 @@ class EntryGuardCoordinator(
                 }
                 override fun onCameraUnavailable() {
                     wifiScannerLaunching.set(false)
-                    postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_connect_failed) }
+                    postWifiConnectionFailed(R.string.ai_entry_wifi_connect_failed)
                 }
             },
         )
@@ -249,7 +249,7 @@ class EntryGuardCoordinator(
         when (val result = WifiQrParser.parse(content)) {
             is WifiQrParseResult.Error -> {
                 AppFileLogger.w(TAG, "wifi qr rejected reason=${result.reason}")
-                postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr) }
+                postWifiConnectionFailed(R.string.ai_entry_wifi_invalid_qr)
             }
             is WifiQrParseResult.Success -> {
                 wifiConnectInProgress.set(true)
@@ -263,7 +263,7 @@ class EntryGuardCoordinator(
                         } else {
                             R.string.ai_entry_wifi_sdk_unavailable
                         }
-                        postCallback { it.onWifiConnectionFailed(message) }
+                        postWifiConnectionFailed(message)
                         return@connectWifi
                     }
                     confirmWifiConnected()
@@ -283,7 +283,7 @@ class EntryGuardCoordinator(
             return
         }
         if (attempt >= getWifiConfirmMaxAttempts()) {
-            postCallback { it.onWifiConnectionFailed(R.string.ai_entry_wifi_connect_failed) }
+            postWifiConnectionFailed(R.string.ai_entry_wifi_connect_failed)
             return
         }
         uiHandler.postDelayed({ confirmWifiConnected(attempt + 1) }, getWifiConfirmIntervalMs())
@@ -376,6 +376,11 @@ class EntryGuardCoordinator(
             if (released.get()) return@post
             callback.onSdkStateChanged(state)
         }
+    }
+
+    private fun postWifiConnectionFailed(messageResId: Int) {
+        OfflineTtsPlayer.play(context, TAG, R.raw.wifi_failed)
+        postCallback { it.onWifiConnectionFailed(messageResId) }
     }
 
     private inline fun postCallback(crossinline action: (Callback) -> Unit) {

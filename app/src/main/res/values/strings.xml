@@ -226,6 +226,8 @@
     <string name="ai_entry_wifi_connect_failed">Wi-Fi 连接失败，请重试</string>
     <string name="ai_entry_wifi_sdk_unavailable">Rokid SDK 尚未就绪，请重试</string>
     <string name="ai_entry_wifi_connected">wifi已连接</string>
+    <string name="ai_entry_wifi_connecting_toast">WiFi连接中</string>
+    <string name="ai_entry_wifi_connected_toast">WiFi连接成功</string>
     <string name="app_update_title">发现新版本</string>
     <string name="app_update_version">新版本：%1$s</string>
     <string name="app_update_notes_empty">本次更新未填写说明</string>

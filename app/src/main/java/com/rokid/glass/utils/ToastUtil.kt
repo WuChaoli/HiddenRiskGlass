@@ -36,6 +36,11 @@ object ToastUtil {
         }
     }
 
+    fun cancel() {
+        currentToast?.cancel()
+        currentToast = null
+    }
+
 
 
 

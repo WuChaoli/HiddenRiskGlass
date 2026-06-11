@@ -24,6 +24,7 @@ import com.rokid.glesse.R
 import com.google.gson.Gson
 import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glass.utils.OfflineTtsPlayer
+import com.rokid.glass.utils.ToastUtil
 
 /**
  * 主菜单 Activity，作为 App 的 LAUNCHER 入口。
@@ -56,14 +57,17 @@ class MainMenuActivity : BaseGlassActivity() {
             }
 
             override fun onWifiConnecting() {
-                showWifiRequiredDialog(R.string.ai_entry_wifi_connecting)
+                hideWifiRequiredDialog()
+                ToastUtil.show(getString(R.string.ai_entry_wifi_connecting_toast))
             }
 
             override fun onWifiConnected() {
                 hideWifiRequiredDialog()
+                ToastUtil.show(getString(R.string.ai_entry_wifi_connected_toast))
             }
 
             override fun onWifiConnectionFailed(messageResId: Int) {
+                ToastUtil.cancel()
                 showWifiRequiredDialog(messageResId)
             }
 
@@ -97,8 +101,8 @@ class MainMenuActivity : BaseGlassActivity() {
         MenuCardAdapter(
             cards = listOf(
                 MenuCardAdapter.MenuCardData(R.drawable.ic_menu_ai_analysis, R.string.main_menu_card_inspection),
-                MenuCardAdapter.MenuCardData(0, R.string.main_menu_card_wifi, iconChar = "↻"),
-                MenuCardAdapter.MenuCardData(0, R.string.main_menu_card_update, iconChar = "↻"),
+                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_wifi, R.string.main_menu_card_wifi),
+                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_update, R.string.main_menu_card_update),
             ),
         )
     }
