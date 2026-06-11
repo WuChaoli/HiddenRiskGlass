@@ -407,6 +407,7 @@ class MainMenuActivity : BaseGlassActivity() {
         if (!allGuardsReady) {
             tvInitStatus.visibility = View.VISIBLE
         }
+        inputSession.updateActions(buildInputActions())
     }
 
     private fun moveWifiDialogFocus() {

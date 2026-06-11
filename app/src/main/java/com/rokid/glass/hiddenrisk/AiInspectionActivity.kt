@@ -758,9 +758,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             motionStabilityTracker.addListener(motionStabilityListener)
         }
 
-        showPage(PageState.DETECTING)
-        applyDefaultDetectionStatus()
-        statusBarUpdater.refreshNow(statusBarDetecting, statusBarStream)
         debugSnapshotState = intent.getStringExtra("debug_state")
         if (debugSnapshotState != null) {
             applyDebugSnapshotState(debugSnapshotState!!)
@@ -777,14 +774,23 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 注册 SDK 监听（用于语音命令）
         RokidSdkManager.addListener(this)
 
-        // 检查初始化状态，如果未初始化则返回
+        // 检查初始化状态；正常情况 AiInspectionMenu 已后台预加载完成
         if (!InspectionSession.isInitialized) {
-            Log.e(TAG, "InspectionSession 未初始化，返回加载页面")
-            startActivity(Intent(this, InspectionLoadingActivity::class.java))
-            finish()
+            Log.w(TAG, "InspectionSession 未初始化，内联等待加载（兜底路径）")
+            doInlineSessionInit()
             return
         }
 
+        onSessionReady()
+    }
+
+    /**
+     * Session 就绪后的初始化逻辑（从 onCreate 末尾抽取）。
+     */
+    private fun onSessionReady() {
+        showPage(PageState.DETECTING)
+        applyDefaultDetectionStatus()
+        statusBarUpdater.refreshNow(statusBarDetecting, statusBarStream)
         OfflineTtsPlayer.play(
             context = this,
             ownerTag = TAG,
@@ -796,6 +802,54 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "defer detection start until active lifecycle resumed=$isActivityResumed active=$isWorkflowActive frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} modelLoaded=$modelLoaded",
         )
+    }
+
+    /**
+     * 内联初始化 InspectionSession（兜底路径，正常情况下不应走到这里）。
+     * 显示内置 layoutLoading，在 nativeExecutor 加载 NCNN 模型，完成后回调 onSessionReady。
+     */
+    private fun doInlineSessionInit() {
+        layoutLoading.visibility = View.VISIBLE
+        layoutDetection.visibility = View.GONE
+        layoutStreamResponse.visibility = View.GONE
+
+        nativeExecutor.execute {
+            try {
+                val needsModel = InspectionConfigRepository.get()
+                    .aiInspection
+                    .autoHazardRoutingMode == ConfigAutoHazardRoutingMode.LOCAL_ONLY
+                if (needsModel) {
+                    if (!InspectionSession.createNcnnInstance() || !InspectionSession.loadModel(assets)) {
+                        runOnUiThread {
+                            layoutLoading.visibility = View.GONE
+                            statusAlertOverlay.render(StatusAlertModel(
+                                status = AlertStatus.ERROR,
+                                titleText = getString(R.string.ai_inspection_load_error_title),
+                                messageText = InspectionSession.errorMessage
+                                    ?: getString(R.string.ai_inspection_loading_error_default),
+                                behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
+                                style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
+                            ))
+                        }
+                        return@execute
+                    }
+                }
+                InspectionSession.markInitialized()
+                runOnUiThread { onSessionReady() }
+            } catch (e: Exception) {
+                Log.e(TAG, "doInlineSessionInit: unexpected error", e)
+                runOnUiThread {
+                    layoutLoading.visibility = View.GONE
+                    statusAlertOverlay.render(StatusAlertModel(
+                        status = AlertStatus.ERROR,
+                        titleText = getString(R.string.ai_inspection_load_error_title),
+                        messageText = getString(R.string.ai_inspection_loading_error_default),
+                        behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
+                        style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
+                    ))
+                }
+            }
+        }
     }
 
     /**

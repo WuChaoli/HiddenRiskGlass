@@ -20,7 +20,13 @@ import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.HazardRecordActivity
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.workflow.InspectionWorkflowSession
+import com.rokid.glass.config.AutoHazardRoutingMode
+import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.hiddenrisk.InspectionSession
 import com.rokid.glesse.R
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class AiInspectionMenuActivity : BaseGlassActivity() {
 
@@ -41,6 +47,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private var exitConfirmDialogVisible = false
     private var exitConfirmSelectedIndex = EXIT_CONFIRM_CONFIRM
     private val uiHandler = Handler(Looper.getMainLooper())
+    private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
 
     private val menuAdapter by lazy {
         MenuCardAdapter(
@@ -85,6 +92,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         statusBarUpdater.start(statusBar)
         updateInspectionSummary()
         runEntryGuards()
+        preloadInspectionSession()
     }
 
     override fun onPause() {
@@ -96,6 +104,15 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     override fun onDestroy() {
         statusBarUpdater.stop()
         inputSession.release()
+        modelLoadExecutor.shutdown()
+        try {
+            if (!modelLoadExecutor.awaitTermination(2, TimeUnit.SECONDS)) {
+                modelLoadExecutor.shutdownNow()
+            }
+        } catch (e: InterruptedException) {
+            modelLoadExecutor.shutdownNow()
+            Thread.currentThread().interrupt()
+        }
         super.onDestroy()
     }
 
@@ -120,6 +137,39 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         }
 
         updateInspectionSummary()
+    }
+
+    /**
+     * 后台预初始化 InspectionSession（NCNN 实例创建 + 模型加载）。
+     * 在 onResume 时启动，使得到达 AiInspectionActivity 时 isInitialized 已为 true。
+     * 若已初始化则跳过。
+     */
+    private fun preloadInspectionSession() {
+        if (InspectionSession.isInitialized) return
+        Log.d(TAG, "preloadInspectionSession: starting background preload")
+        modelLoadExecutor.execute {
+            try {
+                val needsModel = InspectionConfigRepository.get()
+                    .aiInspection
+                    .autoHazardRoutingMode == AutoHazardRoutingMode.LOCAL_ONLY
+                if (needsModel) {
+                    val created = InspectionSession.createNcnnInstance()
+                    if (!created) {
+                        Log.e(TAG, "preloadInspectionSession: createNcnnInstance failed")
+                        return@execute
+                    }
+                    val loaded = InspectionSession.loadModel(assets)
+                    if (!loaded) {
+                        Log.e(TAG, "preloadInspectionSession: loadModel failed")
+                        return@execute
+                    }
+                }
+                InspectionSession.markInitialized()
+                Log.d(TAG, "preloadInspectionSession: marked initialized")
+            } catch (e: Exception) {
+                Log.e(TAG, "preloadInspectionSession: unexpected error", e)
+            }
+        }
     }
 
     private fun showExitConfirmDialog() {
