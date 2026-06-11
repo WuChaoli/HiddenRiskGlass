@@ -14,15 +14,23 @@
 ### 页面状态流转
 
 ```
-主菜单点击"实时分析" → AiInspectionMenuActivity
+App 启动 (LAUNCHER) → MainMenuActivity
+  → EntryGuardCoordinator 后台静默初始化:
+      WiFi 未连接 → 显示 WiFi 必需对话框（等待用户扫码连接）
+      SDK / 相机 / 更新检查 → 全部完成后解锁"基层应消"
+  → 菜单可操作:
+      基层应消 → AiInspectionMenuActivity（第二层）
+      连接WiFi → 启动 WiFi QR 扫码
+      检查更新 → 手动检查 App 更新
+
+AiInspectionMenuActivity（第二层）:
   → 入口守卫 (onResume 自动执行):
-      WiFi 未连接 → 显示 WiFi 必需对话框
-      InspectionSession 未初始化 → InspectionLoadingActivity → 回到 AiInspectionMenuActivity
       企业信息为空 → EnterpriseQrScanActivity
   → 菜单可操作:
       实时分析 → AiInspectionActivity (DETECTING)
       设备指引 → DeviceGuideActivity
       隐患拍照 → HazardRecordActivity
+  → 双击/后退 → 结束巡检确认 → InspectionEndReportActivity
 
 AiInspectionActivity:
   DETECTING → 自动/手动命中隐患 → STREAM_RESPONSE(DESCRIPTION)
@@ -78,6 +86,8 @@ DeviceGuideActivity:
 | `LightshotActivity.kt` | 历史调试页（非产品基线）| |
 | `UnifiedInputDebugActivity.kt` | 统一输入调试页 | |
 | `RawCameraPreviewDebugActivity.kt` | 原始相机预览调试页 | |
+
+> 注：`MainMenuActivity.kt` 与 `EntryGuardCoordinator.kt` 位于 `com.rokid.glass` 根包，是 App LAUNCHER 入口与后台初始化协调器，负责第一层菜单展示与静默初始化，完成后跳转至本模块的 `AiInspectionMenuActivity`。详见根包源码。 |
 
 ### 在线推理/SSE 服务（6 个）
 
@@ -172,23 +182,22 @@ DeviceGuideActivity:
 
 ### 链路 1：初始化 → 检测
 ```
+MainMenuActivity (LAUNCHER 启动)
+  → EntryGuardCoordinator.startBackgroundGuards() (onResume 自动执行)
+    → WiFi 已连接?
+      → NO: 显示 WiFi 必需对话框，等待用户扫码连接
+      → YES: 继续 SDK 初始化 + 相机预热 + 更新检查
+    → 所有守卫就绪 (onAllGuardsReady) → 解锁"基层应消"卡片
+  → 点击"基层应消" → AiInspectionMenuActivity
+
 AiInspectionMenuActivity (点击"实时分析")
   → runEntryGuards() (onResume 自动执行)
-    → WiFi 已连接?
-      → NO: 显示 WiFi 必需对话框，等待用户确认退出
-      → YES: 继续
-    → InspectionSession.isInitialized?
-      → NO: InspectionLoadingActivity
-          → RokidSdkManager.ensureInitialized()
-          → InspectionSession.initFrameStream()
-          → InspectionSession.markInitialized()
-          → 创建 sessionId (InspectionWorkflowSession.beginInspection())
-          → 回到 AiInspectionMenuActivity
-      → YES: 继续
-    → 企业信息已获取 (enterpriseQrPayload != null)?
+    → 企业信息已获取 (enterpriseQrPayload != null && enterpriseInfo != null)?
       → NO: EnterpriseQrScanActivity (佩戴状态机集成: 摘镜暂停/戴回恢复)
-      → YES: 菜单可操作
+      → YES: 更新底部企业摘要，菜单可操作
   → 选择"实时分析" → AiInspectionActivity
+  → 选择"设备指引" → DeviceGuideActivity
+  → 双击/后退 → 结束巡检确认对话框 → InspectionEndReportActivity
 ```
 
 ### 链路 2：在线自动识别

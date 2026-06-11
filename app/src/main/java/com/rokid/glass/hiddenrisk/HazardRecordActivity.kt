@@ -84,6 +84,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var frameStreamReady = false
     private var frameStreamInitializing = false
     private var cameraSessionGeneration = 0L
+    private var cameraRequestToken: Long = -1L
     private var mediaPermissionRequested = false
     private var countdownRemaining = 0
     private var captureInProgress = false
@@ -142,7 +143,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
         statusBarUpdater.stop()
         inputSession.detach()
         super.onPause()
@@ -154,7 +155,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "onDestroy pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
         )
         cancelActiveWork()
-        InspectionCameraCoordinator.pause(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_destroy")
         statusBarUpdater.stop()
         uiHandler.removeCallbacksAndMessages(null)
         OfflineTtsPlayer.release(TAG)
@@ -255,6 +256,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ),
                 enabled = { pageState == PageState.IDLE },
             ) {
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.HAZARD_RECORD, reason = "hazard_record_end_task")
                 startActivity(
                     InspectionEndReportActivity.createIntent(
                         this,
@@ -284,6 +286,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 triggers = buildReturnTriggers(),
                 enabled = { pageState == PageState.IDLE },
             ) {
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.HAZARD_RECORD, reason = "hazard_record_exit")
                 finish()
             },
         )
@@ -337,25 +340,16 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "ensureFrameStreamReady start pageState=$pageState frameReady=$frameStreamReady frameInitializing=$frameStreamInitializing frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} sdkState=${RokidSdkManager.state}",
         )
         frameStreamInitializing = true
-        var requestGeneration = 0L
-        requestGeneration = InspectionCameraCoordinator.acquire(
+        cameraRequestToken = InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.HAZARD_RECORD,
             needPreview = false,
         ) { success ->
-            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
-                Log.i(
-                    TAG,
-                    "ignore stale hazard acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
-                )
-                return@acquire
-            }
             uiHandler.post {
                 frameStreamInitializing = false
                 frameStreamReady = success
-                cameraSessionGeneration = requestGeneration
                 Log.i(
                     TAG,
-                    "ensureFrameStreamReady end success=$success generation=$requestGeneration pageState=$pageState frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
+                    "ensureFrameStreamReady end success=$success pageState=$pageState frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
                 )
                 if (!success && pageState == PageState.IDLE) {
                     tvIdleHint.setText(R.string.hazard_record_frame_stream_failed)
@@ -365,7 +359,6 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 refreshInputActions()
             }
         }
-        cameraSessionGeneration = requestGeneration
     }
 
     private fun hasRequiredPermissions(): Boolean {
@@ -801,6 +794,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "startRealtimeAnalysis target=${targetActivity.simpleName} frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()} captureInProgress=$captureInProgress streamingInProgress=$streamingInProgress saveSubmitting=$saveSubmitting",
         )
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.HAZARD_RECORD, reason = "hazard_record_realtime_analysis")
         startActivity(Intent(this, targetActivity))
         finish()
     }
@@ -810,6 +804,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "navigateToDeviceGuide frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()} frameWarm=${RokidFrameSource.isFrameStreamWarm()}",
         )
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.HAZARD_RECORD, reason = "hazard_record_device_guide")
         navigatingToDeviceGuide = true
         startActivity(Intent(this, DeviceGuideActivity::class.java))
         finish()

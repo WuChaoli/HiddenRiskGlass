@@ -248,4 +248,47 @@ class InspectionCameraCoordinatorStateMachineTest {
         assertEquals(CameraSessionState.READY_WITH_PREVIEW, snapshot.state)
         assertEquals(update2.generation, snapshot.generation)
     }
+
+    @Test
+    fun forceRelease_clearsOwnerAndIncrementsGeneration() {
+        val stateMachine = InspectionCameraCoordinator.StateMachine()
+
+        val acquired = stateMachine.beginAcquire(
+            CameraOwner.LOADING,
+            readyNow = true,
+            needPreview = false,
+        )
+        assertTrue(
+            stateMachine.finishReady(
+                owner = CameraOwner.LOADING,
+                generation = acquired.generation,
+                needPreview = false,
+            ),
+        )
+        assertEquals(CameraOwner.LOADING, stateMachine.snapshot().owner)
+        assertEquals(acquired.generation, stateMachine.snapshot().generation)
+
+        val released = stateMachine.forceRelease()
+        assertNull(released.owner)
+        assertEquals(CameraSessionState.IDLE, released.state)
+        assertEquals(acquired.generation + 1L, released.generation)
+    }
+
+    @Test
+    fun forceRelease_twiceIncrementsGenerationEachTime() {
+        val stateMachine = InspectionCameraCoordinator.StateMachine()
+
+        val acquired = stateMachine.beginAcquire(
+            CameraOwner.AI_INSPECTION,
+            readyNow = true,
+            needPreview = true,
+        )
+        stateMachine.finishReady(CameraOwner.AI_INSPECTION, acquired.generation, needPreview = true)
+
+        val first = stateMachine.forceRelease()
+        assertEquals(acquired.generation + 1L, first.generation)
+
+        val second = stateMachine.forceRelease()
+        assertEquals(first.generation + 1L, second.generation)
+    }
 }

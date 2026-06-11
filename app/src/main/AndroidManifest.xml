@@ -101,7 +101,7 @@
             android:exported="false"
             android:theme="@style/Theme.Glessedemo" />
         <activity
-            android:name="com.rokid.glass.AiInspectionMenuActivity"
+            android:name="com.rokid.glass.MainMenuActivity"
             android:exported="true"
             android:theme="@style/Theme.Glessedemo">
             <intent-filter>
@@ -109,6 +109,10 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name="com.rokid.glass.AiInspectionMenuActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Glessedemo" />
         <activity
             android:name="com.rokid.glass.InspectionEndReportActivity"
             android:exported="false"

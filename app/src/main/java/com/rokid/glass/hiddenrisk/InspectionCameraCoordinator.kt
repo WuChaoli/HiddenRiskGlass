@@ -180,6 +180,17 @@ object InspectionCameraCoordinator {
             return true
         }
 
+        /** 强制释放当前 owner 和状态，进入 IDLE。增加 generation 使旧回调失效。 */
+        fun forceRelease(): SessionSnapshot {
+            val next = SessionSnapshot(
+                owner = null,
+                state = CameraSessionState.IDLE,
+                generation = snapshot.generation + 1L,
+            )
+            snapshot = next
+            return next
+        }
+
         fun resetForTest() {
             snapshot = SessionSnapshot(
                 owner = null,
@@ -191,6 +202,7 @@ object InspectionCameraCoordinator {
     }
 
     private const val TAG = "InspectionCameraCoord"
+    private const val RETRY_DELAY_MS = 300L
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private val lock = Any()
@@ -201,6 +213,19 @@ object InspectionCameraCoordinator {
 
     @Volatile
     private var boundPreviewView: RokidCameraPreviewView? = null
+
+    // 当前活跃的逻辑请求 token，-1 表示无活跃请求
+    @Volatile
+    private var currentRequestToken: Long = -1L
+
+    // requestToken 生成器
+    private var nextRequestToken: Long = 1L
+
+    private fun generateRequestToken(): Long {
+        val token = nextRequestToken
+        nextRequestToken++
+        return token
+    }
 
     fun acquire(
         owner: CameraOwner,
@@ -253,6 +278,59 @@ object InspectionCameraCoordinator {
             }
         }
         return snapshot.generation
+    }
+
+    /**
+     * 业务页面按需获取相机。
+     * 若当前已有其他 owner 占用，先执行强制移交（释放旧资源，再为新 owner 申请）。
+     * 若获取失败，自动执行最多 3 次额外重试（共 4 次尝试）。
+     * @return requestToken，页面可保存用于后续判断回调是否过期
+     */
+    fun acquireForActivity(
+        owner: CameraOwner,
+        needPreview: Boolean,
+        previewView: RokidCameraPreviewView? = null,
+        enableRecovery: Boolean = false,
+        onReady: (Boolean) -> Unit = {},
+    ): Long {
+        val token = generateRequestToken()
+        currentRequestToken = token
+
+        val current = synchronized(lock) { stateMachine.snapshot() }
+        if (current.owner != null && current.owner != owner) {
+            Log.w(TAG, "forceTransfer oldOwner=${current.owner} newOwner=$owner")
+            forceReleaseCurrentOwner(reason = "force_transfer_to_${owner.name}")
+        }
+        acquireWithRetry(
+            owner = owner,
+            needPreview = needPreview,
+            previewView = previewView,
+            enableRecovery = enableRecovery,
+            attempt = 1,
+            maxAttempts = 4,
+            requestToken = token,
+            onReady = onReady,
+        )
+        return token
+    }
+
+    /**
+     * 临时暂停：用于权限弹窗、系统遮挡或短暂进入后台。
+     * 停止页面消费或预览，但不完整释放 NV21 和 owner。
+     * requestToken 保持不变，允许后续恢复。
+     */
+    fun pauseTemporarily(owner: CameraOwner, reason: String): Long {
+        return pause(owner = owner, reason = reason)
+    }
+
+    /**
+     * 明确离开：用于返回、取消、完成、跳转其他 Activity 或主动 finish()。
+     * 停止 Surface 和 NV21，清空 owner，并将 currentRequestToken 置为 -1
+     * 以终止所有进行中的重试。
+     */
+    fun releaseForNavigation(owner: CameraOwner, reason: String): Long {
+        currentRequestToken = -1L
+        return release(owner = owner, reason = reason)
     }
 
     fun pause(owner: CameraOwner, reason: String): Long {
@@ -363,7 +441,7 @@ object InspectionCameraCoordinator {
         RokidFrameSource.stopSurfacePreview()
         RokidFrameSource.stopFrameStream()
         synchronized(lock) {
-            stateMachine.resetForTest()
+            stateMachine.forceRelease()
         }
         logState(
             action = "release_app_complete",
@@ -374,6 +452,75 @@ object InspectionCameraCoordinator {
             extra = "reason=$reason",
         )
         return releaseSnapshot.generation
+    }
+
+    private fun acquireWithRetry(
+        owner: CameraOwner,
+        needPreview: Boolean,
+        previewView: RokidCameraPreviewView?,
+        enableRecovery: Boolean,
+        attempt: Int,
+        maxAttempts: Int,
+        requestToken: Long,
+        onReady: (Boolean) -> Unit,
+    ) {
+        Log.i(TAG, "acquire attempt=$attempt/$maxAttempts owner=$owner requestToken=$requestToken")
+        acquire(
+            owner = owner,
+            needPreview = needPreview,
+            previewView = previewView,
+            enableRecovery = enableRecovery,
+        ) { success ->
+            // 检查当前请求是否已被取消（releaseForNavigation 会将 currentRequestToken 置为 -1）
+            if (currentRequestToken != requestToken) {
+                Log.i(TAG, "retry callback ignored: requestToken=$requestToken current=$currentRequestToken")
+                return@acquire
+            }
+            if (success) {
+                onReady(true)
+                return@acquire
+            }
+            if (attempt >= maxAttempts) {
+                Log.e(TAG, "acquire failed after $maxAttempts attempts owner=$owner")
+                onReady(false)
+                return@acquire
+            }
+            // 重试前完整清理 App 相机资源（注意：这会清空 owner，但不影响 requestToken 判断）
+            releaseAppCamera(reason = "retry_cleanup_before_attempt_${attempt + 1}")
+            mainHandler.postDelayed({
+                // 再次检查 requestToken，而非检查 owner（owner 已被 releaseAppCamera 清空）
+                if (currentRequestToken != requestToken) {
+                    Log.i(TAG, "retry aborted: request cancelled owner=$owner requestToken=$requestToken")
+                    return@postDelayed
+                }
+                acquireWithRetry(
+                    owner = owner,
+                    needPreview = needPreview,
+                    previewView = previewView,
+                    enableRecovery = enableRecovery,
+                    attempt = attempt + 1,
+                    maxAttempts = maxAttempts,
+                    requestToken = requestToken,
+                    onReady = onReady,
+                )
+            }, RETRY_DELAY_MS)
+        }
+    }
+
+    private fun forceReleaseCurrentOwner(reason: String) {
+        val previewToStop = synchronized(lock) {
+            val preview = boundPreviewView
+            boundPreviewView = null
+            activeNeedPreview = false
+            preview
+        }
+        previewToStop?.stopPreview()
+        RokidFrameSource.stopSurfacePreview()
+        RokidFrameSource.stopFrameStream()
+        synchronized(lock) {
+            stateMachine.forceRelease()
+        }
+        Log.i(TAG, "forceReleaseCurrentOwner reason=$reason")
     }
 
     fun updatePreview(
@@ -533,6 +680,8 @@ object InspectionCameraCoordinator {
             stateMachine.resetForTest()
             activeNeedPreview = false
             boundPreviewView = null
+            currentRequestToken = -1L
+            nextRequestToken = 1L
         }
     }
 

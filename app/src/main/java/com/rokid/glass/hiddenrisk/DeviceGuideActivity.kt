@@ -109,6 +109,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
     private var wearRecoveryFrameCheckInFlight = false
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
+    private var cameraRequestToken: Long = -1L
 
     private val nextDetectRunnable = Runnable {
         runDetectionLoop()
@@ -157,7 +158,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(autoGuideDetailRunnable)
         frameStreamInitializing = false
         frameStreamReady = false
-        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_pause")
         uiHandler.removeCallbacks(wearRecoveryFrameRunnable)
         inputSession.detach()
         super.onPause()
@@ -170,7 +171,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         OfflineTtsPlayer.release(TAG)
         inputSession.release()
         RokidSdkManager.removeListener(this)
-        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
         // 释放 OkHttp 空闲连接，避免服务器端残留 ESTABLISHED 连接
         detectSseService.releaseConnections()
@@ -252,6 +253,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("实时分析", "shi shi fen xi")),
                 enabled = { canHandleDetectingInput() },
             ) {
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.DEVICE_GUIDE, reason = "device_guide_goto_ai_inspection")
                 startActivity(Intent(this, AiInspectionActivity::class.java))
                 finish()
             },
@@ -261,6 +263,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患拍照", "yin huan pai zhao")),
                 enabled = { canHandleDetectingInput() },
             ) {
+                InspectionCameraCoordinator.releaseForNavigation(CameraOwner.DEVICE_GUIDE, reason = "device_guide_goto_hazard_record")
                 startActivity(Intent(this, HazardRecordActivity::class.java))
                 finish()
             },
@@ -365,25 +368,17 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         frameStreamInitializing = true
-        var requestGeneration = 0L
-        requestGeneration = InspectionCameraCoordinator.acquire(
+        cameraRequestToken = InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.DEVICE_GUIDE,
             needPreview = true,
             previewView = viewLivePreview,
         ) { success ->
             uiHandler.post {
-                if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
-                    Log.i(
-                        TAG,
-                        "ignore stale device guide acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
-                    )
-                    return@post
-                }
                 frameStreamInitializing = false
                 frameStreamReady = success
                 Log.i(
                     TAG,
-                    "ensureFrameStreamReady end success=$success generation=$requestGeneration previewStarted=${viewLivePreview.isPreviewStarted()} state=${InspectionCameraCoordinator.getState()}",
+                    "ensureFrameStreamReady end success=$success generation=${InspectionCameraCoordinator.getGeneration()} previewStarted=${viewLivePreview.isPreviewStarted()} state=${InspectionCameraCoordinator.getState()}",
                 )
                 if (success && !viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
                     recreateDeviceGuidePreviewView(reason = "acquire_preview_not_started")
@@ -395,7 +390,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     } else {
                         scheduleNextDetection(immediate = true)
                     }
-                    scheduleDeviceGuidePreviewDrawCheck(requestGeneration)
+                    scheduleDeviceGuidePreviewDrawCheck(InspectionCameraCoordinator.getGeneration())
                 } else {
                     if (isWearRecovering()) statusAlertOverlay.reset()
                     tvDetectingBottomHint.setText(R.string.device_guide_frame_stream_failed)
@@ -752,6 +747,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun returnToMenuHome() {
         updateWearSleepEligibility(false)
         cancelActiveRequests()
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.DEVICE_GUIDE, reason = "device_guide_return_menu")
         startActivity(Intent(this, AiInspectionMenuActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         })
@@ -804,7 +800,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         previewRecreateAttempted = false
-        InspectionCameraCoordinator.pause(CameraOwner.DEVICE_GUIDE, reason = "device_guide_wear_sleep")
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.DEVICE_GUIDE, reason = "device_guide_wear_sleep")
         layoutLivePreviewCard.visibility = View.INVISIBLE
         viewLivePreview.visibility = View.INVISIBLE
         tvDetectingBottomHint.visibility = View.GONE

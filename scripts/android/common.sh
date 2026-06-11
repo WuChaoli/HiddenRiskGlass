@@ -20,6 +20,31 @@ load_android_env() {
   # shellcheck disable=SC1090
   source "$ENV_FILE"
   set +a
+  # 将 Windows 绝对路径 (C:/...) 转换为当前 bash 环境可用的格式
+  for var in JAVA_HOME ANDROID_HOME DEBUG_KEYSTORE_PATH; do
+    if [[ -n "${!var:-}" ]]; then
+      printf -v "$var" '%s' "$(normalize_path "${!var}")"
+    fi
+  done
+}
+
+# 将 Windows 绝对路径转为当前环境可用格式
+#   Git Bash/MSYS: C:/path → /c/path
+#   WSL:           C:/path → /mnt/c/path
+normalize_path() {
+  local p="$1"
+  if [[ "$p" =~ ^([a-zA-Z]):[/\\]?(.*) ]]; then
+    local drive="${BASH_REMATCH[1],,}"
+    local rest="${BASH_REMATCH[2]}"
+    rest="${rest//\\//}"
+    if [[ -d /mnt ]]; then
+      printf '/mnt/%s/%s\n' "$drive" "$rest"
+    else
+      printf '/%s/%s\n' "$drive" "$rest"
+    fi
+    return
+  fi
+  printf '%s\n' "$p"
 }
 
 require_dir() {
@@ -33,7 +58,15 @@ require_file() {
 android_build_tool() {
   local name="$1"
   local tool="${ANDROID_HOME:?ANDROID_HOME is not configured}/build-tools/${ANDROID_BUILD_TOOLS_VERSION:?ANDROID_BUILD_TOOLS_VERSION is not configured}/$name"
-  [[ -x "$tool" ]] || die "Android build tool not found or not executable: $tool"
+  # Windows 上 build-tools 可能以 .bat 形式存在（如 apksigner.bat），.bat 在 MSYS 下无执行位
+  if [[ ! -x "$tool" ]]; then
+    if [[ -f "$tool.bat" ]]; then
+      tool="$tool.bat"
+    elif [[ -f "$tool.exe" ]]; then
+      tool="$tool.exe"
+    fi
+  fi
+  [[ -x "$tool" || -f "$tool" ]] || die "Android build tool not found or not executable: $tool"
   printf '%s\n' "$tool"
 }
 

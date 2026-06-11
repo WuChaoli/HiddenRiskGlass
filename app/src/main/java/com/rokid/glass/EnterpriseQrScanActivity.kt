@@ -10,14 +10,11 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
-import java.io.IOException
-import java.util.concurrent.Executors
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.gson.Gson
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -30,8 +27,6 @@ import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.RokidCameraPreviewView
 import com.rokid.glass.hiddenrisk.AiInspectionActivity
-import com.rokid.glass.updater.AppUpdateManager
-import com.rokid.glass.updater.AppUpdatePromptActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
@@ -58,9 +53,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private lateinit var bottomHints: LinearLayout
     private lateinit var statusBar: GlassStatusBar
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
-    private val updateCheckExecutor = Executors.newSingleThreadExecutor()
-    private val updateManager by lazy { AppUpdateManager(applicationContext) }
-    private var autoUpdateChecked = false
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
 
     private val scannerDelegate: Lazy<BarcodeScanner> = lazy {
@@ -81,6 +73,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     private var debugSnapshotMode = false
     private var destroyed = false
     private var cameraSessionGeneration = 0L
+    private var cameraRequestToken: Long = -1L
     private var objectMessageRequest: EnterpriseObjectMessageService.RequestHandle? = null
     private var isActivityResumed = false
     private var wearSnapshot: GlassesWearStateMachine.Snapshot? = null
@@ -215,7 +208,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         statusBarUpdater.start(statusBar)
         if (completed) return
         if (debugSnapshotMode) return
-        startAutoUpdateCheck()
         if (!intent.getBooleanExtra(EXTRA_FORCE_SCAN, false) && skipScanIfEnterpriseQrCached()) return
         cameraRecoveryController.start()
         if (hasRequiredPermissions()) {
@@ -244,7 +236,6 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
 
     override fun onDestroy() {
         destroyed = true
-        updateCheckExecutor.shutdownNow()
         statusBarUpdater.stop()
         inputSession.release()
         if (!debugSnapshotMode) {
@@ -252,7 +243,15 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             if (scannerDelegate.isInitialized()) {
                 scanner.close()
             }
-            pauseCameraPipeline(reason = "on_destroy")
+            // 销毁时完整释放相机资源，终止进行中的重试
+            mainHandler.removeCallbacks(scanRunnable)
+            objectMessageRequest?.cancel()
+            objectMessageRequest = null
+            cameraRecoveryController.stop()
+            isFrameStreamReady = false
+            isProcessingFrame = false
+            cameraSessionGeneration = 0L
+            InspectionCameraCoordinator.releaseForNavigation(CameraOwner.ENTERPRISE_QR_SCAN, reason = "on_destroy")
         }
         super.onDestroy()
     }
@@ -321,33 +320,25 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         isFrameStreamReady = false
         isProcessingFrame = false
         cameraRecoveryController.setRecoveryEnabled(shouldEnableCameraRecovery())
-        var requestGeneration = 0L
         Log.i(
             TAG,
-            "startCameraPipeline requestGeneration=pending completed=$completed status=$statusMessage recovery=${shouldEnableCameraRecovery()}",
+            "startCameraPipeline completed=$completed status=$statusMessage recovery=${shouldEnableCameraRecovery()}",
         )
-        requestGeneration = InspectionCameraCoordinator.acquire(
+        cameraRequestToken = InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.ENTERPRISE_QR_SCAN,
             needPreview = true,
             previewView = cameraPreviewView,
             enableRecovery = shouldEnableCameraRecovery(),
         ) { success ->
-            if (requestGeneration != InspectionCameraCoordinator.getGeneration()) {
-                Log.i(
-                    TAG,
-                    "ignore stale enterprise acquire callback requestGeneration=$requestGeneration currentGeneration=${InspectionCameraCoordinator.getGeneration()} success=$success",
-                )
-                return@acquire
-            }
-            cameraSessionGeneration = requestGeneration
+            // acquireForActivity 内部已通过 requestToken 处理过期回调，success 直接可用
             isFrameStreamReady = success
             Log.i(
                 TAG,
-                "camera acquire result success=$success generation=$requestGeneration owner=${InspectionCameraCoordinator.getOwner()} state=${InspectionCameraCoordinator.getState()}",
+                "camera acquire result success=$success requestToken=$cameraRequestToken owner=${InspectionCameraCoordinator.getOwner()} state=${InspectionCameraCoordinator.getState()}",
             )
             if (!success) {
                 tvScanHint.text = getString(R.string.enterprise_qr_camera_error)
-                return@acquire
+                return@acquireForActivity
             }
             tvStatus.text = statusMessage
             startScanLoop()
@@ -355,8 +346,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
                 reportWearRecoveryReady()
             }
         }
-        cameraSessionGeneration = requestGeneration
-        Log.i(TAG, "startCameraPipeline requestGeneration=$requestGeneration owner=${InspectionCameraCoordinator.getOwner()}")
+        Log.i(TAG, "startCameraPipeline requestToken=$cameraRequestToken owner=${InspectionCameraCoordinator.getOwner()}")
     }
 
     private fun stopCameraPipeline(reason: String = "unspecified") {
@@ -371,7 +361,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         isFrameStreamReady = false
         isProcessingFrame = false
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.release(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
+        InspectionCameraCoordinator.releaseForNavigation(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
     }
 
     private fun pauseCameraPipeline(reason: String = "unspecified") {
@@ -386,7 +376,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         isFrameStreamReady = false
         isProcessingFrame = false
         cameraSessionGeneration = 0L
-        InspectionCameraCoordinator.pause(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
+        InspectionCameraCoordinator.pauseTemporarily(CameraOwner.ENTERPRISE_QR_SCAN, reason = reason)
     }
 
     private fun startScanLoop() {
@@ -627,7 +617,7 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
                 label = getString(R.string.ai_inspection_input_label_return),
                 triggers = buildReturnTriggers(),
             ) {
-                exitAppDirectly()
+                returnToPreviousScreen()
             },
         )
     }
@@ -684,10 +674,20 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         bottomHints.visibility = View.GONE
     }
 
+    private fun returnToPreviousScreen() {
+        mainHandler.removeCallbacks(scanRunnable)
+        stopCameraPipeline(reason = "return_to_previous_screen")
+        // 直接返回主菜单（跳过 AiInspectionMenu 的门卫重定向），
+        // 对应"用户误触基层应消卡片后想返回"的动作语义
+        startActivity(Intent(this, MainMenuActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        })
+        finish()
+    }
+
     private fun exitAppDirectly() {
         mainHandler.removeCallbacks(scanRunnable)
         stopCameraPipeline(reason = "exit_app_directly")
-        InspectionCameraCoordinator.releaseAppCamera(reason = "enterprise_qr_exit_app_directly")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             finishAffinity()
             finishAndRemoveTask()
@@ -697,27 +697,6 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
         }
     }
 
-    private fun startAutoUpdateCheck() {
-        if (autoUpdateChecked) return
-        autoUpdateChecked = true
-        updateCheckExecutor.execute {
-            try {
-                val result = updateManager.checkForUpdate(ignoreSkipped = false)
-                if (!result.hasUpdate || result.info == null) return@execute
-                runOnUiThread {
-                    if (destroyed) return@runOnUiThread
-                    if (!updateManager.markAutoPromptShownIfAllowed()) return@runOnUiThread
-                    startActivity(
-                        Intent(this, AppUpdatePromptActivity::class.java).apply {
-                            putExtra(AppUpdatePromptActivity.EXTRA_UPDATE_INFO, Gson().toJson(result.info))
-                        },
-                    )
-                }
-            } catch (error: IOException) {
-                Log.i(TAG, "auto update check skipped: ${error.message}")
-            }
-        }
-    }
 
     companion object {
         private const val TAG = "EnterpriseQrScan"

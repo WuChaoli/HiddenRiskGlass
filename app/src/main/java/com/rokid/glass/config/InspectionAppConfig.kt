@@ -65,6 +65,10 @@ data class AiInspectionConfig(
     // 共享相机 zoom 倍率，控制 NV21 帧流的视野范围。1.0=最大视野，值越大画面越近。
     // SDK zoom 分 3 档：<1.9→level1, 1.9~2.5→level2, >2.5→level3
     val sharedCameraZoomRatio: Float = 1.0f,
+    /** WiFi 连接确认间隔（毫秒） */
+    val wifiConfirmIntervalMs: Long = 500L,
+    /** WiFi 连接确认最大重试次数 */
+    val wifiConfirmMaxAttempts: Int = 10,
 )
 
 data class NetworkConfig(
@@ -240,6 +244,8 @@ data class AiInspectionConfigOverride(
     val forceOnlineDetailForLocalHazard: Boolean? = null,
     val enableAutoSleepMonitoring: Boolean? = null,
     val sharedCameraZoomRatio: Float? = null,
+    val wifiConfirmIntervalMs: Long? = null,
+    val wifiConfirmMaxAttempts: Int? = null,
 )
 
 data class NetworkConfigOverride(

@@ -199,6 +199,10 @@ object InspectionConfigRepository {
                 override?.enableAutoSleepMonitoring ?: base.enableAutoSleepMonitoring,
             sharedCameraZoomRatio =
                 override?.sharedCameraZoomRatio ?: base.sharedCameraZoomRatio,
+            wifiConfirmIntervalMs =
+                override?.wifiConfirmIntervalMs ?: base.wifiConfirmIntervalMs,
+            wifiConfirmMaxAttempts =
+                override?.wifiConfirmMaxAttempts ?: base.wifiConfirmMaxAttempts,
         )
     }
 

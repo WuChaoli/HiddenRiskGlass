@@ -16,7 +16,7 @@
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
-| `InspectionWorkflowSession.kt` | **巡检工作流会话单例** | `getInstance()`, `beginInspection()`, `updateEnterpriseFromQr()`, `recordDetection()`, `recordAnalysis()`, `recordCapture()`, `recordSavedHazardAttempt()`, `buildEndReportRecords()`, `clearForNewInspection()` |
+| `InspectionWorkflowSession.kt` | **巡检工作流会话单例** | `getInstance()`, `beginInspection()`, `updateEnterpriseFromQr()`, `recordDetection()`, `recordAnalysis()`, `recordCapture()`, `recordSavedHazardAttempt()`, `buildEndReportRecords()`, `clearForNewInspection()`, `clearEnterpriseData()` |
 
 ### 关键方法
 
@@ -31,6 +31,7 @@
 | `updateSavedHazardAttemptOutcome(key, outcome, hints)` | 更新上传结果 (SUCCESS/FAILED) |
 | `buildEndReportRecords()` | 构建结束巡检报告 |
 | `clearForNewInspection()` | 清理累计数据，保留企业上下文 |
+| `clearEnterpriseData()` | 清除企业扫码信息（QR + 企业详情），在结束巡检确认和应用退出时调用 |
 
 ## 依赖关系
 

@@ -3,7 +3,7 @@
 > 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块README (L3硬盘)
 > 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 README。
 >
-> 最后更新: 2026-05-27
+> 最后更新: 2026-06-11
 
 ---
 
@@ -15,7 +15,8 @@
 ```mermaid
 flowchart TB
     subgraph L1_PAGE[页面层]
-        Menu[主菜单 HomeActivity]
+        MainMenu[主菜单 MainMenuActivity<br/>LAUNCHER入口]
+        Menu[二级菜单 AiInspectionMenuActivity]
         Loading[启动加载 InspectionLoadingActivity]
         Inspection[AI巡检 AiInspectionActivity]
         Record[隐患拍照 HazardRecordActivity]
@@ -141,27 +142,24 @@ sequenceDiagram
     participant QrScan as EnterpriseQrScanActivity
     participant AI as AiInspectionActivity
 
-    User->>Menu: 点击"实时分析"
-    Menu->>Menu: 入口守卫: WiFi 检查
+    User->>MainMenu: 启动 App (LAUNCHER)
+    MainMenu->>MainMenu: EntryGuardCoordinator 后台静默初始化
     alt WiFi 未连接
-        Menu-->>User: 显示 WiFi 必需对话框
+        MainMenu-->>User: 显示 WiFi 必需对话框
     else WiFi 已连接
-        Menu->>Session: isInitialized?
-        alt 未初始化
-            Menu->>Loading: 跳转
-            Loading->>Session: ensureInitialized() + initFrameStream()
-            Session->>Camera: initialize() + 帧流启动
-            Camera-->>Session: GpuFrame 流就绪
-            Loading->>Menu: markInitialized() + 回到菜单
-        end
-        Menu->>Menu: 企业信息已获取?
-        alt 企业信息为空
-            Menu->>QrScan: 跳转企业扫码
-            QrScan-->>Menu: 扫码完成 → 回到菜单
-        end
-        Menu->>AI: 用户选择"实时分析"
-        AI->>AI: DETECTING 态，开始自动检测循环
+        MainMenu->>MainMenu: SDK + 相机预热 + 更新检查
+        MainMenu-->>MainMenu: onAllGuardsReady → 解锁"基层应消"
     end
+    User->>MainMenu: 点击"基层应消"
+    MainMenu->>Menu: 跳转二级菜单
+    Menu->>Menu: 入口守卫: 仅检查企业信息
+    alt 企业信息为空
+        Menu->>QrScan: 跳转企业扫码
+        QrScan-->>Menu: 扫码完成 → 回到菜单
+        QrScan-->>MainMenu: 双击取消 → CLEAR_TOP 返回主菜单
+    end
+    Menu->>AI: 用户选择"实时分析"
+    AI->>AI: DETECTING 态，开始自动检测循环
 ```
 
 ### 3.2 核心链路：在线 SSE 推理（主链路）
@@ -342,6 +340,7 @@ sequenceDiagram
 
 | 任务类型 | 起点文件 | 相关文档 |
 |----------|----------|----------|
+| 修改 LAUNCHER 入口或第一层菜单 | `MainMenuActivity.kt` + `EntryGuardCoordinator.kt` | 本文档 3.1 |
 | 新增一个巡检页面 Activity | `hiddenrisk/AiInspectionActivity.kt` (参考) + `hiddenrisk/BaseGlassActivity.kt` (基类) | hiddenrisk/README.md |
 | 修改本地 NCNN 推理参数 | `config/InspectionAppConfig.kt` (配置定义) + `hiddenrisk/HiddenRiskNcnn.java` (JNI调用) | config/README.md, hiddenrisk/README.md |
 | 替换 NCNN 模型 | `jni/yolov8ncnn.cpp` (后处理) + `assets/hiddenrisk.ncnn.param` + `assets/hiddenrisk.ncnn.bin` | 附录 A, AGENTS.md |

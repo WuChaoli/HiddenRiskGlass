@@ -86,9 +86,11 @@
     <string name="ai_inspection_input_label_detecting_finish">检测页结束巡检</string>
     <string name="ai_inspection_input_label_confirm">确认</string>
     <string name="ai_inspection_input_label_return">返回</string>
-    <string name="ai_entry_exit_confirm_message">确认退出应用?</string>
-    <string name="ai_entry_exit_confirm_confirm">确认</string>
+    <string name="ai_entry_exit_confirm_message">是否结束巡检?</string>
+    <string name="ai_entry_exit_confirm_confirm">结束</string>
     <string name="ai_entry_exit_confirm_cancel">取消</string>
+    <string name="ai_entry_end_inspection_confirm">确认结束</string>
+    <string name="ai_entry_end_inspection_cancel">取消</string>
     <string name="ai_inspection_voice_confirm">确认</string>
     <string name="ai_inspection_voice_confirm_alias">确定</string>
     <string name="ai_inspection_voice_continue_alias">继续</string>
@@ -218,12 +220,14 @@
     <string name="ai_entry_menu_update_failed">检查更新失败</string>
     <string name="ai_entry_wifi_required_message">请扫描 Wi-Fi 二维码</string>
     <string name="ai_entry_wifi_retry">重新扫码</string>
-    <string name="ai_entry_wifi_exit">退出应用</string>
+    <string name="ai_entry_wifi_exit">取消</string>
     <string name="ai_entry_wifi_invalid_qr">Wi-Fi 二维码无效，请重新扫码</string>
     <string name="ai_entry_wifi_connecting">正在连接 Wi-Fi…</string>
     <string name="ai_entry_wifi_connect_failed">Wi-Fi 连接失败，请重试</string>
     <string name="ai_entry_wifi_sdk_unavailable">Rokid SDK 尚未就绪，请重试</string>
     <string name="ai_entry_wifi_connected">wifi已连接</string>
+    <string name="ai_entry_wifi_connecting_toast">WiFi连接中</string>
+    <string name="ai_entry_wifi_connected_toast">WiFi连接成功</string>
     <string name="app_update_title">发现新版本</string>
     <string name="app_update_version">新版本：%1$s</string>
     <string name="app_update_notes_empty">本次更新未填写说明</string>
@@ -239,13 +243,22 @@
     <string name="app_update_button_cancel">取消</string>
     <string name="app_update_progress_percent">%1$d%%</string>
     <string name="app_update_touch_hint">前后滑动选择，单击确认，双击/返回取消</string>
+    <string name="main_menu_card_inspection">基层应消</string>
+    <string name="main_menu_card_wifi">连接WiFi</string>
+    <string name="main_menu_card_update">检查更新</string>
+    <string name="main_menu_voice_exit_app">退出应用</string>
+    <string name="main_menu_voice_exit_app_pinyin">tui chu ying yong</string>
+    <string name="main_menu_voice_inspection">基层应消</string>
+    <string name="main_menu_voice_inspection_pinyin">ji ceng ying xiao</string>
+    <string name="main_menu_bottom_hint">前翻/后翻切换，单击确认</string>
+    <string name="main_menu_init_status">初始化中...</string>
 
-    <!-- 主菜单卡片拼音 -->
+    <!-- 主菜单卡片拼音（卡片语音自动注册使用） -->
     <string name="main_menu_card_inspection_pinyin">ji ceng ying xiao</string>
     <string name="main_menu_card_wifi_pinyin">lian jie wifi</string>
     <string name="main_menu_card_update_pinyin">jian cha geng xin</string>
 
-    <!-- 巡检菜单卡片拼音 -->
+    <!-- 巡检菜单卡片拼音（卡片语音自动注册使用） -->
     <string name="ai_entry_menu_analysis_pinyin">shi shi fen xi</string>
     <string name="ai_entry_menu_guide_pinyin">she bei zhi yin</string>
     <string name="ai_entry_menu_record_pinyin">yin huan pai zhao</string>
