@@ -280,14 +280,17 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         if (wifiRequiredDialogVisible) return
-        // 先移动焦点到目标卡片，再执行动画
+        // 先移动焦点到目标卡片
         selectedIndex = index
         menuAdapter.selectedIndex = index
-        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(index) as? MenuCardAdapter.ViewHolder
-        if (viewHolder != null) {
-            menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
-        } else {
-            executeConfirmedAction(index)
+        // post 确保 RecyclerView 完成焦点切换布局后再取 ViewHolder 播放动画
+        recyclerMenu.post {
+            val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(index) as? MenuCardAdapter.ViewHolder
+            if (viewHolder != null) {
+                menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
+            } else {
+                executeConfirmedAction(index)
+            }
         }
     }
 
