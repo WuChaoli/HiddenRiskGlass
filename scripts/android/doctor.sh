@@ -38,6 +38,7 @@ grep -q 'assembleStandardDebug' "$PROJECT_ROOT/app/build.gradle" ||
 
 require_file "$PROJECT_ROOT/local.properties"
 sdk_dir="$(sed -n 's/^sdk\.dir=//p' "$PROJECT_ROOT/local.properties" | head -n 1)"
+sdk_dir="$(normalize_path "$sdk_dir")"
 [[ -n "$sdk_dir" ]] || die "local.properties does not contain sdk.dir."
 [[ "$sdk_dir" == "$ANDROID_HOME" ]] ||
   die "local.properties sdk.dir=$sdk_dir does not match ANDROID_HOME=$ANDROID_HOME. Update it before building in WSL."

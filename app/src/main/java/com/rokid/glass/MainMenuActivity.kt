@@ -384,7 +384,7 @@ class MainMenuActivity : BaseGlassActivity() {
                             },
                         )
                     } else {
-                        tvBottomHint.setText(R.string.ai_entry_menu_update_latest)
+                        ToastUtil.show(getString(R.string.ai_entry_menu_update_latest))
                     }
                 }
             }
