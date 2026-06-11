@@ -1,4 +1,30 @@
-### 2.0.9
+### 2.0.10
+
+#### 新增
+1. **双层菜单入口**: 新增 `MainMenuActivity` 作为 LAUNCHER 入口，`AiInspectionMenuActivity` 改为纯业务菜单，实现主菜单→业务菜单双层架构。
+2. **入口守卫协调器**: 新增 `EntryGuardCoordinator`，统一管理权限检查、设备初始化、佩戴状态等入口前置条件。
+3. **语音指令自动注册**: 新增 `VoiceActionItem` 接口和自动注册机制，菜单卡片和页面通用操作无需手动绑定语音指令。
+4. **语音拼音别名**: `VoiceActionItem` 支持拼音别名，提升语音识别容错率。
+5. **卡片焦点动画**: 菜单卡片支持 hover 聚焦、dismiss 取消、点击选中三种动画状态。
+6. **开机自启动**: 设备开机后自动启动应用。
+7. **配置化应用可见性白名单**: 通过 JSONC 配置文件控制系统应用可见性，支持内置/自定义过滤模式。
+8. **WiFi 扫码页配置标题**: `WifiScanConfigFactory` 封装扫码页标题逻辑。
+
+#### 重构
+1. **按需相机所有权**: 新增 `acquireForActivity` / `pauseTemporarily` / `releaseForNavigation` 三个语义化 API，替代全局抢占式相机持有，解决多页面相机冲突。
+2. **AI 菜单入口简化**: 从入口检查+菜单改为纯业务菜单，入口逻辑上移至 `MainMenuActivity`。
+3. **企业扫码页精简**: 移除自动更新检查逻辑，双击直接跳转主菜单。
+4. **测试目录结构改造**: 按 `unit/integration/e2e × 模块` 两级结构重组测试证据。
+
+#### 修复
+1. **巡检结束返回路径**: 提交成功后固定返回主菜单，不再退出应用。
+2. **退出确认对话框**: 同步焦点与选中状态。
+3. **相机生命周期**: 各页面退出时统一使用 `releaseForNavigation` 释放相机。
+4. **WiFi 语音解耦**: TTS 语音与对话框状态分离，未连接时统一行为。
+
+#### 文档
+1. **三层文档体系**: 全面同步 CLAUDE.md → CODEMAPS.md → 模块 CLAUDE.md。
+2. **设计文档归档**: 新增相机所有权、卡片动画、应用可见性白名单等设计文档。
 
 #### 修复
 1. **OkHttp 连接泄漏**: `AiArSseService` 复用 `HttpClientProvider.sseClient` 单例，Activity 退出时调用 `releaseConnections()` 强制关闭空闲连接，避免服务器端残留大量 `ESTABLISHED` 连接。
