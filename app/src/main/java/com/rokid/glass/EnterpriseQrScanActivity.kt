@@ -32,6 +32,7 @@ import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.input.GlassesWearStateMachine
 import com.rokid.glass.input.UnifiedInputSession
+import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 
@@ -192,6 +193,12 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
         if (debugSnapshotMode) {
             applyDebugSnapshotState()
         }
+        // 播放扫码提示音
+        OfflineTtsPlayer.play(
+            context = this,
+            ownerTag = TAG,
+            audioResId = R.raw.scan_enterprise_qrcode,
+        )
         hideBottomHints()
     }
 
@@ -253,6 +260,7 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
             cameraSessionGeneration = 0L
             InspectionCameraCoordinator.releaseForNavigation(CameraOwner.ENTERPRISE_QR_SCAN, reason = "on_destroy")
         }
+        OfflineTtsPlayer.release(TAG)
         super.onDestroy()
     }
 
