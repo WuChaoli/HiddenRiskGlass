@@ -8,16 +8,21 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.rokid.glesse.R
+import com.rokid.glass.input.VoiceActionItem
 
 class MenuCardAdapter(
-    private val cards: List<MenuCardData>,
+    val cards: List<MenuCardData>,
 ) : RecyclerView.Adapter<MenuCardAdapter.ViewHolder>() {
 
     data class MenuCardData(
         val iconResId: Int,
-        val labelResId: Int,
+        override val labelResId: Int,
+        override val pinyinResId: Int = 0,
         val iconChar: String? = null,
-    )
+        val onClick: (() -> Unit)? = null,
+    ) : VoiceActionItem {
+        override fun execute() { onClick?.invoke() }
+    }
 
     /** 当前选中位置，-1 表示无选中 */
     var selectedIndex: Int = -1

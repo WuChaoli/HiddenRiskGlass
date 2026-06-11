@@ -239,4 +239,14 @@
     <string name="app_update_button_cancel">取消</string>
     <string name="app_update_progress_percent">%1$d%%</string>
     <string name="app_update_touch_hint">前后滑动选择，单击确认，双击/返回取消</string>
+
+    <!-- 主菜单卡片拼音 -->
+    <string name="main_menu_card_inspection_pinyin">ji ceng ying xiao</string>
+    <string name="main_menu_card_wifi_pinyin">lian jie wifi</string>
+    <string name="main_menu_card_update_pinyin">jian cha geng xin</string>
+
+    <!-- 巡检菜单卡片拼音 -->
+    <string name="ai_entry_menu_analysis_pinyin">shi shi fen xi</string>
+    <string name="ai_entry_menu_guide_pinyin">she bei zhi yin</string>
+    <string name="ai_entry_menu_record_pinyin">yin huan pai zhao</string>
 </resources>
