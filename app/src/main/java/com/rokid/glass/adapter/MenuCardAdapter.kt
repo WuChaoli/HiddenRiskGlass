@@ -22,6 +22,7 @@ class MenuCardAdapter(
         val iconResId: Int,
         override val labelResId: Int,
         override val pinyinResId: Int = 0,
+        override val pinyinAliases: List<Int> = emptyList(), // 拼音别名（如前后鼻音变体），自动注册为额外语音触发器
         val iconChar: String? = null,
         val onClick: (() -> Unit)? = null,
     ) : VoiceActionItem {

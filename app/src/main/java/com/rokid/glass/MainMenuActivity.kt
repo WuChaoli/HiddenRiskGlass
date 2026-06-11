@@ -107,6 +107,7 @@ class MainMenuActivity : BaseGlassActivity() {
                     iconResId = R.drawable.ic_menu_ai_analysis,
                     labelResId = R.string.main_menu_card_inspection,
                     pinyinResId = R.string.main_menu_card_inspection_pinyin,
+                    pinyinAliases = listOf(R.string.main_menu_card_inspection_pinyin_alias), // 前鼻音变体
                     onClick = { startInspection() },
                 ),
                 MenuCardAdapter.MenuCardData(

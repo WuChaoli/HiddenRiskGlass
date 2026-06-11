@@ -15,6 +15,8 @@ interface VoiceActionItem {
     val labelResId: Int
     /** 拼音的资源 ID，命名约定: <label_resource_name>_pinyin */
     val pinyinResId: Int
+    /** 拼音别名资源 ID 列表，用于注册额外的语音触发器（如前后鼻音变体） */
+    val pinyinAliases: List<Int> get() = emptyList()
     /** 语音/点击触发后执行的动作 */
     fun execute()
 }

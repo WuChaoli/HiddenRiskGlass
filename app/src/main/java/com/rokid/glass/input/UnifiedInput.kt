@@ -262,15 +262,18 @@ class UnifiedInputSession(
             onVoiceTrigger: (Int) -> Unit,
         ): List<InputActionSpec> {
             return items.mapIndexed { index, item ->
+                val command = context.getString(item.labelResId)
+                val triggers = buildList {
+                    add(InputTrigger.Voice(command, context.getString(item.pinyinResId)))
+                    // 为每个拼音别名注册额外的语音触发器，提高识别准确率
+                    item.pinyinAliases.forEach { aliasResId ->
+                        add(InputTrigger.Voice(command, context.getString(aliasResId)))
+                    }
+                }
                 InputActionSpec(
                     id = InputActionId("card_voice_$index"),
-                    label = context.getString(item.labelResId),
-                    triggers = listOf(
-                        InputTrigger.Voice(
-                            command = context.getString(item.labelResId),
-                            pinyin = context.getString(item.pinyinResId),
-                        ),
-                    ),
+                    label = command,
+                    triggers = triggers,
                     onTrigger = { onVoiceTrigger(index) },
                 )
             }

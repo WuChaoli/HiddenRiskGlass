@@ -255,6 +255,7 @@
 
     <!-- 主菜单卡片拼音（卡片语音自动注册使用） -->
     <string name="main_menu_card_inspection_pinyin">ji ceng ying xiao</string>
+    <string name="main_menu_card_inspection_pinyin_alias">ji ceng yin xiao</string>
     <string name="main_menu_card_wifi_pinyin">lian jie wang luo</string>
     <string name="main_menu_card_update_pinyin">jian cha geng xin</string>
 
