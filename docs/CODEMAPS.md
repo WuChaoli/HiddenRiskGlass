@@ -76,7 +76,7 @@ flowchart TB
 |------|--------|--------|------|--------|
 | hiddenrisk | `com.rokid.glass.hiddenrisk` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | 业务核心 | ~52 |
 | camera | `com.rokid.glass.camera` | [CLAUDE.md](app/src/main/java/com/rokid/glass/camera/CLAUDE.md) | 基础设施 | 6 |
-| input | `com.rokid.glass.input` | [CLAUDE.md](app/src/main/java/com/rokid/glass/input/CLAUDE.md) | 基础设施 | 5 |
+| input | `com.rokid.glass.input` | [CLAUDE.md](app/src/main/java/com/rokid/glass/input/CLAUDE.md) | 基础设施 | 6 |
 | workflow | `com.rokid.glass.workflow` | [CLAUDE.md](app/src/main/java/com/rokid/glass/workflow/CLAUDE.md) | 业务上下文 | 1 |
 | component | `com.rokid.glass.component` | [CLAUDE.md](app/src/main/java/com/rokid/glass/component/CLAUDE.md) | UI组件库 | 10 |
 | config | `com.rokid.glass.config` | [CLAUDE.md](app/src/main/java/com/rokid/glass/config/CLAUDE.md) | 配置系统 | 2 |

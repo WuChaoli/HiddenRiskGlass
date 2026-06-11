@@ -17,7 +17,8 @@
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
-| `UnifiedInput.kt` | **统一输入核心**，注册动作、分发触控/语音/头部手势 | `UnifiedInputSession.attach()`, `updateActions()`, `dispatchTouch()`, `InputActionSpec`, `InputTrigger` |
+| `UnifiedInput.kt` | **统一输入核心**，注册动作、分发触控/语音/头部手势。提供 `buildPageCommonActions()`（页面级确认/取消自动注册）和 `buildCardVoiceActions()`（VoiceActionItem 批量语音注册） | `UnifiedInputSession.attach()`, `updateActions()`, `dispatchTouch()`, `buildPageCommonActions()`, `buildCardVoiceActions()`, `InputActionSpec`, `InputTrigger` |
+| `VoiceActionItem.kt` | **语音指令项接口**，实现此接口的类（如 MenuCardData）可被自动发现并注册离线语音指令 | `labelResId`, `pinyinResId`, `pinyinAliases`, `execute()` |
 | `WearStateManager.kt` | **全局佩戴状态管理器**，监听佩戴广播并向当前前台页面派发状态 | `init()`, `subscribe()`, `updateOwnerEligibility()`, `reportRecoveryReady()` |
 | `GlassesWearStateMachine.kt` | **佩戴恢复状态机**，摘镜暂停+戴回动态恢复 | `Snapshot`, `onGlassesRemoved()`, `onGlassesWorn()`, `onRecoveryReady()` |
 | `HeadMotionStabilityTracker.kt` | **头部稳定性跟踪**，陀螺仪数据→稳定性判断 | `start()`, `stop()`, `onStabilityChanged()` |
@@ -59,4 +60,4 @@
 ## 依赖关系
 
 - **依赖：** Android Sensor API、Rokid Glass SDK
-- **被依赖：** `hiddenrisk/`（所有页面通过 UnifiedInputSession 注册动作）
+- **被依赖：** `hiddenrisk/`（所有页面通过 UnifiedInputSession 注册动作）、adapter（`MenuCardData` 实现 `VoiceActionItem` 接口）
