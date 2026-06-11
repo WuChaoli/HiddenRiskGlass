@@ -72,7 +72,7 @@ Rokid Glass Android 应用，包含相机、人脸识别、车牌识别、Hidden
 
 - Android 构建、安装、设备调试和 APK 打包前，必须先执行 `bash scripts/android/doctor.sh`。
 - 默认业务变体为 `standard`；日常 debug 构建固定使用 `bash scripts/android/build-debug.sh`。
-- WSL 环境下构建走本地 JDK/SDK，眼镜真机命令走 Windows `adb.exe`；具体环境配置与故障经验见 `scripts/android/README.md`。
+- WSL 环境下构建走本地 JDK/SDK，眼镜真机命令走 Windows `adb.exe`；具体环境配置与故障经验见 `scripts/android/CLAUDE.md`。
 - 正式签名配置不完整时，打包只允许生成明确标识的 debug 签名本地演示包，不得称为正式升级包。
 
 ```bash

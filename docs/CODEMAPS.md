@@ -1,7 +1,7 @@
 # CODEMAPS -- 模块关系地图
 
-> 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块README (L3硬盘)
-> 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 README。
+> 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块CLAUDE.md (L3硬盘)
+> 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 CLAUDE.md。
 >
 > 最后更新: 2026-06-11
 
@@ -72,19 +72,19 @@ flowchart TB
 
 ### 模块一览
 
-| 模块 | 包路径 | README | 类型 | 文件数 |
+| 模块 | 包路径 | CLAUDE.md | 类型 | 文件数 |
 |------|--------|--------|------|--------|
 | hiddenrisk | `com.rokid.glass.hiddenrisk` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | 业务核心 | ~52 |
-| camera | `com.rokid.glass.camera` | [README](app/src/main/java/com/rokid/glass/camera/README.md) | 基础设施 | 6 |
-| input | `com.rokid.glass.input` | [README](app/src/main/java/com/rokid/glass/input/README.md) | 基础设施 | 5 |
-| workflow | `com.rokid.glass.workflow` | [README](app/src/main/java/com/rokid/glass/workflow/README.md) | 业务上下文 | 1 |
-| component | `com.rokid.glass.component` | [README](app/src/main/java/com/rokid/glass/component/README.md) | UI组件库 | 10 |
-| config | `com.rokid.glass.config` | [README](app/src/main/java/com/rokid/glass/config/README.md) | 配置系统 | 2 |
-| network | `com.rokid.glass.network` | [README](app/src/main/java/com/rokid/glass/network/README.md) | 基础设施 | 1 |
-| updater | `com.rokid.glass.updater` | [README](app/src/main/java/com/rokid/glass/updater/README.md) | 功能模块 | 4 |
-| utils | `com.rokid.glass.utils` | [README](app/src/main/java/com/rokid/glass/utils/README.md) | 工具库 | 13 |
+| camera | `com.rokid.glass.camera` | [CLAUDE.md](app/src/main/java/com/rokid/glass/camera/CLAUDE.md) | 基础设施 | 6 |
+| input | `com.rokid.glass.input` | [CLAUDE.md](app/src/main/java/com/rokid/glass/input/CLAUDE.md) | 基础设施 | 5 |
+| workflow | `com.rokid.glass.workflow` | [CLAUDE.md](app/src/main/java/com/rokid/glass/workflow/CLAUDE.md) | 业务上下文 | 1 |
+| component | `com.rokid.glass.component` | [CLAUDE.md](app/src/main/java/com/rokid/glass/component/CLAUDE.md) | UI组件库 | 10 |
+| config | `com.rokid.glass.config` | [CLAUDE.md](app/src/main/java/com/rokid/glass/config/CLAUDE.md) | 配置系统 | 2 |
+| network | `com.rokid.glass.network` | [CLAUDE.md](app/src/main/java/com/rokid/glass/network/CLAUDE.md) | 基础设施 | 1 |
+| updater | `com.rokid.glass.updater` | [CLAUDE.md](app/src/main/java/com/rokid/glass/updater/CLAUDE.md) | 功能模块 | 4 |
+| utils | `com.rokid.glass.utils` | [CLAUDE.md](app/src/main/java/com/rokid/glass/utils/CLAUDE.md) | 工具库 | 13 |
 | data | `com.rokid.glass.data` | -- | 全局状态 | 2 |
-| jni | `app/src/main/jni/` | [README](app/src/main/jni/README.md) | 原生推理 | 4(+ncnn) |
+| jni | `app/src/main/jni/` | [CLAUDE.md](app/src/main/jni/CLAUDE.md) | 原生推理 | 4(+ncnn) |
 
 ### 依赖关系图
 
@@ -342,19 +342,19 @@ sequenceDiagram
 |----------|----------|----------|
 | 修改 LAUNCHER 入口或第一层菜单 | `MainMenuActivity.kt` + `EntryGuardCoordinator.kt` | 本文档 3.1 |
 | 新增一个巡检页面 Activity | `hiddenrisk/AiInspectionActivity.kt` (参考) + `hiddenrisk/BaseGlassActivity.kt` (基类) | hiddenrisk/README.md |
-| 修改本地 NCNN 推理参数 | `config/InspectionAppConfig.kt` (配置定义) + `hiddenrisk/HiddenRiskNcnn.java` (JNI调用) | config/README.md, hiddenrisk/README.md |
+| 修改本地 NCNN 推理参数 | `config/InspectionAppConfig.kt` (配置定义) + `hiddenrisk/HiddenRiskNcnn.java` (JNI调用) | config/CLAUDE.md, hiddenrisk/README.md |
 | 替换 NCNN 模型 | `jni/yolov8ncnn.cpp` (后处理) + `assets/hiddenrisk.ncnn.param` + `assets/hiddenrisk.ncnn.bin` | 附录 A, AGENTS.md |
 | 新增在线 API 端点 | `hiddenrisk/AiArSseService.kt` (SSE请求) + `config/InspectionAppConfig.kt` (端点配置) | hiddenrisk/README.md |
 | 增加隐患类别(白名单) | `jni/yolov8_det.cpp` (类别映射) + 重新训练/导出模型 | 附录 A, AGENTS.md |
-| 修改输入层动作映射 | `hiddenrisk/<Activity>.kt` 中的 `buildInputActions()` | input/README.md |
-| 调整相机预览/帧流 | `camera/QuickCameraManager.kt` + `component/RokidCameraPreviewView.kt` | camera/README.md, component/README.md |
+| 修改输入层动作映射 | `hiddenrisk/<Activity>.kt` 中的 `buildInputActions()` | input/CLAUDE.md |
+| 调整相机预览/帧流 | `camera/QuickCameraManager.kt` + `component/RokidCameraPreviewView.kt` | camera/CLAUDE.md, component/CLAUDE.md |
 | 修改上传重试策略 | `hiddenrisk/InspectionRetryExecutor.kt` | hiddenrisk/README.md |
-| 新增可复用 UI 组件 | `component/` 目录，参考 `GlassStatusBar.kt` 或 `BottomPromptView.kt` | component/README.md |
-| 添加运行时配置项 | `config/InspectionAppConfig.kt` (字段) + `assets/inspection_config.base.jsonc` (默认值) | config/README.md |
-| 修改 QR 码解析格式 | `workflow/InspectionWorkflowSession.kt` 中 `updateEnterpriseFromQr()` | workflow/README.md |
+| 新增可复用 UI 组件 | `component/` 目录，参考 `GlassStatusBar.kt` 或 `BottomPromptView.kt` | component/CLAUDE.md |
+| 添加运行时配置项 | `config/InspectionAppConfig.kt` (字段) + `assets/inspection_config.base.jsonc` (默认值) | config/CLAUDE.md |
+| 修改 QR 码解析格式 | `workflow/InspectionWorkflowSession.kt` 中 `updateEnterpriseFromQr()` | workflow/CLAUDE.md |
 | 调试 NCNN 推理问题 | `hiddenrisk/HiddenRiskProbeActivity.kt` (探针页) + adb logcat 过滤 `detect ` | hiddenrisk/README.md |
 | App 版本更新流程 | `updater/AppUpdateManager.kt` (入口) + `updater/AppUpdatePromptActivity.kt` (UI) | 见源码注释 |
-| 修改应用初始化或开机自启动 | `MyApplication.kt` (初始化) + `utils/DeviceUtil.java` (系统属性访问) | utils/README.md |
+| 修改应用初始化或开机自启动 | `MyApplication.kt` (初始化) + `utils/DeviceUtil.java` (系统属性访问) | utils/CLAUDE.md |
 | 修改 Launcher 应用显示、隐藏或排序 | `hiddenrisk/AppVisibilityConfigFactory.kt` (配置) + `hiddenrisk/RokidSdkManager.kt` (提交) + `MyApplication.kt` (亮屏触发) | hiddenrisk/README.md |
 
 ---

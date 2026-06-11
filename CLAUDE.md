@@ -35,7 +35,7 @@ bash scripts/export_hiddenrisk_640.sh
 bash scripts/validate_hiddenrisk_assets.sh
 ```
 
-默认业务变体为 `standard`。WSL 编译使用根目录本地 `.env` 中的 JDK/SDK，Rokid Glass 真机操作使用 Windows `adb.exe`；命令、签名规则和踩坑记录见 `scripts/android/README.md`。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`。
+默认业务变体为 `standard`。WSL 编译使用根目录本地 `.env` 中的 JDK/SDK，Rokid Glass 真机操作使用 Windows `adb.exe`；命令、签名规则和踩坑记录见 `scripts/android/CLAUDE.md`。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`。
 
 ## 架构
 
@@ -45,22 +45,22 @@ bash scripts/validate_hiddenrisk_assets.sh
 
 ## 模块代码地图
 
-收到代码定位任务时，先查此表找到对应模块 README.md，再进入具体文件。
+收到代码定位任务时，先查此表找到对应模块 CLAUDE.md，再进入具体文件。
 
-| 模块 | 包/路径 | README | 覆盖范围 |
+| 模块 | 包/路径 | CLAUDE.md | 覆盖范围 |
 |------|---------|--------|----------|
 | 入口/菜单 | `com.rokid.glass/` 根包 | -- | MainMenuActivity (LAUNCHER)、AiInspectionMenuActivity、EntryGuardCoordinator、EnterpriseQrScanActivity 等 |
 | 隐患识别/推理 | `hiddenrisk/` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | 巡检页面、在线/本地推理、自动链路、隐患上传、设备指引、拍照录入 (~50文件) |
-| 相机/帧流 | `camera/` | [README](app/src/main/java/com/rokid/glass/camera/README.md) | 相机管理、帧捕获、预览、恢复控制 |
-| 统一输入 | `input/` | [README](app/src/main/java/com/rokid/glass/input/README.md) | 触控、语音、头部动作映射、自动休眠 |
-| 巡检工作流 | `workflow/` | [README](app/src/main/java/com/rokid/glass/workflow/README.md) | 跨页面业务上下文、企业信息、QR 解析 |
-| UI 组件 | `component/` | [README](app/src/main/java/com/rokid/glass/component/README.md) | 状态栏、取景器、菜单、弹窗、提示 |
-| 配置系统 | `config/` | [README](app/src/main/java/com/rokid/glass/config/README.md) | 运行时配置、推理参数、API 端点、特性开关 |
-| 原生推理 (JNI) | `jni/` | [README](app/src/main/jni/README.md) | C++ JNI桥接、YOLOv8推理、NCNN Vulkan |
-| 网络 | `network/` | [README](app/src/main/java/com/rokid/glass/network/README.md) | OkHttp 单例提供 |
-| 应用更新 | `updater/` | [README](app/src/main/java/com/rokid/glass/updater/README.md) | App 版本检查、下载、升级提示 |
-| 工具库 | `utils/` | [README](app/src/main/java/com/rokid/glass/utils/README.md) | 日志、Bitmap、SSE、TTS、系统状态查询等 |
-| 全局状态 | `data/` | [README](app/src/main/java/com/rokid/glass/data/README.md) | 设备连接状态（P2P/蓝牙/H.264/SDK初始化）全局 Flow |
+| 相机/帧流 | `camera/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/camera/CLAUDE.md) | 相机管理、帧捕获、预览、恢复控制 |
+| 统一输入 | `input/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/input/CLAUDE.md) | 触控、语音、头部动作映射、自动休眠 |
+| 巡检工作流 | `workflow/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/workflow/CLAUDE.md) | 跨页面业务上下文、企业信息、QR 解析 |
+| UI 组件 | `component/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/component/CLAUDE.md) | 状态栏、取景器、菜单、弹窗、提示 |
+| 配置系统 | `config/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/config/CLAUDE.md) | 运行时配置、推理参数、API 端点、特性开关 |
+| 原生推理 (JNI) | `jni/` | [CLAUDE.md](app/src/main/jni/CLAUDE.md) | C++ JNI桥接、YOLOv8推理、NCNN Vulkan |
+| 网络 | `network/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/network/CLAUDE.md) | OkHttp 单例提供 |
+| 应用更新 | `updater/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/updater/CLAUDE.md) | App 版本检查、下载、升级提示 |
+| 工具库 | `utils/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/utils/CLAUDE.md) | 日志、Bitmap、SSE、TTS、系统状态查询等 |
+| 全局状态 | `data/` | [CLAUDE.md](app/src/main/java/com/rokid/glass/data/CLAUDE.md) | 设备连接状态（P2P/蓝牙/H.264/SDK初始化）全局 Flow |
 
 ## 代码风格
 
@@ -92,9 +92,9 @@ bash scripts/validate_hiddenrisk_assets.sh
 |------|------|------|
 | 模块关系地图 (L2) | `docs/CODEMAPS.md` | 架构层级图、依赖矩阵、数据流、边界规则、术语表、任务速查 |
 | AI Agent 补充指南 | `AGENTS.md` | NCNN 经验细节与行为补充 |
-| Android 构建与真机调试 | `scripts/android/README.md` | JDK/SDK/ADB 环境、构建、打包签名与排障入口 |
-| 各模块 README | 见上方"模块代码地图"表 | 模块内部文件索引与核心调用链 |
+| Android 构建与真机调试 | `scripts/android/CLAUDE.md` | JDK/SDK/ADB 环境、构建、打包签名与排障入口 |
+| 各模块 CLAUDE.md | 见上方"模块代码地图"表 | 模块内部文件索引与核心调用链 |
 
 ---
 
-**三层文档体系**: `CLAUDE.md` (L1 缓存，本文档) -> `docs/CODEMAPS.md` (L2 内存) -> 各模块 `README.md` (L3 硬盘)
+**三层文档体系**: `CLAUDE.md` (L1 缓存，本文档) -> `docs/CODEMAPS.md` (L2 内存) -> 各模块 `CLAUDE.md` (L3 硬盘)
