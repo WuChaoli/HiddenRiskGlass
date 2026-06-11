@@ -677,6 +677,11 @@ InspectionWorkflowSession.updateEnterpriseObjectInfo(
     private fun returnToPreviousScreen() {
         mainHandler.removeCallbacks(scanRunnable)
         stopCameraPipeline(reason = "return_to_previous_screen")
+        // 直接返回主菜单（跳过 AiInspectionMenu 的门卫重定向），
+        // 对应"用户误触基层应消卡片后想返回"的动作语义
+        startActivity(Intent(this, MainMenuActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        })
         finish()
     }
 
