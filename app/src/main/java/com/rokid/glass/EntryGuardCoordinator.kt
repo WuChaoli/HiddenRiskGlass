@@ -129,6 +129,7 @@ class EntryGuardCoordinator(
     fun launchWifiScanner(activity: Activity) {
         if (released.get() || wifiScannerLaunching.get() || wifiConnectInProgress.get()) return
         wifiScannerLaunching.set(true)
+        OfflineTtsPlayer.play(context, TAG, R.raw.need_scan_wifi)
         GlassScannerLauncher.launch(
             activity,
             WifiScanConfigFactory.create(activity),
@@ -147,7 +148,7 @@ class EntryGuardCoordinator(
                 }
                 override fun onCancelled() {
                     wifiScannerLaunching.set(false)
-                    postCallback { it.onWifiRequired(R.string.ai_entry_wifi_required_message) }
+                    // 静默返回主菜单，不弹窗
                 }
                 override fun onCameraUnavailable() {
                     wifiScannerLaunching.set(false)

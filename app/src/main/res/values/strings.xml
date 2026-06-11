@@ -220,7 +220,7 @@
     <string name="ai_entry_menu_update_failed">检查更新失败</string>
     <string name="ai_entry_wifi_required_message">请扫描 Wi-Fi 二维码</string>
     <string name="ai_entry_wifi_retry">重新扫码</string>
-    <string name="ai_entry_wifi_exit">退出应用</string>
+    <string name="ai_entry_wifi_exit">取消</string>
     <string name="ai_entry_wifi_invalid_qr">Wi-Fi 二维码无效，请重新扫码</string>
     <string name="ai_entry_wifi_connecting">正在连接 Wi-Fi…</string>
     <string name="ai_entry_wifi_connect_failed">Wi-Fi 连接失败，请重试</string>

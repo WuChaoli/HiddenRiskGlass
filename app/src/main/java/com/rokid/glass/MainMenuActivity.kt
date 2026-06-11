@@ -48,10 +48,11 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
-    private val entryGuardCoordinator by lazy {
+    private val entryGuardCoordinator: EntryGuardCoordinator by lazy {
         EntryGuardCoordinator(this, object : EntryGuardCoordinator.Callback {
             override fun onWifiRequired(messageResId: Int) {
-                showWifiRequiredDialog(messageResId)
+                // WiFi 未连接时直接拉起扫码页，不弹窗
+                entryGuardCoordinator.launchWifiScanner(this@MainMenuActivity)
             }
 
             override fun onWifiConnecting() {
@@ -129,7 +130,10 @@ class MainMenuActivity : BaseGlassActivity() {
         tvWifiRetry = findViewById(R.id.tvWifiRetry)
         tvWifiExit = findViewById(R.id.tvWifiExit)
         tvWifiRetry.setOnClickListener { entryGuardCoordinator.launchWifiScanner(this) }
-        tvWifiExit.setOnClickListener { exitAppDirectly() }
+        tvWifiExit.setOnClickListener {
+            wifiDialogSelectedRetry = false
+            executeWifiDialogAction()
+        }
     }
 
     override fun onResume() {
@@ -200,7 +204,7 @@ class MainMenuActivity : BaseGlassActivity() {
                 ) {
                     executeWifiDialogAction()
                 },
-                // 双击/返回 = 退出应用（保留语音退出指令）
+                // 双击/返回 = 隐藏弹窗回到主菜单
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Exit,
                     label = getString(R.string.ai_entry_wifi_exit),
@@ -213,7 +217,7 @@ class MainMenuActivity : BaseGlassActivity() {
                         ),
                     ),
                 ) {
-                    exitAppDirectly()
+                    hideWifiRequiredDialog()
                 },
             )
         }
@@ -393,8 +397,6 @@ class MainMenuActivity : BaseGlassActivity() {
         tvInitStatus.visibility = View.GONE
         updateWifiDialogSelection()
         inputSession.updateActions(buildInputActions())
-        // 语音提示：需要连接WiFi
-        OfflineTtsPlayer.play(this, TAG, R.raw.need_scan_wifi)
     }
 
     private fun hideWifiRequiredDialog() {
@@ -430,7 +432,7 @@ class MainMenuActivity : BaseGlassActivity() {
         if (wifiDialogSelectedRetry) {
             entryGuardCoordinator.launchWifiScanner(this)
         } else {
-            exitAppDirectly()
+            hideWifiRequiredDialog()
         }
     }
 
