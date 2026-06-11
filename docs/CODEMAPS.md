@@ -156,6 +156,7 @@ sequenceDiagram
     alt 企业信息为空
         Menu->>QrScan: 跳转企业扫码
         QrScan-->>Menu: 扫码完成 → 回到菜单
+        QrScan-->>MainMenu: 双击取消 → CLEAR_TOP 返回主菜单
     end
     Menu->>AI: 用户选择"实时分析"
     AI->>AI: DETECTING 态，开始自动检测循环
