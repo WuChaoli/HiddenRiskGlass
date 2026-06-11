@@ -65,10 +65,41 @@ bash scripts/validate_hiddenrisk_assets.sh
 ## 代码风格
 
 - 代码/文件/目录命名：English；注释和文档：简体中文
-- Kotlin 风格：`official`（`kotlin.code.style=official`），JVM 目标 1.8
+
+### Kotlin
+- 风格：`official`（`kotlin.code.style=official`），JVM 目标 1.8
 - 类名：PascalCase，函数/变量：camelCase，常量：UPPER_SNAKE_CASE
-- C++ 文件：snake_case；新代码优先使用 Kotlin，Java 仅用于 JNI 接口层和旧代码
 - 优先使用 `val` 而非 `var`；纯数据载体使用 `data class`
+
+### Java（仅 JNI 接口层和旧代码）
+- 类名：PascalCase，方法：camelCase
+- 新代码优先使用 Kotlin
+
+### C++ (JNI)
+- 文件名/函数名：snake_case
+- 使用 ncnn 框架推理，OpenCV 图像预处理
+- 日志：`__android_log_print`
+
+### 错误处理
+- JNI 层：`__android_log_print` 输出日志，返回错误码
+- Kotlin/Java：try-catch，关键操作记录日志
+- 模型推理失败时降级处理，不崩溃
+
+### 包结构
+```
+com.rokid.glass/
+├── camera/         # 相机管理
+├── component/      # UI 组件
+├── config/         # 运行时配置
+├── data/           # 全局数据/事件
+├── hiddenrisk/     # HiddenRisk NCNN 推理
+├── input/          # 统一输入（触控/语音/头部动作）
+├── network/        # 网络（OkHttp）
+├── updater/        # 应用更新
+├── utils/          # 工具类
+├── workflow/       # 巡检工作流
+└── *.kt            # Activity 入口
+```
 
 ## 关键依赖
 
@@ -86,12 +117,66 @@ bash scripts/validate_hiddenrisk_assets.sh
 3. **配置只从 `InspectionConfigRepository` 读取**，禁止硬编码推理参数/API 端点
 4. **相机帧流只通过 `InspectionSession` 获取**，Activity 不直接持有 Camera 引用
 
+## NCNN 模型与推理配置
+
+### 已验证的 GPU 配置
+
+当前在眼镜端稳定运行的组合：
+- 推理尺寸：`640`，后端：`System Vulkan`，GPU Profile：`Balanced FP16`
+- `ncnn::Option.lightmode = true`，`ncnn::Option.use_local_pool_allocator = true`
+- 该组合下 `detect ex.extract` 可稳定完成（`960 + No Packing FP32` 会在 extract 阶段被 `lmkd` 杀进程）
+
+### 模型资产
+
+- `app/src/main/assets/hiddenrisk.ncnn.param` 与 `.bin` 必须由同一次重导成对替换
+- 当前源模型：`models/source/hidden_risk_mini_0330.onnx`
+- 原生侧统一读取 `out0_raw`，C++ 后处理兼容 raw proposal（`64+26`）和 decoded proposal（`4+26`）
+- 当前 mini 模型检测头为单输出 `1x30x8400`（decoded 分支）
+
+### 正式重导约束
+
+- 正式发布前必须通过仓库内脚本执行完整链路：
+  - `best.pt -> static torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`
+  - `hidden_risk_mini_0330.onnx -> pnnx(fp16=1) -> ncnn`
+- 正式入口：`models/scripts/export_hiddenrisk_640.sh`、`models/scripts/validate_hiddenrisk_assets.sh`
+- 旧脚本 `models/scripts/compare_onnx_ncnn.py` 未复用 JNI 的 `letterbox+pad114` 流程，不作为语义对齐依据
+
+### 探针页性能
+
+- `HiddenRiskProbeActivity` 仅作探针页，不适合展示全量检测结果
+- 当检测结果达数千条时，全量 JNI→Java 搬移会导致对象分配/堆压力/主线程卡顿
+- 当前限制最多显示前 20 条 detection；长时间压测建议减少 UI 刷新频率或关闭明细渲染
+
+## 代码定位工具使用规范
+
+### 分层使用原则
+
+| 层级 | 工具 | 适用场景 |
+|------|------|----------|
+| 第一层：结构探索 | LSP / CodeGraph | 理解"某个功能涉及哪些文件/模块" |
+| 第二层：精确定位 | LSP (Serena) | 修改具体函数/类、确认影响范围、重命名 |
+| 第三层：简单搜索 | Grep | 搜索硬编码值、配置键、字符串常量 |
+
+### 禁止的低效模式
+
+- 不要用 `Read` 逐行阅读大文件来"找函数在哪里"
+- 不要用 `Grep` 搜索符号名然后手动判断哪个是真正的定义
+- 不要用多个 `Read` + `Grep` 组合来拼凑跨文件调用链
+
+## 调试与验证
+
+- 关注日志中的 `detect preprocess target=640`、`detect padded ... anchors=8400`、`detect ex.extract done blob=out0_raw`
+- GPU 稳定性问题按以下顺序排查：
+  1. 确认 `TARGET_INPUT_SIZE` 是否仍为 `640`
+  2. 确认 `GPU_PROFILE` 是否仍为 `Balanced FP16`
+  3. 确认 `lightmode/local_pool_allocator` 没被改回诊断配置
+  4. 区分是 ncnn 推理失败还是探针页/UI 自身导致进程退出
+
 ## 文档导航
 
 | 文档 | 路径 | 说明 |
 |------|------|------|
 | 模块关系地图 (L2) | `docs/CODEMAPS.md` | 架构层级图、依赖矩阵、数据流、边界规则、术语表、任务速查 |
-| AI Agent 补充指南 | `AGENTS.md` | NCNN 经验细节与行为补充 |
 | Android 构建与真机调试 | `scripts/android/CLAUDE.md` | JDK/SDK/ADB 环境、构建、打包签名与排障入口 |
 | 各模块 CLAUDE.md | 见上方"模块代码地图"表 | 模块内部文件索引与核心调用链 |
 
