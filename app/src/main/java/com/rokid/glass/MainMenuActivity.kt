@@ -86,6 +86,9 @@ class MainMenuActivity : BaseGlassActivity() {
 
             override fun onAutoUpdateCheckComplete(hasUpdate: Boolean) {
                 Log.d(TAG, "Auto update check complete, hasUpdate=$hasUpdate")
+                if (allGuardsReady) {
+                    tvBottomHint.setText(R.string.main_menu_bottom_hint)
+                }
             }
 
             override fun onAllGuardsReady() {
@@ -125,6 +128,7 @@ class MainMenuActivity : BaseGlassActivity() {
         recyclerMenu.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerMenu.adapter = menuAdapter
         recyclerMenu.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+        recyclerMenu.itemAnimator = null
 
         // 初始选中第一张卡片
         menuAdapter.selectedIndex = 0
@@ -363,6 +367,9 @@ class MainMenuActivity : BaseGlassActivity() {
                 runOnUiThread {
                     checkingUpdate = false
                     inputSession.updateActions(buildInputActions())
+                    if (allGuardsReady) {
+                        tvBottomHint.setText(R.string.main_menu_bottom_hint)
+                    }
                     if (hasUpdate && updateInfoJson != null) {
                         startActivity(
                             Intent(this@MainMenuActivity, AppUpdatePromptActivity::class.java).apply {

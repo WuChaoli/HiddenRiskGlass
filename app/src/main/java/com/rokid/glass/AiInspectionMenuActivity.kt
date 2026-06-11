@@ -71,6 +71,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         recyclerMenu.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         recyclerMenu.adapter = menuAdapter
         recyclerMenu.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
+        recyclerMenu.itemAnimator = null
 
         // 初始选中第一张卡片
         menuAdapter.selectedIndex = 0

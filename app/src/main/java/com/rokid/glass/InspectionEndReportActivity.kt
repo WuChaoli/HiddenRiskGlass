@@ -245,11 +245,12 @@ class InspectionEndReportActivity : BaseGlassActivity() {
     }
 
     /**
-     * 提交成功后返回主菜单，清空巡检状态，释放相机。
+     * 提交成功后返回主菜单，清空巡检状态和企业扫码信息，释放相机。
      */
     private fun returnToMainMenuAfterFinish() {
         if (isFinishing || isDestroyed) return
         InspectionWorkflowSession.clearInspectionAccumulatedResults()
+        InspectionWorkflowSession.clearEnterpriseData()
         InspectionCameraCoordinator.releaseForNavigation(
             InspectionCameraCoordinator.CameraOwner.AI_INSPECTION,
             reason = "inspection_end_return_to_main_menu",

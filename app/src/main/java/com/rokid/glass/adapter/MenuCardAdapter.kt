@@ -29,10 +29,14 @@ class MenuCardAdapter(
             val old = field
             field = value
             if (old != value) {
+                lastSelectedIndex = old
                 if (old in 0 until itemCount) notifyItemChanged(old)
                 if (value in 0 until itemCount) notifyItemChanged(value)
             }
         }
+
+    /** 上一个选中位置，用于判断动画方向 */
+    private var lastSelectedIndex = -1
 
     /** 长按回调（预留） */
     var onLongPress: ((Int) -> Unit)? = null
@@ -65,18 +69,23 @@ class MenuCardAdapter(
         holder.label.setText(card.labelResId)
 
         val isSelected = position == selectedIndex
+        val wasSelected = position == lastSelectedIndex
 
         // 取消旧动画，避免快速滑动时动画堆积
         holder.card.animate().cancel()
         holder.selectBar.animate().cancel()
 
-        // 焦点悬停/消失：上浮/回落动画
-        val targetY = if (isSelected) -holder.card.dpToPx(12f) else 0f
-        holder.card.animate()
-            .translationY(targetY)
-            .setDuration(300)
-            .setInterpolator(if (isSelected) DecelerateInterpolator() else AccelerateInterpolator())
-            .start()
+        // 仅在焦点状态变化时播放平移动画，其余情况直接设置
+        if (wasSelected != isSelected) {
+            val targetY = if (isSelected) -holder.card.dpToPx(12f) else 0f
+            holder.card.animate()
+                .translationY(targetY)
+                .setDuration(300)
+                .setInterpolator(if (isSelected) DecelerateInterpolator() else AccelerateInterpolator())
+                .start()
+        } else {
+            holder.card.translationY = if (isSelected) -holder.card.dpToPx(12f) else 0f
+        }
 
         // 背景 drawable 瞬间切换
         holder.card.setBackgroundResource(
