@@ -315,36 +315,14 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
         )
     }
 
-    /** 移动选中框：更新高亮，并确保目标卡片完整停留在可视区域内 */
+    /** 移动选中框：更新高亮 */
     private fun moveSelection(delta: Int) {
         val target = (selectedIndex + delta).coerceIn(0, menuAdapter.itemCount - 1)
         if (target == selectedIndex) return
         selectedIndex = target
         menuAdapter.selectedIndex = target
-        ensureSelectedCardVisible(target)
     }
 
-    private fun ensureSelectedCardVisible(position: Int, retryAfterLayout: Boolean = true) {
-        val lm = recyclerMenu.layoutManager as? LinearLayoutManager ?: return
-        val itemView = lm.findViewByPosition(position)
-        if (itemView == null) {
-            lm.scrollToPositionWithOffset(position, recyclerMenu.paddingLeft)
-            if (retryAfterLayout) {
-                recyclerMenu.post { ensureSelectedCardVisible(position, retryAfterLayout = false) }
-            }
-            return
-        }
-
-        val visibleLeft = recyclerMenu.paddingLeft
-        val visibleRight = recyclerMenu.width - recyclerMenu.paddingRight
-        val itemLeft = lm.getDecoratedLeft(itemView)
-        val itemRight = lm.getDecoratedRight(itemView)
-
-        when {
-            itemLeft < visibleLeft -> recyclerMenu.smoothScrollBy(itemLeft - visibleLeft, 0)
-            itemRight > visibleRight -> recyclerMenu.smoothScrollBy(itemRight - visibleRight, 0)
-        }
-    }
 
     private fun moveExitConfirmSelection(delta: Int) {
         val target = (exitConfirmSelectedIndex + delta).coerceIn(0, exitConfirmButtons.lastIndex)
@@ -377,6 +355,15 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         if (entryGuardNavigating || exitConfirmDialogVisible) return
+        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(selectedIndex) as? MenuCardAdapter.ViewHolder
+        if (viewHolder != null) {
+            menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
+        } else {
+            executeConfirmedAction(index)
+        }
+    }
+
+    private fun executeConfirmedAction(index: Int) {
         when (index) {
             0 -> startHazardAnalysis()
             1 -> startDeviceGuide()

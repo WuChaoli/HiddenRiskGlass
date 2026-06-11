@@ -37,5 +37,14 @@
             android:layout_marginTop="8dp"
             android:textColor="@color/green"
             android:textSize="13sp" />
+
+        <ImageView
+            android:id="@+id/itemSelectBar"
+            android:layout_width="40dp"
+            android:layout_height="3dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="6dp"
+            android:src="@drawable/item_select_bar"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>
