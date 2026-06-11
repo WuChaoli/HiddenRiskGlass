@@ -334,15 +334,19 @@ enterpriseInfo = EnterpriseInfo(
     }
 
     private fun logSessionMemorySnapshot(reason: String) {
-        val latestBytes = latestCapturedJpeg?.size ?: 0
-        val savedRecordCount = savedHazardRecordsByKey.size
-        val savedImageCount = savedHazardRecordsByKey.values.count { it.jpegBytes?.isNotEmpty() == true }
-        val savedImageBytes = savedHazardRecordsByKey.values.sumOf { it.jpegBytes?.size?.toLong() ?: 0L }
-        val totalBytes = latestBytes.toLong() + savedImageBytes
-        Log.i(
-            TAG,
-            "sessionMemory reason=$reason latestCapturedBytes=$latestBytes savedRecordCount=$savedRecordCount savedImageCount=$savedImageCount savedImageBytes=$savedImageBytes totalTrackedBytes=$totalBytes totalTrackedMiB=${"%.2f".format(totalBytes / BYTES_PER_MEBIBYTE)}",
-        )
+        try {
+            val latestBytes = latestCapturedJpeg?.size ?: 0
+            val savedRecordCount = savedHazardRecordsByKey.size
+            val savedImageCount = savedHazardRecordsByKey.values.count { it.jpegBytes?.isNotEmpty() == true }
+            val savedImageBytes = savedHazardRecordsByKey.values.sumOf { it.jpegBytes?.size?.toLong() ?: 0L }
+            val totalBytes = latestBytes.toLong() + savedImageBytes
+            Log.i(
+                TAG,
+                "sessionMemory reason=$reason latestCapturedBytes=$latestBytes savedRecordCount=$savedRecordCount savedImageCount=$savedImageCount savedImageBytes=$savedImageBytes totalTrackedBytes=$totalBytes totalTrackedMiB=${"%.2f".format(totalBytes / BYTES_PER_MEBIBYTE)}",
+            )
+        } catch (_: RuntimeException) {
+            // Log 在纯单元测试环境中不可用（android.jar stub 抛出 Stub!）
+        }
     }
 
     private fun parseEnterpriseQrPayload(qrContent: String): EnterpriseQrPayload? {

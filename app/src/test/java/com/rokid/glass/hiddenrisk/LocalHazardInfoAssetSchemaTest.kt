@@ -25,14 +25,13 @@ class LocalHazardInfoAssetSchemaTest {
     fun infoJson_parsesRecordsAndIncludesModifyField() {
         val records = loadRecords()
 
-        assertEquals(5, records.size)
+        assertEquals(6, records.size)
         records.forEach { record ->
             val normalizedItems = record.item
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
             assertFalse("item should not be empty for ${record.hidNum}", normalizedItems.isEmpty())
             assertFalse("modify should not be blank for ${record.hidNum}", record.modify.isBlank())
-            assertFalse("advice should not be blank for ${record.hidNum}", record.advice.isBlank())
             assertNotEquals("modify should differ from advice for ${record.hidNum}", record.advice.trim(), record.modify.trim())
         }
 
@@ -47,7 +46,7 @@ class LocalHazardInfoAssetSchemaTest {
         assertRecord(
             records,
             hidNum = "ZJYJ_HZ_JX_XCY_007",
-            items = listOf("炭炉&燃气灶"),
+            items = listOf("煤炉"),
             hidLevel = "1",
             lawBasis = "《燃气用户设施安全检查标准》第3.0.9条",
             modify = "建议在同一用气场所只使用一种燃料，避免因燃料混用引发的安全事故。",

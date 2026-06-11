@@ -92,7 +92,7 @@ object RokidFrameSource {
     private const val SHARED_PREVIEW_HEIGHT = 1080
     private const val SHARED_PREVIEW_TARGET_FPS = 15
 
-    private val mainHandler = Handler(Looper.getMainLooper())
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val lock = Any()
     private val frameReadyCallbacks = mutableListOf<(Boolean) -> Unit>()
 

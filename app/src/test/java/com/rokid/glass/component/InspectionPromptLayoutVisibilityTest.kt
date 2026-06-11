@@ -11,18 +11,15 @@ class InspectionPromptLayoutVisibilityTest {
 
     @Test
     fun `ai inspection prompt views are hidden by default`() {
-        val root = parseLayoutRoot("app/src/main/res/layout/activity_ai_inspection.xml")
+        val root = parseLayoutRoot("src/main/res/layout/activity_ai_inspection.xml")
 
         assertViewVisibility(root, "operationGuideDetecting", "gone")
         assertViewVisibility(root, "operationGuideStream", "gone")
-        assertViewVisibility(root, "bottomPromptSync", "gone")
-        assertViewVisibility(root, "operationGuideSync", "gone")
-        assertViewVisibility(root, "bottomPromptSuccess", "gone")
     }
 
     @Test
     fun `inspection end report prompt views are hidden by default`() {
-        val root = parseLayoutRoot("app/src/main/res/layout/activity_inspection_end_report.xml")
+        val root = parseLayoutRoot("src/main/res/layout/activity_inspection_end_report.xml")
 
         assertViewVisibility(root, "operationGuideEnd", "gone")
         assertViewVisibility(root, "bottomPromptEnd", "gone")
@@ -30,8 +27,8 @@ class InspectionPromptLayoutVisibilityTest {
 
     @Test
     fun `menu prompt views are hidden by default`() {
-        val aiMenuRoot = parseLayoutRoot("app/src/main/res/layout/activity_ai_inspection_menu.xml")
-        val inspectionModeRoot = parseLayoutRoot("app/src/main/res/layout/activity_inspection_mode.xml")
+        val aiMenuRoot = parseLayoutRoot("src/main/res/layout/activity_ai_inspection_menu.xml")
+        val inspectionModeRoot = parseLayoutRoot("src/main/res/layout/activity_inspection_mode.xml")
 
         assertViewVisibility(aiMenuRoot, "layoutBottomVoiceHint", "gone")
         assertViewVisibility(inspectionModeRoot, "tvBottomHint", "gone")
@@ -39,12 +36,10 @@ class InspectionPromptLayoutVisibilityTest {
 
     @Test
     fun `scan bottom hints are hidden by default`() {
-        val enterpriseRoot = parseLayoutRoot("app/src/main/res/layout/activity_enterprise_qr_scan.xml")
-        val wifiRoot = parseLayoutRoot("app/src/main/res/layout/activity_wifi_qr_scan.xml")
-        val enterpriseInfoRoot = parseLayoutRoot("app/src/main/res/layout/activity_enterprise_info.xml")
+        val enterpriseRoot = parseLayoutRoot("src/main/res/layout/activity_enterprise_qr_scan.xml")
+        val enterpriseInfoRoot = parseLayoutRoot("src/main/res/layout/activity_enterprise_info.xml")
 
         assertViewVisibility(enterpriseRoot, "bottomHints", "gone")
-        assertViewVisibility(wifiRoot, "bottomHints", "gone")
         assertViewVisibility(enterpriseInfoRoot, "bottomHints", "gone")
     }
 

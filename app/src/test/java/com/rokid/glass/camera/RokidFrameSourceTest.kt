@@ -168,7 +168,7 @@ class RokidFrameSourceTest {
             needPreview = true,
         )
         assertEquals(CameraOwner.ENTERPRISE_QR_SCAN, enterpriseAcquire.owner)
-        assertEquals(CameraSessionState.READY_NO_PREVIEW, enterpriseAcquire.state)
+        assertEquals(CameraSessionState.READY_WITH_PREVIEW, enterpriseAcquire.state)
 
         val loadingRelease = stateMachine.beginRelease(CameraOwner.LOADING)
         assertNull(loadingRelease)

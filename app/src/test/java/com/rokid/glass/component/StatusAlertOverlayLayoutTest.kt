@@ -11,7 +11,7 @@ class StatusAlertOverlayLayoutTest {
 
     @Test
     fun `overlay root visibility is not hardcoded to gone`() {
-        val root = parseLayoutRoot("app/src/main/res/layout/view_status_alert_overlay.xml")
+        val root = parseLayoutRoot("src/main/res/layout/view_status_alert_overlay.xml")
 
         assertEquals("FrameLayout", root.tagName)
         assertFalse(root.hasAttribute("android:visibility"))
