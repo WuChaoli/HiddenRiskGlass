@@ -250,6 +250,7 @@ class MainMenuActivity : BaseGlassActivity() {
                 UnifiedInputSession.buildCardVoiceActions(
                     menuAdapter.cards,
                     this@MainMenuActivity,
+                    onVoiceTrigger = { index -> onItemConfirmed(index) },
                 ),
             )
             // 非卡片语音指令：退出应用（独立于卡片，手动注册）
@@ -279,7 +280,10 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         if (wifiRequiredDialogVisible) return
-        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(selectedIndex) as? MenuCardAdapter.ViewHolder
+        // 先移动焦点到目标卡片，再执行动画
+        selectedIndex = index
+        menuAdapter.selectedIndex = index
+        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(index) as? MenuCardAdapter.ViewHolder
         if (viewHolder != null) {
             menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
         } else {

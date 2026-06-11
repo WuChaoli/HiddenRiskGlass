@@ -254,10 +254,12 @@ class UnifiedInputSession(
          *
          * @param items 实现了 VoiceActionItem 的卡片列表
          * @param context 用于解析字符串资源
+         * @param onVoiceTrigger 语音触发回调，参数为卡片索引；由 Activity 处理焦点移动+动画+执行
          */
         fun buildCardVoiceActions(
             items: List<VoiceActionItem>,
             context: android.content.Context,
+            onVoiceTrigger: (Int) -> Unit,
         ): List<InputActionSpec> {
             return items.mapIndexed { index, item ->
                 InputActionSpec(
@@ -269,7 +271,7 @@ class UnifiedInputSession(
                             pinyin = context.getString(item.pinyinResId),
                         ),
                     ),
-                    onTrigger = { item.execute() },
+                    onTrigger = { onVoiceTrigger(index) },
                 )
             }
         }

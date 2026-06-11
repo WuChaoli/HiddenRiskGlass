@@ -267,6 +267,7 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                 UnifiedInputSession.buildCardVoiceActions(
                     menuAdapter.cards,
                     this@AiInspectionMenuActivity,
+                    onVoiceTrigger = { index -> onItemConfirmed(index) },
                 ),
             )
             // 非卡片语音指令：结束巡查（手动注册，3个别名）
@@ -349,7 +350,10 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         if (entryGuardNavigating || exitConfirmDialogVisible) return
-        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(selectedIndex) as? MenuCardAdapter.ViewHolder
+        // 先移动焦点到目标卡片，再执行动画
+        selectedIndex = index
+        menuAdapter.selectedIndex = index
+        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(index) as? MenuCardAdapter.ViewHolder
         if (viewHolder != null) {
             menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
         } else {
