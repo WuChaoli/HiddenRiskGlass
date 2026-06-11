@@ -103,9 +103,24 @@ class MainMenuActivity : BaseGlassActivity() {
     private val menuAdapter by lazy {
         MenuCardAdapter(
             cards = listOf(
-                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_ai_analysis, R.string.main_menu_card_inspection),
-                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_wifi, R.string.main_menu_card_wifi),
-                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_update, R.string.main_menu_card_update),
+                MenuCardAdapter.MenuCardData(
+                    iconResId = R.drawable.ic_menu_ai_analysis,
+                    labelResId = R.string.main_menu_card_inspection,
+                    pinyinResId = R.string.main_menu_card_inspection_pinyin,
+                    onClick = { startInspection() },
+                ),
+                MenuCardAdapter.MenuCardData(
+                    iconResId = R.drawable.ic_menu_wifi,
+                    labelResId = R.string.main_menu_card_wifi,
+                    pinyinResId = R.string.main_menu_card_wifi_pinyin,
+                    onClick = { launchWifiScannerWithPermissionCheck() },
+                ),
+                MenuCardAdapter.MenuCardData(
+                    iconResId = R.drawable.ic_menu_update,
+                    labelResId = R.string.main_menu_card_update,
+                    pinyinResId = R.string.main_menu_card_update_pinyin,
+                    onClick = { checkUpdateManually() },
+                ),
             ),
         )
     }
@@ -185,122 +200,74 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         if (wifiRequiredDialogVisible) {
-            return listOf(
-                // 前后滑动切换焦点
+            return buildList {
+                addAll(
+                    UnifiedInputSession.buildPageCommonActions(
+                        onConfirm = { executeWifiDialogAction() },
+                        onCancel = { hideWifiRequiredDialog() },
+                    ),
+                )
+                add(
+                    UnifiedInputSession.InputActionSpec(
+                        id = UnifiedInputSession.InputActionId("wifi_dialog_switch"),
+                        label = "切换焦点",
+                        triggers = listOf(
+                            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
+                            UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
+                        ),
+                        onTrigger = { moveWifiDialogFocus() },
+                    ),
+                )
+            }
+        }
+        return buildList {
+            // 页面通用动作：确认→点击卡片，取消→主菜单为根页面不做操作
+            addAll(
+                UnifiedInputSession.buildPageCommonActions(
+                    onConfirm = { onItemConfirmed(selectedIndex) },
+                    onCancel = { /* 主菜单根页面，返回/取消不操作 */ },
+                ),
+            )
+            // 导航：前后滑动选卡片
+            add(
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Previous,
                     label = "上一个",
                     triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
-                ) {
-                    moveWifiDialogFocus()
-                },
+                    onTrigger = { moveSelection(-1) },
+                ),
+            )
+            add(
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Next,
                     label = "下一个",
                     triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
-                ) {
-                    moveWifiDialogFocus()
-                },
-                // 单击确认当前选中的按钮
-                UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.Confirm,
-                    label = if (wifiDialogSelectedRetry) getString(R.string.ai_entry_wifi_retry) else getString(R.string.ai_entry_wifi_exit),
-                    triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_wifi_retry), "chong xin sao ma"),
-                    ),
-                ) {
-                    executeWifiDialogAction()
-                },
-                // 双击/返回 = 隐藏弹窗回到主菜单
+                    onTrigger = { moveSelection(+1) },
+                ),
+            )
+            // 卡片语音指令：自动从 VoiceActionItem 生成
+            addAll(
+                UnifiedInputSession.buildCardVoiceActions(
+                    menuAdapter.cards,
+                    this@MainMenuActivity,
+                    onVoiceTrigger = { index -> onItemConfirmed(index) },
+                ),
+            )
+            // 非卡片语音指令：退出应用（独立于卡片，手动注册）
+            add(
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Exit,
-                    label = getString(R.string.ai_entry_wifi_exit),
+                    label = getString(R.string.main_menu_voice_exit_app),
                     triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
                         UnifiedInputSession.InputTrigger.Voice(
                             getString(R.string.main_menu_voice_exit_app),
                             getString(R.string.main_menu_voice_exit_app_pinyin),
                         ),
                     ),
-                ) {
-                    hideWifiRequiredDialog()
-                },
+                    onTrigger = { exitAppDirectly() },
+                ),
             )
         }
-        return listOf(
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Previous,
-                label = "上一个",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
-            ) {
-                moveSelection(-1)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Next,
-                label = "下一个",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
-            ) {
-                moveSelection(+1)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Confirm,
-                label = "确认",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK)),
-            ) {
-                onItemConfirmed(selectedIndex)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("main_menu_inspection"),
-                label = getString(R.string.main_menu_card_inspection),
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Voice(
-                        getString(R.string.main_menu_voice_inspection),
-                        getString(R.string.main_menu_voice_inspection_pinyin),
-                    ),
-                ),
-            ) {
-                onItemConfirmed(0)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("main_menu_wifi"),
-                label = getString(R.string.main_menu_card_wifi),
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Voice(
-                        getString(R.string.main_menu_card_wifi),
-                        "lian jie wifi",
-                    ),
-                ),
-            ) {
-                onItemConfirmed(1)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("main_menu_update"),
-                label = getString(R.string.main_menu_card_update),
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Voice(
-                        getString(R.string.main_menu_card_update),
-                        "jian cha geng xin",
-                    ),
-                ),
-                enabled = { !checkingUpdate },
-            ) {
-                onItemConfirmed(2)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Exit,
-                label = getString(R.string.main_menu_voice_exit_app),
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Voice(
-                        getString(R.string.main_menu_voice_exit_app),
-                        getString(R.string.main_menu_voice_exit_app_pinyin),
-                    ),
-                ),
-            ) {
-                exitAppDirectly()
-            },
-        )
     }
 
     /** 移动选中框：更新高亮 */
@@ -313,21 +280,22 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         if (wifiRequiredDialogVisible) return
-        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(selectedIndex) as? MenuCardAdapter.ViewHolder
-        if (viewHolder != null) {
-            menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
-        } else {
-            executeConfirmedAction(index)
+        // 先移动焦点到目标卡片
+        selectedIndex = index
+        menuAdapter.selectedIndex = index
+        // post 确保 RecyclerView 完成焦点切换布局后再取 ViewHolder 播放动画
+        recyclerMenu.post {
+            val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(index) as? MenuCardAdapter.ViewHolder
+            if (viewHolder != null) {
+                menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
+            } else {
+                executeConfirmedAction(index)
+            }
         }
     }
 
     private fun executeConfirmedAction(index: Int) {
-        when (index) {
-            0 -> startInspection()
-            1 -> launchWifiScannerWithPermissionCheck()
-            2 -> checkUpdateManually()
-            else -> Unit
-        }
+        menuAdapter.cards.getOrNull(index)?.execute()
     }
 
     private fun launchWifiScannerWithPermissionCheck() {

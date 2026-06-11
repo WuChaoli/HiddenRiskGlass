@@ -52,9 +52,24 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private val menuAdapter by lazy {
         MenuCardAdapter(
             cards = listOf(
-                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_ai_analysis, R.string.ai_entry_menu_analysis),
-                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_device_guide, R.string.ai_entry_menu_guide),
-                MenuCardAdapter.MenuCardData(R.drawable.ic_menu_hazard_record, R.string.ai_entry_menu_record),
+                MenuCardAdapter.MenuCardData(
+                    iconResId = R.drawable.ic_menu_ai_analysis,
+                    labelResId = R.string.ai_entry_menu_analysis,
+                    pinyinResId = R.string.ai_entry_menu_analysis_pinyin,
+                    onClick = { startHazardAnalysis() },
+                ),
+                MenuCardAdapter.MenuCardData(
+                    iconResId = R.drawable.ic_menu_device_guide,
+                    labelResId = R.string.ai_entry_menu_guide,
+                    pinyinResId = R.string.ai_entry_menu_guide_pinyin,
+                    onClick = { startDeviceGuide() },
+                ),
+                MenuCardAdapter.MenuCardData(
+                    iconResId = R.drawable.ic_menu_hazard_record,
+                    labelResId = R.string.ai_entry_menu_record,
+                    pinyinResId = R.string.ai_entry_menu_record_pinyin,
+                    onClick = { startActivity(Intent(this@AiInspectionMenuActivity, HazardRecordActivity::class.java)) },
+                ),
             ),
         )
     }
@@ -197,110 +212,89 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
         if (exitConfirmDialogVisible) {
-            return listOf(
+            return buildList {
+                addAll(
+                    UnifiedInputSession.buildPageCommonActions(
+                        onConfirm = { executeExitConfirmSelection() },
+                        onCancel = { hideExitConfirmDialog() },
+                    ),
+                )
+                add(
+                    UnifiedInputSession.InputActionSpec(
+                        id = UnifiedInputSession.InputActionId.Previous,
+                        label = "上一个",
+                        triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
+                        onTrigger = { moveExitConfirmSelection(-1) },
+                    ),
+                )
+                add(
+                    UnifiedInputSession.InputActionSpec(
+                        id = UnifiedInputSession.InputActionId.Next,
+                        label = "下一个",
+                        triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
+                        onTrigger = { moveExitConfirmSelection(+1) },
+                    ),
+                )
+            }
+        }
+        return buildList {
+            // 页面通用动作：确认→点击卡片，取消→显示退出确认弹窗
+            addAll(
+                UnifiedInputSession.buildPageCommonActions(
+                    onConfirm = { onItemConfirmed(selectedIndex) },
+                    onCancel = { showExitConfirmDialog() },
+                ),
+            )
+            // 导航：前后滑动选卡片
+            add(
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Previous,
                     label = "上一个",
                     triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
-                ) {
-                    moveExitConfirmSelection(-1)
-                },
+                    onTrigger = { moveSelection(-1) },
+                ),
+            )
+            add(
                 UnifiedInputSession.InputActionSpec(
                     id = UnifiedInputSession.InputActionId.Next,
                     label = "下一个",
                     triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
-                ) {
-                    moveExitConfirmSelection(+1)
-                },
+                    onTrigger = { moveSelection(+1) },
+                ),
+            )
+            // 卡片语音指令：自动从 VoiceActionItem 生成
+            addAll(
+                UnifiedInputSession.buildCardVoiceActions(
+                    menuAdapter.cards,
+                    this@AiInspectionMenuActivity,
+                    onVoiceTrigger = { index -> onItemConfirmed(index) },
+                ),
+            )
+            // 非卡片语音指令：结束巡查（手动注册，3个别名）
+            add(
                 UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.Confirm,
-                    label = getString(R.string.ai_entry_end_inspection_confirm),
+                    id = UnifiedInputSession.InputActionId("ai_menu_finish_inspection"),
+                    label = "结束巡查",
                     triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_end_inspection_confirm), "que ren"),
+                        UnifiedInputSession.InputTrigger.Voice("结束巡查", "jie shu xun cha"),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_finish), "jie shu ren wu"),
+                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_finish_accent_alias), "jie su ren wu"),
                     ),
-                ) { event ->
-                    if (event.trigger is UnifiedInputSession.InputTrigger.Voice) {
-                        startEndReport()
-                    } else {
-                        executeExitConfirmSelection()
-                    }
-                },
+                    onTrigger = { startEndReport() },
+                ),
+            )
+            // 非卡片语音指令：检查扫码（手动注册）
+            add(
                 UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId.Cancel,
-                    label = getString(R.string.ai_entry_end_inspection_cancel),
+                    id = UnifiedInputSession.InputActionId("ai_menu_scan"),
+                    label = "检查扫码",
                     triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BACK),
-                        UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.DOUBLE_CLICK),
-                        UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_entry_end_inspection_cancel), "qu xiao"),
+                        UnifiedInputSession.InputTrigger.Voice("检查扫码", "jian cha sao ma"),
                     ),
-                ) {
-                    hideExitConfirmDialog()
-                },
+                    onTrigger = { startEnterpriseQrScan(forceScan = true) },
+                ),
             )
         }
-        return listOf(
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Previous,
-                label = "上一个",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND)),
-            ) {
-                moveSelection(-1)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Next,
-                label = "下一个",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT)),
-            ) {
-                moveSelection(+1)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId.Confirm,
-                label = "确认",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK)),
-            ) {
-                onItemConfirmed(selectedIndex)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_analysis"),
-                label = "实时分析",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("实时分析", "shi shi fen xi")),
-            ) {
-                onItemConfirmed(0)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_guide"),
-                label = "设备指引",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("设备指引", "she bei zhi yin")),
-            ) {
-                onItemConfirmed(1)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_record"),
-                label = "隐患拍照",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("隐患拍照", "yin huan pai zhao")),
-            ) {
-                onItemConfirmed(2)
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_finish_inspection"),
-                label = "结束巡查",
-                triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Voice("结束巡查", "jie shu xun cha"),
-                    UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_finish), "jie shu ren wu"),
-                    UnifiedInputSession.InputTrigger.Voice(getString(R.string.ai_inspection_voice_finish_accent_alias), "jie su ren wu"),
-                ),
-            ) {
-                startEndReport()
-            },
-            UnifiedInputSession.InputActionSpec(
-                id = UnifiedInputSession.InputActionId("ai_menu_scan"),
-                label = "检查扫码",
-                triggers = listOf(UnifiedInputSession.InputTrigger.Voice("检查扫码", "jian cha sao ma")),
-            ) {
-                startEnterpriseQrScan(forceScan = true)
-            },
-        )
     }
 
     private fun updateInspectionSummary() {
@@ -356,21 +350,22 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private fun onItemConfirmed(index: Int) {
         if (entryGuardNavigating || exitConfirmDialogVisible) return
-        val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(selectedIndex) as? MenuCardAdapter.ViewHolder
-        if (viewHolder != null) {
-            menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
-        } else {
-            executeConfirmedAction(index)
+        // 先移动焦点到目标卡片
+        selectedIndex = index
+        menuAdapter.selectedIndex = index
+        // post 确保 RecyclerView 完成焦点切换布局后再取 ViewHolder 播放动画
+        recyclerMenu.post {
+            val viewHolder = recyclerMenu.findViewHolderForAdapterPosition(index) as? MenuCardAdapter.ViewHolder
+            if (viewHolder != null) {
+                menuAdapter.animateClick(viewHolder) { executeConfirmedAction(index) }
+            } else {
+                executeConfirmedAction(index)
+            }
         }
     }
 
     private fun executeConfirmedAction(index: Int) {
-        when (index) {
-            0 -> startHazardAnalysis()
-            1 -> startDeviceGuide()
-            2 -> startActivity(Intent(this, HazardRecordActivity::class.java))
-            else -> Unit
-        }
+        menuAdapter.cards.getOrNull(index)?.execute()
     }
 
     private fun startHazardAnalysis() {

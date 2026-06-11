@@ -206,6 +206,75 @@ class UnifiedInputSession(
                 }
             }
         }
+
+        /** 页面级确认触发集：单击 + 确认/确定/继续 */
+        val PAGE_CONFIRM_TRIGGERS: List<InputTrigger> = listOf(
+            InputTrigger.Touch(InputKey.CLICK),
+            InputTrigger.Voice("确认", "que ren"),
+            InputTrigger.Voice("确定", "que ding"),
+            InputTrigger.Voice("继续", "ji xu"),
+        )
+
+        /** 页面级取消/返回触发集：返回键 + 双击 + 取消/返回 */
+        val PAGE_CANCEL_TRIGGERS: List<InputTrigger> = listOf(
+            InputTrigger.Touch(InputKey.BACK),
+            InputTrigger.Touch(InputKey.DOUBLE_CLICK),
+            InputTrigger.Voice("取消", "qu xiao"),
+            InputTrigger.Voice("返回", "fan hui"),
+        )
+
+        /**
+         * 为页面自动构建确认/取消两个 InputActionSpec。
+         * 所有页面共享同一套触发集，只需提供各自的行为回调。
+         *
+         * @param onConfirm 确认回调（单击/说"确认"/"确定"/"继续"时触发）
+         * @param onCancel 取消回调（双击/返回键/说"取消"/"返回"时触发）
+         */
+        fun buildPageCommonActions(
+            onConfirm: () -> Unit,
+            onCancel: () -> Unit,
+        ): List<InputActionSpec> = listOf(
+            InputActionSpec(
+                id = InputActionId.Confirm,
+                label = "确认",
+                triggers = PAGE_CONFIRM_TRIGGERS,
+                onTrigger = { onConfirm() },
+            ),
+            InputActionSpec(
+                id = InputActionId.Cancel,
+                label = "取消",
+                triggers = PAGE_CANCEL_TRIGGERS,
+                onTrigger = { onCancel() },
+            ),
+        )
+
+        /**
+         * 将所有 VoiceActionItem 自动转换为语音 InputActionSpec。
+         * 每张卡片的 label 文字即为语音指令文字，pinyin 由配对资源提供。
+         *
+         * @param items 实现了 VoiceActionItem 的卡片列表
+         * @param context 用于解析字符串资源
+         * @param onVoiceTrigger 语音触发回调，参数为卡片索引；由 Activity 处理焦点移动+动画+执行
+         */
+        fun buildCardVoiceActions(
+            items: List<VoiceActionItem>,
+            context: android.content.Context,
+            onVoiceTrigger: (Int) -> Unit,
+        ): List<InputActionSpec> {
+            return items.mapIndexed { index, item ->
+                InputActionSpec(
+                    id = InputActionId("card_voice_$index"),
+                    label = context.getString(item.labelResId),
+                    triggers = listOf(
+                        InputTrigger.Voice(
+                            command = context.getString(item.labelResId),
+                            pinyin = context.getString(item.pinyinResId),
+                        ),
+                    ),
+                    onTrigger = { onVoiceTrigger(index) },
+                )
+            }
+        }
     }
 
     private class VoiceInputAdapter(
