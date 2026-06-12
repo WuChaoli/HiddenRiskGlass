@@ -1,3 +1,17 @@
+### 2.0.10.1
+
+#### 新增
+1. **检测路由上下文**: 新增 `DetectionRouteContext`，根据 placeCode 有无统一决定各检测接口调用策略——placeCode 缺失时跳过物品/环境检测，深度分析降级到 `/ai/gm`。
+
+#### 重构
+1. **路由逻辑集中化**: 将 `AiArSseService` 中分散的路由逻辑（`resolveDeepAnalysisEndpoint`、`useGmWhenPlaceCodeMissing` 分支）提取到 `DetectionRouteContext`，移除 `DeepAnalysisEndpoint` 数据类。
+
+#### 修复
+1. **相机跨页面误伤**: `InspectionCameraCoordinator.releaseForNavigation()` 增加 owner 匹配检查，避免 AiInspectionActivity.onDestroy 重置 HazardRecordActivity 刚发起的 acquire 请求 token。
+
+#### 文档
+1. **三层文档同步**: 更新 CODEMAPS.md SSE 数据流图（新增 DetectionRouteContext 参与者 + placeCode 分支），hiddenrisk/README.md 新增 DetectionRouteContext 条目。
+
 ### 2.0.10
 
 #### 新增
