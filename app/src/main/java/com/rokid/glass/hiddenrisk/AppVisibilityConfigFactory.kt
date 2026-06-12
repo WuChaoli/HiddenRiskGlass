@@ -6,7 +6,7 @@ import com.rokid.security.glass3.sdk.base.data.device.bean.ThirdPartyApp
 
 object AppVisibilityConfigFactory {
     const val INSPECTION_APP_PACKAGE = "com.rokid.glesse"
-    const val INSPECTION_APP_NAME = "隐患巡检"
+    const val INSPECTION_APP_NAME = "基层应消"
     const val SCANNER_APP_PACKAGE = "com.rokid.glass.scan2"
     const val SCANNER_APP_NAME = "扫一扫"
 
