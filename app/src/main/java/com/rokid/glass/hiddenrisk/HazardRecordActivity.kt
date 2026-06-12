@@ -474,7 +474,6 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeAnalysisHandle?.cancel()
         activeAnalysisHandle = aiArSseService.requestDeepAnalysis(
             base64Image = base64Image,
-            useGmWhenPlaceCodeMissing = true,
             onChunk = { partialText ->
                 uiHandler.post {
                     if (!shouldDeliverAnalysis(requestId)) return@post

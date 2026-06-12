@@ -329,7 +329,12 @@ object InspectionCameraCoordinator {
      * 以终止所有进行中的重试。
      */
     fun releaseForNavigation(owner: CameraOwner, reason: String): Long {
-        currentRequestToken = -1L
+        // 仅在当前 owner 匹配时才取消进行中的请求，避免跨页面误伤
+        // 否则 AiInspectionActivity.onDestroy 中的 releaseForNavigation 会重置
+        // HazardRecordActivity 刚发起的 acquire 请求的 requestToken，导致回调被丢弃
+        if (getOwner() == owner) {
+            currentRequestToken = -1L
+        }
         return release(owner = owner, reason = reason)
     }
 

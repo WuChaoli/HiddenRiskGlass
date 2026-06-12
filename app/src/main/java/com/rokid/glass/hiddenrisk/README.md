@@ -89,11 +89,12 @@ DeviceGuideActivity:
 
 > 注：`MainMenuActivity.kt` 与 `EntryGuardCoordinator.kt` 位于 `com.rokid.glass` 根包，是 App LAUNCHER 入口与后台初始化协调器，负责第一层菜单展示与静默初始化，完成后跳转至本模块的 `AiInspectionMenuActivity`。详见根包源码。 |
 
-### 在线推理/SSE 服务（6 个）
+### 在线推理/SSE 服务（7 个）
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
-| `AiArSseService.kt` | **SSE 通信核心**，封装 OkHttp SSE 请求；复用 `HttpClientProvider` 单例，Activity 退出时调用 `releaseConnections()` 释放空闲连接 | `identifyItemHazard()`, `requestDeepAnalysis()`, `fetchInspectionGuide()`, `RequestHandle`, `releaseConnections()` |
+| `AiArSseService.kt` | **SSE 通信核心**，封装 OkHttp SSE 请求；复用 `HttpClientProvider` 单例，Activity 退出时调用 `releaseConnections()` 释放空闲连接。通过 `DetectionRouteContext` 统一执行端点路由决策 | `identifyItemHazard()`, `requestDeepAnalysis()`, `fetchInspectionGuide()`, `RequestHandle`, `releaseConnections()` |
+| `DetectionRouteContext.kt` | **检测路由上下文**，根据 placeCode 有无决定各接口调用策略（跳过检测/降级端点）。业务页面无需感知路由逻辑变更 | `itemDetectionEndpoint()`, `sceneDetectionEndpoint()`, `deepAnalysisEndpoint()`, `sceneParam()` |
 | `OnlineHazardDetectionService.kt` | **在线检测调度**，管理检测请求队列+超时；支持 `cancelAll()` 和 `cancelActiveDetection()` 两种取消粒度 | `submitDetection()`, `requestDeepAnalysis()`, `cancelAll()`, `cancelActiveDetection()` |
 | `AiArEventAggregator.kt` | 聚合 SSE 事件流 | |
 | `AiArHazardDetailParser.kt` | 解析远端隐患详情 → `ResolvedHazardContent` | `parse()` |

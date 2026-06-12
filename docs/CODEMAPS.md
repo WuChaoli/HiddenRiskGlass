@@ -3,7 +3,7 @@
 > 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块CLAUDE.md (L3硬盘)
 > 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 CLAUDE.md。
 >
-> 最后更新: 2026-06-11
+> 最后更新: 2026-06-12
 
 ---
 
@@ -74,7 +74,7 @@ flowchart TB
 
 | 模块 | 包路径 | CLAUDE.md | 类型 | 文件数 |
 |------|--------|--------|------|--------|
-| hiddenrisk | `com.rokid.glass.hiddenrisk` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | 业务核心 | ~52 |
+| hiddenrisk | `com.rokid.glass.hiddenrisk` | [README](app/src/main/java/com/rokid/glass/hiddenrisk/README.md) | 业务核心 | ~53 |
 | camera | `com.rokid.glass.camera` | [CLAUDE.md](app/src/main/java/com/rokid/glass/camera/CLAUDE.md) | 基础设施 | 6 |
 | input | `com.rokid.glass.input` | [CLAUDE.md](app/src/main/java/com/rokid/glass/input/CLAUDE.md) | 基础设施 | 6 |
 | workflow | `com.rokid.glass.workflow` | [CLAUDE.md](app/src/main/java/com/rokid/glass/workflow/CLAUDE.md) | 业务上下文 | 1 |
@@ -164,22 +164,33 @@ sequenceDiagram
 
 ### 3.2 核心链路：在线 SSE 推理（主链路）
 
+> **路由上下文**：`DetectionRouteContext` 根据 `placeCode` 有无决定调用策略——placeCode 缺失时跳过物品/环境检测（`identifyItemHazard` / `identifySceneHazard` 直接返回 `hasHazard=false`），深度分析降级到 `/ai/gm` 端点。
+
 ```mermaid
 sequenceDiagram
     participant AI as AiInspectionActivity
     participant ODS as OnlineHazardDetectionService
+    participant Route as DetectionRouteContext
     participant SSE as AiArSseService
-    participant Remote as 远端 /ai/auto + /ai/deep
+    participant Remote as 远端 /ai/auto + /ai/deep(/ai/gm)
     participant Parser as AiArHazardDetailParser
     participant Agg as AiArEventAggregator
 
     AI->>ODS: submitDetection(frame)
-    ODS->>SSE: identifyItemHazard() POST /ai/auto
-    SSE->>Remote: HTTP POST (NV21帧)
-    Remote-->>SSE: hasHazard=true
+    ODS->>SSE: identifyItemHazard()
+    SSE->>Route: itemDetectionEndpoint()
+    alt placeCode 缺失
+        Route-->>SSE: null → skipHazardDetection(hasHazard=false)
+    else placeCode 存在
+        Route-->>SSE: /ai/auto
+        SSE->>Remote: HTTP POST (NV21帧)
+        Remote-->>SSE: hasHazard=true
+    end
     SSE-->>ODS: 命中
     ODS->>SSE: requestDeepAnalysis()
-    SSE->>Remote: SSE /ai/deep
+    SSE->>Route: deepAnalysisEndpoint()
+    Route-->>SSE: /ai/deep 或 /ai/gm
+    SSE->>Remote: SSE (路由端点)
     Remote-->>Agg: SSE事件流
     Agg->>Parser: parse(raw) -> ResolvedHazardContent
     Parser-->>AI: 分类+描述+建议

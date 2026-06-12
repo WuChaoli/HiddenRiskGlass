@@ -4555,7 +4555,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = aiArSseService.requestDeepAnalysis(
             base64Image = base64Image,
-            useGmWhenPlaceCodeMissing = true,
             onChunk = { partialText ->
                 Log.d(TAG, "manual ai/ar chunk length=${partialText.length}")
             },

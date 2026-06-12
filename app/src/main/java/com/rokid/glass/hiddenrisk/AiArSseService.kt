@@ -136,6 +136,18 @@ class AiArSseService(
     private val eventSourceFactory = EventSources.createFactory(client)
 
     /**
+     * 根据当前企业信息构建路由上下文，统一决定各检测接口的调用策略。
+     */
+    private val routeContext: DetectionRouteContext
+        get() = DetectionRouteContext(
+            autoUrl = autoDetectConfig.url,
+            generalUrl = generalDetectConfig.url,
+            deepUrl = deepAnalysisConfig.url,
+            gmUrl = gmAnalysisConfig.url,
+            enterpriseInfo = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo,
+        )
+
+    /**
      * 强制关闭当前 client 的所有空闲连接。
      * 应在 Activity 退出时调用，避免服务器端残留大量 ESTABLISHED 连接。
      */
@@ -143,15 +155,28 @@ class AiArSseService(
         client.connectionPool.evictAll()
     }
 
+    /**
+     * 跳过检测请求（placeCode 缺失等场景），回调 hasHazard=false 让管线继续正常运行。
+     */
+    private fun skipHazardDetection(callback: DetectCallback): RequestHandle {
+        val handle = RequestHandle(taskId = "skipped_${System.currentTimeMillis()}")
+        mainHandler.post {
+            if (!handle.isCanceled()) {
+                callback.onSuccess(handle, hasHazard = false, fullText = "", labels = emptyList())
+            }
+        }
+        return handle
+    }
+
     fun identifyItemHazard(
         base64Image: String,
         callback: DetectCallback,
     ): RequestHandle {
-        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
+        val url = routeContext.itemDetectionEndpoint() ?: return skipHazardDetection(callback)
         return requestHazardDetection(
             base64Image = base64Image,
-            scene = scene,
-            url = autoDetectConfig.url,
+            scene = routeContext.sceneParam(),
+            url = url,
             lane = "auto",
             requireInferenceResults = true,
             callback = callback,
@@ -162,11 +187,11 @@ class AiArSseService(
         base64Image: String,
         callback: DetectCallback,
     ): RequestHandle {
-        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
+        val url = routeContext.sceneDetectionEndpoint() ?: return skipHazardDetection(callback)
         return requestHazardDetection(
             base64Image = base64Image,
-            scene = scene,
-            url = generalDetectConfig.url,
+            scene = routeContext.sceneParam(),
+            url = url,
             lane = "general",
             requireInferenceResults = false,
             callback = callback,
@@ -279,22 +304,14 @@ class AiArSseService(
 
     fun requestDeepAnalysis(
         base64Image: String,
-        useGmWhenPlaceCodeMissing: Boolean = false,
         onChunk: (String) -> Unit = {},
         callback: DetailCallback,
     ): RequestHandle {
-        val scene = com.rokid.glass.workflow.InspectionWorkflowSession.enterpriseInfo?.placeCode?.takeIf { it.isNotBlank() }
-        val endpoint = resolveDeepAnalysisEndpoint(
-            deepUrl = deepAnalysisConfig.url,
-            gmUrl = gmAnalysisConfig.url,
-            scene = scene,
-            useGmWhenPlaceCodeMissing = useGmWhenPlaceCodeMissing,
-        )
         return requestDeepAnalysis(
             base64Image = base64Image,
-            scene = scene,
-            url = endpoint.url,
-            lane = endpoint.lane,
+            scene = routeContext.sceneParam(),
+            url = routeContext.deepAnalysisEndpoint(),
+            lane = "deep",
             onChunk = onChunk,
             callback = callback,
         )
@@ -965,18 +982,6 @@ class AiArSseService(
             }
         }
 
-        internal fun resolveDeepAnalysisEndpoint(
-            deepUrl: String,
-            gmUrl: String,
-            scene: String?,
-            useGmWhenPlaceCodeMissing: Boolean,
-        ): DeepAnalysisEndpoint {
-            return if (useGmWhenPlaceCodeMissing && scene.isNullOrBlank()) {
-                DeepAnalysisEndpoint(url = gmUrl, lane = "gm")
-            } else {
-                DeepAnalysisEndpoint(url = deepUrl, lane = "deep")
-            }
-        }
     }
 
     data class HazardDetectionParseResult(
@@ -985,11 +990,6 @@ class AiArSseService(
         val inferenceCount: Int,
         val code: Int?,
         val labels: List<String>,
-    )
-
-    data class DeepAnalysisEndpoint(
-        val url: String,
-        val lane: String,
     )
 
     private data class RequestTimingTag(

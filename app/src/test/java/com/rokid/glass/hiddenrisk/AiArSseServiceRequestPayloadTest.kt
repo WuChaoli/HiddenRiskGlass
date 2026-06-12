@@ -3,6 +3,7 @@ package com.rokid.glass.hiddenrisk
 import com.google.gson.Gson
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -37,42 +38,83 @@ class AiArSseServiceRequestPayloadTest {
     }
 
     @Test
-    fun resolveDeepAnalysisEndpoint_usesDeepWhenPlaceCodeExists() {
-        val endpoint = AiArSseService.resolveDeepAnalysisEndpoint(
+    fun detectionRouteContext_hasScene_returnsAllEndpoints() {
+        val ctx = DetectionRouteContext(
+            autoUrl = "http://example.test/ai/auto",
+            generalUrl = "http://example.test/ai/general",
             deepUrl = "http://example.test/ai/deep",
             gmUrl = "http://example.test/ai/gm",
-            scene = "PLACE-001",
-            useGmWhenPlaceCodeMissing = true,
+            enterpriseInfo = com.rokid.glass.workflow.InspectionWorkflowSession.EnterpriseInfo(
+                companyName = "test",
+                siteName = "test",
+                inspectorName = "test",
+                qrContent = "test",
+                placeCode = "PLACE-001",
+            ),
         )
 
-        assertEquals("http://example.test/ai/deep", endpoint.url)
-        assertEquals("deep", endpoint.lane)
+        assertEquals("http://example.test/ai/auto", ctx.itemDetectionEndpoint())
+        assertEquals("http://example.test/ai/general", ctx.sceneDetectionEndpoint())
+        assertEquals("http://example.test/ai/deep", ctx.deepAnalysisEndpoint())
+        assertEquals("PLACE-001", ctx.sceneParam())
     }
 
     @Test
-    fun resolveDeepAnalysisEndpoint_usesGmWhenPlaceCodeMissingAndBranchEnabled() {
-        val endpoint = AiArSseService.resolveDeepAnalysisEndpoint(
+    fun detectionRouteContext_noScene_skipsDetectionAndFallsBackDeepToGm() {
+        val ctx = DetectionRouteContext(
+            autoUrl = "http://example.test/ai/auto",
+            generalUrl = "http://example.test/ai/general",
             deepUrl = "http://example.test/ai/deep",
             gmUrl = "http://example.test/ai/gm",
-            scene = " ",
-            useGmWhenPlaceCodeMissing = true,
+            enterpriseInfo = com.rokid.glass.workflow.InspectionWorkflowSession.EnterpriseInfo(
+                companyName = "test",
+                siteName = "test",
+                inspectorName = "test",
+                qrContent = "test",
+                placeCode = "",
+            ),
         )
 
-        assertEquals("http://example.test/ai/gm", endpoint.url)
-        assertEquals("gm", endpoint.lane)
+        assertNull(ctx.itemDetectionEndpoint())
+        assertNull(ctx.sceneDetectionEndpoint())
+        assertEquals("http://example.test/ai/gm", ctx.deepAnalysisEndpoint())
+        assertNull(ctx.sceneParam())
     }
 
     @Test
-    fun resolveDeepAnalysisEndpoint_keepsDeepWhenBranchDisabled() {
-        val endpoint = AiArSseService.resolveDeepAnalysisEndpoint(
+    fun detectionRouteContext_nullEnterpriseInfo_skipsDetection() {
+        val ctx = DetectionRouteContext(
+            autoUrl = "http://example.test/ai/auto",
+            generalUrl = "http://example.test/ai/general",
             deepUrl = "http://example.test/ai/deep",
             gmUrl = "http://example.test/ai/gm",
-            scene = null,
-            useGmWhenPlaceCodeMissing = false,
+            enterpriseInfo = null,
         )
 
-        assertEquals("http://example.test/ai/deep", endpoint.url)
-        assertEquals("deep", endpoint.lane)
+        assertNull(ctx.itemDetectionEndpoint())
+        assertNull(ctx.sceneDetectionEndpoint())
+        assertEquals("http://example.test/ai/gm", ctx.deepAnalysisEndpoint())
+    }
+
+    @Test
+    fun detectionRouteContext_blankPlaceCode_treatedAsMissing() {
+        val ctx = DetectionRouteContext(
+            autoUrl = "http://example.test/ai/auto",
+            generalUrl = "http://example.test/ai/general",
+            deepUrl = "http://example.test/ai/deep",
+            gmUrl = "http://example.test/ai/gm",
+            enterpriseInfo = com.rokid.glass.workflow.InspectionWorkflowSession.EnterpriseInfo(
+                companyName = "test",
+                siteName = "test",
+                inspectorName = "test",
+                qrContent = "test",
+                placeCode = "   ",
+            ),
+        )
+
+        assertNull(ctx.itemDetectionEndpoint())
+        assertNull(ctx.sceneDetectionEndpoint())
+        assertEquals("http://example.test/ai/gm", ctx.deepAnalysisEndpoint())
     }
 
     @Test
