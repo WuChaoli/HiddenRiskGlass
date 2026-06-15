@@ -28,6 +28,9 @@ release/*.apk
 # Claude
 .claude/worktrees/
 
+# 运行时数据
+data/
+
 # Superpowers cache
 .superpowers/
 

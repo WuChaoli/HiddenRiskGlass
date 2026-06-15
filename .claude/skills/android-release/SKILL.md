@@ -129,10 +129,10 @@ git push origin HEAD
 
 ## Step 7: 打包 APK
 
-使用 WSL 本地编译（`wsl-android-tools` 脚本）：
+使用项目自带构建脚本：
 
 ```bash
-bash /home/wuchaoli/.Codex/skills/wsl-android-tools/scripts/wsl-gradle.sh :app:assembleStandardDebug
+bash scripts/android/build-debug.sh
 ```
 
 构建成功后复制 APK 到 `release/`：
@@ -162,5 +162,5 @@ cp app/build/outputs/apk/standard/debug/app-standard-debug.apk "release/全省�
 - GitHub 推送失败不阻塞流程，但需在报告中明确标注
 - `release/` 目录在 `.gitignore` 中，changelog 需 `-f` 强制添加，APK 不提交
 - 提交或构建前复核 `versionCode` 是否等于发布前当前值加 `1`，不得由 `versionName` 映射生成
-- 构建前确认 WSL 本地 JDK + Android SDK 环境已配置（见 `wsl-android-tools` skill）
+- 构建前确认本地 JDK + Android SDK 环境已配置（执行 `bash scripts/android/doctor.sh` 检查）
 - 如果工作区不干净，先引导用户使用 `git-checkpoint` 清理
