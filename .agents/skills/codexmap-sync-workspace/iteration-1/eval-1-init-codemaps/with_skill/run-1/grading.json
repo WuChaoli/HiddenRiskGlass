@@ -1,0 +1,10 @@
+{
+  "run": "eval-1-init-codemaps-with_skill",
+  "expectations": [
+    {"text": "输出包含 6 个板块（架构层级图/依赖矩阵/数据流/不变量/术语表/入口速查）", "passed": true, "evidence": "CODEMAPS.md 包含全部 6 个板块 + 3 个附录，完全符合模板"},
+    {"text": "至少使用 1 个 Mermaid 图", "passed": true, "evidence": "8 个 Mermaid 图（flowchart/graph/sequenceDiagram）"},
+    {"text": "Mermaid 节点使用业务术语而非代码符号", "passed": true, "evidence": "节点名如'相机帧流'、'NCNN推理引擎'，非代码类名"},
+    {"text": "输出变更摘要描述做了什么及原因", "passed": true, "evidence": "summary.md 详细列出新建/精简内容，含验证清单"},
+    {"text": "检查 CLAUDE.md 行数并确保 ≤ 250 行", "passed": true, "evidence": "CLAUDE.md 从 228 → 96 行（57.9% 精简），远低于 250 上限"}
+  ]
+}

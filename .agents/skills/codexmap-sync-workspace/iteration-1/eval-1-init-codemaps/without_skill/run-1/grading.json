@@ -1,0 +1,10 @@
+{
+  "run": "eval-1-init-codemaps-without_skill",
+  "expectations": [
+    {"text": "输出包含 6 个板块（架构层级图/依赖矩阵/数据流/不变量/术语表/入口速查）", "passed": false, "evidence": "8 个板块结构与模板不同，侧重文件清单和接口契约，缺少术语表和任务入口速查"},
+    {"text": "至少使用 1 个 Mermaid 图", "passed": false, "evidence": "0 个 Mermaid 图，使用 ASCII 艺术代替"},
+    {"text": "Mermaid 节点使用业务术语而非代码符号", "passed": false, "evidence": "无 Mermaid 图可使用"},
+    {"text": "输出变更摘要描述做了什么及原因", "passed": true, "evidence": "summary.md 详细描述所有变更及发现"},
+    {"text": "检查 CLAUDE.md 行数并确保 ≤ 250 行", "passed": true, "evidence": "CLAUDE.md 精简至 217 行，≤ 250 约束满足"}
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "metadata": {
+    "skill_name": "codexmap-sync",
+    "timestamp": "2026-05-27T04:00:58Z",
+    "evals_run": [
+      "eval-1-init-codemaps",
+      "eval-2-cross-module-sync",
+      "eval-3-in-module-sync"
+    ],
+    "runs_per_configuration": 1
+  },
+  "runs": [
+    {
+      "eval": "eval-1-init-codemaps",
+      "configurations": {
+        "with_skill": {"pass_rate": 1.0, "time_seconds": 328.9, "tokens": 77103},
+        "without_skill": {"pass_rate": 0.4, "time_seconds": 387.4, "tokens": 84849}
+      }
+    },
+    {
+      "eval": "eval-2-cross-module-sync",
+      "configurations": {
+        "with_skill": {"pass_rate": 1.0, "time_seconds": 132.3, "tokens": 56742},
+        "without_skill": {"pass_rate": 0.75, "time_seconds": 196.5, "tokens": 69105}
+      }
+    },
+    {
+      "eval": "eval-3-in-module-sync",
+      "configurations": {
+        "with_skill": {"pass_rate": 1.0, "time_seconds": 78.2, "tokens": 49240},
+        "without_skill": {"pass_rate": 1.0, "time_seconds": 166.8, "tokens": 66914}
+      }
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": "100%",
+      "avg_time_seconds": 179.8,
+      "avg_tokens": 61028
+    },
+    "without_skill": {
+      "pass_rate": "67%",
+      "avg_time_seconds": 250.2,
+      "avg_tokens": 73623
+    },
+    "delta": {
+      "pass_rate": "+33pp",
+      "time_seconds": "-70.4s (-28%)",
+      "tokens": "-12595 (-17%)"
+    }
+  }
+}

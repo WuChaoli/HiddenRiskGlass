@@ -1,0 +1,6 @@
+{
+  "eval_id": 3,
+  "eval_name": "in-module-sync",
+  "prompt": "我在 hiddenrisk 模块里新增了一个工具类 HazardResultFormatter.kt，只是把 AiInspectionActivity 里的一些格式化逻辑抽取出来，不涉及跨模块调用。commit 前帮我同步文档。",
+  "assertions": []
+}

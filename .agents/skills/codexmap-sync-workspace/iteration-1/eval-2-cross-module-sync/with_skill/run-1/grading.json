@@ -1,0 +1,9 @@
+{
+  "run": "eval-2-cross-module-sync-with_skill",
+  "expectations": [
+    {"text": "识别为跨模块依赖变更", "passed": true, "evidence": "明确标注'跨模块依赖变更'，发现 input→hiddenrisk 反向依赖"},
+    {"text": "建议更新 L2 CODEMAPS（依赖矩阵/数据流）", "passed": true, "evidence": "建议未来 CODEMAPS 创建时记录双向依赖边，当前不存在故暂不初始化"},
+    {"text": "建议更新 L3 README（hiddenrisk + input）", "passed": true, "evidence": "明确建议 hiddenrisk/README.md 和 input/README.md 各需更新 2-3 处"},
+    {"text": "检查 L1 CLAUDE.md 模块索引是否需要更新", "passed": true, "evidence": "建议 3 处 L1 更新：包结构表、模块代码地图、统一输入层描述"}
+  ]
+}
