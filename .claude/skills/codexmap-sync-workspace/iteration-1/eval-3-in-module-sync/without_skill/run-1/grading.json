@@ -1,8 +1,0 @@
-{
-  "run": "eval-3-in-module-sync-without_skill",
-  "expectations": [
-    {"text": "识别为模块内变更", "passed": true, "evidence": "明确指出'不涉及跨模块调用'、'模块内纯重构'"},
-    {"text": "仅更新 L3，L1/L2 无需更新", "passed": true, "evidence": "结论：'唯一需要同步的文档是 hiddenrisk 模块级 README'"},
-    {"text": "更新 hiddenrisk/README.md 新增 HazardResultFormatter 条目", "passed": true, "evidence": "指定在'UI/辅助组件'表格新增一行，文件计数从9→10"}
-  ]
-}

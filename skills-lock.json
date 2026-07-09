@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "skills": {
+    "apifox-branch": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "bf710c61026112f0db732e80026e79b87bf318b961029c4a5a5b6c818c637d36"
+    },
+    "apifox-cli": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "c629fb4be587c378d03243053a6893dc872cd31b566ceefbaf3964ddce1466ab"
+    },
+    "apifox-cli-checkup": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "aa6e277242a115b85c5c8d5c1b1a8d705c2636765f336ec0275feb3596882fbb"
+    },
+    "apifox-import-export": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "1cc42f2956cc627c50377af9d922da2402851bbe99fe23fbc3d8ecdc09b7b3ad"
+    },
+    "apifox-test-automation": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "07c25d11106cfd8ef68f7ebb9c2ff5ae0ca0a31bab1f8f0dee05075737147321"
+    },
+    "apifox-test-case": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "c5eeda971420479873724f542c3da6c7ad936fb13292bcdf394a5389179e89d9"
+    },
+    "apifox-test-scenario": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "815e779e046994ef74afabf99adcf09a9780a75938ac2db6270277d46aeef3e1"
+    },
+    "apifox-workflow-api-lifecycle": {
+      "source": "apifox.com",
+      "sourceType": "well-known",
+      "computedHash": "5d8d6f4bf15fd3cb330baf84c7176bffd6a79e9207fa93be5e7ac91ef745e374"
+    }
+  }
+}

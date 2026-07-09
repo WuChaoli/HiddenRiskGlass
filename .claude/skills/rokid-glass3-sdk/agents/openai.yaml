@@ -1,4 +1,0 @@
-interface:
-  display_name: "Rokid Glass3 SDK"
-  short_description: "本仓库唯一的 Rokid SDK / OTA / 共享预览 / 统一输入主技能"
-  default_prompt: "Use $rokid-glass3-sdk as the single entry for Rokid SDK integration, OTA compatibility checks, shared camera preview troubleshooting, and unified input wiring in this repository."

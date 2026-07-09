@@ -1,8 +1,0 @@
-{
-  "run": "eval-3-in-module-sync-with_skill",
-  "expectations": [
-    {"text": "识别为模块内变更", "passed": true, "evidence": "明确标注'模块内重构'，判定不涉及跨模块调用"},
-    {"text": "仅更新 L3，L1/L2 无需更新", "passed": true, "evidence": "明确声明 L1 和 L2 无需更新，L2 不触发"},
-    {"text": "更新 hiddenrisk/README.md 新增 HazardResultFormatter 条目", "passed": true, "evidence": "指定在'UI/辅助组件'表格新增一行，并更新文件计数"}
-  ]
-}

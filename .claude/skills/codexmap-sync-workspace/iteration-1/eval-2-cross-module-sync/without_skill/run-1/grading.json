@@ -1,9 +1,0 @@
-{
-  "run": "eval-2-cross-module-sync-without_skill",
-  "expectations": [
-    {"text": "识别为跨模块依赖变更", "passed": true, "evidence": "明确指出从单向依赖变为双向依赖"},
-    {"text": "建议更新 L2 CODEMAPS", "passed": false, "evidence": "未提及 CODEMAPS 概念，建议 AGENTS.md 而非 CODEMAPS"},
-    {"text": "建议更新 L3 README（hiddenrisk + input）", "passed": true, "evidence": "建议更新两个模块的 README"},
-    {"text": "检查 L1 CLAUDE.md 是否需要更新", "passed": true, "evidence": "建议更新 CLAUDE.md 包结构表"}
-  ]
-}
