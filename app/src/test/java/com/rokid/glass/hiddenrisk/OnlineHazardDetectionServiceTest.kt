@@ -366,6 +366,7 @@ class OnlineHazardDetectionServiceTest {
         override fun detect(
             assets: Any,
             bitmap: Any,
+            traceLabel: String,
             callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
         ) {
             callback(LocalInferenceCoordinator.DetectionOutcome(false, null, "test"))

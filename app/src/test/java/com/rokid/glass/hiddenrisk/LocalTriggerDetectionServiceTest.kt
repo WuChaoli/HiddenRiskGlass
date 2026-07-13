@@ -152,6 +152,7 @@ class LocalTriggerDetectionServiceTest {
         override fun detect(
             assets: Any,
             bitmap: Any,
+            traceLabel: String,
             callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
         ) {
             bitmaps += bitmap
@@ -166,6 +167,7 @@ class LocalTriggerDetectionServiceTest {
         override fun detect(
             assets: Any,
             bitmap: Any,
+            traceLabel: String,
             callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
         ) {
             this.callback = callback

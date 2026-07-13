@@ -290,6 +290,7 @@ static jobject create_inference_stats(JNIEnv* env)
     std::string error_message;
     jint prelimit_detection_count = 0;
     {
+        ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
         ncnn::MutexLockGuard g(lock);
         objects = g_latest_objects;
         image_width = g_latest_image_width;
@@ -494,11 +495,7 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
 {
     ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double start_time_ms = ncnn::get_current_time();
-    YOLOv8* yolov8 = 0;
-    {
-        ncnn::MutexLockGuard g(lock);
-        yolov8 = g_yolov8;
-    }
+    YOLOv8* detector_model = g_yolov8;
     DiagnosticDetectScope diagnostic_scope;
     __android_log_print(
         ANDROID_LOG_INFO,
@@ -507,10 +504,10 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
         diagnostic_tid(),
         rgb.cols,
         rgb.rows,
-        yolov8,
+        detector_model,
         diagnostic_scope.reentered ? 1 : 0);
 
-    if (!yolov8)
+    if (!detector_model)
     {
         set_latest_failed_frame_state(rgb.cols, rgb.rows, 0, "model_state", -1, "model not loaded");
         __android_log_print(
@@ -526,7 +523,7 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
     std::string detect_error_stage;
     int detect_error_code = 0;
     std::string detect_error_message;
-    const int detect_result = yolov8->detect(rgb, objects, &detect_error_stage, &detect_error_code, &detect_error_message);
+    const int detect_result = detector_model->detect(rgb, objects, &detect_error_stage, &detect_error_code, &detect_error_message);
     const jint prelimit_detection_count = get_hiddenrisk_last_raw_detection_count();
     const jlong inference_time_ms = (jlong)(ncnn::get_current_time() - start_time_ms + 0.5);
     __android_log_print(
@@ -569,13 +566,9 @@ static bool run_detection_on_hardware_buffer(
 {
     ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double start_time_ms = ncnn::get_current_time();
-    YOLOv8* yolov8 = 0;
-    {
-        ncnn::MutexLockGuard g(lock);
-        yolov8 = g_yolov8;
-    }
+    YOLOv8* detector_model = g_yolov8;
 
-    if (!yolov8)
+    if (!detector_model)
     {
         set_latest_failed_frame_state(image_width, image_height, 0, "model_state", -1, "model not loaded");
         return false;
@@ -587,7 +580,7 @@ static bool run_detection_on_hardware_buffer(
     set_latest_failed_frame_state(image_width, image_height, 0, "hardware_buffer", -1, "hardware buffer requires api 26+");
     return false;
 #else
-    YOLOv8_det* detector = static_cast<YOLOv8_det*>(yolov8);
+    YOLOv8_det* detector = static_cast<YOLOv8_det*>(detector_model);
     std::vector<Object> objects;
     std::string detect_error_stage;
     int detect_error_code = 0;
