@@ -141,16 +141,29 @@ function Get-ApkMetadata {
     )
 
     $aapt = Resolve-AndroidTool -Config $Config -Name 'aapt'
-    $output = & $aapt dump badging $ApkPath
-    $exitCode = $LASTEXITCODE
-    $line = $output | Select-Object -First 1
-    $matched = $line -match "^package: name='([^']+)'\s+versionCode='([^']+)'\s+versionName='([^']+)'"
-    if ($exitCode -ne 0 -or !$matched) {
-        throw "Unable to read APK metadata: $ApkPath"
+    $aaptApkPath = $ApkPath
+    $temporaryApk = $null
+    if ($ApkPath -match '[^\x00-\x7F]') {
+        $temporaryApk = Join-Path ([IO.Path]::GetTempPath()) "glassdemo-apk-metadata-$PID.apk"
+        Copy-Item -LiteralPath $ApkPath -Destination $temporaryApk -Force
+        $aaptApkPath = $temporaryApk
     }
-    $packageName = $Matches[1]
-    $versionCode = $Matches[2]
-    $versionName = $Matches[3]
+    try {
+        $output = & $aapt dump badging $aaptApkPath
+        $exitCode = $LASTEXITCODE
+        $line = $output | Select-Object -First 1
+        $matched = $line -match "^package: name='([^']+)'\s+versionCode='([^']+)'\s+versionName='([^']+)'"
+        if ($exitCode -ne 0 -or !$matched) {
+            throw "Unable to read APK metadata: $ApkPath"
+        }
+        $packageName = $Matches[1]
+        $versionCode = $Matches[2]
+        $versionName = $Matches[3]
+    } finally {
+        if ($temporaryApk) {
+            Remove-Item -LiteralPath $temporaryApk -Force -ErrorAction SilentlyContinue
+        }
+    }
     return [pscustomobject]@{
         PackageName = $packageName
         VersionCode = $versionCode
