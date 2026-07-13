@@ -20,5 +20,17 @@ if [[ "${HTTP_PROXY:-}${http_proxy:-}${HTTPS_PROXY:-}${https_proxy:-}" == *"127.
   unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy
 fi
 
+gradle_args=()
+if [[ -n "${GRADLE_PROXY_HOST:-}" || -n "${GRADLE_PROXY_PORT:-}" ]]; then
+  [[ -n "${GRADLE_PROXY_HOST:-}" && -n "${GRADLE_PROXY_PORT:-}" ]] ||
+    die "Both GRADLE_PROXY_HOST and GRADLE_PROXY_PORT must be set, or neither."
+  gradle_args+=(
+    "-Dhttp.proxyHost=$GRADLE_PROXY_HOST"
+    "-Dhttp.proxyPort=$GRADLE_PROXY_PORT"
+    "-Dhttps.proxyHost=$GRADLE_PROXY_HOST"
+    "-Dhttps.proxyPort=$GRADLE_PROXY_PORT"
+  )
+fi
+
 cd "$PROJECT_ROOT"
-exec ./gradlew "$@"
+exec ./gradlew "${gradle_args[@]}" "$@"

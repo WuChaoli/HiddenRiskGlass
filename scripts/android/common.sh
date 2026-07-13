@@ -21,11 +21,14 @@ load_android_env() {
   source "$ENV_FILE"
   set +a
   # 将 Windows 绝对路径 (C:/...) 转换为当前 bash 环境可用的格式
-  for var in JAVA_HOME ANDROID_HOME DEBUG_KEYSTORE_PATH; do
+  for var in JAVA_HOME ANDROID_HOME DEBUG_KEYSTORE_PATH WIN_ANDROID_ADB; do
     if [[ -n "${!var:-}" ]]; then
       printf -v "$var" '%s' "$(normalize_path "${!var}")"
     fi
   done
+  if [[ -n "${JAVA_HOME:-}" ]]; then
+    export PATH="$JAVA_HOME/bin:$PATH"
+  fi
 }
 
 # 将 Windows 绝对路径转为当前环境可用格式

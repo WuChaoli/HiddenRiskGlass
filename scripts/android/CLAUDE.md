@@ -11,12 +11,14 @@
 | compileSdk / NDK / CMake | 34 / 29.0.14206865 / 3.22.1 |
 | 真机 ADB | Windows 侧 `adb.exe` |
 
-构建优先使用 WSL 本地 JDK/SDK；眼镜 USB 使用 Windows `adb.exe`。
+构建优先使用 WSL 本地 JDK/SDK；眼镜 USB 使用 Windows `adb.exe`。不要把 Windows SDK/NDK 作为 WSL Gradle 的 native 构建工具链使用。
 
 ## 首次配置
 
 ```bash
 cp .env.example .env    # 填写本机路径，含签名配置
+# 推荐 WSL SDK: /home/wuchaoli/Android/Sdk
+# 推荐安装包: platform-tools platforms;android-34 build-tools;35.0.0 ndk;29.0.14206865 cmake;3.22.1
 bash scripts/android/doctor.sh
 bash scripts/android/doctor.sh --device   # 连接真机时
 ```
@@ -64,8 +66,9 @@ bash scripts/android/package-release.sh --replace-current
 | 现象 | 根因 | 处理 |
 | --- | --- | --- |
 | `sdk.dir does not exist` | SDK 路径跨系统不一致 | 修改 `local.properties` 为 `.env` 的 `ANDROID_HOME` |
-| 缺少 NDK/CMake | SDK 未安装原生工具链 | 安装 `ndk;29.0.14206865` + `cmake;3.22.1` |
-| Maven TLS handshake 失败 | Gradle 继承代理指向 127.0.0.1 | `wsl-gradle.sh` 移除本地代理变量 |
+| 缺少 NDK/CMake | WSL SDK 未安装 Linux 原生工具链，或误用了 Windows SDK | 安装 `ndk;29.0.14206865` + `cmake;3.22.1`，并确认存在 `prebuilt/linux-x86_64/bin/clang` |
+| Gradle 需要本机代理 | 直接联网不可用或远端仓库访问慢 | 在 `.env` 设置 `GRADLE_PROXY_HOST` + `GRADLE_PROXY_PORT`，`wsl-gradle.sh` 会转为 Gradle `-Dhttp(s).proxy*` 参数 |
+| Maven TLS handshake 失败 | Gradle 继承代理环境变量指向 127.0.0.1 | `wsl-gradle.sh` 会移除本地代理环境变量；需要代理时使用上面的 Gradle 专用变量 |
 | WSL 看不到 USB 眼镜 | USB 由 Windows ADB 管理 | 配置 `WIN_ANDROID_ADB`，用 `win-adb.sh` |
 | `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | 已装 APK 证书不匹配 | 确认签名策略，不自动卸载用户应用 |
 
