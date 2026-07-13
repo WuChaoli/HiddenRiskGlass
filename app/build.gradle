@@ -34,6 +34,9 @@ android {
         dataBackup {
             dimension "edition"
         }
+        localTriger {
+            dimension "edition"
+        }
     }
 
     externalNativeBuild {

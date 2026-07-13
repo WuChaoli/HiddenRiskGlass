@@ -8,6 +8,32 @@ import org.junit.Test
 class InspectionConfigRepositoryTest {
 
     @Test
+    fun `auto detect provider defaults to HTTP`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = null,
+        )
+
+        assertEquals(AutoDetectProvider.HTTP, config.aiInspection.autoDetectProvider)
+    }
+
+    @Test
+    fun `auto detect provider can be overridden to local trigger`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = """
+                {
+                  "aiInspection": {
+                    "autoDetectProvider": "LOCAL_TRIGGER"
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(AutoDetectProvider.LOCAL_TRIGGER, config.aiInspection.autoDetectProvider)
+    }
+
+    @Test
     fun `head motion stability gate defaults to disabled`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = null,

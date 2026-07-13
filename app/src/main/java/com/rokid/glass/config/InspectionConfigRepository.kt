@@ -154,6 +154,7 @@ object InspectionConfigRepository {
         return AiInspectionConfig(
             autoInferenceMode = override?.autoInferenceMode ?: base.autoInferenceMode,
             autoHazardRoutingMode = override?.autoHazardRoutingMode ?: base.autoHazardRoutingMode,
+            autoDetectProvider = override?.autoDetectProvider ?: base.autoDetectProvider,
             captureWarmupMs = override?.captureWarmupMs ?: base.captureWarmupMs,
             autoInferenceRetryDelayMs =
                 override?.autoInferenceRetryDelayMs ?: base.autoInferenceRetryDelayMs,
