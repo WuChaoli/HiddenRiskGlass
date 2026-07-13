@@ -214,6 +214,10 @@ AiInspectionActivity (DETECTING)
   → Activity 退出: aiArSseService.releaseConnections() + onlineHazardDetectionService.shutdown()
 ```
 
+`localTriger` 变体中，item `/ai/auto` 的前置触发判断由 `LocalTriggerDetectionService`
+本地 NCNN 小模型平替；命中后仍复用现有 `/ai/deep`，设备指引详情仍复用 `/ai/device`。
+缺少 `placeCode` 时继续跳过触发检测，不调用 HTTP，也不运行本地模型。
+
 ### 链路 3：本地 fallback
 ```
 AutoHazardPipelineDecider.decideAfterRemoteFailure()
@@ -250,9 +254,9 @@ HazardRecordActivity (IDLE)
 ### 链路 6：设备指引
 ```
 DeviceGuideActivity (DETECTING)
-  → runDetectionLoop() → AiArSseService.identifyItemHazard() → /ai/auto (复用 HttpClientProvider 单例)
+  → runDetectionLoop() → OnlineHazardDetectionService.submitDetection() → /ai/auto 或 localTriger 本地触发
   → 命中 → RESULT/PROMPT (约2秒后自动)
-  → AiArSseService.requestDeepAnalysis() → /ai/deep
+  → AiArSseService.fetchInspectionGuide() → /ai/device
   → RESULT/DETAIL
   → Activity 退出: detectSseService.releaseConnections()
 ```
