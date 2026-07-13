@@ -4,7 +4,7 @@
 
 `localTriger` 变体当前会在应用首页和 AI 二级菜单后台预加载本地 NCNN 模型。模型首次加载约需 29 秒，并与本地识别共用单线程执行器；如果巡检页面在模型加载完成前开始提交识别请求，请求会在加载任务之后排队并触发 4 秒业务超时。
 
-本次调整恢复独立的 `InspectionLoadingActivity`，将它放在企业信息确认与 AI 二级菜单之间。模型加载完成是进入二级菜单的强制门禁。
+本次调整恢复独立的 `InspectionLoadingActivity`，将它放在企业信息确认与 AI 二级菜单之间。模型加载完成是进入二级菜单的强制门禁，`InspectionLoadingActivity` 是正式业务链路唯一允许启动模型加载的位置。
 
 ## 目标流程
 
@@ -22,6 +22,14 @@ EnterpriseQrScanActivity
 
 ## 加载策略
 
+### 唯一加载入口
+
+- App 启动、`MainMenuActivity.onResume()` 和 `AiInspectionMenuActivity.onResume()` 不得启动模型加载。
+- `AiInspectionActivity` 不得在页面初始化或 fallback 切换时启动模型加载。
+- 正式业务代码只有 `InspectionLoadingActivity` 可以调用 `InspectionSession.ensureModelLoaded()`。
+- 如果巡检业务页面因进程恢复、异常导航等原因发现模型未就绪，必须回到 `InspectionLoadingActivity`，不得在当前页面兜底加载。
+- `HiddenRiskProbeActivity` 是独立诊断页，可保留直接加载模型的能力，不属于正式业务链路。
+
 本地模型需求必须由统一策略判断。满足以下任一条件时，加载页必须等待模型成功加载：
 
 - `autoDetectProvider == LOCAL_TRIGGER`
@@ -35,8 +43,9 @@ EnterpriseQrScanActivity
 
 - `EnterpriseInfoActivity` 的确认动作改为启动 `InspectionLoadingActivity`，不再直接启动 `AiInspectionMenuActivity`。
 - `InspectionLoadingActivity` 仅在 `InspectionSession.ensureModelLoaded()` 成功后调用 `InspectionSession.markInitialized()` 并进入二级菜单。
-- `MainMenuActivity` 不再启动模型后台预加载。
-- `AiInspectionMenuActivity` 不再启动模型后台预加载；它只消费已经通过加载门禁的会话。
+- 删除 `MainMenuActivity` 的模型后台预加载调用和实现。
+- 删除 `AiInspectionMenuActivity` 的模型后台预加载调用和实现；它只消费已经通过加载门禁的会话。
+- `AiInspectionActivity` 将原有模型兜底加载改为门禁检查；模型未就绪时导航到 `InspectionLoadingActivity`。
 - 加载页跳转成功后结束自身，避免返回键重新进入已完成的加载流程。
 
 ## 失败处理
@@ -56,6 +65,7 @@ EnterpriseQrScanActivity
 - `LOCAL_ONLY` 推理或路由模式必须加载模型。
 - 启用本地 fallback 必须加载模型。
 - 所有本地条件关闭时不需要加载模型。
+- 模型未就绪时，业务页面门禁必须返回加载页路由，不能返回页内加载动作。
 
 ### 构建验证
 
@@ -71,6 +81,7 @@ EnterpriseQrScanActivity
 3. 出现模型加载成功日志和 `InspectionSession` 初始化完成日志。
 4. 成功日志之后才启动 `AiInspectionMenuActivity`。
 5. 进入实时分析后首个本地识别请求的 `queueWaitMs` 接近零，不再被模型加载阻塞。
+6. 从 App 启动到企业信息确认之前，日志中不得出现模型加载开始日志。
 
 ## 非目标
 
