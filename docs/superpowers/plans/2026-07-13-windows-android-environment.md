@@ -14,6 +14,7 @@
 - JDK 固定使用 Android Studio JBR 21，不升级 Gradle、AGP、Kotlin 或 Android 依赖。
 - compileSdk / targetSdk 固定为 34 / 34，Build Tools 固定为 35.0.0。
 - NDK 固定为 29.0.14206865，CMake 固定为 3.22.1。
+- 所有变体只构建和打包 `arm64-v8a`，不再生成 32 位 ARM 或 x86/x86_64 native 产物。
 - 不修改业务代码、推理链路、JNI 接口和模型资产。
 - 不删除现有 Bash 脚本；它们只降级为 WSL 兼容入口。
 - 不提交 `.env`、`local.properties`、签名密钥、密码或 `release/` 产物。
@@ -30,6 +31,7 @@
 | `scripts/android/gradle.ps1` | 在当前进程设置 Android 环境并调用 `gradlew.bat` |
 | `scripts/android/build-debug.ps1` | 构建并确认 `standardDebug` APK |
 | `scripts/android/build-release.ps1` | 构建并确认 unsigned `standardRelease` APK |
+| `scripts/android/tests/buildConfig.Tests.ps1` | 锁定仅构建 `arm64-v8a` 的 Gradle 配置 |
 | `scripts/android/verify-apk.ps1` | APK 签名、包名、版本和证书摘要校验 |
 | `scripts/android/install-debug.ps1` | 构建缺失 APK 并通过 Windows ADB 安装 |
 | `scripts/android/start-activity.ps1` | 启动指定导出 Activity |
@@ -295,6 +297,8 @@ Expected: `.env` 和 `local.properties` 不在 staged files 中。
 - Create: `scripts/android/gradle.ps1`
 - Create: `scripts/android/build-debug.ps1`
 - Create: `scripts/android/build-release.ps1`
+- Create: `scripts/android/tests/buildConfig.Tests.ps1`
+- Modify: `app/build.gradle`
 
 **Interfaces:**
 - Consumes: Task 2 的 `doctor.ps1` 和 Task 1 配置对象。
@@ -305,6 +309,8 @@ Expected: `.env` 和 `local.properties` 不在 staged files 中。
 Run: `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/android/gradle.ps1 tasks`
 
 Expected: FAIL，文件不存在。
+
+同时新增 `buildConfig.Tests.ps1`，断言 `defaultConfig` 包含 `ndk { abiFilters "arm64-v8a" }`；先运行并确认因配置缺失而失败，再向 `app/build.gradle` 添加该配置。
 
 - [ ] **Step 2: 实现 `gradle.ps1`**
 
@@ -351,11 +357,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts/android/build-debug.
 
 Expected: Gradle `BUILD SUCCESSFUL`，debug APK 存在。
 
+使用 ZIP 条目检查 APK 的 `lib/` 目录，必须只有 `arm64-v8a`；Gradle 输出只能出现 `configure/buildCMakeDebug[arm64-v8a]`。
+
 - [ ] **Step 5: 语法检查并提交**
 
 ```powershell
 Get-ChildItem scripts/android/*.ps1 | ForEach-Object { [void][scriptblock]::Create((Get-Content -Raw $_)) }
-git add scripts/android/gradle.ps1 scripts/android/build-debug.ps1 scripts/android/build-release.ps1
+git add scripts/android/gradle.ps1 scripts/android/build-debug.ps1 scripts/android/build-release.ps1 scripts/android/tests/buildConfig.Tests.ps1 app/build.gradle
 git diff --cached --name-only
 git commit -m "开发：增加 Windows 原生 Gradle 构建入口"
 ```
