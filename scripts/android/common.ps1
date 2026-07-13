@@ -127,6 +127,12 @@ function Get-AdbArguments {
     return @()
 }
 
+# 将 Java properties 中转义的 Windows SDK 路径还原为普通路径。
+function ConvertFrom-LocalPropertiesSdkDir {
+    param([Parameter(Mandatory = $true)][string]$Value)
+    return $Value.Replace('\:', ':').Replace('\\', '\')
+}
+
 # 从 APK badging 第一行读取包名和版本信息。
 function Get-ApkMetadata {
     param(

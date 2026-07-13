@@ -25,6 +25,9 @@ EVIL=`$(New-Item -ItemType File -Path '$marker')
     Assert-Equal '' $values.GRADLE_PROXY_HOST 'empty value'
     Assert-Equal $false (Test-Path -LiteralPath $marker) 'dotenv must not execute commands'
     Assert-Equal '-s,glass-001' ((Get-AdbArguments -Serial 'glass-001') -join ',') 'serial args'
+    Assert-Equal 'C:\Users\tester\Android\Sdk' `
+        (ConvertFrom-LocalPropertiesSdkDir 'C\:\\Users\\tester\\Android\\Sdk') `
+        'local.properties sdk.dir decoding'
     Write-Host 'PASS common.ps1 tests'
 } finally {
     Remove-Item -Recurse -Force -LiteralPath $tempRoot -ErrorAction SilentlyContinue
