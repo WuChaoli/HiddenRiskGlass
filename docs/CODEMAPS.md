@@ -372,10 +372,9 @@ sequenceDiagram
 
 ## 附录 A：NCNN 模型流水线（参考）
 
-- 当前部署源：`models/source/hidden_risk_mini_0330.onnx`
-- 完整训练资产：`models/source/best.pt`
-- 导出链路：`.pt -> torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`
-  或 `.onnx -> pnnx(fp16=1) -> ncnn`
+- 旧 HiddenRisk Mini/YoloV11 源模型和根目录转换链已退役。
+- 当前模型转换、CPU 对齐和发布包生成统一由同级 `../model_transformer/` 管理。
+- Android 内置资产仍需成对替换，并单独完成项目构建与真机 Vulkan 验证。
 - 原生侧统一读取 blob `out0_raw`；C++ 后处理兼容 raw (64+26) 和 decoded (4+26) 两种 proposal
 - 当前 mini 模型输出 `1x30x8400`（decoded 分支）
 - 已验证可运行 GPU 组合：`640` 输入尺寸、`System Vulkan`、`Balanced FP16`、`lightmode=true`、`local_pool_allocator=true`

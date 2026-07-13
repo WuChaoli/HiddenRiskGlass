@@ -29,10 +29,10 @@ bash scripts/android/verify-apk.sh <apk>    # 输出版本和证书摘要
 ./gradlew connectedAndroidTest   # 仪器测试
 ./gradlew :app:testStandardDebugUnitTest --tests "com.rokid.glesse.ExampleUnitTest.addition_isCorrect"
 
-# 模型导出（需要 models/ 下的 Python 虚拟环境）
-cd models && source .venv/bin/activate  # Windows: .venv/Scripts/activate
-bash scripts/export_hiddenrisk_640.sh
-bash scripts/validate_hiddenrisk_assets.sh
+# 模型转换与验证（在同级独立工程中执行）
+cd ../model_transformer
+scripts/setup.sh
+scripts/run_pipeline.sh
 ```
 
 默认业务变体为 `standard`。WSL 编译使用根目录本地 `.env` 中的 JDK/SDK，Rokid Glass 真机操作使用 Windows `adb.exe`；命令、签名规则和踩坑记录见 `scripts/android/CLAUDE.md`。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`。
@@ -129,17 +129,16 @@ com.rokid.glass/
 ### 模型资产
 
 - `app/src/main/assets/hiddenrisk.ncnn.param` 与 `.bin` 必须由同一次重导成对替换
-- 当前源模型：`models/source/hidden_risk_mini_0330.onnx`
+- 旧 HiddenRisk Mini/YoloV11 源模型与根目录转换链已退役；当前转换工程为 `../model_transformer/`
+- Android 内置 `hiddenrisk.ncnn.param` 与 `.bin` 不会由转换工程自动替换
 - 原生侧统一读取 `out0_raw`，C++ 后处理兼容 raw proposal（`64+26`）和 decoded proposal（`4+26`）
 - 当前 mini 模型检测头为单输出 `1x30x8400`（decoded 分支）
 
-### 正式重导约束
+### 正式模型约束
 
-- 正式发布前必须通过仓库内脚本执行完整链路：
-  - `best.pt -> static torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`
-  - `hidden_risk_mini_0330.onnx -> pnnx(fp16=1) -> ncnn`
-- 正式入口：`models/scripts/export_hiddenrisk_640.sh`、`models/scripts/validate_hiddenrisk_assets.sh`
-- 旧脚本 `models/scripts/compare_onnx_ncnn.py` 未复用 JNI 的 `letterbox+pad114` 流程，不作为语义对齐依据
+- 模型转换与 CPU 对齐验证统一在 `../model_transformer/` 执行。
+- 只有转换工程门禁通过的成对 NCNN param/bin 才能进入 Android 集成。
+- 替换 Android 资产后必须单独执行项目构建和真机 Vulkan 验证；转换工程通过不等于 Android 集成完成。
 
 ### 探针页性能
 
