@@ -141,14 +141,20 @@ function Get-ApkMetadata {
     )
 
     $aapt = Resolve-AndroidTool -Config $Config -Name 'aapt'
-    $line = & $aapt dump badging $ApkPath | Select-Object -First 1
-    if ($LASTEXITCODE -ne 0 -or $line -notmatch "package: name='([^']+)'.*versionCode='([^']+)'.*versionName='([^']+)'") {
+    $output = & $aapt dump badging $ApkPath
+    $exitCode = $LASTEXITCODE
+    $line = $output | Select-Object -First 1
+    $matched = $line -match "^package: name='([^']+)'\s+versionCode='([^']+)'\s+versionName='([^']+)'"
+    if ($exitCode -ne 0 -or !$matched) {
         throw "Unable to read APK metadata: $ApkPath"
     }
+    $packageName = $Matches[1]
+    $versionCode = $Matches[2]
+    $versionName = $Matches[3]
     return [pscustomobject]@{
-        PackageName = $Matches[1]
-        VersionCode = $Matches[2]
-        VersionName = $Matches[3]
+        PackageName = $packageName
+        VersionCode = $versionCode
+        VersionName = $versionName
     }
 }
 
