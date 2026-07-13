@@ -406,6 +406,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
     private val motionStabilityTracker by lazy { HeadMotionStabilityTracker(this) }
     private val aiArSseService by lazy { AiArSseService() }
+    private val localTriggerDetectionService by lazy { LocalTriggerDetectionService(assets) }
     private val onlineHazardDetectionService by lazy {
         createOnlineHazardDetectionService(OnlineHazardDetectionService.DetectionLane.ITEM)
     }
@@ -649,6 +650,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 OnlineHazardDetectionService.DetectionLane.SCENE ->
                     InspectionConfigRepository.get().network.aiGeneralApi.detectTimeoutMs
             },
+            requestGateway = OnlineHazardDetectionService.createDefaultRequestGateway(
+                localTriggerDetectionService = localTriggerDetectionService,
+            ),
         )
     }
 
@@ -990,6 +994,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         runCatching { imageEncodeExecutor.awaitTermination(2, TimeUnit.SECONDS) }
         hazardCaptureService?.shutdown()
         onlineHazardDetectionService.shutdown()
+        localTriggerDetectionService.shutdown()
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null

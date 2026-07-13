@@ -1,5 +1,6 @@
 package com.rokid.glass.hiddenrisk
 
+import com.rokid.glass.config.AutoDetectProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -145,6 +146,33 @@ class OnlineHazardDetectionServiceTest {
             listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
             env.gateway.startedDetailLanes,
         )
+    }
+
+    @Test
+    fun defaultGatewayFactory_usesHttpGatewayForHttpProvider() {
+        val gateway = OnlineHazardDetectionService.createDefaultRequestGateway(
+            provider = AutoDetectProvider.HTTP,
+            localTriggerDetectionService = null,
+            base64Encoder = { "encoded" },
+        )
+
+        assertEquals("SseRequestGateway", gateway.javaClass.simpleName)
+    }
+
+    @Test
+    fun defaultGatewayFactory_usesLocalGatewayForLocalProvider() {
+        val gateway = OnlineHazardDetectionService.createDefaultRequestGateway(
+            provider = AutoDetectProvider.LOCAL_TRIGGER,
+            localTriggerDetectionService = LocalTriggerDetectionService(
+                nativeEngine = FakeLocalEngine(),
+                bitmapDecoder = { null },
+                worker = ImmediateExecutorService(),
+                mainPoster = { it.run() },
+            ),
+            base64Encoder = { "encoded" },
+        )
+
+        assertEquals("LocalTriggerRequestGateway", gateway.javaClass.simpleName)
     }
 
     @Test
@@ -331,6 +359,37 @@ class OnlineHazardDetectionServiceTest {
             val callback = detectCallbacks[requestId] ?: return
             val activeHandle = detectionHandles[requestId] ?: return
             callback.onSuccess(activeHandle, hasHazard, fullText, labels)
+        }
+    }
+
+    private class FakeLocalEngine : LocalTriggerDetectionService.NativeEngine {
+        override fun ensureLoaded(): Boolean = true
+
+        override fun submitBitmap(bitmap: Any): Boolean = false
+
+        override fun latestStats(): NativeInferenceStats? = null
+    }
+
+    private class ImmediateExecutorService : java.util.concurrent.AbstractExecutorService() {
+        private var shutdown = false
+
+        override fun shutdown() {
+            shutdown = true
+        }
+
+        override fun shutdownNow(): MutableList<Runnable> {
+            shutdown = true
+            return mutableListOf()
+        }
+
+        override fun isShutdown(): Boolean = shutdown
+
+        override fun isTerminated(): Boolean = shutdown
+
+        override fun awaitTermination(timeout: Long, unit: java.util.concurrent.TimeUnit): Boolean = true
+
+        override fun execute(command: Runnable) {
+            command.run()
         }
     }
 }

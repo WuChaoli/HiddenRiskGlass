@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
+import com.rokid.glass.config.AutoDetectProvider
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.AppFileLogger
 
@@ -15,10 +16,7 @@ import com.rokid.glass.utils.AppFileLogger
 internal class OnlineHazardDetectionService(
     private val callback: Callback,
     private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
-    private val requestGateway: RequestGateway = SseRequestGateway(
-        AiArSseService(),
-        base64Encoder,
-    ),
+    private val requestGateway: RequestGateway = createDefaultRequestGateway(base64Encoder = base64Encoder),
     private val scheduler: MainThreadScheduler = AndroidMainThreadScheduler(),
     private val elapsedRealtimeProvider: () -> Long = { SystemClock.elapsedRealtime() },
     private val detectTimeoutMs: Long = DEFAULTS.detectTimeoutMs,
@@ -284,9 +282,11 @@ internal class OnlineHazardDetectionService(
     }
 
     private class SseRequestGateway(
-        private val aiArSseService: AiArSseService,
+        aiArSseServiceProvider: () -> AiArSseService,
         private val base64Encoder: (ByteArray) -> String,
     ) : RequestGateway {
+        private val aiArSseService: AiArSseService by lazy(aiArSseServiceProvider)
+
         override fun identifyHazard(
             request: DetectionRequest,
             callback: AiArSseService.DetectCallback,
@@ -319,6 +319,29 @@ internal class OnlineHazardDetectionService(
         }
     }
 
+    private class LocalTriggerRequestGateway(
+        private val localTriggerDetectionService: LocalTriggerDetectionService,
+        private val detailGateway: RequestGateway,
+    ) : RequestGateway {
+        override fun identifyHazard(
+            request: DetectionRequest,
+            callback: AiArSseService.DetectCallback,
+        ): AiArSseService.RequestHandle {
+            return when (request.lane) {
+                DetectionLane.ITEM -> localTriggerDetectionService.detect(request, callback)
+                DetectionLane.SCENE -> detailGateway.identifyHazard(request, callback)
+            }
+        }
+
+        override fun requestDeepAnalysis(
+            request: DetailRequest,
+            onChunk: (String) -> Unit,
+            callback: AiArSseService.DetailCallback,
+        ): AiArSseService.RequestHandle {
+            return detailGateway.requestDeepAnalysis(request, onChunk, callback)
+        }
+    }
+
     private class AndroidMainThreadScheduler(
         private val handler: Handler = Handler(Looper.getMainLooper()),
     ) : MainThreadScheduler {
@@ -339,6 +362,29 @@ internal class OnlineHazardDetectionService(
         private const val TAG = "OnlineHazardDetect"
         const val REASON_TIMEOUT = "timeout"
         const val REASON_BUSY = "busy"
+
+        internal fun createDefaultRequestGateway(
+            provider: AutoDetectProvider = InspectionConfigRepository.get().aiInspection.autoDetectProvider,
+            aiArSseService: AiArSseService? = null,
+            localTriggerDetectionService: LocalTriggerDetectionService? = null,
+            base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
+        ): RequestGateway {
+            return when (provider) {
+                AutoDetectProvider.HTTP -> SseRequestGateway(
+                    aiArSseServiceProvider = { aiArSseService ?: AiArSseService() },
+                    base64Encoder = base64Encoder,
+                )
+                AutoDetectProvider.LOCAL_TRIGGER -> LocalTriggerRequestGateway(
+                    localTriggerDetectionService = requireNotNull(localTriggerDetectionService) {
+                        "LOCAL_TRIGGER provider requires LocalTriggerDetectionService"
+                    },
+                    detailGateway = SseRequestGateway(
+                        aiArSseServiceProvider = { aiArSseService ?: AiArSseService() },
+                        base64Encoder = base64Encoder,
+                    ),
+                )
+            }
+        }
 
         private object DEFAULTS {
             val cfg = InspectionConfigRepository.get()
