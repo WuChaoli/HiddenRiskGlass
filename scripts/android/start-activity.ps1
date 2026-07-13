@@ -11,5 +11,6 @@ $ErrorActionPreference = 'Stop'
 $config = Get-AndroidConfiguration
 & "$PSScriptRoot\doctor.ps1" -Device | Out-Null
 $adb = Resolve-AndroidTool -Config $config -Name 'adb'
-$arguments = @(Get-AdbArguments -Serial $Serial) + @('shell', 'am', 'start', '-n', "com.rokid.glesse/$Activity") + $ActivityArguments
+$component = Resolve-ActivityComponent -Activity $Activity
+$arguments = @(Get-AdbArguments -Serial $Serial) + @('shell', 'am', 'start', '-n', $component) + $ActivityArguments
 Invoke-External -FilePath $adb -Arguments $arguments

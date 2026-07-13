@@ -133,6 +133,19 @@ function ConvertFrom-LocalPropertiesSdkDir {
     return $Value.Replace('\:', ':').Replace('\\', '\')
 }
 
+# applicationId 与源码包名不同，短类名统一解析到 com.rokid.glass。
+function Resolve-ActivityComponent {
+    param([Parameter(Mandatory = $true)][string]$Activity)
+    $className = if ($Activity.StartsWith('.')) {
+        "com.rokid.glass$Activity"
+    } elseif ($Activity.Contains('.')) {
+        $Activity
+    } else {
+        "com.rokid.glass.$Activity"
+    }
+    return "com.rokid.glesse/$className"
+}
+
 # 从 APK badging 第一行读取包名和版本信息。
 function Get-ApkMetadata {
     param(

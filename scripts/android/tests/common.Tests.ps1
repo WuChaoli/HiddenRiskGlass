@@ -28,6 +28,12 @@ EVIL=`$(New-Item -ItemType File -Path '$marker')
     Assert-Equal 'C:\Users\tester\Android\Sdk' `
         (ConvertFrom-LocalPropertiesSdkDir 'C\:\\Users\\tester\\Android\\Sdk') `
         'local.properties sdk.dir decoding'
+    Assert-Equal 'com.rokid.glesse/com.rokid.glass.MainMenuActivity' `
+        (Resolve-ActivityComponent -Activity '.MainMenuActivity') `
+        'short activity class'
+    Assert-Equal 'com.rokid.glesse/com.rokid.glass.hiddenrisk.HiddenRiskProbeActivity' `
+        (Resolve-ActivityComponent -Activity 'com.rokid.glass.hiddenrisk.HiddenRiskProbeActivity') `
+        'fully qualified activity class'
     Write-Host 'PASS common.ps1 tests'
 } finally {
     Remove-Item -Recurse -Force -LiteralPath $tempRoot -ErrorAction SilentlyContinue
