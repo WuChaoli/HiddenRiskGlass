@@ -3,7 +3,7 @@
 > 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块CLAUDE.md (L3硬盘)
 > 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 CLAUDE.md。
 >
-> 最后更新: 2026-06-12
+> 最后更新: 2026-07-13
 
 ---
 
@@ -135,11 +135,12 @@ graph TD
 ```mermaid
 sequenceDiagram
     actor User as 用户
+    participant MainMenu as MainMenuActivity
+    participant QrScan as EnterpriseQrScanActivity
+    participant Enterprise as EnterpriseInfoActivity
     participant Menu as AiInspectionMenuActivity
     participant Loading as InspectionLoadingActivity
     participant Session as InspectionSession
-    participant Camera as QuickCameraManager
-    participant QrScan as EnterpriseQrScanActivity
     participant AI as AiInspectionActivity
 
     User->>MainMenu: 启动 App (LAUNCHER)
@@ -152,12 +153,17 @@ sequenceDiagram
     end
     User->>MainMenu: 点击"基层应消"
     MainMenu->>Menu: 跳转二级菜单
-    Menu->>Menu: 入口守卫: 仅检查企业信息
     alt 企业信息为空
         Menu->>QrScan: 跳转企业扫码
-        QrScan-->>Menu: 扫码完成 → 回到菜单
-        QrScan-->>MainMenu: 双击取消 → CLEAR_TOP 返回主菜单
+        QrScan->>Enterprise: 解析并确认企业信息
+        Enterprise->>Loading: 确认企业信息
+    else 企业信息已存在
+        Menu->>Loading: 进入统一加载页
     end
+    Loading->>Session: ensureModelLoaded()
+    Session-->>Loading: 模型加载完成
+    Loading->>Menu: 放行进入二级菜单
+    Note over Menu,AI: 业务页发现模型未就绪时只能跳回 Loading
     Menu->>AI: 用户选择"实时分析"
     AI->>AI: DETECTING 态，开始自动检测循环
 ```

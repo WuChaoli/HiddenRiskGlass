@@ -116,6 +116,7 @@ com.rokid.glass/
 2. **JNI 调用只能通过 `HiddenRiskNcnn.java`**，禁止在其他位置声明 native 方法
 3. **配置只从 `InspectionConfigRepository` 读取**，禁止硬编码推理参数/API 端点
 4. **相机帧流只通过 `InspectionSession` 获取**，Activity 不直接持有 Camera 引用
+5. **生产模型只由 `InspectionLoadingActivity` 加载**，企业信息确认后完成模型加载才可进入 AI 二级菜单；业务页发现模型未就绪时只能跳回加载页
 
 ## NCNN 模型与推理配置
 

@@ -30,6 +30,7 @@ import com.rokid.glass.InspectionEndReportReturnDestination
 import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.config.AutoDetectProvider
 import com.rokid.glass.config.AutoHazardRoutingMode as ConfigAutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.AlertBehavior
@@ -421,6 +422,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var mediaPermissionRequested = false
     private var modelLoading = false
     private var modelLoaded = false
+    private var modelGateNavigating = false
     private var captureInProgress = false
     private var captureDelayScheduled = false
     private var autoInferenceStartRequested = false
@@ -598,6 +600,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun createOnlineHazardDetectionService(
         lane: OnlineHazardDetectionService.DetectionLane,
     ): OnlineHazardDetectionService {
+        val config = InspectionConfigRepository.get()
+        val localTriggerItemLane =
+            lane == OnlineHazardDetectionService.DetectionLane.ITEM &&
+                config.aiInspection.autoDetectProvider == AutoDetectProvider.LOCAL_TRIGGER
         return OnlineHazardDetectionService(
             callback = object : OnlineHazardDetectionService.Callback {
                 override fun onDetectionResult(
@@ -646,9 +652,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             },
             detectTimeoutMs = when (lane) {
                 OnlineHazardDetectionService.DetectionLane.ITEM ->
-                    InspectionConfigRepository.get().network.aiAutoApi.detectTimeoutMs
+                    config.network.aiAutoApi.detectTimeoutMs
                 OnlineHazardDetectionService.DetectionLane.SCENE ->
-                    InspectionConfigRepository.get().network.aiGeneralApi.detectTimeoutMs
+                    config.network.aiGeneralApi.detectTimeoutMs
+            },
+            detectConcurrencyLimit = if (localTriggerItemLane) {
+                1
+            } else {
+                config.aiInspection.onlineDetectConcurrencyLimit
             },
             requestGateway = OnlineHazardDetectionService.createDefaultRequestGateway(
                 localTriggerDetectionService = localTriggerDetectionService,
@@ -768,7 +779,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        // 从 InspectionSession 获取已初始化的相机帧流；NCNN 模型只在本地备用链路按需加载。
+        // 从 InspectionSession 获取已通过加载门禁的模型和相机状态。
         hiddenRiskNcnn = InspectionSession.hiddenRiskNcnn
         frameStreamReady = InspectionCameraCoordinator.isFrameStreamReady()
         if (frameStreamReady) {
@@ -778,9 +789,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 注册 SDK 监听（用于语音命令）
         RokidSdkManager.addListener(this)
 
-        // 检查初始化状态；正常情况 AiInspectionMenu 已后台预加载完成
-        if (!InspectionSession.isInitialized) {
-            Log.w(TAG, "InspectionSession 未初始化，内联等待加载（兜底路径）")
+        val aiConfig = InspectionConfigRepository.get().aiInspection
+        if (!InspectionModelLoadPolicy.isSessionReady(
+                config = aiConfig,
+                isInitialized = InspectionSession.isInitialized,
+                isModelLoaded = InspectionSession.isModelLoaded,
+            )
+        ) {
+            Log.w(TAG, "InspectionSession 未通过模型加载门禁")
             doInlineSessionInit()
             return
         }
@@ -808,52 +824,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
-    /**
-     * 内联初始化 InspectionSession（兜底路径，正常情况下不应走到这里）。
-     * 显示内置 layoutLoading，在 nativeExecutor 加载 NCNN 模型，完成后回调 onSessionReady。
-     */
+    /** 未通过统一加载门禁时返回加载页，禁止在巡检页内加载模型。 */
     private fun doInlineSessionInit() {
-        layoutLoading.visibility = View.VISIBLE
-        layoutDetection.visibility = View.GONE
-        layoutStreamResponse.visibility = View.GONE
+        navigateToInspectionLoading(reason = "session_not_initialized")
+    }
 
-        nativeExecutor.execute {
-            try {
-                val needsModel = InspectionConfigRepository.get()
-                    .aiInspection
-                    .autoHazardRoutingMode == ConfigAutoHazardRoutingMode.LOCAL_ONLY
-                if (needsModel) {
-                    if (!InspectionSession.createNcnnInstance() || !InspectionSession.loadModel(assets)) {
-                        runOnUiThread {
-                            layoutLoading.visibility = View.GONE
-                            statusAlertOverlay.render(StatusAlertModel(
-                                status = AlertStatus.ERROR,
-                                titleText = getString(R.string.ai_inspection_load_error_title),
-                                messageText = InspectionSession.errorMessage
-                                    ?: getString(R.string.ai_inspection_loading_error_default),
-                                behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
-                                style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
-                            ))
-                        }
-                        return@execute
-                    }
-                }
-                InspectionSession.markInitialized()
-                runOnUiThread { onSessionReady() }
-            } catch (e: Exception) {
-                Log.e(TAG, "doInlineSessionInit: unexpected error", e)
-                runOnUiThread {
-                    layoutLoading.visibility = View.GONE
-                    statusAlertOverlay.render(StatusAlertModel(
-                        status = AlertStatus.ERROR,
-                        titleText = getString(R.string.ai_inspection_load_error_title),
-                        messageText = getString(R.string.ai_inspection_loading_error_default),
-                        behavior = AlertBehavior(autoDismissMs = null, showCountdownBar = false),
-                        style = AlertStyle(iconResId = R.drawable.hidden_risk_alert),
-                    ))
-                }
-            }
-        }
+    private fun navigateToInspectionLoading(reason: String) {
+        if (destroyed || isFinishing || modelGateNavigating) return
+        modelGateNavigating = true
+        Log.w(
+            TAG,
+            "inspection model gate redirect reason=$reason initialized=${InspectionSession.isInitialized} modelLoaded=${InspectionSession.isModelLoaded}",
+        )
+        startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
+            putExtra(
+                InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY,
+                AiInspectionMenuActivity::class.java.name,
+            )
+        })
+        finish()
     }
 
     /**
@@ -1104,53 +1093,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun startLocalFallbackModelLoadIfNeeded(reason: String) {
+        modelLoaded = InspectionSession.isModelLoaded
         if (modelLoaded) {
             autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK
             startAutoInferencePipelinesIfNeeded(reason = "$reason:model_ready", preferImmediate = true)
             return
         }
-        if (modelLoading) return
-
-        val local = ensureNativeEngine() ?: run {
-            Log.e(TAG, "HiddenRiskNcnn unavailable for local fallback reason=$reason")
-            return
-        }
-
-        modelLoading = true
         autoPipelineMode = AutoHazardPipelineDecider.PipelineMode.LOCAL_FALLBACK_LOADING
         stopOnlinePipelineForFallback(reason)
-
-        if (!submitNativeTask {
-                local.setDebugCompareEnabled(false)
-                val success = runCatching {
-                    local.loadModel(
-                        assets,
-                        BACKEND_GPU,
-                        GPU_PROFILE_BALANCED_FP16,
-                        DEFAULT_TARGET_INPUT_SIZE
-                    )
-                }.onFailure { e -> Log.e(TAG, "loadModel failed", e) }
-                    .getOrDefault(false)
-
-                uiHandler.post {
-                    modelLoading = false
-                    if (destroyed) return@post
-                    val decision = AutoHazardPipelineDecider.decideAfterLocalModelLoaded(success)
-                    autoPipelineMode = decision.mode
-                    if (!success) {
-                        Log.e(TAG, "local fallback model load failed reason=$reason")
-                        scheduleLocalNetworkProbe()
-                        return@post
-                    }
-                    modelLoaded = true
-                    startAutoInferencePipelinesIfNeeded(reason = "$reason:model_loaded", preferImmediate = true)
-                    scheduleLocalNetworkProbe()
-                }
-            }) {
-            modelLoading = false
-            Log.e(TAG, "local fallback model task submit failed reason=$reason")
-            scheduleLocalNetworkProbe()
-        }
+        Log.e(TAG, "local fallback model missing after loading gate reason=$reason")
+        navigateToInspectionLoading(reason = "$reason:model_missing")
     }
 
     private fun initFrameStreamAndTransition() {
@@ -1646,14 +1598,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (!isLocalLoopActive(epoch)) {
             return
         }
-        val local = hiddenRiskNcnn ?: run {
-            if (startPendingStreamAnalysis()) {
-                return
-            }
-            postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "native_engine_missing")
-            return
-        }
-
         InspectionCameraCoordinator.setConsumerWaiting(CameraOwner.AI_INSPECTION, waiting = true)
         cameraRecoveryController.notifyConsumerWaitStarted()
         captureInProgress = true
@@ -1694,56 +1638,46 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
 
-        if (!submitNativeTask {
-                val nativeStartElapsedMs = SystemClock.elapsedRealtime()
+        val nativeStartElapsedMs = SystemClock.elapsedRealtime()
+        Log.i(
+            TAG,
+            "diagnostic submitNv21 before epoch=$epoch frameTs=${frame.timestamp} input=${DEFAULT_TARGET_INPUT_SIZE}x$DEFAULT_TARGET_INPUT_SIZE modelLoaded=$modelLoaded hiddenRiskNcnnPresent=${hiddenRiskNcnn != null} thread=${Thread.currentThread().name}",
+        )
+        InspectionSession.submitNv21Local(
+            assets = assets,
+            nv21 = localInput,
+            width = DEFAULT_TARGET_INPUT_SIZE,
+            height = DEFAULT_TARGET_INPUT_SIZE,
+        ) { outcome ->
+            val snapshot = outcome.stats
+            val nativeElapsedMs = SystemClock.elapsedRealtime() - nativeStartElapsedMs
+            val inferenceMs = snapshot?.inferenceTimeMs ?: -1L
+            val detectionCount = snapshot?.detectionCount ?: 0
+            val localMatches = snapshot
+                ?.takeIf { outcome.success && detectionCount > 0 }
+                ?.let(::findLocalHazardMatches)
+                .orEmpty()
+            uiHandler.post {
+                inferenceRunning.set(false)
                 Log.i(
                     TAG,
-                    "diagnostic submitNv21 before epoch=$epoch frameTs=${frame.timestamp} input=${DEFAULT_TARGET_INPUT_SIZE}x$DEFAULT_TARGET_INPUT_SIZE modelLoaded=$modelLoaded hiddenRiskNcnnPresent=${hiddenRiskNcnn != null} thread=${Thread.currentThread().name}",
+                    "diagnostic submitNv21 after epoch=$epoch frameTs=${frame.timestamp} success=${outcome.success} nativeElapsedMs=$nativeElapsedMs detectionCount=$detectionCount inferenceMs=$inferenceMs thread=${Thread.currentThread().name}",
                 )
-                val success = runCatching {
-                    local.submitNv21(
-                        localInput,
-                        DEFAULT_TARGET_INPUT_SIZE,
-                        DEFAULT_TARGET_INPUT_SIZE,
-                    )
-                }.onFailure { error ->
-                    Log.e(TAG, "submitNv21 failed", error)
-                }.getOrDefault(false)
-                val snapshot = runCatching { local.getLatestInferenceStats() }.getOrNull()
-                val nativeElapsedMs = SystemClock.elapsedRealtime() - nativeStartElapsedMs
-                val inferenceMs = snapshot?.inferenceTimeMs ?: -1L
-                val detectionCount = snapshot?.detectionCount ?: 0
-                val localMatches = snapshot
-                    ?.takeIf { success && detectionCount > 0 }
-                    ?.let(::findLocalHazardMatches)
-                    .orEmpty()
-                uiHandler.post {
-                    inferenceRunning.set(false)
-                    Log.i(
-                        TAG,
-                        "diagnostic submitNv21 after epoch=$epoch frameTs=${frame.timestamp} success=$success nativeElapsedMs=$nativeElapsedMs detectionCount=$detectionCount inferenceMs=$inferenceMs thread=${Thread.currentThread().name}",
-                    )
-                    Log.d(
-                        TAG,
-                        "local inference success=$success detectionCount=$detectionCount nativeElapsedMs=$nativeElapsedMs inferenceMs=$inferenceMs",
-                    )
-                    if (!isLocalLoopActive(epoch)) {
-                        return@post
-                    }
-                    handleLocalInferenceCompleted(
-                        epoch = epoch,
-                        frame = frame,
-                        success = success,
-                        snapshot = snapshot,
-                        localMatches = localMatches,
-                    )
+                Log.d(
+                    TAG,
+                    "local inference success=${outcome.success} detectionCount=$detectionCount nativeElapsedMs=$nativeElapsedMs inferenceMs=$inferenceMs",
+                )
+                if (!isLocalLoopActive(epoch)) {
+                    return@post
                 }
-            }) {
-            inferenceRunning.set(false)
-            if (startPendingStreamAnalysis()) {
-                return
+                handleLocalInferenceCompleted(
+                    epoch = epoch,
+                    frame = frame,
+                    success = outcome.success,
+                    snapshot = snapshot,
+                    localMatches = localMatches,
+                )
             }
-            postLocalInferenceLoop(delayMs = AUTO_INFERENCE_RETRY_DELAY_MS, reason = "local_submit_rejected")
         }
     }
 
@@ -3159,10 +3093,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun findLocalHazardMatches(snapshot: NativeInferenceStats): List<LocalHazardMatch> {
         if (localHazardInfoByItem.isEmpty()) {
+            Log.i(
+                TAG,
+                "local hazard match skipped reason=empty_info detectionCount=${snapshot.detectionCount} returnedCount=${snapshot.detections.size}",
+            )
             return emptyList()
         }
         val detectedScoresByLabel = buildDetectedScoresByLabel(snapshot)
         if (detectedScoresByLabel.isEmpty()) {
+            Log.i(
+                TAG,
+                "local hazard match skipped reason=empty_detected_labels detectionCount=${snapshot.detectionCount} returnedCount=${snapshot.detections.size} detections=${summarizeNativeDetections(snapshot)}",
+            )
             return emptyList()
         }
         val matches = localHazardInfoByItem
@@ -3180,11 +3122,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     )
                 }
             }
-        return LocalHazardResultDeduper.dedupeByHidNumKeepingHighestScore(
+        val dedupedMatches = LocalHazardResultDeduper.dedupeByHidNumKeepingHighestScore(
             matches = matches,
             hidNumOf = { it.info.requestHidNum() },
             scoreOf = { it.score },
         ).sortedByDescending { it.score }
+        Log.i(
+            TAG,
+            "local hazard match result detectionCount=${snapshot.detectionCount} returnedCount=${snapshot.detections.size} infoItemCount=${localHazardInfoByItem.size} detectedLabels=${summarizeDetectedScores(detectedScoresByLabel)} rawMatchCount=${matches.size} dedupedMatchCount=${dedupedMatches.size} matches=${summarizeLocalMatches(dedupedMatches)}",
+        )
+        return dedupedMatches
     }
 
     private fun buildDetectedScoresByLabel(snapshot: NativeInferenceStats): Map<String, Float> {
@@ -3202,6 +3149,39 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
         }
         return scoresByLabel
+    }
+
+    private fun summarizeNativeDetections(snapshot: NativeInferenceStats): String {
+        if (snapshot.detections.isEmpty()) {
+            return "[]"
+        }
+        return snapshot.detections
+            .take(8)
+            .joinToString(prefix = "[", postfix = "]") { detection ->
+                "id=${detection.labelId},label=${detection.label?.trim().orEmpty()},score=${detection.score}"
+            }
+    }
+
+    private fun summarizeDetectedScores(scoresByLabel: Map<String, Float>): String {
+        if (scoresByLabel.isEmpty()) {
+            return "[]"
+        }
+        return scoresByLabel.entries
+            .take(12)
+            .joinToString(prefix = "[", postfix = "]") { (label, score) ->
+                "$label=$score"
+            }
+    }
+
+    private fun summarizeLocalMatches(matches: List<LocalHazardMatch>): String {
+        if (matches.isEmpty()) {
+            return "[]"
+        }
+        return matches
+            .take(8)
+            .joinToString(prefix = "[", postfix = "]") { match ->
+                "item=${match.matchedItem},hid=${match.info.requestHidNum()},score=${match.score}"
+            }
     }
 
     private fun buildLocalResolvedContent(
