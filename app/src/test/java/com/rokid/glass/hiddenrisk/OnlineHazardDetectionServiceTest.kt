@@ -164,9 +164,9 @@ class OnlineHazardDetectionServiceTest {
         val gateway = OnlineHazardDetectionService.createDefaultRequestGateway(
             provider = AutoDetectProvider.LOCAL_TRIGGER,
             localTriggerDetectionService = LocalTriggerDetectionService(
-                nativeEngine = FakeLocalEngine(),
+                assetManager = Any(),
+                coordinator = FakeLocalCoordinator(),
                 bitmapDecoder = { null },
-                worker = ImmediateExecutorService(),
                 mainPoster = { it.run() },
             ),
             base64Encoder = { "encoded" },
@@ -362,34 +362,13 @@ class OnlineHazardDetectionServiceTest {
         }
     }
 
-    private class FakeLocalEngine : LocalTriggerDetectionService.NativeEngine {
-        override fun ensureLoaded(): Boolean = true
-
-        override fun submitBitmap(bitmap: Any): Boolean = false
-
-        override fun latestStats(): NativeInferenceStats? = null
-    }
-
-    private class ImmediateExecutorService : java.util.concurrent.AbstractExecutorService() {
-        private var shutdown = false
-
-        override fun shutdown() {
-            shutdown = true
-        }
-
-        override fun shutdownNow(): MutableList<Runnable> {
-            shutdown = true
-            return mutableListOf()
-        }
-
-        override fun isShutdown(): Boolean = shutdown
-
-        override fun isTerminated(): Boolean = shutdown
-
-        override fun awaitTermination(timeout: Long, unit: java.util.concurrent.TimeUnit): Boolean = true
-
-        override fun execute(command: Runnable) {
-            command.run()
+    private class FakeLocalCoordinator : LocalTriggerDetectionService.CoordinatorGateway {
+        override fun detect(
+            assets: Any,
+            bitmap: Any,
+            callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
+        ) {
+            callback(LocalInferenceCoordinator.DetectionOutcome(false, null, "test"))
         }
     }
 }

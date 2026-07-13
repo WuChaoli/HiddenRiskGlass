@@ -6,8 +6,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.concurrent.AbstractExecutorService
-import java.util.concurrent.TimeUnit
 
 class LocalTriggerDetectionServiceTest {
 
@@ -17,71 +15,40 @@ class LocalTriggerDetectionServiceTest {
     }
 
     @Test
-    fun detect_skipsWithoutPlaceCodeAndDoesNotRunEngine() {
-        InspectionWorkflowSession.enterpriseInfo = null
-        val engine = FakeNativeEngine()
+    fun detectSkipsWithoutPlaceCodeAndDoesNotUseCoordinator() {
+        val coordinator = FakeCoordinator()
         val events = mutableListOf<String>()
-        val service = LocalTriggerDetectionService(
-            nativeEngine = engine,
-            bitmapDecoder = { error("decoder should not run") },
-            worker = ImmediateExecutorService(),
-            mainPoster = { it.run() },
-        )
+        val service = createService(coordinator, decoder = { error("decoder should not run") })
 
         service.detect(detectionRequest(), callback(events))
 
         assertEquals(listOf("success:false:"), events)
-        assertFalse(engine.loadCalled)
-        assertFalse(engine.detectCalled)
+        assertTrue(coordinator.bitmaps.isEmpty())
     }
 
     @Test
-    fun detect_returnsLabelsWhenNativeStatsContainDetections() {
+    fun detectReturnsLabelsFromCoordinatorStats() {
         setPlaceCode()
-        val engine = FakeNativeEngine(
-            stats = NativeInferenceStats(
-                1,
-                "System Vulkan",
-                1,
-                "Balanced FP16",
-                640,
-                "GPU",
-                640,
-                640,
-                18L,
-                "",
-                0,
-                "",
-                1,
-                1,
-                arrayOf(DetectionResult("煤炉", 0f, 0f, 10f, 10f, 0.88f, 1)),
+        val coordinator = FakeCoordinator(
+            outcome = LocalInferenceCoordinator.DetectionOutcome(
+                success = true,
+                stats = statsWithLabel("煤炉"),
+                errorMessage = "",
             ),
         )
         val events = mutableListOf<String>()
-        val service = LocalTriggerDetectionService(
-            nativeEngine = engine,
-            bitmapDecoder = { FakeBitmapToken },
-            worker = ImmediateExecutorService(),
-            mainPoster = { it.run() },
-        )
 
-        service.detect(detectionRequest(), callback(events))
+        createService(coordinator).detect(detectionRequest(), callback(events))
 
-        assertTrue(engine.loadCalled)
-        assertTrue(engine.detectCalled)
+        assertEquals(listOf(FakeBitmapToken), coordinator.bitmaps)
         assertEquals(listOf("success:true:煤炉"), events)
     }
 
     @Test
-    fun detect_failureWhenBitmapDecodeFails() {
+    fun detectFailsWhenBitmapDecodeFails() {
         setPlaceCode()
         val events = mutableListOf<String>()
-        val service = LocalTriggerDetectionService(
-            nativeEngine = FakeNativeEngine(),
-            bitmapDecoder = { null },
-            worker = ImmediateExecutorService(),
-            mainPoster = { it.run() },
-        )
+        val service = createService(FakeCoordinator(), decoder = { null })
 
         service.detect(detectionRequest(), callback(events))
 
@@ -89,41 +56,73 @@ class LocalTriggerDetectionServiceTest {
     }
 
     @Test
-    fun detect_cancelSuppressesCallback() {
+    fun canceledHandleSuppressesPostedCallback() {
         setPlaceCode()
         val events = mutableListOf<String>()
-        lateinit var deferred: Runnable
-        val service = LocalTriggerDetectionService(
-            nativeEngine = FakeNativeEngine(),
-            bitmapDecoder = { FakeBitmapToken },
-            worker = ImmediateExecutorService(),
-            mainPoster = { deferred = it },
+        lateinit var posted: Runnable
+        val service = createService(
+            coordinator = FakeCoordinator(),
+            mainPoster = { posted = it },
         )
 
         val handle = service.detect(detectionRequest(), callback(events))
         handle.cancel()
-        deferred.run()
+        posted.run()
 
         assertTrue(events.isEmpty())
     }
 
-    private fun detectionRequest(): OnlineHazardDetectionService.DetectionRequest {
+    @Test
+    fun shutdownSuppressesDeferredResultWithoutCancelingCoordinatorTask() {
+        setPlaceCode()
+        val coordinator = DeferredCoordinator()
+        val events = mutableListOf<String>()
+        var recycleCount = 0
+        val service = createService(
+            coordinator = coordinator,
+            recycler = { recycleCount += 1 },
+        )
+
+        service.detect(detectionRequest(), callback(events))
+        service.shutdown()
+        coordinator.complete(successOutcome())
+
+        assertTrue(events.isEmpty())
+        assertFalse(coordinator.taskCanceled)
+        assertEquals(1, recycleCount)
+    }
+
+    private fun createService(
+        coordinator: LocalTriggerDetectionService.CoordinatorGateway,
+        decoder: (ByteArray) -> Any? = { FakeBitmapToken },
+        recycler: (Any) -> Unit = {},
+        mainPoster: (Runnable) -> Unit = { it.run() },
+    ): LocalTriggerDetectionService {
+        return LocalTriggerDetectionService(
+            assetManager = FakeAssets,
+            coordinator = coordinator,
+            bitmapDecoder = decoder,
+            bitmapRecycler = recycler,
+            mainPoster = mainPoster,
+        )
+    }
+
+    private fun detectionRequest(requestId: Long = 9L): OnlineHazardDetectionService.DetectionRequest {
         return OnlineHazardDetectionService.DetectionRequest(
             epoch = 1L,
-            requestId = 9L,
+            requestId = requestId,
             jpegBytes = byteArrayOf(1, 2, 3),
         )
     }
 
     private fun setPlaceCode() {
-        InspectionWorkflowSession.enterpriseInfo =
-            InspectionWorkflowSession.EnterpriseInfo(
-                companyName = "test",
-                siteName = "test",
-                inspectorName = "test",
-                qrContent = "test",
-                placeCode = "PLACE-001",
-            )
+        InspectionWorkflowSession.enterpriseInfo = InspectionWorkflowSession.EnterpriseInfo(
+            companyName = "test",
+            siteName = "test",
+            inspectorName = "test",
+            qrContent = "test",
+            placeCode = "PLACE-001",
+        )
     }
 
     private fun callback(events: MutableList<String>): AiArSseService.DetectCallback {
@@ -145,63 +144,59 @@ class LocalTriggerDetectionServiceTest {
         }
     }
 
-    private object FakeBitmapToken
+    private class FakeCoordinator(
+        private val outcome: LocalInferenceCoordinator.DetectionOutcome = successOutcome(),
+    ) : LocalTriggerDetectionService.CoordinatorGateway {
+        val bitmaps = mutableListOf<Any>()
 
-    private class FakeNativeEngine(
-        private val stats: NativeInferenceStats = NativeInferenceStats(
-            1,
-            "System Vulkan",
-            1,
-            "Balanced FP16",
-            640,
-            "GPU",
-            640,
-            640,
-            10L,
-            "",
-            0,
-            "",
-            0,
-            0,
-            emptyArray(),
-        ),
-    ) : LocalTriggerDetectionService.NativeEngine {
-        var loadCalled = false
-        var detectCalled = false
-
-        override fun ensureLoaded(): Boolean {
-            loadCalled = true
-            return true
+        override fun detect(
+            assets: Any,
+            bitmap: Any,
+            callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
+        ) {
+            bitmaps += bitmap
+            callback(outcome)
         }
-
-        override fun submitBitmap(bitmap: Any): Boolean {
-            detectCalled = true
-            return true
-        }
-
-        override fun latestStats(): NativeInferenceStats = stats
     }
 
-    private class ImmediateExecutorService : AbstractExecutorService() {
-        private var shutdown = false
+    private class DeferredCoordinator : LocalTriggerDetectionService.CoordinatorGateway {
+        private lateinit var callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit
+        var taskCanceled = false
 
-        override fun shutdown() {
-            shutdown = true
+        override fun detect(
+            assets: Any,
+            bitmap: Any,
+            callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
+        ) {
+            this.callback = callback
         }
 
-        override fun shutdownNow(): MutableList<Runnable> {
-            shutdown = true
-            return mutableListOf()
+        fun complete(outcome: LocalInferenceCoordinator.DetectionOutcome) {
+            callback(outcome)
+        }
+    }
+
+    private object FakeAssets
+    private object FakeBitmapToken
+
+    companion object {
+        private fun successOutcome(): LocalInferenceCoordinator.DetectionOutcome {
+            return LocalInferenceCoordinator.DetectionOutcome(true, emptyStats(), "")
         }
 
-        override fun isShutdown(): Boolean = shutdown
+        private fun statsWithLabel(label: String): NativeInferenceStats {
+            return NativeInferenceStats(
+                1, "System Vulkan", 1, "Balanced FP16", 640, "GPU", 640, 640, 18L,
+                "", 0, "", 1, 1,
+                arrayOf(DetectionResult(label, 0f, 0f, 10f, 10f, 0.88f, 1)),
+            )
+        }
 
-        override fun isTerminated(): Boolean = shutdown
-
-        override fun awaitTermination(timeout: Long, unit: TimeUnit): Boolean = true
-
-        override fun execute(command: Runnable) {
-            command.run()
+        private fun emptyStats(): NativeInferenceStats {
+            return NativeInferenceStats(
+                1, "System Vulkan", 1, "Balanced FP16", 640, "GPU", 640, 640, 10L,
+                "", 0, "", 0, 0, emptyArray(),
+            )
         }
     }
 }
