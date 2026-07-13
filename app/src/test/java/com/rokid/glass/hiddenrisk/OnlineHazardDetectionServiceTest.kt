@@ -4,8 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.concurrent.AbstractExecutorService
-import java.util.concurrent.TimeUnit
 
 class OnlineHazardDetectionServiceTest {
 
@@ -71,6 +69,18 @@ class OnlineHazardDetectionServiceTest {
             listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
             env.gateway.startedDetectionLanes,
         )
+    }
+
+    @Test
+    fun submitDetection_passesRawJpegBytesToGateway() {
+        val env = TestEnv()
+        val service = env.createService()
+        val request = detectionRequest(requestId = 41L)
+
+        service.submitDetection(request)
+
+        assertEquals(listOf(41L), env.gateway.startedDetectionRequestIds)
+        assertTrue(env.gateway.startedDetectionJpegBytes.single().contentEquals(byteArrayOf(1, 2, 3)))
     }
 
     @Test
@@ -220,7 +230,6 @@ class OnlineHazardDetectionServiceTest {
                 scheduler = scheduler,
                 elapsedRealtimeProvider = { nowElapsedMs },
                 base64Encoder = { "encoded" },
-                encodeExecutor = ImmediateExecutorService(),
                 detectTimeoutMs = 1_500L,
                 detectConcurrencyLimit = 5,
                 infoLogger = { _ -> },
@@ -279,11 +288,11 @@ class OnlineHazardDetectionServiceTest {
         var detailHandle: AiArSseService.RequestHandle? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
         val startedDetectionLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
+        val startedDetectionJpegBytes = mutableListOf<ByteArray>()
         val startedDetailLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
 
         override fun identifyHazard(
             request: OnlineHazardDetectionService.DetectionRequest,
-            base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle {
             val requestId = request.requestId
@@ -295,12 +304,12 @@ class OnlineHazardDetectionServiceTest {
             detectionHandles[requestId] = handle
             startedDetectionRequestIds += requestId
             startedDetectionLanes += lane
+            startedDetectionJpegBytes += request.jpegBytes
             return handle
         }
 
         override fun requestDeepAnalysis(
             request: OnlineHazardDetectionService.DetailRequest,
-            base64Image: String,
             onChunk: (String) -> Unit,
             callback: AiArSseService.DetailCallback,
         ): AiArSseService.RequestHandle {
@@ -322,29 +331,6 @@ class OnlineHazardDetectionServiceTest {
             val callback = detectCallbacks[requestId] ?: return
             val activeHandle = detectionHandles[requestId] ?: return
             callback.onSuccess(activeHandle, hasHazard, fullText, labels)
-        }
-    }
-
-    private class ImmediateExecutorService : AbstractExecutorService() {
-        private var shutdown = false
-
-        override fun shutdown() {
-            shutdown = true
-        }
-
-        override fun shutdownNow(): MutableList<Runnable> {
-            shutdown = true
-            return mutableListOf()
-        }
-
-        override fun isShutdown(): Boolean = shutdown
-
-        override fun isTerminated(): Boolean = shutdown
-
-        override fun awaitTermination(timeout: Long, unit: TimeUnit): Boolean = true
-
-        override fun execute(command: Runnable) {
-            command.run()
         }
     }
 }
