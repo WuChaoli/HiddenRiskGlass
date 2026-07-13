@@ -16,16 +16,16 @@ Rokid AR 眼镜 Android 应用（"基层应消"），具备 AI 隐患检测功�
 
 ## Android 构建与真机调试
 
-```bash
-bash scripts/android/doctor.sh              # 所有构建/设备操作前先做环境检查
-bash scripts/android/doctor.sh --device     # 同时确认 Windows ADB 设备通路
-bash scripts/android/build-debug.sh         # 构建 standardDebug APK
-bash scripts/android/install-debug.sh -s <serial>
-bash scripts/android/package-release.sh    # 正式配置不足时只生成 debug 签名演示包
-bash scripts/android/verify-apk.sh <apk>    # 输出版本和证书摘要
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/android/doctor.ps1
+powershell -ExecutionPolicy Bypass -File scripts/android/doctor.ps1 -Device
+powershell -ExecutionPolicy Bypass -File scripts/android/build-debug.ps1
+powershell -ExecutionPolicy Bypass -File scripts/android/install-debug.ps1 -Serial $env:ROKID_SERIAL
+powershell -ExecutionPolicy Bypass -File scripts/android/package-release.ps1
+powershell -ExecutionPolicy Bypass -File scripts/android/verify-apk.ps1 app/build/outputs/apk/standard/debug/app-standard-debug.apk
 
 # 测试
-./gradlew :app:testStandardDebugUnitTest   # standard 变体单元测试
+powershell -ExecutionPolicy Bypass -File scripts/android/gradle.ps1 :app:testStandardDebugUnitTest
 ./gradlew connectedAndroidTest   # 仪器测试
 ./gradlew :app:testStandardDebugUnitTest --tests "com.rokid.glesse.ExampleUnitTest.addition_isCorrect"
 
@@ -35,7 +35,7 @@ scripts/setup.sh
 scripts/run_pipeline.sh
 ```
 
-默认业务变体为 `standard`。WSL 编译使用根目录本地 `.env` 中的 JDK/SDK，Rokid Glass 真机操作使用 Windows `adb.exe`；命令、签名规则和踩坑记录见 `scripts/android/CLAUDE.md`。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`。
+默认业务变体为 `standard`。Windows 本地构建使用 Android Studio JBR/SDK，Rokid Glass 真机操作使用同一 SDK 的 `adb.exe`；旧 `.sh` 仅为 WSL 兼容入口。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`，所有变体仅构建 `arm64-v8a`。
 
 ## 架构
 
