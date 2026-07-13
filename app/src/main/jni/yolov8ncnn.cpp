@@ -42,6 +42,7 @@ static const char* LOG_TAG_PROBE = "HiddenRiskProbe";
 
 static YOLOv8* g_yolov8 = 0;
 static ncnn::Mutex lock;
+static ncnn::Mutex lifecycle_lock;
 static std::atomic<bool> g_diagnostic_detect_in_flight(false);
 static std::vector<Object> g_latest_objects;
 static int g_latest_image_width = 0;
@@ -491,6 +492,7 @@ static bool convert_nv21_to_rgb(
 
 static bool run_detection_on_rgb(const cv::Mat& rgb)
 {
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double start_time_ms = ncnn::get_current_time();
     YOLOv8* yolov8 = 0;
     {
@@ -565,6 +567,7 @@ static bool run_detection_on_hardware_buffer(
     int image_height,
     int rotation_degrees)
 {
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double start_time_ms = ncnn::get_current_time();
     YOLOv8* yolov8 = 0;
     {
@@ -624,6 +627,27 @@ static bool run_detection_on_hardware_buffer(
 #endif
 }
 
+static void release_model()
+{
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
+    YOLOv8* old_yolov8 = 0;
+    {
+        ncnn::MutexLockGuard state_guard(lock);
+        old_yolov8 = g_yolov8;
+        g_yolov8 = 0;
+        g_latest_backend_id = -1;
+        g_latest_backend_name.clear();
+        g_latest_device_name.clear();
+        g_loaded_backend_id = -1;
+        g_loaded_gpu_profile = -1;
+        g_loaded_target_size = 0;
+        clear_latest_frame_state_locked();
+    }
+
+    delete old_yolov8;
+    ncnn::destroy_gpu_instance();
+}
+
 extern "C" {
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
@@ -636,26 +660,21 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
 {
     __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG_NCNN, "JNI_OnUnload");
 
-    {
-        ncnn::MutexLockGuard g(lock);
-        delete g_yolov8;
-        g_yolov8 = 0;
-        g_latest_backend_id = -1;
-        g_latest_backend_name.clear();
-        g_latest_device_name.clear();
-        g_loaded_backend_id = -1;
-        g_loaded_gpu_profile = -1;
-        g_loaded_target_size = 0;
-        clear_latest_frame_state_locked();
-    }
-
-    ncnn::destroy_gpu_instance();
+    release_model();
 }
 
 // public native void clearFrameState();
 JNIEXPORT void JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_clearFrameState(JNIEnv* env, jobject thiz)
 {
     clear_latest_frame_state();
+}
+
+// public native void releaseModel();
+JNIEXPORT void JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_releaseModel(JNIEnv* env, jobject thiz)
+{
+    (void)env;
+    (void)thiz;
+    release_model();
 }
 
 // public native void setDebugResultLimit(int maxResults);
@@ -699,6 +718,7 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
     jint gpuProfile,
     jint targetSize)
 {
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double load_start_ms = ncnn::get_current_time();
     YOLOv8* current_yolov8 = 0;
     {
