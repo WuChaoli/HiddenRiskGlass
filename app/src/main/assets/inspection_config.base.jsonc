@@ -87,6 +87,8 @@
     "localNetworkProbeIntervalMs": 3000,
     // 本地隐患是否强制走在线详情。开启后会增加网络依赖。
     "forceOnlineDetailForLocalHazard": false,
+    // 是否强制使用本地隐患详情。开启后本地标签命中时不调用 /ai/deep。
+    "forceLocalHazardDetailAnalysis": true,
     // 是否启用佩戴检测。关闭后隐患识别页和设备指引页不会因摘镜暂停、戴回恢复。
     "enableAutoSleepMonitoring": true,
     // 共享相机 zoom 倍率（NV21 帧流），控制 AI 推理视野范围。

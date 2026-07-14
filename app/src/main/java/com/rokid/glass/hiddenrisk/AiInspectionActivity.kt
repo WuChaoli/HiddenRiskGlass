@@ -149,6 +149,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
         }
 
+        internal fun localFallbackDetailLabels(
+            detectionLabels: List<String>,
+            cooldownDecision: OnlineLabelCooldownDecision,
+        ): List<String> {
+            if (cooldownDecision.shouldSuppress) {
+                return emptyList()
+            }
+            return detectionLabels
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+        }
+
+        internal fun shouldEnableOnlineSceneHazardDetection(
+            configuredEnabled: Boolean,
+            forceLocalHazardDetailAnalysis: Boolean,
+        ): Boolean {
+            return configuredEnabled && !forceLocalHazardDetailAnalysis
+        }
+
         private val ONLINE_SELECT_POLL_INTERVAL_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineSelectPollIntervalMs }
 
         private val AUTO_HAZARD_ROUTING_MODE: AutoHazardRoutingMode by lazy {
@@ -346,7 +366,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private val onlineDetectIntervalMs: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineDetectIntervalMs }
 
-    private val enableOnlineSceneHazardDetection: Boolean by lazy { InspectionConfigRepository.get().aiInspection.enableOnlineSceneHazardDetection }
+    private val enableOnlineSceneHazardDetection: Boolean by lazy {
+        val aiInspection = InspectionConfigRepository.get().aiInspection
+        shouldEnableOnlineSceneHazardDetection(
+            configuredEnabled = aiInspection.enableOnlineSceneHazardDetection,
+            forceLocalHazardDetailAnalysis = aiInspection.forceLocalHazardDetailAnalysis,
+        )
+    }
 
     private val onlineSceneDetectIntervalMs: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs }
 
@@ -461,6 +487,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val localLabelCooldownUntilMs = linkedMapOf<String, Long>()
     private val localHazardInfoByItem: Map<String, List<LocalHazardInfo>> by lazy {
         buildLocalHazardInfoByItem(loadLocalHazardInfos())
+    }
+    private val localHazardKnowledge: List<LocalHazardKnowledge> by lazy {
+        loadLocalHazardInfos().map { info ->
+            LocalHazardKnowledge(
+                hidNum = info.requestHidNum(),
+                description = info.requestDescription(),
+                hidLevel = info.requestHidLevel(),
+                lawBasis = info.requestLawBasis(),
+                advice = info.requestAdvice(),
+                modify = info.requestModify(),
+            )
+        }
     }
 
     private var isMotionStable = false
@@ -1970,7 +2008,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 cancelOnlineDetails = false,
             )
             handleAutoDetectedOnlineHazardResult(
-                request.copy(cooldownLabels = cooldownDecision.activeLabels),
+                request.copy(
+                    cooldownLabels = localFallbackDetailLabels(
+                        detectionLabels = labels,
+                        cooldownDecision = cooldownDecision,
+                    ),
+                ),
             )
             return
         }
@@ -3509,6 +3552,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (pending.requestId != request.requestId) {
             return
         }
+        if (LocalHazardDetailRouteDecider.shouldFallback(message, pending.baseResolved != null)) {
+            AppFileLogger.w(TAG, "online detail network failure, use local fallback requestId=${request.requestId}")
+            clearPendingAutoHazardPresentation()
+            presentOnlineHazardWithSimulatedStream(requireNotNull(pending.baseResolved))
+            return
+        }
         AppFileLogger.e(TAG, "online detail failed requestId=${request.requestId} message=$message")
         returnToDetecting()
         SpriteToastUtil.showSpriteToastOld(
@@ -3537,6 +3586,40 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val detectedAtElapsedMs = SystemClock.elapsedRealtime()
+        val localFallback = if (
+            request.lane == OnlineHazardDetectionService.DetectionLane.ITEM &&
+            InspectionConfigRepository.get().aiInspection.autoDetectProvider == AutoDetectProvider.LOCAL_TRIGGER
+        ) {
+            LocalHazardDetailResolver.resolve(
+                matches = LocalHazardRuleEvaluator.evaluate(request.cooldownLabels),
+                knowledge = localHazardKnowledge,
+                jpegBytes = jpegBytes,
+            )
+        } else {
+            null
+        }
+        when (
+            LocalHazardDetailRouteDecider.initial(
+                forceLocalAnalysis = InspectionConfigRepository.get()
+                    .aiInspection
+                    .forceLocalHazardDetailAnalysis,
+                networkAvailable = SystemStateUtils.isNetworkAvailable(this),
+                localFallbackAvailable = localFallback != null,
+            )
+        ) {
+            LocalHazardDetailRouteDecider.InitialRoute.LOCAL -> {
+                postPendingLocalHazardPresentation(requireNotNull(localFallback))
+                return
+            }
+            LocalHazardDetailRouteDecider.InitialRoute.UNAVAILABLE -> {
+                handleAutoHazardRouteFailure(
+                    reason = "offline_local_detail_unavailable",
+                    toastRes = R.string.ai_inspection_online_detail_fetch_failed,
+                )
+                return
+            }
+            LocalHazardDetailRouteDecider.InitialRoute.REMOTE -> Unit
+        }
         // JPEG 在生成后按只读数据传递，自动流式展示和详情请求复用同一份数组，避免额外 LOS 拷贝。
         val sharedJpegBytes = jpegBytes
         pendingAutoHazardPresentation = PendingAutoHazardPresentation.Online(
@@ -3544,6 +3627,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             requestId = request.requestId,
             jpegBytes = sharedJpegBytes,
             cooldownLabels = request.cooldownLabels,
+            baseResolved = localFallback,
         )
         streamingInProgress = true
         logAudioPressureSnapshot(
@@ -3577,6 +3661,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 resolved = resolved,
             )
         }
+        if (!SystemStateUtils.isNetworkAvailable(this)) {
+            return PendingAutoHazardPresentation.Local(
+                detectedAtElapsedMs = detectedAtElapsedMs,
+                resolved = resolved.copy(remoteSaveAllowed = false),
+            )
+        }
         val requestId = nextOnlineRequestId()
         val sharedJpegBytes = resolved.jpegBytes.copyOf()
         streamingInProgress = true
@@ -3595,7 +3685,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             detectedAtElapsedMs = detectedAtElapsedMs,
             requestId = requestId,
             jpegBytes = sharedJpegBytes,
-            baseResolved = resolved,
+            baseResolved = resolved.copy(remoteSaveAllowed = false),
         )
     }
 
@@ -3874,6 +3964,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
         val hazardContent = activeHazardContent ?: run {
             AppFileLogger.w(TAG, "local hazard submit skipped because active content is null")
+            return
+        }
+        if (!HazardRemoteSavePolicy.canUpload(hazardContent, SystemStateUtils.isNetworkAvailable(this))) {
+            AppFileLogger.i(TAG, "offline local hazard skips pushHidDanger title=${hazardContent.displayTitle}")
+            val localAdvice = hazardContent.primaryHazard()?.let { hazard ->
+                hazard.advice.ifBlank { hazard.uploadAdvice }
+            }.orEmpty()
+            if (localAdvice.isBlank()) {
+                returnToDetecting()
+            } else {
+                showSuggestionChecksAdvice(hazardContent, localAdvice)
+            }
             return
         }
         val hazardCode = hazardContent.primaryHazard()?.hidNum?.trim().orEmpty()

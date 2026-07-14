@@ -22,8 +22,10 @@ import com.rokid.glass.hiddenrisk.GlassKeyEvent
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadQueue
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadService
+import com.rokid.glass.hiddenrisk.InspectionFinishUploadPolicy
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.OfflineTtsPlayer
+import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 
@@ -188,6 +190,11 @@ class InspectionEndReportActivity : BaseGlassActivity() {
         if (finishExitTriggered) return
         finishExitTriggered = true
         if (!InspectionFeatureFlags.isEnterpriseInspectionFlowEnabled()) {
+            returnToMainMenuAfterFinish()
+            return
+        }
+        if (!InspectionFinishUploadPolicy.canEnqueue(SystemStateUtils.isNetworkAvailable(this))) {
+            android.util.Log.w(TAG, "skip finish background upload: network unavailable")
             returnToMainMenuAfterFinish()
             return
         }

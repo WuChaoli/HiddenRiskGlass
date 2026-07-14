@@ -66,6 +66,7 @@ object InspectionSession {
 
     @Volatile
     private var coordinator: CoordinatorGateway = productionCoordinator
+    private var coordinatorInstalledForTest = false
 
     /** 在进程级执行序列中确保模型已完成加载。 */
     fun ensureModelLoaded(assets: Any, callback: (Boolean) -> Unit) {
@@ -181,7 +182,9 @@ object InspectionSession {
      * 会彻底释放模型缓存，并清理 inspection 相机帧流。
      */
     fun reset(callback: () -> Unit = {}) {
-        stopFrameStream()
+        if (!coordinatorInstalledForTest) {
+            stopFrameStream()
+        }
         isInitialized = false
         errorMessage = null
         coordinator.release {
@@ -199,10 +202,12 @@ object InspectionSession {
 
     internal fun installCoordinatorForTest(testCoordinator: CoordinatorGateway) {
         coordinator = testCoordinator
+        coordinatorInstalledForTest = true
     }
 
     internal fun restoreCoordinatorForTest() {
         coordinator = productionCoordinator
+        coordinatorInstalledForTest = false
         isModelLoaded = false
         isInitialized = false
         errorMessage = null

@@ -24,6 +24,9 @@ internal class LocalTriggerDetectionService(
     private val mainPoster: ((Runnable) -> Unit) = { runnable ->
         Handler(Looper.getMainLooper()).post(runnable)
     },
+    private val elapsedRealtimeProvider: () -> Long = SystemClock::elapsedRealtime,
+    private val infoLogger: (String) -> Unit = { Log.i(TAG, it) },
+    private val warningLogger: (String) -> Unit = { Log.w(TAG, it) },
 ) {
     interface CoordinatorGateway {
         fun detect(
@@ -40,50 +43,45 @@ internal class LocalTriggerDetectionService(
         request: OnlineHazardDetectionService.DetectionRequest,
         callback: AiArSseService.DetectCallback,
     ): AiArSseService.RequestHandle {
-        val requestStartedAtMs = SystemClock.elapsedRealtime()
+        val requestStartedAtMs = elapsedRealtimeProvider()
         val traceLabel = "local-${request.requestId}"
         val handle = AiArSseService.RequestHandle(taskId = "local-${request.requestId}")
         val placeCode = InspectionWorkflowSession.enterpriseInfo?.placeCode?.trim().orEmpty()
-        Log.i(
-            TAG,
+        infoLogger(
             "timing trace=$traceLabel phase=request_start requestId=${request.requestId} jpegBytes=${request.jpegBytes.size} placeCodePresent=${placeCode.isNotBlank()}",
         )
         if (placeCode.isBlank()) {
             postSuccess(handle, callback, hasHazard = false, fullText = "", labels = emptyList())
             return handle
         }
-        val decodeStartedAtMs = SystemClock.elapsedRealtime()
+        val decodeStartedAtMs = elapsedRealtimeProvider()
         val bitmap = bitmapDecoder(request.jpegBytes)
-        val decodeMs = SystemClock.elapsedRealtime() - decodeStartedAtMs
+        val decodeMs = elapsedRealtimeProvider() - decodeStartedAtMs
         if (bitmap == null) {
-            Log.w(
-                TAG,
-                "timing trace=$traceLabel phase=decode_failed decodeMs=$decodeMs elapsedMs=${SystemClock.elapsedRealtime() - requestStartedAtMs}",
+            warningLogger(
+                "timing trace=$traceLabel phase=decode_failed decodeMs=$decodeMs elapsedMs=${elapsedRealtimeProvider() - requestStartedAtMs}",
             )
             postFailure(handle, callback, "本地触发图片解码失败")
             return handle
         }
-        Log.i(
-            TAG,
-            "timing trace=$traceLabel phase=decoded decodeMs=$decodeMs elapsedMs=${SystemClock.elapsedRealtime() - requestStartedAtMs} bitmap=${summarizeBitmap(bitmap)}",
+        infoLogger(
+            "timing trace=$traceLabel phase=decoded decodeMs=$decodeMs elapsedMs=${elapsedRealtimeProvider() - requestStartedAtMs} bitmap=${summarizeBitmap(bitmap)}",
         )
-        val coordinatorSubmittedAtMs = SystemClock.elapsedRealtime()
+        val coordinatorSubmittedAtMs = elapsedRealtimeProvider()
         coordinator.detect(
             assets = requireNotNull(assetManager) { "LocalTriggerDetectionService requires AssetManager" },
             bitmap = bitmap,
             traceLabel = traceLabel,
         ) coordinatorCallback@{ outcome ->
             try {
-                val callbackElapsedMs = SystemClock.elapsedRealtime() - requestStartedAtMs
-                val coordinatorElapsedMs = SystemClock.elapsedRealtime() - coordinatorSubmittedAtMs
+                val callbackElapsedMs = elapsedRealtimeProvider() - requestStartedAtMs
+                val coordinatorElapsedMs = elapsedRealtimeProvider() - coordinatorSubmittedAtMs
                 val statsInferenceMs = outcome.stats?.inferenceTimeMs ?: -1L
-                Log.i(
-                    TAG,
+                infoLogger(
                     "timing trace=$traceLabel phase=coordinator_callback success=${outcome.success} totalElapsedMs=$callbackElapsedMs coordinatorElapsedMs=$coordinatorElapsedMs decodeMs=$decodeMs statsInferenceMs=$statsInferenceMs estimatedNonNativeMs=${if (statsInferenceMs >= 0) coordinatorElapsedMs - statsInferenceMs else -1L}",
                 )
                 if (!outcome.success) {
-                    Log.w(
-                        TAG,
+                    warningLogger(
                         "local trigger native failed requestId=${request.requestId} message=${outcome.errorMessage}",
                     )
                     postFailure(
@@ -95,18 +93,18 @@ internal class LocalTriggerDetectionService(
                 }
                 val stats = outcome.stats
                 val detections = stats?.detections.orEmpty()
-                Log.i(
-                    TAG,
+                infoLogger(
                     "local trigger native result requestId=${request.requestId} detectionCount=${stats?.detectionCount ?: -1} prelimitCount=${stats?.preLimitDetectionCount ?: -1} returnedCount=${detections.size} detections=${summarizeDetections(detections)}",
                 )
                 val labels = detections
-                    .mapNotNull { detection -> detection.label?.trim()?.takeIf(String::isNotBlank) }
+                    .map(HiddenRiskLabelCatalog::labelFor)
+                    .map(String::trim)
+                    .filter(String::isNotBlank)
                     .distinct()
-                Log.i(
-                    TAG,
+                infoLogger(
                     "local trigger labels requestId=${request.requestId} labelCount=${labels.size} labels=${labels.joinToString()}",
                 )
-                val hasHazard = labels.isNotEmpty()
+                val hasHazard = LocalHazardRuleEvaluator.evaluate(labels).isNotEmpty()
                 val fullText = if (hasHazard) {
                     labels.joinToString(prefix = "local_trigger:", separator = ",")
                 } else {

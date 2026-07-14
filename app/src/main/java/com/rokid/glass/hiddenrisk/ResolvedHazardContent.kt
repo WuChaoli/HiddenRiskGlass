@@ -39,6 +39,7 @@ data class ResolvedHazardContent(
     val rawDetailText: String = "",
     val hazards: List<ResolvedHazardItem> = emptyList(),
     val localCooldownLabels: List<String> = emptyList(),
+    val remoteSaveAllowed: Boolean = true,
 ) {
     fun resolvedHazards(): List<ResolvedHazardItem> {
         if (hazards.isNotEmpty()) {
@@ -156,6 +157,13 @@ data class ResolvedHazardContent(
                 else -> codeOrLabel.trim()
             }
         }
+    }
+}
+
+/** 远程保存权限在详情生成时固定，网络恢复不得改变离线结果的权限。 */
+object HazardRemoteSavePolicy {
+    fun canUpload(content: ResolvedHazardContent, networkAvailable: Boolean): Boolean {
+        return content.remoteSaveAllowed && networkAvailable
     }
 }
 
