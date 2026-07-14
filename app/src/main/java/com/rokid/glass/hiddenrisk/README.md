@@ -215,7 +215,11 @@ AiInspectionActivity (DETECTING)
 ```
 
 `localTriger` 变体中，item `/ai/auto` 的前置触发判断由 `LocalTriggerDetectionService`
-本地 NCNN 小模型平替；命中后仍复用现有 `/ai/deep`，设备指引详情仍复用 `/ai/device`。
+本地 NCNN 小模型平替。隐患页按“主对象存在且保护装置缺失”的四类组合规则触发。默认开启
+`forceLocalHazardDetailAnalysis`：无论网络状态都由 `LocalHazardDetailResolver` 读取 `info.json`
+并复用现有模拟流式展示，不调用 `/ai/deep`；关闭开关后恢复有网 `/ai/deep`、无网本地详情的策略。
+本地详情固定禁止 `pushHidDanger`；结束巡检只检查结束当时网络，恢复网络后仍允许
+`pushHidDangerEnd`。设备指引详情仍复用 `/ai/device`。
 缺少 `placeCode` 时继续跳过触发检测，不调用 HTTP，也不运行本地模型。
 
 ### 链路 3：本地 fallback

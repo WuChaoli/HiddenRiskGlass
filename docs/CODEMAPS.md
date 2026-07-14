@@ -44,6 +44,8 @@ flowchart TB
 
     subgraph L5_INFERENCE[识别链路层]
         NCNN[NCNN YOLOv8<br/>本地端侧推理 Vulkan]
+        LocalRule[LocalHazardRuleEvaluator<br/>四类缺失保护组合规则]
+        LocalDetail[LocalHazardDetailResolver<br/>本地 info.json 详情]
         SSE[SSE在线推理<br/>OkHttp /ai/auto /ai/deep]
         Pipeline[AutoHazardPipelineDecider<br/>双轨调度]
         JNI[JNI桥接<br/>yolov8ncnn.cpp]
@@ -65,6 +67,9 @@ flowchart TB
 | 输入层 | 多模态输入统一抽象和分发 | `UnifiedInput`, `AutoSleepStateMachine` |
 | 相机层 | 相机生命周期、帧流捕获和恢复 | `QuickCameraManager`, `RokidFrameSource` |
 | 识别链路层 | 双轨推理调度、本地NCNN推理、在线SSE推理 | `AutoHazardPipelineDecider`, `HiddenRiskNcnn`, `AiArSseService` |
+
+`localTriger` 的 `forceLocalHazardDetailAnalysis` 默认开启：四类组合规则命中后，有网和无网均由
+`LocalHazardDetailResolver` 读取本地 `info.json`，不调用 `/ai/deep`；关闭后恢复在线优先、离线本地详情。
 
 ---
 
@@ -151,6 +156,8 @@ sequenceDiagram
         MainMenu->>MainMenu: SDK + 相机预热 + 更新检查
         MainMenu-->>MainMenu: onAllGuardsReady → 解锁"基层应消"
     end
+
+    NCNN --> LocalRule --> LocalDetail
     User->>MainMenu: 点击"基层应消"
     MainMenu->>Menu: 跳转二级菜单
     alt 企业信息为空
