@@ -228,4 +228,31 @@ class InspectionConfigRepositoryTest {
 
         assertEquals(AppVisibilityMode.MINIMAL, config.appVisibility.mode)
     }
+
+    @Test
+    fun `force local hazard detail analysis defaults to enabled`() {
+        val config = InspectionConfigRepository.buildConfig("{}", null)
+
+        assertTrue(config.aiInspection.forceLocalHazardDetailAnalysis)
+    }
+
+    @Test
+    fun `force local hazard detail analysis can be disabled`() {
+        val config = InspectionConfigRepository.buildConfig(
+            """{"aiInspection":{"forceLocalHazardDetailAnalysis":false}}""",
+            null,
+        )
+
+        assertFalse(config.aiInspection.forceLocalHazardDetailAnalysis)
+    }
+
+    @Test
+    fun `overlay overrides force local hazard detail analysis`() {
+        val config = InspectionConfigRepository.buildConfig(
+            """{"aiInspection":{"forceLocalHazardDetailAnalysis":false}}""",
+            """{"aiInspection":{"forceLocalHazardDetailAnalysis":true}}""",
+        )
+
+        assertTrue(config.aiInspection.forceLocalHazardDetailAnalysis)
+    }
 }

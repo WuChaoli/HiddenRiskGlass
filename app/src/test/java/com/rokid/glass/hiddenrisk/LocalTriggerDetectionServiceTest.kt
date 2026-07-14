@@ -27,7 +27,7 @@ class LocalTriggerDetectionServiceTest {
     }
 
     @Test
-    fun detectReturnsLabelsFromCoordinatorStats() {
+    fun nonRuleLabelDoesNotTriggerHazard() {
         setPlaceCode()
         val coordinator = FakeCoordinator(
             outcome = LocalInferenceCoordinator.DetectionOutcome(
@@ -41,7 +41,24 @@ class LocalTriggerDetectionServiceTest {
         createService(coordinator).detect(detectionRequest(), callback(events))
 
         assertEquals(listOf(FakeBitmapToken), coordinator.bitmaps)
-        assertEquals(listOf("success:true:煤炉"), events)
+        assertEquals(listOf("success:false:煤炉"), events)
+    }
+
+    @Test
+    fun missingProtectionTriggersHazard() {
+        setPlaceCode()
+        val events = mutableListOf<String>()
+        createService(FakeCoordinator(successOutcome("燃气灶"))).detect(detectionRequest(), callback(events))
+        assertEquals(listOf("success:true:燃气灶"), events)
+    }
+
+    @Test
+    fun presentProtectionSuppressesHazard() {
+        setPlaceCode()
+        val events = mutableListOf<String>()
+        createService(FakeCoordinator(successOutcome("燃气灶", "熄火保护装置")))
+            .detect(detectionRequest(), callback(events))
+        assertEquals(listOf("success:false:燃气灶, 熄火保护装置"), events)
     }
 
     @Test
@@ -104,6 +121,9 @@ class LocalTriggerDetectionServiceTest {
             bitmapDecoder = decoder,
             bitmapRecycler = recycler,
             mainPoster = mainPoster,
+            elapsedRealtimeProvider = { 100L },
+            infoLogger = {},
+            warningLogger = {},
         )
     }
 
@@ -186,12 +206,29 @@ class LocalTriggerDetectionServiceTest {
             return LocalInferenceCoordinator.DetectionOutcome(true, emptyStats(), "")
         }
 
+        private fun successOutcome(vararg labels: String): LocalInferenceCoordinator.DetectionOutcome {
+            return LocalInferenceCoordinator.DetectionOutcome(true, statsWithLabels(*labels), "")
+        }
+
         private fun statsWithLabel(label: String): NativeInferenceStats {
+            return statsWithLabels(label)
+        }
+
+        private fun statsWithLabels(vararg labels: String): NativeInferenceStats {
             return NativeInferenceStats(
                 1, "System Vulkan", 1, "Balanced FP16", 640, "GPU", 640, 640, 18L,
-                "", 0, "", 1, 1,
-                arrayOf(DetectionResult(label, 0f, 0f, 10f, 10f, 0.88f, 1)),
+                "", 0, "", labels.size, labels.size,
+                labels.map { label ->
+                    DetectionResult(label, 0f, 0f, 10f, 10f, 0.88f, labelId(label))
+                }.toTypedArray(),
             )
+        }
+
+        private fun labelId(label: String): Int = when (label) {
+            "煤炉" -> 22
+            "熄火保护装置" -> 24
+            "燃气灶" -> 25
+            else -> error("unsupported test label=$label")
         }
 
         private fun emptyStats(): NativeInferenceStats {
