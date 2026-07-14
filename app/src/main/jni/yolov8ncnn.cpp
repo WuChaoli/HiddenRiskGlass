@@ -42,6 +42,7 @@ static const char* LOG_TAG_PROBE = "HiddenRiskProbe";
 
 static YOLOv8* g_yolov8 = 0;
 static ncnn::Mutex lock;
+static ncnn::Mutex lifecycle_lock;
 static std::atomic<bool> g_diagnostic_detect_in_flight(false);
 static std::vector<Object> g_latest_objects;
 static int g_latest_image_width = 0;
@@ -289,6 +290,7 @@ static jobject create_inference_stats(JNIEnv* env)
     std::string error_message;
     jint prelimit_detection_count = 0;
     {
+        ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
         ncnn::MutexLockGuard g(lock);
         objects = g_latest_objects;
         image_width = g_latest_image_width;
@@ -491,12 +493,9 @@ static bool convert_nv21_to_rgb(
 
 static bool run_detection_on_rgb(const cv::Mat& rgb)
 {
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double start_time_ms = ncnn::get_current_time();
-    YOLOv8* yolov8 = 0;
-    {
-        ncnn::MutexLockGuard g(lock);
-        yolov8 = g_yolov8;
-    }
+    YOLOv8* detector_model = g_yolov8;
     DiagnosticDetectScope diagnostic_scope;
     __android_log_print(
         ANDROID_LOG_INFO,
@@ -505,10 +504,10 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
         diagnostic_tid(),
         rgb.cols,
         rgb.rows,
-        yolov8,
+        detector_model,
         diagnostic_scope.reentered ? 1 : 0);
 
-    if (!yolov8)
+    if (!detector_model)
     {
         set_latest_failed_frame_state(rgb.cols, rgb.rows, 0, "model_state", -1, "model not loaded");
         __android_log_print(
@@ -524,7 +523,7 @@ static bool run_detection_on_rgb(const cv::Mat& rgb)
     std::string detect_error_stage;
     int detect_error_code = 0;
     std::string detect_error_message;
-    const int detect_result = yolov8->detect(rgb, objects, &detect_error_stage, &detect_error_code, &detect_error_message);
+    const int detect_result = detector_model->detect(rgb, objects, &detect_error_stage, &detect_error_code, &detect_error_message);
     const jint prelimit_detection_count = get_hiddenrisk_last_raw_detection_count();
     const jlong inference_time_ms = (jlong)(ncnn::get_current_time() - start_time_ms + 0.5);
     __android_log_print(
@@ -565,14 +564,11 @@ static bool run_detection_on_hardware_buffer(
     int image_height,
     int rotation_degrees)
 {
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double start_time_ms = ncnn::get_current_time();
-    YOLOv8* yolov8 = 0;
-    {
-        ncnn::MutexLockGuard g(lock);
-        yolov8 = g_yolov8;
-    }
+    YOLOv8* detector_model = g_yolov8;
 
-    if (!yolov8)
+    if (!detector_model)
     {
         set_latest_failed_frame_state(image_width, image_height, 0, "model_state", -1, "model not loaded");
         return false;
@@ -584,7 +580,7 @@ static bool run_detection_on_hardware_buffer(
     set_latest_failed_frame_state(image_width, image_height, 0, "hardware_buffer", -1, "hardware buffer requires api 26+");
     return false;
 #else
-    YOLOv8_det* detector = static_cast<YOLOv8_det*>(yolov8);
+    YOLOv8_det* detector = static_cast<YOLOv8_det*>(detector_model);
     std::vector<Object> objects;
     std::string detect_error_stage;
     int detect_error_code = 0;
@@ -624,6 +620,27 @@ static bool run_detection_on_hardware_buffer(
 #endif
 }
 
+static void release_model()
+{
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
+    YOLOv8* old_yolov8 = 0;
+    {
+        ncnn::MutexLockGuard state_guard(lock);
+        old_yolov8 = g_yolov8;
+        g_yolov8 = 0;
+        g_latest_backend_id = -1;
+        g_latest_backend_name.clear();
+        g_latest_device_name.clear();
+        g_loaded_backend_id = -1;
+        g_loaded_gpu_profile = -1;
+        g_loaded_target_size = 0;
+        clear_latest_frame_state_locked();
+    }
+
+    delete old_yolov8;
+    ncnn::destroy_gpu_instance();
+}
+
 extern "C" {
 
 JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
@@ -636,26 +653,21 @@ JNIEXPORT void JNI_OnUnload(JavaVM* vm, void* reserved)
 {
     __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG_NCNN, "JNI_OnUnload");
 
-    {
-        ncnn::MutexLockGuard g(lock);
-        delete g_yolov8;
-        g_yolov8 = 0;
-        g_latest_backend_id = -1;
-        g_latest_backend_name.clear();
-        g_latest_device_name.clear();
-        g_loaded_backend_id = -1;
-        g_loaded_gpu_profile = -1;
-        g_loaded_target_size = 0;
-        clear_latest_frame_state_locked();
-    }
-
-    ncnn::destroy_gpu_instance();
+    release_model();
 }
 
 // public native void clearFrameState();
 JNIEXPORT void JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_clearFrameState(JNIEnv* env, jobject thiz)
 {
     clear_latest_frame_state();
+}
+
+// public native void releaseModel();
+JNIEXPORT void JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_releaseModel(JNIEnv* env, jobject thiz)
+{
+    (void)env;
+    (void)thiz;
+    release_model();
 }
 
 // public native void setDebugResultLimit(int maxResults);
@@ -699,6 +711,7 @@ JNIEXPORT jboolean JNICALL Java_com_rokid_glass_hiddenrisk_HiddenRiskNcnn_loadMo
     jint gpuProfile,
     jint targetSize)
 {
+    ncnn::MutexLockGuard lifecycle_guard(lifecycle_lock);
     const double load_start_ms = ncnn::get_current_time();
     YOLOv8* current_yolov8 = 0;
     {

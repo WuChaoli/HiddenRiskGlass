@@ -51,6 +51,9 @@ class LocalHazardInfoAssetSchemaTest {
             lawBasis = "《燃气用户设施安全检查标准》第3.0.9条",
             modify = "建议在同一用气场所只使用一种燃料，避免因燃料混用引发的安全事故。",
         )
+        assertEquals(listOf("气瓶调压阀"), records.single { it.hidNum == "ZJYJ_HZ_JX_XCY_008" }.item)
+        assertEquals(listOf("液化石油气瓶"), records.single { it.hidNum == "ZJYJ_HZ_JX_XCY_006" }.item)
+        assertEquals(listOf("室内消火栓箱"), records.single { it.hidNum == "ZJYJ_HZ_JX_XCY_005" }.item)
     }
 
     private fun loadRecords(): List<HazardRecord> {

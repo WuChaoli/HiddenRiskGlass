@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -84,6 +85,55 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
     private val imageExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val detectSseService by lazy { AiArSseService() }
+    private val localTriggerDetectionService by lazy { LocalTriggerDetectionService(assets) }
+    private val detectionService by lazy {
+        OnlineHazardDetectionService(
+            callback = object : OnlineHazardDetectionService.Callback {
+                override fun onDetectionResult(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    hasHazard: Boolean,
+                    rawText: String,
+                    labels: List<String>,
+                ) {
+                    handleGuideDetectionResult(request, hasHazard)
+                }
+
+                override fun onDetectionFailure(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    message: String,
+                ) {
+                    handleGuideDetectionFailure(message)
+                }
+
+                override fun onDetectionDropped(
+                    request: OnlineHazardDetectionService.DetectionRequest,
+                    reason: String,
+                ) {
+                    handleGuideDetectionFailure(reason)
+                }
+
+                override fun onDeepAnalysisChunk(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    accumulatedText: String,
+                ) = Unit
+
+                override fun onDeepAnalysisSuccess(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    fullText: String,
+                ) = Unit
+
+                override fun onDeepAnalysisFailure(
+                    request: OnlineHazardDetectionService.DetailRequest,
+                    message: String,
+                ) = Unit
+            },
+            requestGateway = OnlineHazardDetectionService.createDefaultRequestGateway(
+                localTriggerDetectionService = localTriggerDetectionService,
+            ),
+            detectTimeoutMs = InspectionConfigRepository.get().network.aiAutoApi.detectTimeoutMs,
+            detectConcurrencyLimit = 1,
+        )
+    }
     private val frameCaptureService by lazy {
         InspectionFrameCaptureService(
             staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
@@ -105,7 +155,7 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var detailInFlight = false
     private var previewRecreateAttempted = false
     private var previewReadyRetryPosted = false
-    private var activeDetectHandle: AiArSseService.RequestHandle? = null
+    private var activeDetectRequestId: Long = 0L
     private var activeDetailHandle: AiArSseService.RequestHandle? = null
     private var wearRecoveryFrameCheckInFlight = false
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
@@ -173,6 +223,8 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         RokidSdkManager.removeListener(this)
         InspectionCameraCoordinator.releaseForNavigation(CameraOwner.DEVICE_GUIDE, reason = "device_guide_on_destroy")
         imageExecutor.shutdownNow()
+        detectionService.shutdown()
+        localTriggerDetectionService.shutdown()
         // 释放 OkHttp 空闲连接，避免服务器端残留 ESTABLISHED 连接
         detectSseService.releaseConnections()
         super.onDestroy()
@@ -554,7 +606,6 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     uiHandler.post { scheduleNextDetection(immediate = false) }
                     return@execute
                 }
-                val base64Image = Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
                 uiHandler.post {
                     if (!isActivityResumed || pageState != PageState.DETECTING || isWearInteractionBlocked()) {
                         scheduleNextDetection(immediate = false)
@@ -562,39 +613,15 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     }
                     detectInFlight = true
                     currentPayload = payload
-                    activeDetectHandle?.cancel()
-                    activeDetectHandle = detectSseService.identifyItemHazard(
-                        base64Image = base64Image,
-                        callback = object : AiArSseService.DetectCallback {
-                            override fun onOpened(handle: AiArSseService.RequestHandle) = Unit
-
-                            override fun onSuccess(
-                                handle: AiArSseService.RequestHandle,
-                                hasHazard: Boolean,
-                                fullText: String,
-                                labels: List<String>,
-                            ) {
-                                if (activeDetectHandle != handle) return
-                                activeDetectHandle = null
-                                detectInFlight = false
-                                if (hasHazard) {
-                                    showPromptPending(payload)
-                                } else {
-                                    scheduleNextDetection(immediate = false)
-                                }
-                            }
-
-                            override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
-                                if (activeDetectHandle == handle) {
-                                    activeDetectHandle = null
-                                }
-                                detectInFlight = false
-                                tvDetectingBottomHint.text = message.ifBlank {
-                                    getString(R.string.device_guide_detect_failed)
-                                }
-                                scheduleNextDetection(immediate = false)
-                            }
-                        },
+                    detectionService.cancelActiveDetection()
+                    val requestId = SystemClock.elapsedRealtime()
+                    activeDetectRequestId = requestId
+                    detectionService.submitDetection(
+                        OnlineHazardDetectionService.DetectionRequest(
+                            epoch = requestId,
+                            requestId = requestId,
+                            jpegBytes = payload.jpegBytes.copyOf(),
+                        ),
                     )
                 }
             }
@@ -602,6 +629,30 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             Log.w(TAG, "device guide detect task rejected", error)
             scheduleNextDetection(immediate = false)
         }
+    }
+
+    private fun handleGuideDetectionResult(
+        request: OnlineHazardDetectionService.DetectionRequest,
+        hasHazard: Boolean,
+    ) {
+        if (request.requestId != activeDetectRequestId) return
+        val payload = currentPayload ?: return
+        activeDetectRequestId = 0L
+        detectInFlight = false
+        if (hasHazard) {
+            showPromptPending(payload)
+        } else {
+            scheduleNextDetection(immediate = false)
+        }
+    }
+
+    private fun handleGuideDetectionFailure(message: String) {
+        activeDetectRequestId = 0L
+        detectInFlight = false
+        tvDetectingBottomHint.text = message.ifBlank {
+            getString(R.string.device_guide_detect_failed)
+        }
+        scheduleNextDetection(immediate = false)
     }
 
     private fun showPromptPending(payload: InspectionFrameCaptureService.CapturedFramePayload) {
@@ -758,9 +809,9 @@ class DeviceGuideActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         uiHandler.removeCallbacks(autoGuideDetailRunnable)
         detectInFlight = false
         detailInFlight = false
-        activeDetectHandle?.cancel()
+        detectionService.cancelAll()
         activeDetailHandle?.cancel()
-        activeDetectHandle = null
+        activeDetectRequestId = 0L
         activeDetailHandle = null
     }
 

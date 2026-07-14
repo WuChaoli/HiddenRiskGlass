@@ -1,11 +1,10 @@
 package com.rokid.glass.hiddenrisk
 
+import com.rokid.glass.config.AutoDetectProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.concurrent.AbstractExecutorService
-import java.util.concurrent.TimeUnit
 
 class OnlineHazardDetectionServiceTest {
 
@@ -74,6 +73,18 @@ class OnlineHazardDetectionServiceTest {
     }
 
     @Test
+    fun submitDetection_passesRawJpegBytesToGateway() {
+        val env = TestEnv()
+        val service = env.createService()
+        val request = detectionRequest(requestId = 41L)
+
+        service.submitDetection(request)
+
+        assertEquals(listOf(41L), env.gateway.startedDetectionRequestIds)
+        assertTrue(env.gateway.startedDetectionJpegBytes.single().contentEquals(byteArrayOf(1, 2, 3)))
+    }
+
+    @Test
     fun cancelActiveDetection_cancelsAllActiveHandlesAndIgnoresOldCallbacks() {
         val env = TestEnv()
         val service = env.createService()
@@ -135,6 +146,33 @@ class OnlineHazardDetectionServiceTest {
             listOf(OnlineHazardDetectionService.DetectionLane.SCENE),
             env.gateway.startedDetailLanes,
         )
+    }
+
+    @Test
+    fun defaultGatewayFactory_usesHttpGatewayForHttpProvider() {
+        val gateway = OnlineHazardDetectionService.createDefaultRequestGateway(
+            provider = AutoDetectProvider.HTTP,
+            localTriggerDetectionService = null,
+            base64Encoder = { "encoded" },
+        )
+
+        assertEquals("SseRequestGateway", gateway.javaClass.simpleName)
+    }
+
+    @Test
+    fun defaultGatewayFactory_usesLocalGatewayForLocalProvider() {
+        val gateway = OnlineHazardDetectionService.createDefaultRequestGateway(
+            provider = AutoDetectProvider.LOCAL_TRIGGER,
+            localTriggerDetectionService = LocalTriggerDetectionService(
+                assetManager = Any(),
+                coordinator = FakeLocalCoordinator(),
+                bitmapDecoder = { null },
+                mainPoster = { it.run() },
+            ),
+            base64Encoder = { "encoded" },
+        )
+
+        assertEquals("LocalTriggerRequestGateway", gateway.javaClass.simpleName)
     }
 
     @Test
@@ -220,7 +258,6 @@ class OnlineHazardDetectionServiceTest {
                 scheduler = scheduler,
                 elapsedRealtimeProvider = { nowElapsedMs },
                 base64Encoder = { "encoded" },
-                encodeExecutor = ImmediateExecutorService(),
                 detectTimeoutMs = 1_500L,
                 detectConcurrencyLimit = 5,
                 infoLogger = { _ -> },
@@ -279,11 +316,11 @@ class OnlineHazardDetectionServiceTest {
         var detailHandle: AiArSseService.RequestHandle? = null
         val startedDetectionRequestIds = mutableListOf<Long>()
         val startedDetectionLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
+        val startedDetectionJpegBytes = mutableListOf<ByteArray>()
         val startedDetailLanes = mutableListOf<OnlineHazardDetectionService.DetectionLane>()
 
         override fun identifyHazard(
             request: OnlineHazardDetectionService.DetectionRequest,
-            base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle {
             val requestId = request.requestId
@@ -295,12 +332,12 @@ class OnlineHazardDetectionServiceTest {
             detectionHandles[requestId] = handle
             startedDetectionRequestIds += requestId
             startedDetectionLanes += lane
+            startedDetectionJpegBytes += request.jpegBytes
             return handle
         }
 
         override fun requestDeepAnalysis(
             request: OnlineHazardDetectionService.DetailRequest,
-            base64Image: String,
             onChunk: (String) -> Unit,
             callback: AiArSseService.DetailCallback,
         ): AiArSseService.RequestHandle {
@@ -325,26 +362,14 @@ class OnlineHazardDetectionServiceTest {
         }
     }
 
-    private class ImmediateExecutorService : AbstractExecutorService() {
-        private var shutdown = false
-
-        override fun shutdown() {
-            shutdown = true
-        }
-
-        override fun shutdownNow(): MutableList<Runnable> {
-            shutdown = true
-            return mutableListOf()
-        }
-
-        override fun isShutdown(): Boolean = shutdown
-
-        override fun isTerminated(): Boolean = shutdown
-
-        override fun awaitTermination(timeout: Long, unit: TimeUnit): Boolean = true
-
-        override fun execute(command: Runnable) {
-            command.run()
+    private class FakeLocalCoordinator : LocalTriggerDetectionService.CoordinatorGateway {
+        override fun detect(
+            assets: Any,
+            bitmap: Any,
+            traceLabel: String,
+            callback: (LocalInferenceCoordinator.DetectionOutcome) -> Unit,
+        ) {
+            callback(LocalInferenceCoordinator.DetectionOutcome(false, null, "test"))
         }
     }
 }

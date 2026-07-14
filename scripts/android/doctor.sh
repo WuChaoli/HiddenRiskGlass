@@ -21,6 +21,11 @@ require_dir "$ANDROID_HOME/platforms/android-${ANDROID_COMPILE_SDK:?ANDROID_COMP
 require_dir "$ANDROID_HOME/ndk/${ANDROID_NDK_VERSION:?ANDROID_NDK_VERSION is not configured}"
 require_dir "$ANDROID_HOME/cmake/${ANDROID_CMAKE_VERSION:?ANDROID_CMAKE_VERSION is not configured}"
 require_dir "$ANDROID_HOME/build-tools/${ANDROID_BUILD_TOOLS_VERSION:?ANDROID_BUILD_TOOLS_VERSION is not configured}"
+ndk_prebuilt="$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION/toolchains/llvm/prebuilt/linux-x86_64"
+require_file "$ndk_prebuilt/bin/clang"
+require_file "$ndk_prebuilt/bin/clang++"
+require_file "$ANDROID_HOME/cmake/$ANDROID_CMAKE_VERSION/bin/cmake"
+require_file "$ANDROID_HOME/cmake/$ANDROID_CMAKE_VERSION/bin/ninja"
 android_build_tool aapt >/dev/null
 android_build_tool apksigner >/dev/null
 android_build_tool zipalign >/dev/null

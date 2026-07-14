@@ -154,6 +154,7 @@ object InspectionConfigRepository {
         return AiInspectionConfig(
             autoInferenceMode = override?.autoInferenceMode ?: base.autoInferenceMode,
             autoHazardRoutingMode = override?.autoHazardRoutingMode ?: base.autoHazardRoutingMode,
+            autoDetectProvider = override?.autoDetectProvider ?: base.autoDetectProvider,
             captureWarmupMs = override?.captureWarmupMs ?: base.captureWarmupMs,
             autoInferenceRetryDelayMs =
                 override?.autoInferenceRetryDelayMs ?: base.autoInferenceRetryDelayMs,
@@ -195,6 +196,8 @@ object InspectionConfigRepository {
                 override?.localNetworkProbeIntervalMs ?: base.localNetworkProbeIntervalMs,
             forceOnlineDetailForLocalHazard =
                 override?.forceOnlineDetailForLocalHazard ?: base.forceOnlineDetailForLocalHazard,
+            forceLocalHazardDetailAnalysis =
+                override?.forceLocalHazardDetailAnalysis ?: base.forceLocalHazardDetailAnalysis,
             enableAutoSleepMonitoring =
                 override?.enableAutoSleepMonitoring ?: base.enableAutoSleepMonitoring,
             sharedCameraZoomRatio =

@@ -3,7 +3,7 @@
 > 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块CLAUDE.md (L3硬盘)
 > 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 CLAUDE.md。
 >
-> 最后更新: 2026-06-12
+> 最后更新: 2026-07-13
 
 ---
 
@@ -44,6 +44,8 @@ flowchart TB
 
     subgraph L5_INFERENCE[识别链路层]
         NCNN[NCNN YOLOv8<br/>本地端侧推理 Vulkan]
+        LocalRule[LocalHazardRuleEvaluator<br/>四类缺失保护组合规则]
+        LocalDetail[LocalHazardDetailResolver<br/>本地 info.json 详情]
         SSE[SSE在线推理<br/>OkHttp /ai/auto /ai/deep]
         Pipeline[AutoHazardPipelineDecider<br/>双轨调度]
         JNI[JNI桥接<br/>yolov8ncnn.cpp]
@@ -65,6 +67,9 @@ flowchart TB
 | 输入层 | 多模态输入统一抽象和分发 | `UnifiedInput`, `AutoSleepStateMachine` |
 | 相机层 | 相机生命周期、帧流捕获和恢复 | `QuickCameraManager`, `RokidFrameSource` |
 | 识别链路层 | 双轨推理调度、本地NCNN推理、在线SSE推理 | `AutoHazardPipelineDecider`, `HiddenRiskNcnn`, `AiArSseService` |
+
+`localTriger` 的 `forceLocalHazardDetailAnalysis` 默认开启：四类组合规则命中后，有网和无网均由
+`LocalHazardDetailResolver` 读取本地 `info.json`，不调用 `/ai/deep`；关闭后恢复在线优先、离线本地详情。
 
 ---
 
@@ -135,11 +140,12 @@ graph TD
 ```mermaid
 sequenceDiagram
     actor User as 用户
+    participant MainMenu as MainMenuActivity
+    participant QrScan as EnterpriseQrScanActivity
+    participant Enterprise as EnterpriseInfoActivity
     participant Menu as AiInspectionMenuActivity
     participant Loading as InspectionLoadingActivity
     participant Session as InspectionSession
-    participant Camera as QuickCameraManager
-    participant QrScan as EnterpriseQrScanActivity
     participant AI as AiInspectionActivity
 
     User->>MainMenu: 启动 App (LAUNCHER)
@@ -150,14 +156,21 @@ sequenceDiagram
         MainMenu->>MainMenu: SDK + 相机预热 + 更新检查
         MainMenu-->>MainMenu: onAllGuardsReady → 解锁"基层应消"
     end
+
+    NCNN --> LocalRule --> LocalDetail
     User->>MainMenu: 点击"基层应消"
     MainMenu->>Menu: 跳转二级菜单
-    Menu->>Menu: 入口守卫: 仅检查企业信息
     alt 企业信息为空
         Menu->>QrScan: 跳转企业扫码
-        QrScan-->>Menu: 扫码完成 → 回到菜单
-        QrScan-->>MainMenu: 双击取消 → CLEAR_TOP 返回主菜单
+        QrScan->>Enterprise: 解析并确认企业信息
+        Enterprise->>Loading: 确认企业信息
+    else 企业信息已存在
+        Menu->>Loading: 进入统一加载页
     end
+    Loading->>Session: ensureModelLoaded()
+    Session-->>Loading: 模型加载完成
+    Loading->>Menu: 放行进入二级菜单
+    Note over Menu,AI: 业务页发现模型未就绪时只能跳回 Loading
     Menu->>AI: 用户选择"实时分析"
     AI->>AI: DETECTING 态，开始自动检测循环
 ```
@@ -372,10 +385,9 @@ sequenceDiagram
 
 ## 附录 A：NCNN 模型流水线（参考）
 
-- 当前部署源：`models/source/hidden_risk_mini_0330.onnx`
-- 完整训练资产：`models/source/best.pt`
-- 导出链路：`.pt -> torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`
-  或 `.onnx -> pnnx(fp16=1) -> ncnn`
+- 旧 HiddenRisk Mini/YoloV11 源模型和根目录转换链已退役。
+- 当前模型转换、CPU 对齐和发布包生成统一由同级 `../model_transformer/` 管理。
+- Android 内置资产仍需成对替换，并单独完成项目构建与真机 Vulkan 验证。
 - 原生侧统一读取 blob `out0_raw`；C++ 后处理兼容 raw (64+26) 和 decoded (4+26) 两种 proposal
 - 当前 mini 模型输出 `1x30x8400`（decoded 分支）
 - 已验证可运行 GPU 组合：`640` 输入尺寸、`System Vulkan`、`Balanced FP16`、`lightmode=true`、`local_pool_allocator=true`

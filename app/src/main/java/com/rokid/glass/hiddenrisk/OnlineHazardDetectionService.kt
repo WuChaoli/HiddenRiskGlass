@@ -4,10 +4,9 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Base64
+import com.rokid.glass.config.AutoDetectProvider
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.utils.AppFileLogger
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 
 /**
  * 在线隐患识别调度服务。
@@ -16,11 +15,10 @@ import java.util.concurrent.Executors
  */
 internal class OnlineHazardDetectionService(
     private val callback: Callback,
-    private val requestGateway: RequestGateway = SseRequestGateway(AiArSseService()),
+    private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
+    private val requestGateway: RequestGateway = createDefaultRequestGateway(base64Encoder = base64Encoder),
     private val scheduler: MainThreadScheduler = AndroidMainThreadScheduler(),
     private val elapsedRealtimeProvider: () -> Long = { SystemClock.elapsedRealtime() },
-    private val base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
-    private val encodeExecutor: ExecutorService = Executors.newSingleThreadExecutor(),
     private val detectTimeoutMs: Long = DEFAULTS.detectTimeoutMs,
     private val detectConcurrencyLimit: Int = DEFAULTS.detectConcurrencyLimit,
     private val infoLogger: (String) -> Unit = { message -> AppFileLogger.i(TAG, message) },
@@ -63,13 +61,11 @@ internal class OnlineHazardDetectionService(
     internal interface RequestGateway {
         fun identifyHazard(
             request: DetectionRequest,
-            base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle
 
         fun requestDeepAnalysis(
             request: DetailRequest,
-            base64Image: String,
             onChunk: (String) -> Unit,
             callback: AiArSseService.DetailCallback,
         ): AiArSseService.RequestHandle
@@ -123,57 +119,45 @@ internal class OnlineHazardDetectionService(
             activeDetailHandle?.cancel()
             activeDetailHandle = null
             activeDetailRequest = request
-            encodeExecutor.execute {
-                val base64Image = base64Encoder(request.jpegBytes)
-                scheduler.post detailPost@{
-                    if (activeDetailRequest != request) {
-                        return@detailPost
+            activeDetailHandle = requestGateway.requestDeepAnalysis(
+                request = request,
+                onChunk = { accumulatedText ->
+                    if (activeDetailRequest == request) {
+                        callback.onDeepAnalysisChunk(request, accumulatedText)
                     }
-                    infoLogger(
-                        "detail request encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} base64Chars=${base64Image.length}",
-                    )
-                    activeDetailHandle = requestGateway.requestDeepAnalysis(
-                        request = request,
-                        base64Image = base64Image,
-                        onChunk = { accumulatedText ->
-                            if (activeDetailRequest == request) {
-                                callback.onDeepAnalysisChunk(request, accumulatedText)
-                            }
-                        },
-                        callback = object : AiArSseService.DetailCallback {
-                            override fun onOpened(handle: AiArSseService.RequestHandle) {
-                                infoLogger(
-                                    "detail opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId}",
-                                )
-                            }
+                },
+                callback = object : AiArSseService.DetailCallback {
+                    override fun onOpened(handle: AiArSseService.RequestHandle) {
+                        infoLogger(
+                            "detail opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId}",
+                        )
+                    }
 
-                            override fun onSuccess(
-                                handle: AiArSseService.RequestHandle,
-                                fullText: String,
-                            ) {
-                                if (activeDetailRequest != request) {
-                                    return
-                                }
-                                activeDetailRequest = null
-                                activeDetailHandle = null
-                                callback.onDeepAnalysisSuccess(request, fullText)
-                            }
+                    override fun onSuccess(
+                        handle: AiArSseService.RequestHandle,
+                        fullText: String,
+                    ) {
+                        if (activeDetailRequest != request) {
+                            return
+                        }
+                        activeDetailRequest = null
+                        activeDetailHandle = null
+                        callback.onDeepAnalysisSuccess(request, fullText)
+                    }
 
-                            override fun onFailure(
-                                handle: AiArSseService.RequestHandle,
-                                message: String,
-                            ) {
-                                if (activeDetailRequest != request) {
-                                    return
-                                }
-                                activeDetailRequest = null
-                                activeDetailHandle = null
-                                callback.onDeepAnalysisFailure(request, message)
-                            }
-                        },
-                    )
-                }
-            }
+                    override fun onFailure(
+                        handle: AiArSseService.RequestHandle,
+                        message: String,
+                    ) {
+                        if (activeDetailRequest != request) {
+                            return
+                        }
+                        activeDetailRequest = null
+                        activeDetailHandle = null
+                        callback.onDeepAnalysisFailure(request, message)
+                    }
+                },
+            )
         }
     }
 
@@ -188,7 +172,6 @@ internal class OnlineHazardDetectionService(
 
     fun shutdown() {
         cancelAll()
-        encodeExecutor.shutdownNow()
     }
 
     private fun startDetection(request: DetectionRequest) {
@@ -203,84 +186,64 @@ internal class OnlineHazardDetectionService(
         )
         scheduler.postDelayed(timeoutRunnable, detectTimeoutMs)
         infoLogger(
-            "startDetection encodeStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} concurrencyLimit=${detectConcurrencyLimit.coerceAtLeast(1)} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs captureToSubmitMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, startedElapsedMs)} payloadBuiltToSubmitMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, startedElapsedMs)}",
+            "startDetection uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} concurrencyLimit=${detectConcurrencyLimit.coerceAtLeast(1)} jpegBytes=${request.jpegBytes.size} timeoutMs=$detectTimeoutMs captureToSubmitMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, startedElapsedMs)} payloadBuiltToSubmitMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, startedElapsedMs)}",
         )
-        encodeExecutor.execute {
-            val base64StartedElapsedMs = elapsedRealtimeProvider()
-            val base64Image = base64Encoder(request.jpegBytes)
-            val base64FinishedElapsedMs = elapsedRealtimeProvider()
-            scheduler.post detectPost@{
-                val active = activeDetections[request.requestId]
-                if (active?.request != request) {
+        val active = activeDetections[request.requestId] ?: return
+        val uploadStartedElapsedMs = elapsedRealtimeProvider()
+        val handle = requestGateway.identifyHazard(
+            request = request,
+            callback = object : AiArSseService.DetectCallback {
+                override fun onOpened(handle: AiArSseService.RequestHandle) {
+                    val openedActive = activeDetections[request.requestId] ?: return
                     infoLogger(
-                        "startDetection encodeDiscarded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch}",
+                        "detect opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - openedActive.startedElapsedMs}",
                     )
-                    return@detectPost
                 }
-                infoLogger(
-                    "startDetection encoded lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length} elapsedMs=${elapsedRealtimeProvider() - active.startedElapsedMs}",
-                )
-                val uploadStartedElapsedMs = elapsedRealtimeProvider()
-                infoLogger(
-                    "detect timing uploadStart lane=${request.lane.logName} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=${uploadStartedElapsedMs - active.startedElapsedMs} base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} jpegBytes=${request.jpegBytes.size} base64Chars=${base64Image.length}",
-                )
-                val handle = requestGateway.identifyHazard(
-                    request = request,
-                    base64Image = base64Image,
-                    callback = object : AiArSseService.DetectCallback {
-                        override fun onOpened(handle: AiArSseService.RequestHandle) {
-                            val openedActive = activeDetections[request.requestId] ?: return
-                            infoLogger(
-                                "detect opened lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} elapsedMs=${elapsedRealtimeProvider() - openedActive.startedElapsedMs}",
-                            )
-                        }
 
-                        override fun onSuccess(
-                            handle: AiArSseService.RequestHandle,
-                            hasHazard: Boolean,
-                            fullText: String,
-                            labels: List<String>,
-                        ) {
-                            val completedActive = removeActiveDetection(request.requestId) ?: return
-                            val completedElapsedMs = elapsedRealtimeProvider()
-                            val detectElapsedMs = completedElapsedMs - completedActive.startedElapsedMs
-                            val submitToUploadMs = uploadStartedElapsedMs - completedActive.startedElapsedMs
-                            val captureToHasHazardMs = durationOrMinusOne(
-                                request.frameCapturedAtElapsedMs,
-                                completedElapsedMs,
-                            )
-                            val uploadToHasHazardMs = completedElapsedMs - uploadStartedElapsedMs
-                            infoLogger(
-                                "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard activePoolSize=${activeDetections.size} rawTextLength=${fullText.length} labelCount=${labels.size} totalElapsedMs=$detectElapsedMs",
-                            )
-                            infoLogger(
-                                "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=$submitToUploadMs base64Ms=${base64FinishedElapsedMs - base64StartedElapsedMs} uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} labelCount=${labels.size} jpegBytes=${request.jpegBytes.size}",
-                            )
-                            callback.onDetectionResult(
-                                request.copy(cooldownLabels = labels),
-                                hasHazard,
-                                fullText,
-                                labels,
-                            )
-                        }
+                override fun onSuccess(
+                    handle: AiArSseService.RequestHandle,
+                    hasHazard: Boolean,
+                    fullText: String,
+                    labels: List<String>,
+                ) {
+                    val completedActive = removeActiveDetection(request.requestId) ?: return
+                    val completedElapsedMs = elapsedRealtimeProvider()
+                    val detectElapsedMs = completedElapsedMs - completedActive.startedElapsedMs
+                    val submitToUploadMs = uploadStartedElapsedMs - completedActive.startedElapsedMs
+                    val captureToHasHazardMs = durationOrMinusOne(
+                        request.frameCapturedAtElapsedMs,
+                        completedElapsedMs,
+                    )
+                    val uploadToHasHazardMs = completedElapsedMs - uploadStartedElapsedMs
+                    infoLogger(
+                        "detect success lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} hasHazard=$hasHazard activePoolSize=${activeDetections.size} rawTextLength=${fullText.length} labelCount=${labels.size} totalElapsedMs=$detectElapsedMs",
+                    )
+                    infoLogger(
+                        "detect timing summary lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} frameTs=${request.frameTimestamp} hasHazard=$hasHazard captureToUploadMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, uploadStartedElapsedMs)} payloadBuiltToUploadMs=${durationOrMinusOne(request.framePayloadBuiltAtElapsedMs, uploadStartedElapsedMs)} submitToUploadMs=$submitToUploadMs uploadToHasHazardMs=$uploadToHasHazardMs captureToHasHazardMs=$captureToHasHazardMs detectServiceElapsedMs=$detectElapsedMs rawTextLength=${fullText.length} labelCount=${labels.size} jpegBytes=${request.jpegBytes.size}",
+                    )
+                    callback.onDetectionResult(
+                        request.copy(cooldownLabels = labels),
+                        hasHazard,
+                        fullText,
+                        labels,
+                    )
+                }
 
-                        override fun onFailure(
-                            handle: AiArSseService.RequestHandle,
-                            message: String,
-                        ) {
-                            val failedActive = removeActiveDetection(request.requestId) ?: return
-                            val failedElapsedMs = elapsedRealtimeProvider()
-                            val detectElapsedMs = failedElapsedMs - failedActive.startedElapsedMs
-                            warningLogger(
-                                "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} totalElapsedMs=$detectElapsedMs captureToFailureMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, failedElapsedMs)} message=$message",
-                            )
-                            callback.onDetectionFailure(request, message)
-                        }
-                    },
-                )
-                active.handle = handle
-            }
-        }
+                override fun onFailure(
+                    handle: AiArSseService.RequestHandle,
+                    message: String,
+                ) {
+                    val failedActive = removeActiveDetection(request.requestId) ?: return
+                    val failedElapsedMs = elapsedRealtimeProvider()
+                    val detectElapsedMs = failedElapsedMs - failedActive.startedElapsedMs
+                    warningLogger(
+                        "detect failure lane=${request.lane.logName} taskId=${handle.taskId} requestId=${request.requestId} epoch=${request.epoch} activePoolSize=${activeDetections.size} jpegBytes=${request.jpegBytes.size} totalElapsedMs=$detectElapsedMs captureToFailureMs=${durationOrMinusOne(request.frameCapturedAtElapsedMs, failedElapsedMs)} message=$message",
+                    )
+                    callback.onDetectionFailure(request, message)
+                }
+            },
+        )
+        active.handle = handle
     }
 
     private fun handleDetectionTimeout(requestId: Long) {
@@ -319,13 +282,16 @@ internal class OnlineHazardDetectionService(
     }
 
     private class SseRequestGateway(
-        private val aiArSseService: AiArSseService,
+        aiArSseServiceProvider: () -> AiArSseService,
+        private val base64Encoder: (ByteArray) -> String,
     ) : RequestGateway {
+        private val aiArSseService: AiArSseService by lazy(aiArSseServiceProvider)
+
         override fun identifyHazard(
             request: DetectionRequest,
-            base64Image: String,
             callback: AiArSseService.DetectCallback,
         ): AiArSseService.RequestHandle {
+            val base64Image = base64Encoder(request.jpegBytes)
             return when (request.lane) {
                 DetectionLane.ITEM -> aiArSseService.identifyItemHazard(base64Image, callback)
                 DetectionLane.SCENE -> aiArSseService.identifySceneHazard(base64Image, callback)
@@ -334,10 +300,10 @@ internal class OnlineHazardDetectionService(
 
         override fun requestDeepAnalysis(
             request: DetailRequest,
-            base64Image: String,
             onChunk: (String) -> Unit,
             callback: AiArSseService.DetailCallback,
         ): AiArSseService.RequestHandle {
+            val base64Image = base64Encoder(request.jpegBytes)
             return when (request.lane) {
                 DetectionLane.ITEM -> aiArSseService.requestDeepAnalysis(
                     base64Image = base64Image,
@@ -350,6 +316,29 @@ internal class OnlineHazardDetectionService(
                     callback = callback,
                 )
             }
+        }
+    }
+
+    private class LocalTriggerRequestGateway(
+        private val localTriggerDetectionService: LocalTriggerDetectionService,
+        private val detailGateway: RequestGateway,
+    ) : RequestGateway {
+        override fun identifyHazard(
+            request: DetectionRequest,
+            callback: AiArSseService.DetectCallback,
+        ): AiArSseService.RequestHandle {
+            return when (request.lane) {
+                DetectionLane.ITEM -> localTriggerDetectionService.detect(request, callback)
+                DetectionLane.SCENE -> detailGateway.identifyHazard(request, callback)
+            }
+        }
+
+        override fun requestDeepAnalysis(
+            request: DetailRequest,
+            onChunk: (String) -> Unit,
+            callback: AiArSseService.DetailCallback,
+        ): AiArSseService.RequestHandle {
+            return detailGateway.requestDeepAnalysis(request, onChunk, callback)
         }
     }
 
@@ -373,6 +362,29 @@ internal class OnlineHazardDetectionService(
         private const val TAG = "OnlineHazardDetect"
         const val REASON_TIMEOUT = "timeout"
         const val REASON_BUSY = "busy"
+
+        internal fun createDefaultRequestGateway(
+            provider: AutoDetectProvider = InspectionConfigRepository.get().aiInspection.autoDetectProvider,
+            aiArSseService: AiArSseService? = null,
+            localTriggerDetectionService: LocalTriggerDetectionService? = null,
+            base64Encoder: (ByteArray) -> String = { Base64.encodeToString(it, Base64.NO_WRAP) },
+        ): RequestGateway {
+            return when (provider) {
+                AutoDetectProvider.HTTP -> SseRequestGateway(
+                    aiArSseServiceProvider = { aiArSseService ?: AiArSseService() },
+                    base64Encoder = base64Encoder,
+                )
+                AutoDetectProvider.LOCAL_TRIGGER -> LocalTriggerRequestGateway(
+                    localTriggerDetectionService = requireNotNull(localTriggerDetectionService) {
+                        "LOCAL_TRIGGER provider requires LocalTriggerDetectionService"
+                    },
+                    detailGateway = SseRequestGateway(
+                        aiArSseServiceProvider = { aiArSseService ?: AiArSseService() },
+                        base64Encoder = base64Encoder,
+                    ),
+                )
+            }
+        }
 
         private object DEFAULTS {
             val cfg = InspectionConfigRepository.get()

@@ -561,7 +561,7 @@ static int postprocess_hiddenrisk_output(
     int crop_offset_x = 0,
     int crop_offset_y = 0)
 {
-    const float prob_threshold = 0.70f;
+    const float prob_threshold = 0.65f;
     const float nms_threshold = 0.45f;
 
     std::vector<int> strides(3);
@@ -733,60 +733,30 @@ int YOLOv8_det::detect(
     int img_w = rgb.cols;
     int img_h = rgb.rows;
 
-    // 尝试中心裁剪模式（数字变焦）
-    int crop_x = 0, crop_y = 0;
-    int crop_w = 0, crop_h = 0;
     float scale = 1.f;
     int wpad = 0, hpad = 0;
-    int letterbox_w = 0, letterbox_h = 0;  // letterbox路径下resize后的尺寸（不含padding）
     ncnn::Mat in_pad;
 
-    if (compute_center_crop_geometry(img_w, img_h, target_size, crop_x, crop_y, crop_w, crop_h, scale))
+    if (img_w <= 0 || img_h <= 0 || target_size <= 0)
     {
-        // 中心裁剪路径：从原始图像直接裁剪640x640中心区域
-        __android_log_print(
-            ANDROID_LOG_INFO,
-            "HiddenRiskNcnn",
-            "detect center_crop input=%dx%d crop=[%d,%d,%d,%d] (digital zoom)",
-            img_w, img_h, crop_x, crop_y, crop_w, crop_h);
-
-        // 使用OpenCV裁剪ROI区域，避免全图处理
-        cv::Mat cropped = rgb(cv::Rect(crop_x, crop_y, crop_w, crop_h));
-
-        // 直接转换为ncnn::Mat，无需resize
-        in_pad = ncnn::Mat::from_pixels(cropped.data, ncnn::Mat::PIXEL_RGB, crop_w, crop_h);
-
-        // 裁剪模式下无padding
-        wpad = 0;
-        hpad = 0;
-        scale = 1.0f;
+        set_detect_error(error_stage, error_code, error_message, "geometry", -1, "invalid input image size");
+        return -1;
     }
-    else
-    {
-        // Fallback: 原有letterbox resize路径，将结果存入外层变量
-        if (!compute_letterbox_geometry(img_w, img_h, target_size, letterbox_w, letterbox_h, wpad, hpad, scale))
-        {
-            set_detect_error(error_stage, error_code, error_message, "geometry", -1, "invalid input image size");
-            return -1;
-        }
+    scale = (float)target_size / img_w;
 
-        __android_log_print(
-            ANDROID_LOG_INFO,
-            "HiddenRiskNcnn",
-            "detect letterbox target=%d input=%dx%d resized=%dx%d scale=%.4f",
-            target_size,
-            img_w,
-            img_h,
-            letterbox_w,
-            letterbox_h,
-            scale);
+    __android_log_print(
+        ANDROID_LOG_INFO,
+        "HiddenRiskNcnn",
+        "detect resize_square input=%dx%d target=%dx%d scale=%.4f",
+        img_w,
+        img_h,
+        target_size,
+        target_size,
+        scale);
 
-        ncnn::Mat in = (img_w == letterbox_w && img_h == letterbox_h)
-            ? ncnn::Mat::from_pixels(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h)
-            : ncnn::Mat::from_pixels_resize(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h, letterbox_w, letterbox_h);
-
-        ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
-    }
+    in_pad = (img_w == target_size && img_h == target_size)
+        ? ncnn::Mat::from_pixels(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h)
+        : ncnn::Mat::from_pixels_resize(rgb.data, ncnn::Mat::PIXEL_RGB, img_w, img_h, target_size, target_size);
 
     const float norm_vals[3] = {1 / 255.f, 1 / 255.f, 1 / 255.f};
     in_pad.substract_mean_normalize(0, norm_vals);
@@ -841,18 +811,12 @@ int YOLOv8_det::detect(
         out.c,
         out.total());
 
-    // 对于中心裁剪模式，需要调整坐标映射参数
-    int effective_w = (crop_w > 0) ? crop_w : letterbox_w;
-    int effective_h = (crop_h > 0) ? crop_h : letterbox_h;
-    int crop_offset_x = (crop_w > 0) ? crop_x : 0;
-    int crop_offset_y = (crop_h > 0) ? crop_y : 0;
-
     return postprocess_hiddenrisk_output(
         out,
         img_w,
         img_h,
-        effective_w,
-        effective_h,
+        target_size,
+        target_size,
         wpad,
         hpad,
         scale,
@@ -860,8 +824,8 @@ int YOLOv8_det::detect(
         error_stage,
         error_code,
         error_message,
-        crop_offset_x,
-        crop_offset_y);
+        0,
+        0);
 }
 
 #if __ANDROID_API__ >= 26

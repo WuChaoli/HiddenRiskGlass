@@ -219,6 +219,39 @@ class InspectionFrameCaptureServiceTest {
         assertEquals(listOf("配电箱"), result.activeLabels)
     }
 
+    @Test
+    fun localFallbackDetailLabelsKeepOriginalDetectionLabelsAfterCooldown() {
+        val labels = AiInspectionActivity.localFallbackDetailLabels(
+            detectionLabels = listOf("燃气灶", "熄火保护装置"),
+            cooldownDecision = AiInspectionActivity.OnlineLabelCooldownDecision(
+                shouldSuppress = false,
+                activeLabels = listOf("熄火保护装置"),
+            ),
+        )
+
+        assertEquals(listOf("燃气灶", "熄火保护装置"), labels)
+    }
+
+    @Test
+    fun shouldEnableOnlineSceneHazardDetection_disablesSceneWhenForceLocalDetail() {
+        assertFalse(
+            AiInspectionActivity.shouldEnableOnlineSceneHazardDetection(
+                configuredEnabled = true,
+                forceLocalHazardDetailAnalysis = true,
+            ),
+        )
+    }
+
+    @Test
+    fun shouldEnableOnlineSceneHazardDetection_keepsSceneWhenRemoteDetailAllowed() {
+        assertTrue(
+            AiInspectionActivity.shouldEnableOnlineSceneHazardDetection(
+                configuredEnabled = true,
+                forceLocalHazardDetailAnalysis = false,
+            ),
+        )
+    }
+
     private fun newService(
         frames: List<InspectionFrameCaptureService.SourceSquareFrame>,
         staleFrameThresholdMs: Long = 1_500L,

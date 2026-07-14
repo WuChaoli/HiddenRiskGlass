@@ -22,7 +22,6 @@ import com.rokid.glass.component.GlassStatusBarUpdater
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.AiInspectionMenuActivity
-import com.rokid.glass.config.AutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.AppFileLogger
@@ -30,8 +29,6 @@ import com.rokid.glass.utils.DeviceUtil
 import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
 import kotlin.math.max
 
 /**
@@ -91,7 +88,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     private var subtitleFrame = 0
     private var subtitleAnimating = false
     private var loadingViewsInitialized = false
-    private val modelLoadExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
 
@@ -213,7 +209,6 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
             stopLoadingUi()
         }
         RokidSdkManager.removeListener(this)
-        modelLoadExecutor.shutdownNow()
 
         // 如果初始化未完成且出现错误，清理资源
         if (loadingStage == LoadingStage.ERROR) {
@@ -368,8 +363,7 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         setSubtitle(getString(R.string.ai_inspection_loading_subtitle_model_loading), animated = true)
         animateProgressTo(95)
         Log.i(TAG, "preload local NCNN model start")
-        modelLoadExecutor.execute {
-            val success = InspectionSession.createNcnnInstance() && InspectionSession.loadModel(assets)
+        InspectionSession.ensureModelLoaded(assets) { success ->
             uiHandler.post {
                 if (activityDestroyed) return@post
                 if (success) {
@@ -387,9 +381,9 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
     }
 
     private fun requiresLocalModelPreload(): Boolean {
-        return InspectionConfigRepository.get()
-            .aiInspection
-            .autoHazardRoutingMode == AutoHazardRoutingMode.LOCAL_ONLY
+        return InspectionModelLoadPolicy.requiresModel(
+            InspectionConfigRepository.get().aiInspection,
+        )
     }
 
     private fun onInitializationComplete() {

@@ -16,26 +16,26 @@ Rokid AR 眼镜 Android 应用（"基层应消"），具备 AI 隐患检测功�
 
 ## Android 构建与真机调试
 
-```bash
-bash scripts/android/doctor.sh              # 所有构建/设备操作前先做环境检查
-bash scripts/android/doctor.sh --device     # 同时确认 Windows ADB 设备通路
-bash scripts/android/build-debug.sh         # 构建 standardDebug APK
-bash scripts/android/install-debug.sh -s <serial>
-bash scripts/android/package-release.sh    # 正式配置不足时只生成 debug 签名演示包
-bash scripts/android/verify-apk.sh <apk>    # 输出版本和证书摘要
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/android/doctor.ps1
+powershell -ExecutionPolicy Bypass -File scripts/android/doctor.ps1 -Device
+powershell -ExecutionPolicy Bypass -File scripts/android/build-debug.ps1
+powershell -ExecutionPolicy Bypass -File scripts/android/install-debug.ps1 -Serial $env:ROKID_SERIAL
+powershell -ExecutionPolicy Bypass -File scripts/android/package-release.ps1
+powershell -ExecutionPolicy Bypass -File scripts/android/verify-apk.ps1 app/build/outputs/apk/standard/debug/app-standard-debug.apk
 
 # 测试
-./gradlew :app:testStandardDebugUnitTest   # standard 变体单元测试
+powershell -ExecutionPolicy Bypass -File scripts/android/gradle.ps1 :app:testStandardDebugUnitTest
 ./gradlew connectedAndroidTest   # 仪器测试
 ./gradlew :app:testStandardDebugUnitTest --tests "com.rokid.glesse.ExampleUnitTest.addition_isCorrect"
 
-# 模型导出（需要 models/ 下的 Python 虚拟环境）
-cd models && source .venv/bin/activate  # Windows: .venv/Scripts/activate
-bash scripts/export_hiddenrisk_640.sh
-bash scripts/validate_hiddenrisk_assets.sh
+# 模型转换与验证（在同级独立工程中执行）
+cd ../model_transformer
+scripts/setup.sh
+scripts/run_pipeline.sh
 ```
 
-默认业务变体为 `standard`。WSL 编译使用根目录本地 `.env` 中的 JDK/SDK，Rokid Glass 真机操作使用 Windows `adb.exe`；命令、签名规则和踩坑记录见 `scripts/android/CLAUDE.md`。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`。
+默认业务变体为 `standard`。Windows 本地构建使用 Android Studio JBR/SDK，Rokid Glass 真机操作使用同一 SDK 的 `adb.exe`；旧 `.sh` 仅为 WSL 兼容入口。JNI/C++ 由 Gradle 通过 CMake 自动构建（`app/src/main/jni/CMakeLists.txt`），NDK 版本 `29.0.14206865`，所有变体仅构建 `arm64-v8a`。
 
 ## 架构
 
@@ -116,6 +116,7 @@ com.rokid.glass/
 2. **JNI 调用只能通过 `HiddenRiskNcnn.java`**，禁止在其他位置声明 native 方法
 3. **配置只从 `InspectionConfigRepository` 读取**，禁止硬编码推理参数/API 端点
 4. **相机帧流只通过 `InspectionSession` 获取**，Activity 不直接持有 Camera 引用
+5. **生产模型只由 `InspectionLoadingActivity` 加载**，企业信息确认后完成模型加载才可进入 AI 二级菜单；业务页发现模型未就绪时只能跳回加载页
 
 ## NCNN 模型与推理配置
 
@@ -129,17 +130,16 @@ com.rokid.glass/
 ### 模型资产
 
 - `app/src/main/assets/hiddenrisk.ncnn.param` 与 `.bin` 必须由同一次重导成对替换
-- 当前源模型：`models/source/hidden_risk_mini_0330.onnx`
+- 旧 HiddenRisk Mini/YoloV11 源模型与根目录转换链已退役；当前转换工程为 `../model_transformer/`
+- Android 内置 `hiddenrisk.ncnn.param` 与 `.bin` 不会由转换工程自动替换
 - 原生侧统一读取 `out0_raw`，C++ 后处理兼容 raw proposal（`64+26`）和 decoded proposal（`4+26`）
 - 当前 mini 模型检测头为单输出 `1x30x8400`（decoded 分支）
 
-### 正式重导约束
+### 正式模型约束
 
-- 正式发布前必须通过仓库内脚本执行完整链路：
-  - `best.pt -> static torchscript(imgsz=640) -> pnnx(fp16=1) -> ncnn`
-  - `hidden_risk_mini_0330.onnx -> pnnx(fp16=1) -> ncnn`
-- 正式入口：`models/scripts/export_hiddenrisk_640.sh`、`models/scripts/validate_hiddenrisk_assets.sh`
-- 旧脚本 `models/scripts/compare_onnx_ncnn.py` 未复用 JNI 的 `letterbox+pad114` 流程，不作为语义对齐依据
+- 模型转换与 CPU 对齐验证统一在 `../model_transformer/` 执行。
+- 只有转换工程门禁通过的成对 NCNN param/bin 才能进入 Android 集成。
+- 替换 Android 资产后必须单独执行项目构建和真机 Vulkan 验证；转换工程通过不等于 Android 集成完成。
 
 ### 探针页性能
 

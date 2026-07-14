@@ -706,6 +706,11 @@ class AiArSseService(
                         responseMessage = responseMessage,
                         responseBodySnippet = responseBodySnippet,
                     )
+                    val deliveredMessage = if (response == null && t != null) {
+                        "$NETWORK_FAILURE_PREFIX$message"
+                    } else {
+                        message
+                    }
                     AppFileLogger.e(
                         TAG,
                         "openStream failed lane=$lane taskId=${payload.task_id} endpoint=$url requestUrl=${eventSource.request().url} throwable=${t?.javaClass?.simpleName} httpCode=$responseCode httpMessage=$responseMessage contentType=$responseContentType bodySnippet=$responseBodySnippet",
@@ -714,7 +719,7 @@ class AiArSseService(
                     deliverFailure(
                         handle = handle,
                         onFailure = onFailure,
-                        message = message,
+                        message = deliveredMessage,
                         terminalDelivered = terminalDelivered,
                     )
                 }
@@ -806,6 +811,7 @@ class AiArSseService(
     }
 
     companion object {
+        const val NETWORK_FAILURE_PREFIX = "NETWORK_FAILURE:"
         private const val TAG = "AiArSseService"
         private const val DONE_SENTINEL = "[DONE]"
         private const val DONE_SENTINEL_JSON_ARRAY = "[\"DONE\"]"

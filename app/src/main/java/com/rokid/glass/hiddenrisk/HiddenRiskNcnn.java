@@ -32,6 +32,7 @@ public class HiddenRiskNcnn
     public native boolean submitBitmap(Bitmap bitmap);
     public native boolean submitNv21(byte[] nv21, int width, int height);
     public native boolean submitHardwareBuffer(HardwareBuffer hardwareBuffer, int width, int height, int rotationDegrees);
+    public native void releaseModel();
     public native void clearFrameState();
     public native void setDebugResultLimit(int maxResults);
     public native void setDebugCompareEnabled(boolean enabled);

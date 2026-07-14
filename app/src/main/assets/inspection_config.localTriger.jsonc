@@ -1,0 +1,7 @@
+{
+  "aiInspection": {
+    "autoDetectProvider": "LOCAL_TRIGGER",
+    "onlineDetectIntervalMs": 1000,
+    "onlineDetectConcurrencyLimit": 1
+  }
+}

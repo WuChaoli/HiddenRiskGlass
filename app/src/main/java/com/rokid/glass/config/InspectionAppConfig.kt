@@ -36,6 +36,7 @@ enum class EnterpriseInfoLayoutMode {
 data class AiInspectionConfig(
     val autoInferenceMode: AutoInferenceMode = AutoInferenceMode.BOTH,
     val autoHazardRoutingMode: AutoHazardRoutingMode = AutoHazardRoutingMode.SEPARATED,
+    val autoDetectProvider: AutoDetectProvider = AutoDetectProvider.HTTP,
     val captureWarmupMs: Long = 1200L,
     val autoInferenceRetryDelayMs: Long = 80L,
     val autoHazardPresentDelayMs: Long = 3000L,
@@ -61,6 +62,7 @@ data class AiInspectionConfig(
     val enableLocalFallbackLoading: Boolean = false,
     val localNetworkProbeIntervalMs: Long = 3000L,
     val forceOnlineDetailForLocalHazard: Boolean = false,
+    val forceLocalHazardDetailAnalysis: Boolean = true,
     val enableAutoSleepMonitoring: Boolean = true,
     // 共享相机 zoom 倍率，控制 NV21 帧流的视野范围。1.0=最大视野，值越大画面越近。
     // SDK zoom 分 3 档：<1.9→level1, 1.9~2.5→level2, >2.5→level3
@@ -173,6 +175,11 @@ enum class AutoHazardRoutingMode {
     LOCAL_ONLY,
 }
 
+enum class AutoDetectProvider {
+    HTTP,
+    LOCAL_TRIGGER,
+}
+
 enum class InferenceBackend(val code: Int) {
     CPU(0),
     GPU(1),
@@ -217,6 +224,7 @@ data class EnterpriseInfoConfigOverride(
 data class AiInspectionConfigOverride(
     val autoInferenceMode: AutoInferenceMode? = null,
     val autoHazardRoutingMode: AutoHazardRoutingMode? = null,
+    val autoDetectProvider: AutoDetectProvider? = null,
     val captureWarmupMs: Long? = null,
     val autoInferenceRetryDelayMs: Long? = null,
     val autoHazardPresentDelayMs: Long? = null,
@@ -242,6 +250,7 @@ data class AiInspectionConfigOverride(
     val enableLocalFallbackLoading: Boolean? = null,
     val localNetworkProbeIntervalMs: Long? = null,
     val forceOnlineDetailForLocalHazard: Boolean? = null,
+    val forceLocalHazardDetailAnalysis: Boolean? = null,
     val enableAutoSleepMonitoring: Boolean? = null,
     val sharedCameraZoomRatio: Float? = null,
     val wifiConfirmIntervalMs: Long? = null,

@@ -60,6 +60,31 @@ class AiArSseServiceRequestPayloadTest {
     }
 
     @Test
+    fun forceLocalDisablesOnlyAutoSceneAndKeepsManualDeepEndpoint() {
+        val ctx = DetectionRouteContext(
+            autoUrl = "http://example.test/ai/auto",
+            generalUrl = "http://example.test/ai/general",
+            deepUrl = "http://example.test/ai/deep",
+            gmUrl = "http://example.test/ai/gm",
+            enterpriseInfo = com.rokid.glass.workflow.InspectionWorkflowSession.EnterpriseInfo(
+                companyName = "test",
+                siteName = "test",
+                inspectorName = "test",
+                qrContent = "test",
+                placeCode = "PLACE-001",
+            ),
+        )
+
+        assertFalse(
+            AiInspectionActivity.shouldEnableOnlineSceneHazardDetection(
+                configuredEnabled = true,
+                forceLocalHazardDetailAnalysis = true,
+            ),
+        )
+        assertEquals("http://example.test/ai/deep", ctx.deepAnalysisEndpoint())
+    }
+
+    @Test
     fun detectionRouteContext_noScene_skipsDetectionAndFallsBackDeepToGm() {
         val ctx = DetectionRouteContext(
             autoUrl = "http://example.test/ai/auto",
