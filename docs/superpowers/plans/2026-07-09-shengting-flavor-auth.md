@@ -14,8 +14,8 @@
 - `shengting` uses existing flavor dimension `edition`.
 - Only these seven AI endpoints are in scope: `/ai/auto`, `/ai/deep`, `/ai/gm`, `/ai/general`, `/ai/general_deep`, `/ai/device`, `/ai/sug_checks`.
 - Do not migrate or authorize `/hxy/apis/third/smartGlasses`, hazard save, inspection finish, app update, or `has_hazard_answer`.
-- Shengting AI base is `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy`.
-- Auth URL is `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/auth/check`.
+- Shengting AI base is `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy`.
+- Auth URL is `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/auth/check`.
 - AES protocol follows `scripts/java/AESUtil.java`: `AES/ECB/PKCS5Padding`, `SecretKeySpec(key.getBytes(), "AES")`, Base64 output, secret `Btm/Cb6N6glbcOEvjV8qGnyQELjWFUkD`.
 - Auth plaintext JSON is compact: `{"snCode":"<SN>","date":"yyyy-MM-dd"}`.
 - Auth response succeeds only when `code == 200` and `data` is a nonblank token string.
@@ -72,38 +72,38 @@ fun `shengting overlay points all ai endpoints to formal proxy`() {
             {
               "network": {
                 "aiAutoApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto"
                 },
                 "aiDeepApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep"
                 },
                 "aiGmApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm"
                 },
                 "aiGeneralApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general"
                 },
                 "aiGeneralDeepApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep"
                 },
                 "aiDeviceApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device"
                 },
                 "aiSuggestionChecksApi": {
-                  "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks"
+                  "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks"
                 }
               }
             }
         """.trimIndent(),
     )
 
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto", config.network.aiAutoApi.url)
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep", config.network.aiDeepApi.url)
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm", config.network.aiGmApi.url)
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general", config.network.aiGeneralApi.url)
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep", config.network.aiGeneralDeepApi.url)
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device", config.network.aiDeviceApi.url)
-    assertEquals("http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks", config.network.aiSuggestionChecksApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto", config.network.aiAutoApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep", config.network.aiDeepApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm", config.network.aiGmApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general", config.network.aiGeneralApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep", config.network.aiGeneralDeepApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device", config.network.aiDeviceApi.url)
+    assertEquals("https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks", config.network.aiSuggestionChecksApi.url)
 }
 ```
 
@@ -139,25 +139,25 @@ Create `app/src/main/assets/inspection_config.shengting.jsonc`:
 {
   "network": {
     "aiAutoApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto"
     },
     "aiDeepApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep"
     },
     "aiGmApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm"
     },
     "aiGeneralApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general"
     },
     "aiGeneralDeepApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep"
     },
     "aiDeviceApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device"
     },
     "aiSuggestionChecksApi": {
-      "url": "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks"
+      "url": "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks"
     }
   }
 }
@@ -606,7 +606,7 @@ class ShengtingAuthService(
     }
 
     companion object {
-        const val AUTH_URL = "http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/auth/check"
+        const val AUTH_URL = "https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/auth/check"
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
     }
 }

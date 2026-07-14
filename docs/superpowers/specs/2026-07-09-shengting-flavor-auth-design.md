@@ -23,7 +23,7 @@
 ## 成功标准
 
 1. `shengtingDebug` 可构建，并加载 `inspection_config.shengting.jsonc`。
-2. `shengting` 变体的 7 个 AI 端点均指向 `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/...`。
+2. `shengting` 变体的 7 个 AI 端点均指向 `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/...`。
 3. 企业扫码并成功调用 `getObjectMessage` 后，应用使用 Rokid SN 与当天日期完成鉴权。
 4. 后续 7 个 AI 请求均带 `Authorization: <token>`。
 5. 鉴权失败会自动重试一次；仍失败则弹出提示并返回主菜单。
@@ -37,7 +37,7 @@
 
 shengting 正式环境变量为：
 
-- `baseUrl`: `http://jcyxar.yjt.zj.gov.cn`
+- `baseUrl`: `https://jcyxar.yjt.zj.gov.cn`
 - `xf_port`: `7443`
 - `gm_port`: `7443`
 - `prefix`: `/glasses/apis/proxy`
@@ -46,13 +46,13 @@ shengting 正式环境变量为：
 
 | 配置项 | URL |
 | --- | --- |
-| `aiAutoApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto` |
-| `aiDeepApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep` |
-| `aiGmApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm` |
-| `aiGeneralApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general` |
-| `aiGeneralDeepApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep` |
-| `aiDeviceApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device` |
-| `aiSuggestionChecksApi.url` | `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks` |
+| `aiAutoApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/auto` |
+| `aiDeepApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/deep` |
+| `aiGmApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/gm` |
+| `aiGeneralApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general` |
+| `aiGeneralDeepApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/general_deep` |
+| `aiDeviceApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/device` |
+| `aiSuggestionChecksApi.url` | `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/proxy/ai/sug_checks` |
 
 ## 鉴权协议
 
@@ -75,7 +75,7 @@ AES 明文为紧凑 JSON：
 鉴权请求：
 
 - Method: `POST`
-- URL: `http://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/auth/check`
+- URL: `https://jcyxar.yjt.zj.gov.cn:7443/glasses/apis/auth/check`
 - Body:
 
 ```json
