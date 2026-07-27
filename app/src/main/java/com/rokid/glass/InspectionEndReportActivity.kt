@@ -193,7 +193,11 @@ class InspectionEndReportActivity : BaseGlassActivity() {
             returnToMainMenuAfterFinish()
             return
         }
-        if (!InspectionFinishUploadPolicy.canEnqueue(SystemStateUtils.isNetworkAvailable(this))) {
+        if (!InspectionFinishUploadPolicy.canEnqueue(
+                networkAvailable = SystemStateUtils.isNetworkAvailable(this),
+                businessNetworkAllowed = InspectionFeatureFlags.isBusinessNetworkAllowed(),
+            )
+        ) {
             android.util.Log.w(TAG, "skip finish background upload: network unavailable")
             returnToMainMenuAfterFinish()
             return

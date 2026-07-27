@@ -120,6 +120,7 @@ object InspectionConfigRepository {
         return FeatureFlagsConfig(
             enableEnterpriseInspectionFlow =
                 override?.enableEnterpriseInspectionFlow ?: base.enableEnterpriseInspectionFlow,
+            networkAccessMode = override?.networkAccessMode ?: base.networkAccessMode,
         )
     }
 

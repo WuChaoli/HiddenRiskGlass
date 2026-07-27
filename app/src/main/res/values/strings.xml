@@ -217,6 +217,7 @@
     <string name="ai_entry_menu_update">检查更新</string>
     <string name="ai_entry_menu_update_checking">正在检查更新...</string>
     <string name="ai_entry_menu_update_latest">当前已是最新版本</string>
+    <string name="offline_local_network_disabled">当前为完全离线本地模式，联网功能不可用</string>
     <string name="ai_entry_menu_update_failed">检查更新失败</string>
     <string name="ai_entry_wifi_required_message">请扫描 Wi-Fi 二维码</string>
     <string name="ai_entry_wifi_retry">重新扫码</string>

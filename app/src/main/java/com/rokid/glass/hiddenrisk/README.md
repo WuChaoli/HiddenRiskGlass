@@ -214,13 +214,16 @@ AiInspectionActivity (DETECTING)
   → Activity 退出: aiArSseService.releaseConnections() + onlineHazardDetectionService.shutdown()
 ```
 
-`localTriger` 变体中，item `/ai/auto` 的前置触发判断由 `LocalTriggerDetectionService`
-本地 NCNN 小模型平替。隐患页按“主对象存在且保护装置缺失”的四类组合规则触发。默认开启
-`forceLocalHazardDetailAnalysis`：无论网络状态都由 `LocalHazardDetailResolver` 读取 `info.json`
-并复用现有模拟流式展示，不调用 `/ai/deep`；关闭开关后恢复有网 `/ai/deep`、无网本地详情的策略。
-本地详情固定禁止 `pushHidDanger`；结束巡检只检查结束当时网络，恢复网络后仍允许
-`pushHidDangerEnd`。设备指引详情仍复用 `/ai/device`。
-缺少 `placeCode` 时继续跳过触发检测，不调用 HTTP，也不运行本地模型。
+`localTriger` 变体固定使用 `OFFLINE_LOCAL + LOCAL_ONLY`：入口不要求 Wi-Fi 和企业扫码，
+自动链路只运行本地 NCNN，并按“主对象存在且保护装置缺失”的四类组合规则触发。
+`placeCode` 仅保留为诊断信息，字段为空也必须运行本地识别。详情固定由
+`LocalHazardDetailResolver` 读取 `info.json` 并复用模拟流式展示。
+
+该变体不调用 `/ai/auto`、`/ai/general`、`/ai/deep`、`/ai/device` 或 `/ai/sug_checks`，
+不提交 `pushHidDanger` / `pushHidDangerEnd`，且跳过自动更新检查。共享巡检/SSE 客户端和
+更新客户端统一安装 `InspectionNetworkAccessPolicy` 拦截器，即使设备实际连接 Wi-Fi，
+遗漏的应用业务请求也会以 `offline_local_blocked` 在建立连接前失败。二级菜单只保留
+“隐患分析”，设备指引、隐患录入、检查扫码和手动深度分析在该变体中不可用。
 
 ### 链路 3：本地 fallback
 ```

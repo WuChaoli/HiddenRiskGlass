@@ -22,6 +22,8 @@ import com.rokid.glass.component.GlassStatusBarUpdater
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.rokid.glass.AiInspectionMenuActivity
+import com.rokid.glass.EntryGuardPolicy
+import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.AppFileLogger
@@ -455,7 +457,12 @@ class InspectionLoadingActivity : BaseGlassActivity(), RokidSdkManager.Listener 
         InspectionWorkflowSession.beginInspection(
             InspectionBackendSessionId.create(RokidSdkManager.getSerialNumber(), prefix = "inspection"),
         )
-        InspectionWorkflowSession.updateMode(SystemStateUtils.getCurrentWifiSsid(this) != null)
+        InspectionWorkflowSession.updateMode(
+            EntryGuardPolicy.sessionNetworkAvailable(
+                offlineLocal = InspectionFeatureFlags.isOfflineLocalMode(),
+                systemNetworkAvailable = SystemStateUtils.getCurrentWifiSsid(this) != null,
+            ),
+        )
         val nextHomeClassName = intent.getStringExtra(EXTRA_NEXT_HOME_ACTIVITY)
         val nextHomeActivityClass = runCatching {
             nextHomeClassName?.takeIf { it.isNotBlank() }?.let { Class.forName(it) }

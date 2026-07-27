@@ -328,6 +328,10 @@ class MainMenuActivity : BaseGlassActivity() {
 
     private fun checkUpdateManually() {
         if (checkingUpdate) return
+        if (!InspectionFeatureFlags.isBusinessNetworkAllowed()) {
+            ToastUtil.show(getString(R.string.offline_local_network_disabled))
+            return
+        }
         checkingUpdate = true
         tvBottomHint.setText(R.string.ai_entry_menu_update_checking)
         inputSession.updateActions(buildInputActions())

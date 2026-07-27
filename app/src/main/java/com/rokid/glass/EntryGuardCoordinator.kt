@@ -119,7 +119,13 @@ class EntryGuardCoordinator(
             return
         }
         AppFileLogger.i(TAG, "startBackgroundGuards")
-        startWifiCheck()
+        if (EntryGuardPolicy.requiresWifi(InspectionFeatureFlags.isOfflineLocalMode())) {
+            startWifiCheck()
+        } else {
+            AppFileLogger.i(TAG, "wifi guard skipped for offline local mode")
+            wifiCheckCompleted.set(true)
+            startSdkInit()
+        }
     }
 
     /**
@@ -166,6 +172,7 @@ class EntryGuardCoordinator(
      */
     fun revalidateWifiState(): Boolean {
         if (released.get()) return true
+        if (!EntryGuardPolicy.requiresWifi(InspectionFeatureFlags.isOfflineLocalMode())) return true
         if (!allGuardsReadyFired.get()) return true
         if (SystemStateUtils.getCurrentWifiSsid(context) != null) return true
 
@@ -182,6 +189,11 @@ class EntryGuardCoordinator(
      */
     fun checkUpdateManually(listener: UpdateCheckListener) {
         if (released.get()) return
+        if (!EntryGuardPolicy.allowsAutoUpdate(InspectionFeatureFlags.isOfflineLocalMode())) {
+            AppFileLogger.i(TAG, "manual update check skipped for offline local mode")
+            uiHandler.post { listener.onComplete(false, null) }
+            return
+        }
         updateExecutor.execute {
             try {
                 val result = updateManager.checkForUpdate(ignoreSkipped = true)
@@ -325,6 +337,13 @@ class EntryGuardCoordinator(
 
     private fun startAutoUpdateCheck() {
         if (released.get() || updateCheckCompleted.get()) return
+        if (!EntryGuardPolicy.allowsAutoUpdate(InspectionFeatureFlags.isOfflineLocalMode())) {
+            AppFileLogger.i(TAG, "auto update check skipped for offline local mode")
+            updateCheckCompleted.set(true)
+            postCallback { it.onAutoUpdateCheckComplete(false) }
+            tryNotifyAllGuardsReady()
+            return
+        }
         AppFileLogger.i(TAG, "startAutoUpdateCheck")
         updateExecutor.execute {
             try {

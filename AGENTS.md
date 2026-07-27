@@ -9,6 +9,7 @@ Rokid AR 眼镜 Android 应用（"基层应消"），具备 AI 隐患检测功�
 - 包名/applicationId：`com.rokid.glesse`
 - 技术栈：Kotlin + C++ (JNI)
 - 版本：`2.0.9`
+- 内部权威 Git 仓库：`http://192.168.1.232:3000/ai/glassdemo.git`；内部 PR 从同名功能分支发起到 `master`
 
 ## 显示设计基线
 
@@ -116,7 +117,8 @@ com.rokid.glass/
 2. **JNI 调用只能通过 `HiddenRiskNcnn.java`**，禁止在其他位置声明 native 方法
 3. **配置只从 `InspectionConfigRepository` 读取**，禁止硬编码推理参数/API 端点
 4. **相机帧流只通过 `InspectionSession` 获取**，Activity 不直接持有 Camera 引用
-5. **生产模型只由 `InspectionLoadingActivity` 加载**，企业信息确认后完成模型加载才可进入 AI 二级菜单；业务页发现模型未就绪时只能跳回加载页
+5. **生产模型只由 `InspectionLoadingActivity` 加载**，企业链路启用时须在企业信息确认后加载；企业链路关闭时也必须先经过加载页，业务页不得自行加载
+6. **`localTriger` 是完全离线本地模式**，不得要求 Wi-Fi/企业扫码，不得发送应用业务 HTTP/SSE 请求，空 `placeCode` 仍须运行本地识别
 
 ## NCNN 模型与推理配置
 

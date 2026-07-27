@@ -28,6 +28,7 @@ import com.rokid.glass.AiInspectionMenuActivity
 import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.InspectionEndReportReturnDestination
 import com.rokid.glass.InspectionFeatureFlags
+import com.rokid.glass.OfflineLocalUiPolicy
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.config.AutoDetectProvider
@@ -2633,7 +2634,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     voiceTrigger(R.string.ai_inspection_voice_analysis, "fen xi"),
                     voiceTrigger(R.string.ai_inspection_voice_analysis_deep, "shen du fen xi"),
                 ),
-                enabled = { canHandleDetectingInput() },
+                enabled = {
+                    canHandleDetectingInput() &&
+                        OfflineLocalUiPolicy.manualDeepEnabled(InspectionFeatureFlags.isOfflineLocalMode())
+                },
             ) {
                 requestStreamingAnalysis()
             },
@@ -4419,6 +4423,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      * 因此手动流式分析链路允许与自动检测链路出现“时间点不同”的图像差异。
      */
     private fun requestStreamingAnalysis() {
+        if (!OfflineLocalUiPolicy.manualDeepEnabled(InspectionFeatureFlags.isOfflineLocalMode())) {
+            AppFileLogger.i(TAG, "manual deep analysis blocked for offline local mode")
+            SpriteToastUtil.showSpriteToastOld(
+                this,
+                getString(R.string.offline_local_network_disabled),
+                R.drawable.ic_warning_triangle,
+                LOCAL_SAVE_SUCCESS_TOAST_MS,
+                false,
+            )
+            return
+        }
         if (streamingInProgress || streamCallbackActive) {
             return
         }

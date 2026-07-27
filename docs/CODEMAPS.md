@@ -3,7 +3,7 @@
 > 三层文档体系：CLAUDE.md (L1缓存) -> 本文档 (L2内存) -> 模块CLAUDE.md (L3硬盘)
 > 本文档描述模块间的关系、数据流、边界规则。模块内部细节见各 CLAUDE.md。
 >
-> 最后更新: 2026-07-13
+> 最后更新: 2026-07-27
 
 ---
 
@@ -68,8 +68,10 @@ flowchart TB
 | 相机层 | 相机生命周期、帧流捕获和恢复 | `QuickCameraManager`, `RokidFrameSource` |
 | 识别链路层 | 双轨推理调度、本地NCNN推理、在线SSE推理 | `AutoHazardPipelineDecider`, `HiddenRiskNcnn`, `AiArSseService` |
 
-`localTriger` 的 `forceLocalHazardDetailAnalysis` 默认开启：四类组合规则命中后，有网和无网均由
-`LocalHazardDetailResolver` 读取本地 `info.json`，不调用 `/ai/deep`；关闭后恢复在线优先、离线本地详情。
+`localTriger` 固定为 `OFFLINE_LOCAL + LOCAL_ONLY`：跳过 Wi-Fi 与企业扫码入口门禁，
+空 `placeCode` 仍运行本地 NCNN；四类组合规则命中后由 `LocalHazardDetailResolver`
+读取本地 `info.json`。`InspectionNetworkAccessPolicy` 在所有应用 OkHttp 客户端上提供
+最终阻断，因此即使设备实际连接 Wi-Fi 也不会发送业务 HTTP/SSE 请求。
 
 ---
 
@@ -150,7 +152,9 @@ sequenceDiagram
 
     User->>MainMenu: 启动 App (LAUNCHER)
     MainMenu->>MainMenu: EntryGuardCoordinator 后台静默初始化
-    alt WiFi 未连接
+    alt localTriger 完全离线模式
+        MainMenu->>MainMenu: 跳过 WiFi 与更新检查，只初始化 SDK
+    else WiFi 未连接
         MainMenu-->>User: 显示 WiFi 必需对话框
     else WiFi 已连接
         MainMenu->>MainMenu: SDK + 相机预热 + 更新检查
@@ -160,7 +164,9 @@ sequenceDiagram
     NCNN --> LocalRule --> LocalDetail
     User->>MainMenu: 点击"基层应消"
     MainMenu->>Menu: 跳转二级菜单
-    alt 企业信息为空
+    alt localTriger 完全离线模式
+        Menu->>Loading: 跳过企业上下文并进入统一加载页
+    else 企业信息为空
         Menu->>QrScan: 跳转企业扫码
         QrScan->>Enterprise: 解析并确认企业信息
         Enterprise->>Loading: 确认企业信息
@@ -177,7 +183,7 @@ sequenceDiagram
 
 ### 3.2 核心链路：在线 SSE 推理（主链路）
 
-> **路由上下文**：`DetectionRouteContext` 根据 `placeCode` 有无决定调用策略——placeCode 缺失时跳过物品/环境检测（`identifyItemHazard` / `identifySceneHazard` 直接返回 `hasHazard=false`），深度分析降级到 `/ai/gm` 端点。
+> **在线路由上下文**：`DetectionRouteContext` 根据 `placeCode` 有无决定在线调用策略——placeCode 缺失时跳过在线物品/环境检测，深度分析降级到 `/ai/gm`。该规则不适用于 `localTriger`；本地触发不再依赖 `placeCode`。
 
 ```mermaid
 sequenceDiagram
@@ -210,7 +216,7 @@ sequenceDiagram
     AI->>AI: 进入 STREAM_RESPONSE(DESCRIPTION)
 ```
 
-### 3.3 核心链路：本地 NCNN 推理（fallback）
+### 3.3 核心链路：本地 NCNN 推理（fallback / localTriger 主链路）
 
 ```mermaid
 sequenceDiagram
@@ -220,7 +226,11 @@ sequenceDiagram
     participant Native as yolov8ncnn.cpp
     participant Dedup as LocalHazardResultDeduper
 
-    Decider->>Decider: 远端连续失败达阈值
+    alt localTriger
+        Decider->>Decider: LOCAL_ONLY，忽略真实网络状态
+    else 在线变体 fallback
+        Decider->>Decider: 远端连续失败达阈值
+    end
     Decider->>Session: loadModel()
     Session->>JNI: loadModel(param, bin)
     JNI->>Native: ncnn::Extractor + GPU Vulkan
@@ -233,6 +243,9 @@ sequenceDiagram
 ```
 
 ### 3.4 核心链路：隐患上传 -> 手机端同步
+
+> `localTriger` 不进入本链路：企业巡检开关和业务网络总闸同时禁止
+> `pushHidDanger` 与 `pushHidDangerEnd`，网络恢复也不会改变该权限。
 
 ```mermaid
 sequenceDiagram
@@ -337,6 +350,7 @@ sequenceDiagram
 | R6 | **input/ 的 HEAD_GESTURE_LISTENING_ENABLED 当前全局关闭**，不要在生产代码中重新开启 | 头部手势尚未充分验证稳定性，误触发会干扰用户体验 |
 | R7 | **上传前必须按 hidNum 去重，跳过空 hidNum** | `LocalHazardUploadItemBuilder.build()` 的职责，防止重复推送和空数据浪费带宽 |
 | R8 | **Launcher 可见性配置必须可重复提交，不能只在 SDK 首次就绪时执行一次** | 重新佩戴亮屏后 Launcher 与手机侧会重新下发默认配置，需由亮屏延迟任务覆盖 |
+| R9 | **`localTriger` 必须保持 `OFFLINE_LOCAL + LOCAL_ONLY`，空 placeCode 仍执行本地识别** | 跳过企业扫码后没有场景码；统一网络总闸保证 Wi-Fi 状态不能改变离线语义 |
 
 ---
 
@@ -356,6 +370,7 @@ sequenceDiagram
 | 隐患白名单 | 16 类预定义隐患类别（燃气灶、灭火器、消火栓、电动车等） | hiddenrisk, jni |
 | Dedup 去重 | 本地推理结果基于类别+位置消重，避免同一物体重复报警 | hiddenrisk |
 | 风味覆盖 | Gradle flavor 机制，不同构建变体可覆盖配置项 | config |
+| OFFLINE_LOCAL | 应用业务完全离线策略；跳过 Wi-Fi/企业入口并阻断所有 HTTP/SSE | config, network, hiddenrisk |
 | Vulkan | Android GPU 计算 API，NCNN 使用 Vulkan 后端进行端侧推理加速 | jni |
 
 ---
@@ -375,6 +390,7 @@ sequenceDiagram
 | 修改上传重试策略 | `hiddenrisk/InspectionRetryExecutor.kt` | hiddenrisk/README.md |
 | 新增可复用 UI 组件 | `component/` 目录，参考 `GlassStatusBar.kt` 或 `BottomPromptView.kt` | component/CLAUDE.md |
 | 添加运行时配置项 | `config/InspectionAppConfig.kt` (字段) + `assets/inspection_config.base.jsonc` (默认值) | config/CLAUDE.md |
+| 调整 localTriger 离线策略 | `assets/inspection_config.localTriger.jsonc` + `InspectionFeatureFlags.kt` + `network/InspectionNetworkAccessPolicy.kt` | hiddenrisk/README.md |
 | 修改 QR 码解析格式 | `workflow/InspectionWorkflowSession.kt` 中 `updateEnterpriseFromQr()` | workflow/CLAUDE.md |
 | 调试 NCNN 推理问题 | `hiddenrisk/HiddenRiskProbeActivity.kt` (探针页) + adb logcat 过滤 `detect ` | hiddenrisk/README.md |
 | App 版本更新流程 | `updater/AppUpdateManager.kt` (入口) + `updater/AppUpdatePromptActivity.kt` (UI) | 见源码注释 |

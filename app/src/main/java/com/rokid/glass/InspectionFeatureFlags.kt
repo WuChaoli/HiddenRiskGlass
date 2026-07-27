@@ -1,6 +1,7 @@
 package com.rokid.glass
 
 import com.rokid.glass.config.InspectionConfigRepository
+import com.rokid.glass.config.NetworkAccessMode
 
 /**
  * 巡检链路特性开关。
@@ -10,4 +11,12 @@ object InspectionFeatureFlags {
     fun isEnterpriseInspectionFlowEnabled(): Boolean {
         return InspectionConfigRepository.get().featureFlags.enableEnterpriseInspectionFlow
     }
+
+    fun isOfflineLocalMode(): Boolean {
+        return InspectionConfigRepository.get().featureFlags.networkAccessMode == NetworkAccessMode.OFFLINE_LOCAL
+    }
+
+    fun isBusinessNetworkAllowed(): Boolean = !isOfflineLocalMode()
+
+    fun isWifiEntryGuardRequired(): Boolean = !isOfflineLocalMode()
 }

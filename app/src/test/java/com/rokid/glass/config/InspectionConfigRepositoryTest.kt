@@ -8,6 +8,48 @@ import org.junit.Test
 class InspectionConfigRepositoryTest {
 
     @Test
+    fun `network access defaults to online`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = null,
+            overlayJsonc = null,
+        )
+
+        assertEquals(NetworkAccessMode.ONLINE, config.featureFlags.networkAccessMode)
+    }
+
+    @Test
+    fun `offline local overlay disables enterprise and remote routes`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = "{}",
+            overlayJsonc = """
+                {
+                  "featureFlags": {
+                    "enableEnterpriseInspectionFlow": false,
+                    "networkAccessMode": "OFFLINE_LOCAL"
+                  },
+                  "aiInspection": {
+                    "autoInferenceMode": "LOCAL_ONLY",
+                    "autoHazardRoutingMode": "LOCAL_ONLY",
+                    "autoDetectProvider": "LOCAL_TRIGGER",
+                    "enableOnlineSceneHazardDetection": false,
+                    "forceOnlineDetailForLocalHazard": false,
+                    "forceLocalHazardDetailAnalysis": true
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertFalse(config.featureFlags.enableEnterpriseInspectionFlow)
+        assertEquals(NetworkAccessMode.OFFLINE_LOCAL, config.featureFlags.networkAccessMode)
+        assertEquals(AutoInferenceMode.LOCAL_ONLY, config.aiInspection.autoInferenceMode)
+        assertEquals(AutoHazardRoutingMode.LOCAL_ONLY, config.aiInspection.autoHazardRoutingMode)
+        assertEquals(AutoDetectProvider.LOCAL_TRIGGER, config.aiInspection.autoDetectProvider)
+        assertFalse(config.aiInspection.enableOnlineSceneHazardDetection)
+        assertFalse(config.aiInspection.forceOnlineDetailForLocalHazard)
+        assertTrue(config.aiInspection.forceLocalHazardDetailAnalysis)
+    }
+
+    @Test
     fun `auto detect provider defaults to HTTP`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = null,

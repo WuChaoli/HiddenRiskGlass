@@ -34,6 +34,7 @@ data/
 
 # Qoder
 .qoder/
+.opencode/
 
 # Superpowers cache
 .superpowers/

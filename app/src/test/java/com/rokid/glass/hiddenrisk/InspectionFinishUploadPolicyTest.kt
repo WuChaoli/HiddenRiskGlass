@@ -5,6 +5,33 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class InspectionFinishUploadPolicyTest {
-    @Test fun offlineDoesNotEnqueueFinish() = assertFalse(InspectionFinishUploadPolicy.canEnqueue(false))
-    @Test fun recoveredNetworkAllowsFinish() = assertTrue(InspectionFinishUploadPolicy.canEnqueue(true))
+    @Test
+    fun offlineDoesNotEnqueueFinish() {
+        assertFalse(
+            InspectionFinishUploadPolicy.canEnqueue(
+                networkAvailable = false,
+                businessNetworkAllowed = true,
+            ),
+        )
+    }
+
+    @Test
+    fun offlineLocalNeverEnqueuesFinishAfterNetworkRecovery() {
+        assertFalse(
+            InspectionFinishUploadPolicy.canEnqueue(
+                networkAvailable = true,
+                businessNetworkAllowed = false,
+            ),
+        )
+    }
+
+    @Test
+    fun onlineModeWithNetworkAllowsFinish() {
+        assertTrue(
+            InspectionFinishUploadPolicy.canEnqueue(
+                networkAvailable = true,
+                businessNetworkAllowed = true,
+            ),
+        )
+    }
 }
