@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.rokid.glass.hiddenrisk.RokidSdkManager
+import com.rokid.glass.network.InspectionNetworkAccessPolicy
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -199,6 +200,7 @@ class AppUpdateManager(
 
         private val defaultHttpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
+                .addInterceptor(InspectionNetworkAccessPolicy.interceptor)
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .writeTimeout(10, TimeUnit.SECONDS)

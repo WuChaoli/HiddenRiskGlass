@@ -50,10 +50,6 @@ internal class LocalTriggerDetectionService(
         infoLogger(
             "timing trace=$traceLabel phase=request_start requestId=${request.requestId} jpegBytes=${request.jpegBytes.size} placeCodePresent=${placeCode.isNotBlank()}",
         )
-        if (placeCode.isBlank()) {
-            postSuccess(handle, callback, hasHazard = false, fullText = "", labels = emptyList())
-            return handle
-        }
         val decodeStartedAtMs = elapsedRealtimeProvider()
         val bitmap = bitmapDecoder(request.jpegBytes)
         val decodeMs = elapsedRealtimeProvider() - decodeStartedAtMs

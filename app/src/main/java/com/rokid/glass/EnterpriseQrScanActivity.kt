@@ -26,10 +26,10 @@ import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.GlassStatusBarUpdater
 import com.rokid.glass.component.RokidCameraPreviewView
-import com.rokid.glass.hiddenrisk.AiInspectionActivity
 import com.rokid.glass.hiddenrisk.BaseGlassActivity
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
+import com.rokid.glass.hiddenrisk.InspectionLoadingActivity
 import com.rokid.glass.input.GlassesWearStateMachine
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.OfflineTtsPlayer
@@ -203,7 +203,12 @@ class EnterpriseQrScanActivity : BaseGlassActivity() {
     }
 
     private fun navigateDirectlyToInspection() {
-        startActivity(Intent(this, AiInspectionActivity::class.java))
+        startActivity(Intent(this, InspectionLoadingActivity::class.java).apply {
+            putExtra(
+                InspectionLoadingActivity.EXTRA_NEXT_HOME_ACTIVITY,
+                AiInspectionMenuActivity::class.java.name,
+            )
+        })
         finish()
     }
 

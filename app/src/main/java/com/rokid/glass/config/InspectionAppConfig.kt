@@ -15,7 +15,13 @@ data class InspectionAppConfig(
 
 data class FeatureFlagsConfig(
     val enableEnterpriseInspectionFlow: Boolean = true,
+    val networkAccessMode: NetworkAccessMode = NetworkAccessMode.ONLINE,
 )
+
+enum class NetworkAccessMode {
+    ONLINE,
+    OFFLINE_LOCAL,
+}
 
 data class EnterpriseScanConfig(
     val scanIntervalMs: Long = 800L,
@@ -207,6 +213,7 @@ data class InspectionAppConfigOverride(
 
 data class FeatureFlagsConfigOverride(
     val enableEnterpriseInspectionFlow: Boolean? = null,
+    val networkAccessMode: NetworkAccessMode? = null,
 )
 
 data class EnterpriseScanConfigOverride(

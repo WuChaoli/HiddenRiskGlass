@@ -47,26 +47,44 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
 
     private val menuAdapter by lazy {
         MenuCardAdapter(
-            cards = listOf(
-                MenuCardAdapter.MenuCardData(
-                    iconResId = R.drawable.ic_menu_ai_analysis,
-                    labelResId = R.string.ai_entry_menu_analysis,
-                    pinyinResId = R.string.ai_entry_menu_analysis_pinyin,
-                    onClick = { startHazardAnalysis() },
-                ),
-                MenuCardAdapter.MenuCardData(
-                    iconResId = R.drawable.ic_menu_device_guide,
-                    labelResId = R.string.ai_entry_menu_guide,
-                    pinyinResId = R.string.ai_entry_menu_guide_pinyin,
-                    onClick = { startDeviceGuide() },
-                ),
-                MenuCardAdapter.MenuCardData(
-                    iconResId = R.drawable.ic_menu_hazard_record,
-                    labelResId = R.string.ai_entry_menu_record,
-                    pinyinResId = R.string.ai_entry_menu_record_pinyin,
-                    onClick = { startActivity(Intent(this@AiInspectionMenuActivity, HazardRecordActivity::class.java)) },
-                ),
-            ),
+            cards = buildList {
+                add(
+                    MenuCardAdapter.MenuCardData(
+                        iconResId = R.drawable.ic_menu_ai_analysis,
+                        labelResId = R.string.ai_entry_menu_analysis,
+                        pinyinResId = R.string.ai_entry_menu_analysis_pinyin,
+                        onClick = { startHazardAnalysis() },
+                    ),
+                )
+                val offlineLocal = InspectionFeatureFlags.isOfflineLocalMode()
+                if (OfflineLocalUiPolicy.showsDeviceGuide(offlineLocal)) {
+                    add(
+                        MenuCardAdapter.MenuCardData(
+                            iconResId = R.drawable.ic_menu_device_guide,
+                            labelResId = R.string.ai_entry_menu_guide,
+                            pinyinResId = R.string.ai_entry_menu_guide_pinyin,
+                            onClick = { startDeviceGuide() },
+                        ),
+                    )
+                }
+                if (OfflineLocalUiPolicy.showsHazardRecord(offlineLocal)) {
+                    add(
+                        MenuCardAdapter.MenuCardData(
+                            iconResId = R.drawable.ic_menu_hazard_record,
+                            labelResId = R.string.ai_entry_menu_record,
+                            pinyinResId = R.string.ai_entry_menu_record_pinyin,
+                            onClick = {
+                                startActivity(
+                                    Intent(
+                                        this@AiInspectionMenuActivity,
+                                        HazardRecordActivity::class.java,
+                                    ),
+                                )
+                            },
+                        ),
+                    )
+                }
+            },
         )
     }
 
@@ -129,9 +147,14 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private fun runEntryGuards() {
         if (entryGuardNavigating || exitConfirmDialogVisible) return
 
+        val requiresEnterpriseContext =
+            EntryGuardPolicy.requiresEnterpriseContext(InspectionFeatureFlags.isOfflineLocalMode())
         if (
-            InspectionWorkflowSession.enterpriseQrPayload == null ||
-            InspectionWorkflowSession.enterpriseInfo == null
+            requiresEnterpriseContext &&
+            (
+                InspectionWorkflowSession.enterpriseQrPayload == null ||
+                    InspectionWorkflowSession.enterpriseInfo == null
+            )
         ) {
             entryGuardNavigating = true
             startEnterpriseQrScan(forceScan = false)
@@ -253,17 +276,19 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
                     onTrigger = { startEndReport() },
                 ),
             )
-            // 非卡片语音指令：检查扫码（手动注册）
-            add(
-                UnifiedInputSession.InputActionSpec(
-                    id = UnifiedInputSession.InputActionId("ai_menu_scan"),
-                    label = "检查扫码",
-                    triggers = listOf(
-                        UnifiedInputSession.InputTrigger.Voice("检查扫码", "jian cha sao ma"),
+            if (!InspectionFeatureFlags.isOfflineLocalMode()) {
+                // 非卡片语音指令：检查扫码（手动注册）
+                add(
+                    UnifiedInputSession.InputActionSpec(
+                        id = UnifiedInputSession.InputActionId("ai_menu_scan"),
+                        label = "检查扫码",
+                        triggers = listOf(
+                            UnifiedInputSession.InputTrigger.Voice("检查扫码", "jian cha sao ma"),
+                        ),
+                        onTrigger = { startEnterpriseQrScan(forceScan = true) },
                     ),
-                    onTrigger = { startEnterpriseQrScan(forceScan = true) },
-                ),
-            )
+                )
+            }
         }
     }
 

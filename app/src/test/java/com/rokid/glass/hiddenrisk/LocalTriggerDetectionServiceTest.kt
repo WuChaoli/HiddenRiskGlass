@@ -15,15 +15,14 @@ class LocalTriggerDetectionServiceTest {
     }
 
     @Test
-    fun detectSkipsWithoutPlaceCodeAndDoesNotUseCoordinator() {
-        val coordinator = FakeCoordinator()
+    fun detectRunsCoordinatorWithoutPlaceCode() {
+        val coordinator = FakeCoordinator(successOutcome("燃气灶"))
         val events = mutableListOf<String>()
-        val service = createService(coordinator, decoder = { error("decoder should not run") })
 
-        service.detect(detectionRequest(), callback(events))
+        createService(coordinator).detect(detectionRequest(), callback(events))
 
-        assertEquals(listOf("success:false:"), events)
-        assertTrue(coordinator.bitmaps.isEmpty())
+        assertEquals(listOf(FakeBitmapToken), coordinator.bitmaps)
+        assertEquals(listOf("success:true:燃气灶"), events)
     }
 
     @Test

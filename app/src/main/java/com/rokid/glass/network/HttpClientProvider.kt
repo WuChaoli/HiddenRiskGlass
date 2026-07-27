@@ -15,6 +15,7 @@ object HttpClientProvider {
     /** 巡检 API 客户端（30s 超时，连接池复用） */
     val inspectionClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .addInterceptor(InspectionNetworkAccessPolicy.interceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
@@ -25,6 +26,7 @@ object HttpClientProvider {
     /** SSE 长连接客户端（无读超时，适合 EventSource 和长时间 HTTP 回退） */
     val sseClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
+            .addInterceptor(InspectionNetworkAccessPolicy.interceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(0, TimeUnit.MILLISECONDS) // SSE 无超时
             .retryOnConnectionFailure(true)

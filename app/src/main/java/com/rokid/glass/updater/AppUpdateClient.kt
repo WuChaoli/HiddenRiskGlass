@@ -2,6 +2,7 @@ package com.rokid.glass.updater
 
 import android.util.Log
 import com.google.gson.Gson
+import com.rokid.glass.network.InspectionNetworkAccessPolicy
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -88,6 +89,7 @@ class AppUpdateClient(
 
         private val defaultHttpClient: OkHttpClient by lazy {
             OkHttpClient.Builder()
+                .addInterceptor(InspectionNetworkAccessPolicy.interceptor)
                 .connectTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.SECONDS)
                 .writeTimeout(10, TimeUnit.SECONDS)

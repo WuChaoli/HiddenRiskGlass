@@ -1,7 +1,16 @@
 {
+  "featureFlags": {
+    "enableEnterpriseInspectionFlow": false,
+    "networkAccessMode": "OFFLINE_LOCAL"
+  },
   "aiInspection": {
+    "autoInferenceMode": "LOCAL_ONLY",
+    "autoHazardRoutingMode": "LOCAL_ONLY",
     "autoDetectProvider": "LOCAL_TRIGGER",
     "onlineDetectIntervalMs": 1000,
-    "onlineDetectConcurrencyLimit": 1
+    "onlineDetectConcurrencyLimit": 1,
+    "enableOnlineSceneHazardDetection": false,
+    "forceOnlineDetailForLocalHazard": false,
+    "forceLocalHazardDetailAnalysis": true
   }
 }
