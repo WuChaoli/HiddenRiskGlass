@@ -9,6 +9,7 @@ Rokid AR 眼镜 Android 应用（"基层应消"），具备 AI 隐患检测功�
 - 包名/applicationId：`com.rokid.glesse`
 - 技术栈：Kotlin + C++ (JNI)
 - 版本：`2.0.9`
+- 内部权威 Git 仓库：`http://192.168.1.232:3000/ai/glassdemo.git`；内部 PR 从同名功能分支发起到 `master`
 
 ## 显示设计基线
 
