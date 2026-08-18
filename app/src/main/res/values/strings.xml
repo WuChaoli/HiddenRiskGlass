@@ -130,6 +130,7 @@
     <string name="unified_input_debug_hint_gesture_only">GESTURE_ONLY: 仅保留确认、取消。再触发一次确认可切回 FULL。</string>
     <string name="raw_camera_debug_title">原始相机输出诊断</string>
     <string name="raw_camera_debug_hint">单击切换对照模式，双击退出</string>
+    <string name="alignment_calibration_hint">单击切换 X/Y/缩放，前后滑动调整，双击退出</string>
     <string name="raw_camera_debug_starting">正在初始化相机...</string>
     <string name="raw_camera_debug_failed">相机初始化失败</string>
     <string name="raw_camera_debug_surface_label">SDK Surface 中心方图</string>

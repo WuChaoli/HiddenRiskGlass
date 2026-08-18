@@ -7,8 +7,10 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.Gravity
+import android.view.PixelCopy
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -24,6 +26,8 @@ import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator.CameraOwner
 import com.rokid.glass.utils.BitmapUtils
 import com.rokid.glass.utils.dpToPx
 import com.rokid.glesse.R
+import okhttp3.Call
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -59,6 +63,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         SURFACE_SQUARE_DIRECT,
         SURFACE_SQUARE_FITTED,
         SURFACE_SQUARE_TRANSPOSED,
+        ALIGNMENT_CALIBRATION,
     }
 
     private lateinit var previewViewport: FrameLayout
@@ -69,6 +74,9 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private lateinit var compareNv21Preview: RokidDemoNv21PreviewView
     private lateinit var nv21Preview: ImageView
     private lateinit var diagnostics: TextView
+    private lateinit var hint: TextView
+    private lateinit var alignmentGuide: View
+    private lateinit var alignmentDetectionOverlay: AlignmentDetectionOverlayView
     private val uiHandler = Handler(Looper.getMainLooper())
     private val bitmapExecutor = Executors.newSingleThreadExecutor()
     private val nv21ConversionPending = AtomicBoolean(false)
@@ -84,12 +92,26 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private var lastCandidateCropSummary: String? = null
     private var diagnosticsLogged = false
     private var displayedBitmap: Bitmap? = null
+    private var dominantEye = DominantEye.RIGHT
+    private var calibrationState = AlignmentCalibrationState()
+    private val alignmentDetectionClient = AlignmentAutoDetectionClient()
+    private val inferenceImageSize = AlignmentInferenceImageSize.fromWidth(DEFAULT_INFERENCE_IMAGE_WIDTH)
+    private var activeDetectionCall: Call? = null
+    private var activeDetectionRequestId = 0L
+    private var nextDetectionRequestId = 0L
+    private var detectionRequestInFlight = false
+    private var lastDetectionStartedMs = 0L
+    private var detectionStatus = "等待相机"
+
+    private val detectionLoopRunnable = Runnable { beginAlignmentDetectionCycle() }
 
     private val refreshRunnable = object : Runnable {
         override fun run() {
             if (!resumed) return
             refreshDiagnostics()
-            updateSquareCandidate()
+            if (mode.isSurfaceSquareCandidate()) {
+                updateSquareCandidate()
+            }
             if (mode == DisplayMode.NV21_RAW || mode == DisplayMode.NV21_SQUARE_BASELINE) {
                 renderLatestNv21()
             }
@@ -109,8 +131,21 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         compareNv21Preview = findViewById(R.id.viewCompareNv21Preview)
         nv21Preview = findViewById(R.id.imageRawNv21Preview)
         diagnostics = findViewById(R.id.textRawCameraDiagnostics)
+        hint = findViewById(R.id.textRawCameraHint)
+        alignmentGuide = findViewById(R.id.layoutAlignmentGuide)
+        alignmentDetectionOverlay = findViewById(R.id.viewAlignmentDetectionOverlay)
+        dominantEye = parseDominantEye(intent?.getStringExtra(EXTRA_DOMINANT_EYE))
+        calibrationState = resolveCalibrationState(dominantEye)
         surfacePreview.setPreviewRenderMode(RokidCameraPreviewView.PreviewRenderMode.RAW_ASPECT_FIT)
         demoSurfacePreview.setCenterSquareCropEnabled(false)
+        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+            demoSurfacePreview.setPreviewConfig(
+                width = ALIGNMENT_CAMERA_WIDTH,
+                height = ALIGNMENT_CAMERA_HEIGHT,
+                targetFps = ALIGNMENT_CAMERA_FPS,
+                zoomLevel = ALIGNMENT_CAMERA_ZOOM_LEVEL,
+            )
+        }
         compareSurfacePreview.setCenterSquareCropEnabled(true)
         RokidSdkManager.initialize(application as Application)
         RokidSdkManager.addListener(this)
@@ -124,9 +159,26 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             MODE_SURFACE_RAW -> DisplayMode.SURFACE_RAW
             MODE_SURFACE_VALIDATED_CENTER -> DisplayMode.SURFACE_VALIDATED_CENTER
             MODE_SURFACE_BOTTOM_SQUARE -> DisplayMode.SURFACE_BOTTOM_SQUARE
+            MODE_ALIGNMENT_CALIBRATION -> DisplayMode.ALIGNMENT_CALIBRATION
             else -> DisplayMode.SDK_DEMO_COMPARE
         }
     }
+
+    private fun resolveCalibrationState(eye: DominantEye): AlignmentCalibrationState {
+        val defaults = AlignmentCalibrationPreset.forEye(eye)
+        return defaults.copy(
+            scale = numberExtra(EXTRA_SCALE)?.coerceAtLeast(AlignmentCalibrationState.MIN_SCALE) ?: defaults.scale,
+            offsetX = numberExtra(EXTRA_OFFSET_X) ?: defaults.offsetX,
+            offsetY = numberExtra(EXTRA_OFFSET_Y) ?: defaults.offsetY,
+            alpha = (numberExtra(EXTRA_ALPHA) ?: defaults.alpha).coerceIn(0f, 1f),
+            translationStep = numberExtra(EXTRA_TRANSLATION_STEP)?.takeIf { it > 0f }
+                ?: defaults.translationStep,
+            scaleStep = numberExtra(EXTRA_SCALE_STEP)?.takeIf { it > 0f } ?: defaults.scaleStep,
+        )
+    }
+
+    @Suppress("DEPRECATION")
+    private fun numberExtra(name: String): Float? = (intent?.extras?.get(name) as? Number)?.toFloat()
 
     override fun onResume() {
         super.onResume()
@@ -137,8 +189,12 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     }
 
     override fun onPause() {
+        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+            logAlignmentResult("pause")
+        }
         resumed = false
         uiHandler.removeCallbacks(refreshRunnable)
+        cancelAlignmentDetectionLoop()
         cameraAcquiring = false
         cameraReady = false
         demoSurfacePreview.stopDemoPreview()
@@ -150,6 +206,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
 
     override fun onDestroy() {
         uiHandler.removeCallbacksAndMessages(null)
+        cancelAlignmentDetectionLoop()
         RokidSdkManager.removeListener(this)
         demoSurfacePreview.stopDemoPreview()
         compareSurfacePreview.stopDemoPreview()
@@ -170,6 +227,20 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+            val updated = when (keyEvent) {
+                GlassKeyEvent.KEYCODE_CLICK -> calibrationState.selectNextControl()
+                GlassKeyEvent.KEYCODE_FRONT -> calibrationState.adjust(AdjustmentDirection.DECREASE)
+                GlassKeyEvent.KEYCODE_BEHIND -> calibrationState.adjust(AdjustmentDirection.INCREASE)
+                else -> null
+            }
+            if (updated != null) {
+                calibrationState = updated
+                applyAlignmentCalibration(logResult = true)
+                return true
+            }
+            return super.onGlassKeyEvent(keyEvent)
+        }
         if (keyEvent == GlassKeyEvent.KEYCODE_CLICK) {
             mode = when (mode) {
                 DisplayMode.SDK_DEMO_COMPARE -> DisplayMode.SURFACE_DEMO_RAW
@@ -182,6 +253,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 DisplayMode.SURFACE_SQUARE_DIRECT -> DisplayMode.SURFACE_SQUARE_FITTED
                 DisplayMode.SURFACE_SQUARE_FITTED -> DisplayMode.SURFACE_SQUARE_TRANSPOSED
                 DisplayMode.SURFACE_SQUARE_TRANSPOSED -> DisplayMode.SDK_DEMO_COMPARE
+                DisplayMode.ALIGNMENT_CALIBRATION -> DisplayMode.ALIGNMENT_CALIBRATION
             }
             applyDisplayMode()
             refreshDiagnostics()
@@ -209,7 +281,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             startDemoCompareWhenReady()
             return
         }
-        if (mode == DisplayMode.SURFACE_DEMO_RAW) {
+        if (mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION) {
             startDemoSurfaceWhenReady()
             return
         }
@@ -252,6 +324,9 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 cameraReady = success
                 if (!success) {
                     diagnostics.setText(R.string.raw_camera_debug_failed)
+                } else if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                    applyAlignmentCalibration(logResult = false)
+                    scheduleNextAlignmentDetection()
                 }
                 Log.i(TAG, "demo surface camera ready success=$success")
             }
@@ -318,12 +393,16 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         }
         previewViewport.visibility = if (mode == DisplayMode.SDK_DEMO_COMPARE) View.GONE else View.VISIBLE
         demoCompareLayout.visibility = if (mode == DisplayMode.SDK_DEMO_COMPARE) View.VISIBLE else View.GONE
-        demoSurfacePreview.visibility = if (mode == DisplayMode.SURFACE_DEMO_RAW) {
+        demoSurfacePreview.visibility = if (
+            mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION
+        ) {
             View.VISIBLE
         } else {
             View.GONE
         }
-        surfacePreview.visibility = if (mode == DisplayMode.SURFACE_DEMO_RAW) {
+        surfacePreview.visibility = if (
+            mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION
+        ) {
             View.GONE
         } else {
             View.VISIBLE
@@ -335,6 +414,17 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         } else {
             View.GONE
         }
+        alignmentGuide.visibility = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) View.VISIBLE else View.GONE
+        alignmentDetectionOverlay.visibility = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) View.VISIBLE else View.GONE
+        hint.setText(
+            if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                R.string.alignment_calibration_hint
+            } else {
+                R.string.raw_camera_debug_hint
+            },
+        )
+        surfacePreview.alpha = 1f
+        demoSurfacePreview.alpha = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) calibrationState.alpha else 1f
         surfacePreview.setPreviewRenderMode(
             when (mode) {
                 DisplayMode.SURFACE_VALIDATED_CENTER -> RokidCameraPreviewView.PreviewRenderMode.AUTO_SURFACE_SQUARE
@@ -342,12 +432,15 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 DisplayMode.SURFACE_SQUARE_DIRECT,
                 DisplayMode.SURFACE_SQUARE_FITTED,
                 DisplayMode.SURFACE_SQUARE_TRANSPOSED,
+                DisplayMode.ALIGNMENT_CALIBRATION,
                 -> RokidCameraPreviewView.PreviewRenderMode.DEBUG_TEXTURE_CROP_FILL
                 else -> RokidCameraPreviewView.PreviewRenderMode.RAW_ASPECT_FIT
             },
         )
         if (mode.isSurfaceSquareCandidate()) {
             updateSquareCandidate(forceApply = true)
+        } else if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+            applyAlignmentCalibration(logResult = false)
         }
         lastNv21Timestamp = 0L
         compareSurfaceResult = null
@@ -357,11 +450,209 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         startCameraWhenReady()
     }
 
+    private fun applyAlignmentCalibration(logResult: Boolean) {
+        val (surfaceWidth, surfaceHeight) = alignmentSurfaceSize()
+        val crop = calibrationState.normalizedSurfaceCrop(surfaceWidth, surfaceHeight)
+        demoSurfacePreview.alpha = calibrationState.alpha
+        demoSurfacePreview.setCustomTextureCrop(crop.left, crop.top, crop.width, crop.height)
+        refreshDiagnostics()
+        if (logResult) {
+            logAlignmentResult("adjust")
+        }
+    }
+
+    private fun beginAlignmentDetectionCycle() {
+        if (!resumed || mode != DisplayMode.ALIGNMENT_CALIBRATION || !cameraReady || detectionRequestInFlight) return
+        val cadenceDelay = AlignmentDetectionCadence.nextDelayMs(
+            nowMs = SystemClock.elapsedRealtime(),
+            lastStartedMs = lastDetectionStartedMs,
+            requestInFlight = detectionRequestInFlight,
+        ) ?: return
+        if (cadenceDelay > 0L) {
+            uiHandler.postDelayed(detectionLoopRunnable, cadenceDelay)
+            return
+        }
+        val sourceWidth = demoSurfacePreview.width
+        val sourceHeight = demoSurfacePreview.height
+        if (sourceWidth <= 0 || sourceHeight <= 0) {
+            detectionStatus = "等待预览尺寸"
+            uiHandler.postDelayed(detectionLoopRunnable, CAPTURE_RETRY_DELAY_MS)
+            return
+        }
+        detectionRequestInFlight = true
+        detectionStatus = "正在截取画面"
+        val captured = Bitmap.createBitmap(sourceWidth, sourceHeight, Bitmap.Config.ARGB_8888)
+        PixelCopy.request(
+            demoSurfacePreview,
+            captured,
+            { result ->
+                if (result != PixelCopy.SUCCESS || !isAlignmentDetectionActive()) {
+                    captured.recycle()
+                    finishCaptureFailure("截帧失败 code=$result")
+                    return@request
+                }
+                encodeAndSubmitAlignmentFrame(captured)
+            },
+            uiHandler,
+        )
+    }
+
+    private fun encodeAndSubmitAlignmentFrame(captured: Bitmap) {
+        bitmapExecutor.execute {
+            val jpegBytes = runCatching {
+                val cropped = centerCropThreeByFour(captured)
+                val scaled = Bitmap.createScaledBitmap(
+                    cropped,
+                    inferenceImageSize.width,
+                    inferenceImageSize.height,
+                    true,
+                )
+                ByteArrayOutputStream().use { output ->
+                    check(scaled.compress(Bitmap.CompressFormat.JPEG, INFERENCE_JPEG_QUALITY, output))
+                    output.toByteArray()
+                }.also {
+                    if (scaled !== cropped) scaled.recycle()
+                    if (cropped !== captured) cropped.recycle()
+                }
+            }.getOrNull()
+            captured.recycle()
+            uiHandler.post {
+                if (jpegBytes == null || !isAlignmentDetectionActive()) {
+                    finishCaptureFailure("图像编码失败")
+                } else {
+                    submitAlignmentFrame(jpegBytes)
+                }
+            }
+        }
+    }
+
+    private fun centerCropThreeByFour(source: Bitmap): Bitmap {
+        val targetRatio = 3f / 4f
+        val sourceRatio = source.width.toFloat() / source.height.toFloat()
+        return if (sourceRatio > targetRatio) {
+            val cropWidth = (source.height * targetRatio).toInt().coerceAtLeast(1)
+            Bitmap.createBitmap(source, (source.width - cropWidth) / 2, 0, cropWidth, source.height)
+        } else if (sourceRatio < targetRatio) {
+            val cropHeight = (source.width / targetRatio).toInt().coerceAtLeast(1)
+            Bitmap.createBitmap(source, 0, (source.height - cropHeight) / 2, source.width, cropHeight)
+        } else {
+            source
+        }
+    }
+
+    private fun submitAlignmentFrame(jpegBytes: ByteArray) {
+        val requestId = ++nextDetectionRequestId
+        activeDetectionRequestId = requestId
+        lastDetectionStartedMs = SystemClock.elapsedRealtime()
+        detectionStatus = "识别中 ${jpegBytes.size / 1024}KB"
+        val timeoutRunnable = Runnable {
+            if (activeDetectionRequestId != requestId || !detectionRequestInFlight) return@Runnable
+            activeDetectionCall?.cancel()
+            completeAlignmentDetectionRequest(requestId, "超时，保留上一帧框")
+        }
+        activeDetectionCall = alignmentDetectionClient.detect(
+            jpegBytes = jpegBytes,
+            callback = object : AlignmentAutoDetectionClient.ResultCallback {
+                override fun onSuccess(response: AlignmentDetectionResponse) {
+                    uiHandler.post {
+                        if (activeDetectionRequestId != requestId || !detectionRequestInFlight) return@post
+                        uiHandler.removeCallbacks(timeoutRunnable)
+                        alignmentDetectionOverlay.showDetections(
+                            imageWidth = inferenceImageSize.width,
+                            imageHeight = inferenceImageSize.height,
+                            detections = response.detections,
+                        )
+                        Log.i(
+                            TAG,
+                            "AlignmentDetection success requestId=$requestId image=${inferenceImageSize.width}x${inferenceImageSize.height} detections=${response.detections}",
+                        )
+                        completeAlignmentDetectionRequest(requestId, "已更新 ${response.detections.size} 个框")
+                    }
+                }
+
+                override fun onFailure(message: String) {
+                    uiHandler.post {
+                        if (activeDetectionRequestId != requestId || !detectionRequestInFlight) return@post
+                        uiHandler.removeCallbacks(timeoutRunnable)
+                        Log.w(TAG, "AlignmentDetection failure requestId=$requestId message=$message")
+                        completeAlignmentDetectionRequest(requestId, "失败，保留上一帧框")
+                    }
+                }
+            },
+        )
+        uiHandler.postDelayed(timeoutRunnable, AlignmentDetectionCadence.REQUEST_TIMEOUT_MS)
+    }
+
+    private fun completeAlignmentDetectionRequest(requestId: Long, status: String) {
+        if (activeDetectionRequestId != requestId) return
+        activeDetectionCall = null
+        activeDetectionRequestId = 0L
+        detectionRequestInFlight = false
+        detectionStatus = status
+        scheduleNextAlignmentDetection()
+    }
+
+    private fun finishCaptureFailure(status: String) {
+        if (!detectionRequestInFlight) return
+        detectionRequestInFlight = false
+        detectionStatus = status
+        uiHandler.postDelayed(detectionLoopRunnable, CAPTURE_RETRY_DELAY_MS)
+    }
+
+    private fun scheduleNextAlignmentDetection() {
+        uiHandler.removeCallbacks(detectionLoopRunnable)
+        if (!isAlignmentDetectionActive()) return
+        val delay = AlignmentDetectionCadence.nextDelayMs(
+            nowMs = SystemClock.elapsedRealtime(),
+            lastStartedMs = lastDetectionStartedMs,
+            requestInFlight = detectionRequestInFlight,
+        ) ?: return
+        uiHandler.postDelayed(detectionLoopRunnable, delay)
+    }
+
+    private fun cancelAlignmentDetectionLoop() {
+        uiHandler.removeCallbacks(detectionLoopRunnable)
+        activeDetectionCall?.cancel()
+        activeDetectionCall = null
+        activeDetectionRequestId = 0L
+        detectionRequestInFlight = false
+    }
+
+    private fun isAlignmentDetectionActive(): Boolean {
+        return resumed && mode == DisplayMode.ALIGNMENT_CALIBRATION && cameraReady
+    }
+
+    private fun logAlignmentResult(reason: String) {
+        val (surfaceWidth, surfaceHeight) = alignmentSurfaceSize()
+        val reportedSize = demoSurfacePreview.cameraSize()
+        val crop = calibrationState.normalizedSurfaceCrop(surfaceWidth, surfaceHeight)
+        Log.i(
+            TAG,
+            "AlignmentCalibration result reason=$reason control=${calibrationState.control} " +
+                "eye=$dominantEye " +
+                "scale=${calibrationState.scale} offsetX=${calibrationState.offsetX} " +
+                "offsetY=${calibrationState.offsetY} alpha=${calibrationState.alpha} " +
+                "texture=${surfaceWidth}x$surfaceHeight reported=${reportedSize?.first}x${reportedSize?.second} " +
+                "zoomLevel=$ALIGNMENT_CAMERA_ZOOM_LEVEL " +
+                "crop=[${crop.left},${crop.top},${crop.width},${crop.height}]",
+        )
+    }
+
+    private fun alignmentSurfaceSize(): Pair<Int, Int> {
+        val reported = demoSurfacePreview.cameraSize()
+        return selectAlignmentTextureSize(
+            requestedWidth = ALIGNMENT_CAMERA_WIDTH,
+            requestedHeight = ALIGNMENT_CAMERA_HEIGHT,
+            reportedWidth = reported?.first ?: 0,
+            reportedHeight = reported?.second ?: 0,
+        )
+    }
+
     private fun stopInactivePreviewForMode() {
         if (mode == DisplayMode.SDK_DEMO_COMPARE) {
             demoSurfacePreview.stopDemoPreview()
             InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_switch_to_demo_compare")
-        } else if (mode == DisplayMode.SURFACE_DEMO_RAW) {
+        } else if (mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION) {
             compareSurfacePreview.stopDemoPreview()
             compareNv21Preview.stopDemoPreview()
             InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_switch_to_demo_surface")
@@ -469,6 +760,44 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         diagnostics.text = buildString {
             append("Mode: ")
             append(mode.name)
+            if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                val (alignmentWidth, alignmentHeight) = alignmentSurfaceSize()
+                val crop = calibrationState.normalizedSurfaceCrop(alignmentWidth, alignmentHeight)
+                append("  Control: ")
+                append(calibrationState.control.name)
+                append("  Eye: ")
+                append(dominantEye.name)
+                append("\nScale: ")
+                append("%.6f".format(calibrationState.scale))
+                append("  X: ")
+                append("%.1f".format(calibrationState.offsetX))
+                append("  Y: ")
+                append("%.1f".format(calibrationState.offsetY))
+                append("\nStep: ")
+                append("%.1fpx / %.4f".format(calibrationState.translationStep, calibrationState.scaleStep))
+                append("  Alpha: ")
+                append("%.2f".format(calibrationState.alpha))
+                append("\nView: ")
+                append(demoSurfacePreview.width)
+                append('x')
+                append(demoSurfacePreview.height)
+                append("  Surface: ")
+                append(alignmentWidth)
+                append('x')
+                append(alignmentHeight)
+                append("  Zoom: ")
+                append(ALIGNMENT_CAMERA_ZOOM_LEVEL)
+                append("\nCrop: [")
+                append("%.5f, %.5f, %.5f, %.5f".format(crop.left, crop.top, crop.width, crop.height))
+                append(']')
+                append("\nAI: ")
+                append(detectionStatus)
+                append("  Image: ")
+                append(inferenceImageSize.width)
+                append('x')
+                append(inferenceImageSize.height)
+                return@buildString
+            }
             if (mode == DisplayMode.SDK_DEMO_COMPARE) {
                 append("\n")
                 append(compareSurfacePreview.diagnosticsText())
@@ -545,6 +874,21 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         private const val MODE_SURFACE_RAW = "surface_raw"
         private const val MODE_SURFACE_VALIDATED_CENTER = "surface_validated_center"
         private const val MODE_SURFACE_BOTTOM_SQUARE = "surface_bottom_square"
+        private const val MODE_ALIGNMENT_CALIBRATION = "alignment_calibration"
+        private const val EXTRA_SCALE = "scale"
+        private const val EXTRA_OFFSET_X = "offsetX"
+        private const val EXTRA_OFFSET_Y = "offsetY"
+        private const val EXTRA_ALPHA = "alpha"
+        private const val EXTRA_TRANSLATION_STEP = "translationStep"
+        private const val EXTRA_SCALE_STEP = "scaleStep"
+        private const val EXTRA_DOMINANT_EYE = "dominantEye"
+        private const val ALIGNMENT_CAMERA_WIDTH = 3024
+        private const val ALIGNMENT_CAMERA_HEIGHT = 4032
+        private const val ALIGNMENT_CAMERA_FPS = 15
+        private const val ALIGNMENT_CAMERA_ZOOM_LEVEL = 1
+        private const val DEFAULT_INFERENCE_IMAGE_WIDTH = 960
+        private const val INFERENCE_JPEG_QUALITY = 82
+        private const val CAPTURE_RETRY_DELAY_MS = 200L
         private const val REFRESH_INTERVAL_MS = 300L
         private const val REQUEST_CAMERA_PERMISSION = 2011
         private const val SQUARE_VIEWPORT_SIZE_DP = 220

@@ -48,6 +48,22 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         requestRender()
     }
 
+    fun setPreviewConfig(
+        width: Int,
+        height: Int,
+        targetFps: Int,
+        zoomLevel: Int,
+    ) {
+        renderer.setPreviewConfig(width, height, targetFps, zoomLevel)
+    }
+
+    fun setCustomTextureCrop(left: Float, top: Float, width: Float, height: Float) {
+        renderer.setCustomTextureCrop(left, top, width, height)
+        requestRender()
+    }
+
+    fun cameraSize(): Pair<Int, Int>? = renderer.cameraSize()
+
     fun stopDemoPreview() {
         val latch = CountDownLatch(1)
         queueEvent {
@@ -114,6 +130,12 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         private var surfaceActive = false
 
         @Volatile
+        private var previewConfig = PreviewConfig()
+
+        @Volatile
+        private var customTextureCrop: TextureCrop? = null
+
+        @Volatile
         private var matrixSummary = "-"
 
         @Volatile
@@ -153,7 +175,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
                 firstDrawLogged = true
                 Log.i(
                     TAG,
-                    "first demo preview draw textureId=$textureId roi=${if (centerSquareCropEnabled) "center_1080" else "raw"} matrix=$matrixSummary",
+                    "first demo preview draw textureId=$textureId roi=${roiSummary()} matrix=$matrixSummary",
                 )
             }
 
@@ -168,7 +190,16 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             GLES20.glEnableVertexAttribArray(texCoordHandle)
 
             GLES20.glUniformMatrix4fv(matrixHandle, 1, false, matrix, 0)
-            if (centerSquareCropEnabled) {
+            val customCrop = customTextureCrop
+            if (customCrop != null) {
+                GLES20.glUniform4f(
+                    cropRectHandle,
+                    customCrop.left,
+                    customCrop.top,
+                    customCrop.width,
+                    customCrop.height,
+                )
+            } else if (centerSquareCropEnabled) {
                 GLES20.glUniform4f(cropRectHandle, CENTER_CROP_LEFT, 0f, CENTER_CROP_WIDTH, 1f)
             } else {
                 GLES20.glUniform4f(cropRectHandle, 0f, 0f, 1f, 1f)
@@ -208,12 +239,13 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             zoomLevel = 0
             matrixSummary = "-"
 
+            val requestedConfig = previewConfig
             val config = CameraShareConfig(
-                previewWidth = 1920,
-                previewHeight = 1080,
-                previewTargetFps = 15,
+                previewWidth = requestedConfig.width,
+                previewHeight = requestedConfig.height,
+                previewTargetFps = requestedConfig.targetFps,
                 enableVideoStabilization = false,
-                zoomLevel = 1,
+                zoomLevel = requestedConfig.zoomLevel,
             )
             helper.initSurfaceWithConfig(config, object : CameraShareHelper.SurfaceCallback {
                     override fun onCameraOpened(width: Int, height: Int) {
@@ -269,6 +301,20 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             centerSquareCropEnabled = enabled
         }
 
+        fun setPreviewConfig(width: Int, height: Int, targetFps: Int, zoomLevel: Int) {
+            check(!surfaceActive) { "Preview config must be set before starting the Surface session" }
+            previewConfig = PreviewConfig(width, height, targetFps, zoomLevel)
+        }
+
+        fun setCustomTextureCrop(left: Float, top: Float, width: Float, height: Float) {
+            customTextureCrop = TextureCrop(left, top, width, height)
+            firstDrawLogged = false
+        }
+
+        fun cameraSize(): Pair<Int, Int>? {
+            return if (cameraWidth > 0 && cameraHeight > 0) cameraWidth to cameraHeight else null
+        }
+
         fun releaseSurfaceShare() {
             startCallback = null
             surfaceActive = false
@@ -294,7 +340,16 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
                 "View: ${viewportWidth}x${viewportHeight}  Surface: ${cameraWidth}x${cameraHeight}\n" +
                 "FPS: $appliedPreviewFps  EIS: $videoStabilizationEnabled  Zoom: $zoomLevel\n" +
                 "Frames: $frameCount  Active: $surfaceActive\n" +
-                "ROI: ${if (centerSquareCropEnabled) "center 1080x1080" else "raw"}  Matrix: $matrixSummary"
+                "ROI: ${roiSummary()}  Matrix: $matrixSummary"
+        }
+
+        private fun roiSummary(): String {
+            val crop = customTextureCrop
+            return when {
+                crop != null -> "custom [${crop.left},${crop.top},${crop.width},${crop.height}]"
+                centerSquareCropEnabled -> "center 1080x1080"
+                else -> "raw"
+            }
         }
 
         private fun dispatchReady(success: Boolean) {
@@ -326,6 +381,20 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         private const val RELEASE_WAIT_TIMEOUT_MS = 500L
         private const val CENTER_CROP_LEFT = 420f / 1920f
         private const val CENTER_CROP_WIDTH = 1080f / 1920f
+
+        private data class PreviewConfig(
+            val width: Int = 1920,
+            val height: Int = 1080,
+            val targetFps: Int = 15,
+            val zoomLevel: Int = 1,
+        )
+
+        private data class TextureCrop(
+            val left: Float,
+            val top: Float,
+            val width: Float,
+            val height: Float,
+        )
 
         private const val VERTEX_SHADER = """
             attribute vec4 aPosition;

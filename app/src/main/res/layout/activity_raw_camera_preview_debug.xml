@@ -30,6 +30,41 @@
             android:scaleType="fitCenter"
             android:visibility="gone" />
 
+        <FrameLayout
+            android:id="@+id/layoutAlignmentGuide"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/alignment_calibration_border"
+            android:visibility="gone">
+
+            <View
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="center_horizontal"
+                android:background="#CC00FF66" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_gravity="center_vertical"
+                android:background="#CC00FF66" />
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:layout_gravity="center"
+                android:background="@drawable/alignment_calibration_center" />
+
+        </FrameLayout>
+
+        <com.rokid.glass.hiddenrisk.AlignmentDetectionOverlayView
+            android:id="@+id/viewAlignmentDetectionOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false"
+            android:visibility="gone" />
+
     </FrameLayout>
 
     <LinearLayout
@@ -100,6 +135,7 @@
         android:textSize="9sp" />
 
     <TextView
+        android:id="@+id/textRawCameraHint"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
