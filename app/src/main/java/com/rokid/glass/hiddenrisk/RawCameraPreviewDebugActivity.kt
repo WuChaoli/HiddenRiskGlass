@@ -75,7 +75,6 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private lateinit var nv21Preview: ImageView
     private lateinit var diagnostics: TextView
     private lateinit var hint: TextView
-    private lateinit var alignmentGuide: View
     private lateinit var alignmentDetectionOverlay: AlignmentDetectionOverlayView
     private val uiHandler = Handler(Looper.getMainLooper())
     private val bitmapExecutor = Executors.newSingleThreadExecutor()
@@ -132,7 +131,6 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         nv21Preview = findViewById(R.id.imageRawNv21Preview)
         diagnostics = findViewById(R.id.textRawCameraDiagnostics)
         hint = findViewById(R.id.textRawCameraHint)
-        alignmentGuide = findViewById(R.id.layoutAlignmentGuide)
         alignmentDetectionOverlay = findViewById(R.id.viewAlignmentDetectionOverlay)
         dominantEye = parseDominantEye(intent?.getStringExtra(EXTRA_DOMINANT_EYE))
         calibrationState = resolveCalibrationState(dominantEye)
@@ -414,7 +412,6 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         } else {
             View.GONE
         }
-        alignmentGuide.visibility = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) View.VISIBLE else View.GONE
         alignmentDetectionOverlay.visibility = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) View.VISIBLE else View.GONE
         hint.setText(
             if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
