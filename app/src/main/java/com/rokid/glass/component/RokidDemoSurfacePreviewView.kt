@@ -17,6 +17,29 @@ import java.util.concurrent.TimeUnit
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
+internal class SurfaceStartGate {
+    private var ready = false
+    private var pendingStart: (() -> Unit)? = null
+
+    fun runWhenReady(start: () -> Unit) {
+        if (ready) {
+            start()
+        } else {
+            pendingStart = start
+        }
+    }
+
+    fun markReady() {
+        ready = true
+        pendingStart?.also { pendingStart = null }?.invoke()
+    }
+
+    fun markUnavailable() {
+        ready = false
+        pendingStart = null
+    }
+}
+
 /**
  * 纯 Demo 版 Surface 共享预览。
  *
@@ -69,6 +92,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         queueEvent {
             try {
                 renderer.releaseSurfaceShare()
+                renderer.markSurfaceUnavailable()
             } finally {
                 latch.countDown()
             }
@@ -110,6 +134,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         )
 
         private val helper = CameraShareHelper()
+        private val startGate = SurfaceStartGate()
         private var program = 0
         private var positionHandle = 0
         private var texCoordHandle = 0
@@ -150,6 +175,7 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
             matrixHandle = GLES20.glGetUniformLocation(program, "uMatrix")
             cropRectHandle = GLES20.glGetUniformLocation(program, "uCropRect")
             Log.i(TAG, "demo gl surface created program=$program")
+            startGate.markReady()
         }
 
         override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -218,6 +244,10 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
         }
 
         fun startSurfaceShare(onReady: (Boolean) -> Unit) {
+            startGate.runWhenReady { startSurfaceShareWhenReady(onReady) }
+        }
+
+        private fun startSurfaceShareWhenReady(onReady: (Boolean) -> Unit) {
             if (!GlassSdk.isReady()) {
                 Log.e(TAG, "GlassSdk not ready for demo surface")
                 onReady(false)
@@ -341,6 +371,10 @@ class RokidDemoSurfacePreviewView @JvmOverloads constructor(
                 "FPS: $appliedPreviewFps  EIS: $videoStabilizationEnabled  Zoom: $zoomLevel\n" +
                 "Frames: $frameCount  Active: $surfaceActive\n" +
                 "ROI: ${roiSummary()}  Matrix: $matrixSummary"
+        }
+
+        fun markSurfaceUnavailable() {
+            startGate.markUnavailable()
         }
 
         private fun roiSummary(): String {
