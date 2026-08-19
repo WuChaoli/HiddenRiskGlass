@@ -86,6 +86,7 @@ DeviceGuideActivity:
 | `LightshotActivity.kt` | 历史调试页（非产品基线）| |
 | `UnifiedInputDebugActivity.kt` | 统一输入调试页 | |
 | `RawCameraPreviewDebugActivity.kt` | 原始相机预览调试页 | |
+| `DepthOverlaySimulationTestActivity.kt` | 固定 1m 请求画面，以手动距离模拟深度并验证 bbox 水平视差补偿 | |
 
 > 注：`MainMenuActivity.kt` 与 `EntryGuardCoordinator.kt` 位于 `com.rokid.glass` 根包，是 App LAUNCHER 入口与后台初始化协调器，负责第一层菜单展示与静默初始化，完成后跳转至本模块的 `AiInspectionMenuActivity`。详见根包源码。 |
 

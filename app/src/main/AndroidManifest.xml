@@ -192,6 +192,11 @@
             android:exported="true"
             android:label="@string/inverse_distance_alignment_title"
             android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.DepthOverlaySimulationTestActivity"
+            android:exported="true"
+            android:label="@string/depth_overlay_simulation_title"
+            android:theme="@style/Theme.Glessedemo" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

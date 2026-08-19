@@ -4,6 +4,38 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AlignmentCalibrationStateTest {
+    @Test
+    fun `simulated depth starts at one meter with zero overlay delta`() {
+        val state = SimulatedDepthOverlayState()
+
+        assertEquals(1f, state.distanceMeters, 0f)
+        assertEquals(-7.94f, state.referenceOffsetX, 0.001f)
+        assertEquals(0f, state.deltaX, 0.001f)
+        assertEquals(0f, state.referenceCalibrationState().alpha, 0f)
+    }
+
+    @Test
+    fun `simulated depth changes only overlay delta relative to fixed reference`() {
+        val farther = SimulatedDepthOverlayState().adjustDistance(AdjustmentDirection.INCREASE)
+        val nearer = SimulatedDepthOverlayState().adjustDistance(AdjustmentDirection.DECREASE)
+
+        assertEquals(1.5f, farther.distanceMeters, 0f)
+        assertEquals(38.646f, farther.deltaX, 0.001f)
+        assertEquals(0.5f, nearer.distanceMeters, 0f)
+        assertEquals(-115.94f, nearer.deltaX, 0.001f)
+    }
+
+    @Test
+    fun `simulated depth cannot decrease below half meter`() {
+        val state = SimulatedDepthOverlayState(distanceMeters = 0.5f)
+
+        assertEquals(
+            0.5f,
+            state.adjustDistance(AdjustmentDirection.DECREASE).distanceMeters,
+            0f,
+        )
+    }
+
 
     @Test
     fun `right eye is the default dominant eye`() {

@@ -7,7 +7,6 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
-import kotlin.math.max
 
 internal class AlignmentDetectionOverlayView @JvmOverloads constructor(
     context: Context,
@@ -23,7 +22,7 @@ internal class AlignmentDetectionOverlayView @JvmOverloads constructor(
     private val boxPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = BOX_COLOR
         style = Paint.Style.STROKE
-        strokeWidth = 2f * density
+        strokeWidth = 1f * density
     }
     private val labelBackgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = LABEL_BACKGROUND_COLOR
@@ -35,10 +34,16 @@ internal class AlignmentDetectionOverlayView @JvmOverloads constructor(
         style = Paint.Style.FILL
     }
     private var frame = FrameDetections(1, 1, emptyList())
+    private var horizontalOffsetPx = 0f
 
     fun showDetections(imageWidth: Int, imageHeight: Int, detections: List<AlignmentDetection>) {
         if (imageWidth <= 0 || imageHeight <= 0) return
         frame = FrameDetections(imageWidth, imageHeight, detections.toList())
+        invalidate()
+    }
+
+    fun setHorizontalOffsetPx(offsetPx: Float) {
+        horizontalOffsetPx = offsetPx
         invalidate()
     }
 
@@ -52,6 +57,7 @@ internal class AlignmentDetectionOverlayView @JvmOverloads constructor(
                 imageHeight = current.imageHeight,
                 screenWidth = width,
                 screenHeight = height,
+                horizontalOffsetPx = horizontalOffsetPx,
             )
             if (mapped.right <= mapped.left || mapped.bottom <= mapped.top) return@forEach
             canvas.drawRect(mapped.left, mapped.top, mapped.right, mapped.bottom, boxPaint)
@@ -65,11 +71,17 @@ internal class AlignmentDetectionOverlayView @JvmOverloads constructor(
         val textWidth = labelPaint.measureText(text)
         val fontMetrics = labelPaint.fontMetrics
         val labelHeight = fontMetrics.bottom - fontMetrics.top + padding * 2
-        val labelTop = max(0f, detection.top - labelHeight)
-        val labelRight = (detection.left + textWidth + padding * 2).coerceAtMost(width.toFloat())
-        val background = RectF(detection.left, labelTop, labelRight, labelTop + labelHeight)
+        val labelTop = AlignmentOverlayGeometry.labelTop(detection.top)
+        val labelRight = (detection.left + textWidth + padding * 2)
+            .coerceAtMost(detection.right)
+            .coerceAtMost(width.toFloat())
+        val labelBottom = (labelTop + labelHeight).coerceAtMost(detection.bottom)
+        val background = RectF(detection.left, labelTop, labelRight, labelBottom)
         canvas.drawRect(background, labelBackgroundPaint)
+        canvas.save()
+        canvas.clipRect(background)
         canvas.drawText(text, detection.left + padding, labelTop + padding - fontMetrics.top, labelPaint)
+        canvas.restore()
     }
 
     companion object {

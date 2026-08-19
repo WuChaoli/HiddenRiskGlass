@@ -93,6 +93,29 @@ class AlignmentDetectionProtocolTest {
     }
 
     @Test
+    fun `simulated depth shifts bbox horizontally without changing its size or y coordinates`() {
+        val mapped = AlignmentDetectionMapper.mapToScreen(
+            detection = AlignmentDetection("燃气灶", 0.9f, 200f, 300f, 600f, 900f),
+            imageWidth = 960,
+            imageHeight = 1280,
+            screenWidth = 480,
+            screenHeight = 640,
+            horizontalOffsetPx = 38.646f,
+        )
+
+        assertEquals(138.646f, mapped.left, 0.001f)
+        assertEquals(338.646f, mapped.right, 0.001f)
+        assertEquals(150f, mapped.top, 0.001f)
+        assertEquals(450f, mapped.bottom, 0.001f)
+    }
+
+    @Test
+    fun `label is placed inside bbox top edge`() {
+        assertEquals(120f, AlignmentOverlayGeometry.labelTop(boxTop = 120f), 0f)
+        assertEquals(0f, AlignmentOverlayGeometry.labelTop(boxTop = -5f), 0f)
+    }
+
+    @Test
     fun `bbox outside submitted image is clipped to screen bounds`() {
         val mapped = AlignmentDetectionMapper.mapToScreen(
             detection = AlignmentDetection("燃气灶", 0.9f, -10f, 200f, 1200f, 1435f),

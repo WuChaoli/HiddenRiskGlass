@@ -106,18 +106,23 @@ internal object AlignmentDetectionMapper {
         imageHeight: Int,
         screenWidth: Int,
         screenHeight: Int,
+        horizontalOffsetPx: Float = 0f,
     ): AlignmentDetection {
         require(imageWidth > 0 && imageHeight > 0)
         require(screenWidth > 0 && screenHeight > 0)
         val scaleX = screenWidth.toFloat() / imageWidth
         val scaleY = screenHeight.toFloat() / imageHeight
         return detection.copy(
-            left = (detection.left * scaleX).coerceIn(0f, screenWidth.toFloat()),
+            left = (detection.left * scaleX + horizontalOffsetPx).coerceIn(0f, screenWidth.toFloat()),
             top = (detection.top * scaleY).coerceIn(0f, screenHeight.toFloat()),
-            right = (detection.right * scaleX).coerceIn(0f, screenWidth.toFloat()),
+            right = (detection.right * scaleX + horizontalOffsetPx).coerceIn(0f, screenWidth.toFloat()),
             bottom = (detection.bottom * scaleY).coerceIn(0f, screenHeight.toFloat()),
         )
     }
+}
+
+internal object AlignmentOverlayGeometry {
+    fun labelTop(boxTop: Float): Float = boxTop.coerceAtLeast(0f)
 }
 
 internal object AlignmentDetectionCadence {

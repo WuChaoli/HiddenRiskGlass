@@ -56,6 +56,36 @@ data class DetectionOverlayAlignmentState(
     }
 }
 
+/** 用本地固定距离模拟云端深度，仅计算相对固定请求画面的框位移。 */
+data class SimulatedDepthOverlayState(
+    val distanceMeters: Float = REFERENCE_DISTANCE_METERS,
+) {
+    val referenceOffsetX: Float get() = offsetXForDistance(REFERENCE_DISTANCE_METERS)
+    val targetOffsetX: Float get() = offsetXForDistance(distanceMeters)
+    val deltaX: Float get() = targetOffsetX - referenceOffsetX
+
+    fun adjustDistance(direction: AdjustmentDirection): SimulatedDepthOverlayState = copy(
+        distanceMeters = (distanceMeters + DISTANCE_STEP_METERS * direction.sign)
+            .coerceAtLeast(MIN_DISTANCE_METERS),
+    )
+
+    fun referenceCalibrationState(): AlignmentCalibrationState = AlignmentCalibrationState(
+        scale = AlignmentCalibrationPreset.CALIBRATED_SCALE,
+        offsetX = referenceOffsetX,
+        offsetY = -234f,
+        alpha = 0f,
+    )
+
+    private fun offsetXForDistance(distanceMeters: Float): Float =
+        InverseDistanceAlignmentState.DEFAULT_B - InverseDistanceAlignmentState.DEFAULT_K / distanceMeters
+
+    companion object {
+        const val REFERENCE_DISTANCE_METERS = 1f
+        const val MIN_DISTANCE_METERS = 0.5f
+        const val DISTANCE_STEP_METERS = 0.5f
+    }
+}
+
 enum class DistanceAlignmentControl {
     OFFSET_X,
     OFFSET_Y,

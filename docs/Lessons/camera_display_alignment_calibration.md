@@ -161,6 +161,20 @@ distance 单位 = m
 
 打框测试页初始距离为 `1.0 m`。前滑将距离减小 `0.5 m`，后滑将距离增大 `0.5 m`，最小距离为 `0.5 m`；每次变化都会立即按上述公式重算水平偏移。单击不再切换标定轴，双击或返回键退出页面。
 
+### 模拟深度打框测试页
+
+在云端深度字段完成前，`DepthOverlaySimulationTestActivity` 用手动距离模拟每个检测框的中心深度。该页面把请求画面固定在 `1.0 m` 参考标定，不随模拟距离改变 Surface 裁剪；前滑/后滑以 `0.5 m` 步长调整模拟深度，仅对 Overlay 应用：
+
+```text
+deltaX(depth) = offsetX(depth) - offsetX(1.0 m)
+```
+
+首版只平移 bbox 的 X 中心，Y、宽度和高度保持不变。这样可以单独验证深度相关视差补偿，不受请求图变化干扰。启动命令：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/android/start-depth-overlay-simulation-test.ps1 -Serial $env:ROKID_SERIAL
+```
+
 固定请求约定：
 
 ```text

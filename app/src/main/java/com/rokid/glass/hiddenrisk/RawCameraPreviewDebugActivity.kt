@@ -65,6 +65,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
         SURFACE_SQUARE_FITTED,
         SURFACE_SQUARE_TRANSPOSED,
         ALIGNMENT_CALIBRATION,
+        DEPTH_OVERLAY_SIMULATION,
         DISTANCE_ALIGNMENT,
         INVERSE_DISTANCE_ALIGNMENT,
     }
@@ -99,6 +100,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
     private var distanceAlignmentState = DistanceAlignmentState()
     private var inverseDistanceAlignmentState = InverseDistanceAlignmentState()
     private var detectionOverlayAlignmentState = DetectionOverlayAlignmentState()
+    private var simulatedDepthOverlayState = SimulatedDepthOverlayState()
     private val alignmentDetectionClient = AlignmentAutoDetectionClient()
     private val inferenceImageSize = AlignmentInferenceImageSize.fromWidth(DEFAULT_INFERENCE_IMAGE_WIDTH)
     private var activeDetectionCall: Call? = null
@@ -139,7 +141,9 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
         hint = findViewById(R.id.textRawCameraHint)
         alignmentDetectionOverlay = findViewById(R.id.viewAlignmentDetectionOverlay)
         dominantEye = parseDominantEye(intent?.getStringExtra(EXTRA_DOMINANT_EYE))
-        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+        if (mode == DisplayMode.DEPTH_OVERLAY_SIMULATION) {
+            calibrationState = simulatedDepthOverlayState.referenceCalibrationState()
+        } else if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
             calibrationState = detectionOverlayAlignmentState.calibrationState()
         } else if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
             distanceAlignmentState = loadDistanceAlignmentState(dominantEye)
@@ -174,6 +178,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
             MODE_SURFACE_VALIDATED_CENTER -> DisplayMode.SURFACE_VALIDATED_CENTER
             MODE_SURFACE_BOTTOM_SQUARE -> DisplayMode.SURFACE_BOTTOM_SQUARE
             MODE_ALIGNMENT_CALIBRATION -> DisplayMode.ALIGNMENT_CALIBRATION
+            MODE_DEPTH_OVERLAY_SIMULATION -> DisplayMode.DEPTH_OVERLAY_SIMULATION
             MODE_DISTANCE_ALIGNMENT -> DisplayMode.DISTANCE_ALIGNMENT
             MODE_INVERSE_DISTANCE_ALIGNMENT -> DisplayMode.INVERSE_DISTANCE_ALIGNMENT
             else -> DisplayMode.SDK_DEMO_COMPARE
@@ -318,6 +323,31 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        if (mode == DisplayMode.DEPTH_OVERLAY_SIMULATION) {
+            val updated = when (keyEvent) {
+                GlassKeyEvent.KEYCODE_FRONT -> simulatedDepthOverlayState.adjustDistance(
+                    AdjustmentDirection.DECREASE,
+                )
+                GlassKeyEvent.KEYCODE_BEHIND -> simulatedDepthOverlayState.adjustDistance(
+                    AdjustmentDirection.INCREASE,
+                )
+                GlassKeyEvent.KEYCODE_CLICK -> simulatedDepthOverlayState
+                else -> null
+            }
+            if (updated != null) {
+                simulatedDepthOverlayState = updated
+                alignmentDetectionOverlay.setHorizontalOffsetPx(simulatedDepthOverlayState.deltaX)
+                refreshDiagnostics()
+                Log.i(
+                    TAG,
+                    "SimulatedDepth distance=${simulatedDepthOverlayState.distanceMeters}m " +
+                        "reference=${SimulatedDepthOverlayState.REFERENCE_DISTANCE_METERS}m " +
+                        "deltaX=${simulatedDepthOverlayState.deltaX}",
+                )
+                return true
+            }
+            return super.onGlassKeyEvent(keyEvent)
+        }
         if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
             inverseDistanceAlignmentState = when (keyEvent) {
                 GlassKeyEvent.KEYCODE_CLICK -> inverseDistanceAlignmentState.selectNextControl()
@@ -375,6 +405,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
                 DisplayMode.SURFACE_SQUARE_FITTED -> DisplayMode.SURFACE_SQUARE_TRANSPOSED
                 DisplayMode.SURFACE_SQUARE_TRANSPOSED -> DisplayMode.SDK_DEMO_COMPARE
                 DisplayMode.ALIGNMENT_CALIBRATION -> DisplayMode.ALIGNMENT_CALIBRATION
+                DisplayMode.DEPTH_OVERLAY_SIMULATION -> DisplayMode.DEPTH_OVERLAY_SIMULATION
                 DisplayMode.DISTANCE_ALIGNMENT -> DisplayMode.DISTANCE_ALIGNMENT
                 DisplayMode.INVERSE_DISTANCE_ALIGNMENT -> DisplayMode.INVERSE_DISTANCE_ALIGNMENT
             }
@@ -449,7 +480,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
                     diagnostics.setText(R.string.raw_camera_debug_failed)
                 } else if (mode.isAlignmentPreviewMode()) {
                     applyAlignmentCalibration(logResult = false)
-                    if (mode == DisplayMode.ALIGNMENT_CALIBRATION) scheduleNextAlignmentDetection()
+                    if (mode.isDetectionOverlayMode()) scheduleNextAlignmentDetection()
                 }
                 Log.i(TAG, "demo surface camera ready success=$success")
             }
@@ -537,10 +568,15 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
         } else {
             View.GONE
         }
-        alignmentDetectionOverlay.visibility = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) View.VISIBLE else View.GONE
+        alignmentDetectionOverlay.visibility = if (mode.isDetectionOverlayMode()) View.VISIBLE else View.GONE
+        alignmentDetectionOverlay.setHorizontalOffsetPx(
+            if (mode == DisplayMode.DEPTH_OVERLAY_SIMULATION) simulatedDepthOverlayState.deltaX else 0f,
+        )
         hint.setText(
             if (mode.isAlignmentPreviewMode()) {
-                if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
+                if (mode == DisplayMode.DEPTH_OVERLAY_SIMULATION) {
+                    R.string.depth_overlay_simulation_hint
+                } else if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
                     R.string.distance_alignment_hint
                 } else if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
                     R.string.inverse_distance_alignment_hint
@@ -561,6 +597,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
                 DisplayMode.SURFACE_SQUARE_FITTED,
                 DisplayMode.SURFACE_SQUARE_TRANSPOSED,
                 DisplayMode.ALIGNMENT_CALIBRATION,
+                DisplayMode.DEPTH_OVERLAY_SIMULATION,
                 DisplayMode.DISTANCE_ALIGNMENT,
                 DisplayMode.INVERSE_DISTANCE_ALIGNMENT,
                 -> RokidCameraPreviewView.PreviewRenderMode.DEBUG_TEXTURE_CROP_FILL
@@ -592,7 +629,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
     }
 
     private fun beginAlignmentDetectionCycle() {
-        if (!resumed || mode != DisplayMode.ALIGNMENT_CALIBRATION || !cameraReady || detectionRequestInFlight) return
+        if (!resumed || !mode.isDetectionOverlayMode() || !cameraReady || detectionRequestInFlight) return
         val cadenceDelay = AlignmentDetectionCadence.nextDelayMs(
             nowMs = SystemClock.elapsedRealtime(),
             lastStartedMs = lastDetectionStartedMs,
@@ -749,7 +786,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
     }
 
     private fun isAlignmentDetectionActive(): Boolean {
-        return resumed && mode == DisplayMode.ALIGNMENT_CALIBRATION && cameraReady
+        return resumed && mode.isDetectionOverlayMode() && cameraReady
     }
 
     private fun logAlignmentResult(reason: String) {
@@ -908,7 +945,15 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
                 )
                 append("  Eye: ")
                 append(dominantEye.name)
-                if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                if (mode == DisplayMode.DEPTH_OVERLAY_SIMULATION) {
+                    append("  Depth: ")
+                    append("%.1fm".format(simulatedDepthOverlayState.distanceMeters))
+                    append("  Ref: ")
+                    append("%.1fm".format(SimulatedDepthOverlayState.REFERENCE_DISTANCE_METERS))
+                    append("\nFormula: deltaX = X(depth) - X(reference)")
+                    append("  dX: ")
+                    append("%.2f".format(simulatedDepthOverlayState.deltaX))
+                } else if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
                     append("  Distance: ")
                     append("%.1fm".format(detectionOverlayAlignmentState.distanceMeters))
                     append("\nFormula: X = B - K / distance")
@@ -953,7 +998,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
                 append("\nCrop: [")
                 append("%.5f, %.5f, %.5f, %.5f".format(crop.left, crop.top, crop.width, crop.height))
                 append(']')
-                if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                if (mode.isDetectionOverlayMode()) {
                     append("\nAI: ")
                     append(detectionStatus)
                     append("  Image: ")
@@ -1028,8 +1073,13 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
 
     private fun DisplayMode.isAlignmentPreviewMode(): Boolean {
         return this == DisplayMode.ALIGNMENT_CALIBRATION ||
+            this == DisplayMode.DEPTH_OVERLAY_SIMULATION ||
             this == DisplayMode.DISTANCE_ALIGNMENT ||
             this == DisplayMode.INVERSE_DISTANCE_ALIGNMENT
+    }
+
+    private fun DisplayMode.isDetectionOverlayMode(): Boolean {
+        return this == DisplayMode.ALIGNMENT_CALIBRATION || this == DisplayMode.DEPTH_OVERLAY_SIMULATION
     }
 
     private fun matrixSummary(matrix: FloatArray): String {
@@ -1046,6 +1096,7 @@ open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.
         private const val MODE_SURFACE_VALIDATED_CENTER = "surface_validated_center"
         private const val MODE_SURFACE_BOTTOM_SQUARE = "surface_bottom_square"
         private const val MODE_ALIGNMENT_CALIBRATION = "alignment_calibration"
+        private const val MODE_DEPTH_OVERLAY_SIMULATION = "depth_overlay_simulation"
         private const val MODE_DISTANCE_ALIGNMENT = "distance_alignment"
         private const val MODE_INVERSE_DISTANCE_ALIGNMENT = "inverse_distance_alignment"
         private const val DISTANCE_ALIGNMENT_PREFERENCES = "distance_alignment_offsets"
