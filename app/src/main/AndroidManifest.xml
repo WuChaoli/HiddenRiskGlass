@@ -182,6 +182,16 @@
             android:exported="true"
             android:label="@string/raw_camera_debug_title"
             android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.DistanceAlignmentTestActivity"
+            android:exported="true"
+            android:label="@string/distance_alignment_title"
+            android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.InverseDistanceAlignmentTestActivity"
+            android:exported="true"
+            android:label="@string/inverse_distance_alignment_title"
+            android:theme="@style/Theme.Glessedemo" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

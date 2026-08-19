@@ -28,6 +28,7 @@ import com.rokid.glass.utils.dpToPx
 import com.rokid.glesse.R
 import okhttp3.Call
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -35,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 原始相机输出诊断页。
  * Surface 与 NV21 都只做等比适配，用于隔离业务 ROI 与 SDK 输出问题。
  */
-class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Listener {
+open class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private data class DisplayFrame(
         val data: ByteArray,
@@ -64,6 +65,8 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         SURFACE_SQUARE_FITTED,
         SURFACE_SQUARE_TRANSPOSED,
         ALIGNMENT_CALIBRATION,
+        DISTANCE_ALIGNMENT,
+        INVERSE_DISTANCE_ALIGNMENT,
     }
 
     private lateinit var previewViewport: FrameLayout
@@ -93,6 +96,9 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     private var displayedBitmap: Bitmap? = null
     private var dominantEye = DominantEye.RIGHT
     private var calibrationState = AlignmentCalibrationState()
+    private var distanceAlignmentState = DistanceAlignmentState()
+    private var inverseDistanceAlignmentState = InverseDistanceAlignmentState()
+    private var detectionOverlayAlignmentState = DetectionOverlayAlignmentState()
     private val alignmentDetectionClient = AlignmentAutoDetectionClient()
     private val inferenceImageSize = AlignmentInferenceImageSize.fromWidth(DEFAULT_INFERENCE_IMAGE_WIDTH)
     private var activeDetectionCall: Call? = null
@@ -133,10 +139,20 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         hint = findViewById(R.id.textRawCameraHint)
         alignmentDetectionOverlay = findViewById(R.id.viewAlignmentDetectionOverlay)
         dominantEye = parseDominantEye(intent?.getStringExtra(EXTRA_DOMINANT_EYE))
-        calibrationState = resolveCalibrationState(dominantEye)
+        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+            calibrationState = detectionOverlayAlignmentState.calibrationState()
+        } else if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
+            distanceAlignmentState = loadDistanceAlignmentState(dominantEye)
+            calibrationState = distanceAlignmentState.calibrationState()
+        } else if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
+            inverseDistanceAlignmentState = loadInverseDistanceAlignmentState()
+            calibrationState = inverseDistanceAlignmentState.calibrationState()
+        } else {
+            calibrationState = resolveCalibrationState(dominantEye)
+        }
         surfacePreview.setPreviewRenderMode(RokidCameraPreviewView.PreviewRenderMode.RAW_ASPECT_FIT)
         demoSurfacePreview.setCenterSquareCropEnabled(false)
-        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+        if (mode.isAlignmentPreviewMode()) {
             demoSurfacePreview.setPreviewConfig(
                 width = ALIGNMENT_CAMERA_WIDTH,
                 height = ALIGNMENT_CAMERA_HEIGHT,
@@ -158,6 +174,8 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             MODE_SURFACE_VALIDATED_CENTER -> DisplayMode.SURFACE_VALIDATED_CENTER
             MODE_SURFACE_BOTTOM_SQUARE -> DisplayMode.SURFACE_BOTTOM_SQUARE
             MODE_ALIGNMENT_CALIBRATION -> DisplayMode.ALIGNMENT_CALIBRATION
+            MODE_DISTANCE_ALIGNMENT -> DisplayMode.DISTANCE_ALIGNMENT
+            MODE_INVERSE_DISTANCE_ALIGNMENT -> DisplayMode.INVERSE_DISTANCE_ALIGNMENT
             else -> DisplayMode.SDK_DEMO_COMPARE
         }
     }
@@ -175,6 +193,81 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         )
     }
 
+    private fun loadDistanceAlignmentState(eye: DominantEye): DistanceAlignmentState {
+        val preferences = getSharedPreferences(DISTANCE_ALIGNMENT_PREFERENCES, MODE_PRIVATE)
+        val defaults = AlignmentCalibrationPreset.forEye(eye)
+        val offsets = DistanceAlignmentState.DEFAULT_DISTANCES.mapIndexed { index, _ ->
+            DistanceAlignmentOffset(
+                offsetX = preferences.getFloat("${eye.name}_$index-x", defaults.offsetX),
+                offsetY = preferences.getFloat("${eye.name}_$index-y", defaults.offsetY),
+            )
+        }
+        return DistanceAlignmentState(
+            selectedDistanceIndex = preferences.getInt("${eye.name}-distance-index", 0)
+                .coerceIn(DistanceAlignmentState.DEFAULT_DISTANCES.indices),
+            offsets = offsets,
+        )
+    }
+
+    private fun saveDistanceAlignmentState(state: DistanceAlignmentState) {
+        getSharedPreferences(DISTANCE_ALIGNMENT_PREFERENCES, MODE_PRIVATE).edit().apply {
+            putInt("${dominantEye.name}-distance-index", state.selectedDistanceIndex)
+            state.offsets.forEachIndexed { index, offset ->
+                putFloat("${dominantEye.name}_$index-x", offset.offsetX)
+                putFloat("${dominantEye.name}_$index-y", offset.offsetY)
+            }
+        }.apply()
+    }
+
+    private fun loadInverseDistanceAlignmentState(): InverseDistanceAlignmentState {
+        val preferences = getSharedPreferences(INVERSE_DISTANCE_ALIGNMENT_PREFERENCES, MODE_PRIVATE)
+        val distance = preferences.getFloat("distance", 1f)
+            .coerceAtLeast(InverseDistanceAlignmentState.MIN_DISTANCE_METERS)
+        val recordDistances = preferences.all.keys.mapNotNull { key ->
+            RECORD_KEY_REGEX.matchEntire(key)?.groupValues?.get(1)?.toIntOrNull()
+        }.toSet()
+        val records = recordDistances.associateWith { recordDistance ->
+            InverseDistanceFitRecord(
+                distanceMeters = recordDistance,
+                b = preferences.getFloat("record_${recordDistance}_b", InverseDistanceAlignmentState.DEFAULT_B),
+                k = preferences.getFloat("record_${recordDistance}_k", InverseDistanceAlignmentState.DEFAULT_K),
+            )
+        }.toMutableMap()
+        if (records.isEmpty() && (preferences.contains("b") || preferences.contains("k"))) {
+            records[distance.toInt()] = InverseDistanceFitRecord(
+                distanceMeters = distance.toInt(),
+                b = preferences.getFloat("b", InverseDistanceAlignmentState.DEFAULT_B),
+                k = preferences.getFloat("k", InverseDistanceAlignmentState.DEFAULT_K),
+            )
+        }
+        val current = records[distance.toInt()]
+        return InverseDistanceAlignmentState(
+            distanceMeters = distance,
+            b = current?.b ?: InverseDistanceAlignmentState.DEFAULT_B,
+            k = current?.k ?: InverseDistanceAlignmentState.DEFAULT_K,
+            records = records,
+        )
+    }
+
+    private fun saveInverseDistanceAlignmentState(state: InverseDistanceAlignmentState) {
+        val recordedState = state.withCurrentRecord()
+        getSharedPreferences(INVERSE_DISTANCE_ALIGNMENT_PREFERENCES, MODE_PRIVATE).edit().apply {
+            putFloat("distance", recordedState.distanceMeters)
+            putFloat("b", recordedState.b)
+            putFloat("k", recordedState.k)
+            recordedState.records.values.forEach { record ->
+                putFloat("record_${record.distanceMeters}_b", record.b)
+                putFloat("record_${record.distanceMeters}_k", record.k)
+            }
+        }.apply()
+        runCatching {
+            val outputDir = File(getExternalFilesDir(null), INVERSE_DISTANCE_EXPORT_DIRECTORY).apply { mkdirs() }
+            File(outputDir, INVERSE_DISTANCE_EXPORT_FILE).writeText(recordedState.toCsv())
+        }.onFailure { error ->
+            Log.e(TAG, "Failed to export inverse distance records", error)
+        }
+    }
+
     @Suppress("DEPRECATION")
     private fun numberExtra(name: String): Float? = (intent?.extras?.get(name) as? Number)?.toFloat()
 
@@ -187,7 +280,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     }
 
     override fun onPause() {
-        if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+        if (mode.isAlignmentPreviewMode()) {
             logAlignmentResult("pause")
         }
         resumed = false
@@ -225,15 +318,45 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
     }
 
     override fun onGlassKeyEvent(keyEvent: Int): Boolean {
+        if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
+            inverseDistanceAlignmentState = when (keyEvent) {
+                GlassKeyEvent.KEYCODE_CLICK -> inverseDistanceAlignmentState.selectNextControl()
+                GlassKeyEvent.KEYCODE_FRONT -> inverseDistanceAlignmentState.adjust(AdjustmentDirection.DECREASE)
+                GlassKeyEvent.KEYCODE_BEHIND -> inverseDistanceAlignmentState.adjust(AdjustmentDirection.INCREASE)
+                else -> return super.onGlassKeyEvent(keyEvent)
+            }.withCurrentRecord()
+            calibrationState = inverseDistanceAlignmentState.calibrationState()
+            saveInverseDistanceAlignmentState(inverseDistanceAlignmentState)
+            applyAlignmentCalibration(logResult = true)
+            return true
+        }
+        if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
+            distanceAlignmentState = when (distanceAlignmentActionForKey(keyEvent)) {
+                DistanceAlignmentInputAction.SELECT_CONTROL -> distanceAlignmentState.selectNextControl()
+                DistanceAlignmentInputAction.NEXT_DISTANCE -> distanceAlignmentState.selectNextDistance()
+                DistanceAlignmentInputAction.DECREASE -> distanceAlignmentState.adjust(AdjustmentDirection.DECREASE)
+                DistanceAlignmentInputAction.INCREASE -> distanceAlignmentState.adjust(AdjustmentDirection.INCREASE)
+                DistanceAlignmentInputAction.NONE -> return super.onGlassKeyEvent(keyEvent)
+            }
+            calibrationState = distanceAlignmentState.calibrationState()
+            saveDistanceAlignmentState(distanceAlignmentState)
+            applyAlignmentCalibration(logResult = true)
+            return true
+        }
         if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
             val updated = when (keyEvent) {
-                GlassKeyEvent.KEYCODE_CLICK -> calibrationState.selectNextControl()
-                GlassKeyEvent.KEYCODE_FRONT -> calibrationState.adjust(AdjustmentDirection.DECREASE)
-                GlassKeyEvent.KEYCODE_BEHIND -> calibrationState.adjust(AdjustmentDirection.INCREASE)
+                GlassKeyEvent.KEYCODE_FRONT -> detectionOverlayAlignmentState.adjustDistance(
+                    AdjustmentDirection.DECREASE,
+                )
+                GlassKeyEvent.KEYCODE_BEHIND -> detectionOverlayAlignmentState.adjustDistance(
+                    AdjustmentDirection.INCREASE,
+                )
+                GlassKeyEvent.KEYCODE_CLICK -> detectionOverlayAlignmentState
                 else -> null
             }
             if (updated != null) {
-                calibrationState = updated
+                detectionOverlayAlignmentState = updated
+                calibrationState = detectionOverlayAlignmentState.calibrationState()
                 applyAlignmentCalibration(logResult = true)
                 return true
             }
@@ -252,6 +375,8 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 DisplayMode.SURFACE_SQUARE_FITTED -> DisplayMode.SURFACE_SQUARE_TRANSPOSED
                 DisplayMode.SURFACE_SQUARE_TRANSPOSED -> DisplayMode.SDK_DEMO_COMPARE
                 DisplayMode.ALIGNMENT_CALIBRATION -> DisplayMode.ALIGNMENT_CALIBRATION
+                DisplayMode.DISTANCE_ALIGNMENT -> DisplayMode.DISTANCE_ALIGNMENT
+                DisplayMode.INVERSE_DISTANCE_ALIGNMENT -> DisplayMode.INVERSE_DISTANCE_ALIGNMENT
             }
             applyDisplayMode()
             refreshDiagnostics()
@@ -279,7 +404,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             startDemoCompareWhenReady()
             return
         }
-        if (mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+        if (mode == DisplayMode.SURFACE_DEMO_RAW || mode.isAlignmentPreviewMode()) {
             startDemoSurfaceWhenReady()
             return
         }
@@ -322,9 +447,9 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 cameraReady = success
                 if (!success) {
                     diagnostics.setText(R.string.raw_camera_debug_failed)
-                } else if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                } else if (mode.isAlignmentPreviewMode()) {
                     applyAlignmentCalibration(logResult = false)
-                    scheduleNextAlignmentDetection()
+                    if (mode == DisplayMode.ALIGNMENT_CALIBRATION) scheduleNextAlignmentDetection()
                 }
                 Log.i(TAG, "demo surface camera ready success=$success")
             }
@@ -392,14 +517,14 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         previewViewport.visibility = if (mode == DisplayMode.SDK_DEMO_COMPARE) View.GONE else View.VISIBLE
         demoCompareLayout.visibility = if (mode == DisplayMode.SDK_DEMO_COMPARE) View.VISIBLE else View.GONE
         demoSurfacePreview.visibility = if (
-            mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION
+            mode == DisplayMode.SURFACE_DEMO_RAW || mode.isAlignmentPreviewMode()
         ) {
             View.VISIBLE
         } else {
             View.GONE
         }
         surfacePreview.visibility = if (
-            mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION
+            mode == DisplayMode.SURFACE_DEMO_RAW || mode.isAlignmentPreviewMode()
         ) {
             View.GONE
         } else {
@@ -414,14 +539,20 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         }
         alignmentDetectionOverlay.visibility = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) View.VISIBLE else View.GONE
         hint.setText(
-            if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
-                R.string.alignment_calibration_hint
+            if (mode.isAlignmentPreviewMode()) {
+                if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
+                    R.string.distance_alignment_hint
+                } else if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
+                    R.string.inverse_distance_alignment_hint
+                } else {
+                    R.string.alignment_calibration_hint
+                }
             } else {
                 R.string.raw_camera_debug_hint
             },
         )
         surfacePreview.alpha = 1f
-        demoSurfacePreview.alpha = if (mode == DisplayMode.ALIGNMENT_CALIBRATION) calibrationState.alpha else 1f
+        demoSurfacePreview.alpha = if (mode.isAlignmentPreviewMode()) calibrationState.alpha else 1f
         surfacePreview.setPreviewRenderMode(
             when (mode) {
                 DisplayMode.SURFACE_VALIDATED_CENTER -> RokidCameraPreviewView.PreviewRenderMode.AUTO_SURFACE_SQUARE
@@ -430,13 +561,15 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 DisplayMode.SURFACE_SQUARE_FITTED,
                 DisplayMode.SURFACE_SQUARE_TRANSPOSED,
                 DisplayMode.ALIGNMENT_CALIBRATION,
+                DisplayMode.DISTANCE_ALIGNMENT,
+                DisplayMode.INVERSE_DISTANCE_ALIGNMENT,
                 -> RokidCameraPreviewView.PreviewRenderMode.DEBUG_TEXTURE_CROP_FILL
                 else -> RokidCameraPreviewView.PreviewRenderMode.RAW_ASPECT_FIT
             },
         )
         if (mode.isSurfaceSquareCandidate()) {
             updateSquareCandidate(forceApply = true)
-        } else if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+        } else if (mode.isAlignmentPreviewMode()) {
             applyAlignmentCalibration(logResult = false)
         }
         lastNv21Timestamp = 0L
@@ -627,6 +760,11 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             TAG,
             "AlignmentCalibration result reason=$reason control=${calibrationState.control} " +
                 "eye=$dominantEye " +
+                if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
+                    "distance=${distanceAlignmentState.distanceMeters}m "
+                } else {
+                    ""
+                } +
                 "scale=${calibrationState.scale} offsetX=${calibrationState.offsetX} " +
                 "offsetY=${calibrationState.offsetY} alpha=${calibrationState.alpha} " +
                 "texture=${surfaceWidth}x$surfaceHeight reported=${reportedSize?.first}x${reportedSize?.second} " +
@@ -649,7 +787,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         if (mode == DisplayMode.SDK_DEMO_COMPARE) {
             demoSurfacePreview.stopDemoPreview()
             InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_switch_to_demo_compare")
-        } else if (mode == DisplayMode.SURFACE_DEMO_RAW || mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+        } else if (mode == DisplayMode.SURFACE_DEMO_RAW || mode.isAlignmentPreviewMode()) {
             compareSurfacePreview.stopDemoPreview()
             compareNv21Preview.stopDemoPreview()
             InspectionCameraCoordinator.pause(CameraOwner.RAW_CAMERA_DEBUG, reason = "raw_debug_switch_to_demo_surface")
@@ -757,13 +895,41 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         diagnostics.text = buildString {
             append("Mode: ")
             append(mode.name)
-            if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+            if (mode.isAlignmentPreviewMode()) {
                 val (alignmentWidth, alignmentHeight) = alignmentSurfaceSize()
                 val crop = calibrationState.normalizedSurfaceCrop(alignmentWidth, alignmentHeight)
                 append("  Control: ")
-                append(calibrationState.control.name)
+                append(
+                    if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
+                        inverseDistanceAlignmentState.control.name
+                    } else {
+                        calibrationState.control.name
+                    },
+                )
                 append("  Eye: ")
                 append(dominantEye.name)
+                if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                    append("  Distance: ")
+                    append("%.1fm".format(detectionOverlayAlignmentState.distanceMeters))
+                    append("\nFormula: X = B - K / distance")
+                    append("  B: ")
+                    append("%.2f".format(InverseDistanceAlignmentState.DEFAULT_B))
+                    append("  K: ")
+                    append("%.2f".format(InverseDistanceAlignmentState.DEFAULT_K))
+                } else if (mode == DisplayMode.DISTANCE_ALIGNMENT) {
+                    append("  Distance: ")
+                    append("%.1fm".format(distanceAlignmentState.distanceMeters))
+                } else if (mode == DisplayMode.INVERSE_DISTANCE_ALIGNMENT) {
+                    append("  Distance: ")
+                    append("%.1fm".format(inverseDistanceAlignmentState.distanceMeters))
+                    append("\nFormula: X = B - K / distance")
+                    append("  B: ")
+                    append("%.2f".format(inverseDistanceAlignmentState.b))
+                    append("  K: ")
+                    append("%.2f".format(inverseDistanceAlignmentState.k))
+                    append("  Records: ")
+                    append(inverseDistanceAlignmentState.records.size)
+                }
                 append("\nScale: ")
                 append("%.6f".format(calibrationState.scale))
                 append("  X: ")
@@ -771,7 +937,7 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 append("  Y: ")
                 append("%.1f".format(calibrationState.offsetY))
                 append("\nStep: ")
-                append("%.1fpx / %.4f".format(calibrationState.translationStep, calibrationState.scaleStep))
+                append("%.1fpx".format(calibrationState.translationStep))
                 append("  Alpha: ")
                 append("%.2f".format(calibrationState.alpha))
                 append("\nView: ")
@@ -787,12 +953,14 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
                 append("\nCrop: [")
                 append("%.5f, %.5f, %.5f, %.5f".format(crop.left, crop.top, crop.width, crop.height))
                 append(']')
-                append("\nAI: ")
-                append(detectionStatus)
-                append("  Image: ")
-                append(inferenceImageSize.width)
-                append('x')
-                append(inferenceImageSize.height)
+                if (mode == DisplayMode.ALIGNMENT_CALIBRATION) {
+                    append("\nAI: ")
+                    append(detectionStatus)
+                    append("  Image: ")
+                    append(inferenceImageSize.width)
+                    append('x')
+                    append(inferenceImageSize.height)
+                }
                 return@buildString
             }
             if (mode == DisplayMode.SDK_DEMO_COMPARE) {
@@ -858,6 +1026,12 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
             this == DisplayMode.SURFACE_SQUARE_TRANSPOSED
     }
 
+    private fun DisplayMode.isAlignmentPreviewMode(): Boolean {
+        return this == DisplayMode.ALIGNMENT_CALIBRATION ||
+            this == DisplayMode.DISTANCE_ALIGNMENT ||
+            this == DisplayMode.INVERSE_DISTANCE_ALIGNMENT
+    }
+
     private fun matrixSummary(matrix: FloatArray): String {
         if (matrix.size < 16) return "invalid"
         return "[${matrix[0]}, ${matrix[1]}, ${matrix[4]}, ${matrix[5]}, ${matrix[12]}, ${matrix[13]}]"
@@ -872,6 +1046,13 @@ class RawCameraPreviewDebugActivity : BaseGlassActivity(), RokidSdkManager.Liste
         private const val MODE_SURFACE_VALIDATED_CENTER = "surface_validated_center"
         private const val MODE_SURFACE_BOTTOM_SQUARE = "surface_bottom_square"
         private const val MODE_ALIGNMENT_CALIBRATION = "alignment_calibration"
+        private const val MODE_DISTANCE_ALIGNMENT = "distance_alignment"
+        private const val MODE_INVERSE_DISTANCE_ALIGNMENT = "inverse_distance_alignment"
+        private const val DISTANCE_ALIGNMENT_PREFERENCES = "distance_alignment_offsets"
+        private const val INVERSE_DISTANCE_ALIGNMENT_PREFERENCES = "inverse_distance_alignment"
+        private const val INVERSE_DISTANCE_EXPORT_DIRECTORY = "alignment"
+        private const val INVERSE_DISTANCE_EXPORT_FILE = "inverse-distance-fit.csv"
+        private val RECORD_KEY_REGEX = Regex("record_(\\d+)_[bk]")
         private const val EXTRA_SCALE = "scale"
         private const val EXTRA_OFFSET_X = "offsetX"
         private const val EXTRA_OFFSET_Y = "offsetY"
