@@ -36,6 +36,8 @@ powershell -ExecutionPolicy Bypass -File scripts/android/install-debug.ps1 -Seri
 powershell -ExecutionPolicy Bypass -File scripts/android/start-activity.ps1 -Serial $env:ROKID_SERIAL -Activity '.MainMenuActivity'
 powershell -ExecutionPolicy Bypass -File scripts/android/start-alignment-test.ps1 -Serial $env:ROKID_SERIAL -Eye right
 powershell -ExecutionPolicy Bypass -File scripts/android/start-alignment-test.ps1 -Serial $env:ROKID_SERIAL -Eye left
+powershell -ExecutionPolicy Bypass -File scripts/android/start-distance-alignment-test.ps1 -Serial $env:ROKID_SERIAL -Eye right
+powershell -ExecutionPolicy Bypass -File scripts/android/start-inverse-distance-alignment-test.ps1 -Serial $env:ROKID_SERIAL -Eye right
 powershell -ExecutionPolicy Bypass -File scripts/android/logcat.ps1 -Serial $env:ROKID_SERIAL -Clear -Tag 'HiddenRisk|AiInspection|Rokid'
 powershell -ExecutionPolicy Bypass -File scripts/android/screenshot.ps1 -Serial $env:ROKID_SERIAL -OutputPath shots/debug-screen.png
 
@@ -57,6 +59,8 @@ powershell -ExecutionPolicy Bypass -File scripts/android/package-release.ps1 -Re
 | `install-debug.ps1 -Serial <serial>` | 安装 debug APK，不自动卸载旧应用 |
 | `start-activity.ps1` / `logcat.ps1` / `screenshot.ps1` | 真机启动、日志与截图 |
 | `start-alignment-test.ps1 [-Serial <serial>] [-Eye left\|right]` | 启动摄像头画面对齐测试页，默认右眼 |
+| `start-distance-alignment-test.ps1 [-Serial <serial>] [-Eye left\|right]` | 启动不同距离 XY 偏移测试页，默认右眼、alpha=0.5 |
+| `start-inverse-distance-alignment-test.ps1 [-Serial <serial>] [-Eye left\|right]` | 启动反距离公式 B/K 调参页，距离步长 1m |
 | `package-release.ps1 [-ReplaceCurrent]` | 版本门禁、签名、校验并暂存 APK |
 
 ## 常见问题
