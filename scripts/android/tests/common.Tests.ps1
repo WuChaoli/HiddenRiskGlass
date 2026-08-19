@@ -34,6 +34,23 @@ EVIL=`$(New-Item -ItemType File -Path '$marker')
     Assert-Equal 'com.rokid.glesse/com.rokid.glass.hiddenrisk.HiddenRiskProbeActivity' `
         (Resolve-ActivityComponent -Activity 'com.rokid.glass.hiddenrisk.HiddenRiskProbeActivity') `
         'fully qualified activity class'
+    Assert-Equal '--es,mode,alignment_calibration,--es,dominantEye,right' `
+        ((Get-AlignmentTestActivityArguments -Eye 'right') -join ',') `
+        'right-eye alignment activity arguments'
+    Assert-Equal '--es,mode,alignment_calibration,--es,dominantEye,right' `
+        ((Get-AlignmentTestActivityArguments) -join ',') `
+        'default right-eye alignment activity arguments'
+    Assert-Equal '--es,mode,alignment_calibration,--es,dominantEye,left' `
+        ((Get-AlignmentTestActivityArguments -Eye 'left') -join ',') `
+        'left-eye alignment activity arguments'
+
+    $invalidEyeRejected = $false
+    try {
+        Get-AlignmentTestActivityArguments -Eye 'center' | Out-Null
+    } catch {
+        $invalidEyeRejected = $true
+    }
+    Assert-Equal $true $invalidEyeRejected 'invalid dominant eye must be rejected'
     Write-Host 'PASS common.ps1 tests'
 } finally {
     Remove-Item -Recurse -Force -LiteralPath $tempRoot -ErrorAction SilentlyContinue

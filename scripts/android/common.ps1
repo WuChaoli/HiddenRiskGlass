@@ -127,6 +127,20 @@ function Get-AdbArguments {
     return @()
 }
 
+# 生成摄像头画面对齐测试页的固定 Activity extras。
+function Get-AlignmentTestActivityArguments {
+    param([string]$Eye = 'right')
+
+    $normalizedEye = $Eye.ToLowerInvariant()
+    if ($normalizedEye -notin @('left', 'right')) {
+        throw "Unsupported dominant eye: $Eye. Expected left or right."
+    }
+    return @(
+        '--es', 'mode', 'alignment_calibration',
+        '--es', 'dominantEye', $normalizedEye
+    )
+}
+
 # 将 Java properties 中转义的 Windows SDK 路径还原为普通路径。
 function ConvertFrom-LocalPropertiesSdkDir {
     param([Parameter(Mandatory = $true)][string]$Value)

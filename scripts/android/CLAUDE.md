@@ -34,6 +34,8 @@ powershell -ExecutionPolicy Bypass -File scripts/android/verify-apk.ps1 app/buil
 powershell -ExecutionPolicy Bypass -File scripts/android/doctor.ps1 -Device
 powershell -ExecutionPolicy Bypass -File scripts/android/install-debug.ps1 -Serial $env:ROKID_SERIAL
 powershell -ExecutionPolicy Bypass -File scripts/android/start-activity.ps1 -Serial $env:ROKID_SERIAL -Activity '.MainMenuActivity'
+powershell -ExecutionPolicy Bypass -File scripts/android/start-alignment-test.ps1 -Serial $env:ROKID_SERIAL -Eye right
+powershell -ExecutionPolicy Bypass -File scripts/android/start-alignment-test.ps1 -Serial $env:ROKID_SERIAL -Eye left
 powershell -ExecutionPolicy Bypass -File scripts/android/logcat.ps1 -Serial $env:ROKID_SERIAL -Clear -Tag 'HiddenRisk|AiInspection|Rokid'
 powershell -ExecutionPolicy Bypass -File scripts/android/screenshot.ps1 -Serial $env:ROKID_SERIAL -OutputPath shots/debug-screen.png
 
@@ -54,6 +56,7 @@ powershell -ExecutionPolicy Bypass -File scripts/android/package-release.ps1 -Re
 | `verify-apk.ps1 <apk>` | 输出包名、版本、证书摘要和签名状态 |
 | `install-debug.ps1 -Serial <serial>` | 安装 debug APK，不自动卸载旧应用 |
 | `start-activity.ps1` / `logcat.ps1` / `screenshot.ps1` | 真机启动、日志与截图 |
+| `start-alignment-test.ps1 [-Serial <serial>] [-Eye left\|right]` | 启动摄像头画面对齐测试页，默认右眼 |
 | `package-release.ps1 [-ReplaceCurrent]` | 版本门禁、签名、校验并暂存 APK |
 
 ## 常见问题
