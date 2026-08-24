@@ -18,10 +18,10 @@
 
 ## 相机与请求实测
 
-SDK 支持尺寸日志明确包含：
+SDK 支持尺寸日志明确包含目标尺寸：
 
 ```text
-supported preview sizes=3024x4032:true, 3000x4000:true, ...
+supported preview sizes=..., 1200x1600:true, ...
 ```
 
 本次运行关键日志：
@@ -29,18 +29,20 @@ supported preview sizes=3024x4032:true, 3000x4000:true, ...
 ```text
 nv21 export zoom changed zoomLevel=1
 frame stream opened active=true helperReused=false
-camera ready=true requested=3024x4032
-nv21 actual=3024x4032 aspect=3:4 requested=3024x4032
-auto requestId=2 source=3024x4032 request=960x1280 jpegBytes=159481
+camera ready=true requested=1200x1600
+nv21 actual=1200x1600 aspect=3:4 requested=1200x1600
+auto requestId=14 source=1200x1600 request=1200x1600 jpegBytes=271979
 responseBBoxCount=0 projectionCrop=RectFModel(
-  left=1218.4386,
-  top=1907.2078,
-  right=1825.65,
-  bottom=2716.823
+  left=483.5074,
+  top=756.8285,
+  right=724.4643,
+  bottom=1078.1044
 ) mappedBBoxCount=0
 ```
 
-结论：测试 Profile 可取得视觉转正的 `3024×4032` 原始 3:4 NV21；请求前未裁切，等比例缩放为 `960×1280`，真实 `/auto` 请求成功返回；固定 1m 标定投影窗口已按原始帧坐标生成。
+结论：测试 Profile 可稳定取得视觉转正的 `1200×1600` 原始 3:4 NV21；请求前不裁切、不缩放，按原尺寸调用真实 `/auto`；固定 1m 标定窗口直接在 `1200×1600` 坐标系完成投影。20 秒稳定性验证期间请求从 requestId 2 连续运行至 14，测试 Activity 始终保持前台。
+
+补充实测：SDK 不支持 `960×1280`，请求后实际回调为 `720×1280`；`3024×4032` NV21 与同尺寸 Surface 并行会造成设备内存压力。因此二者均未作为最终 Profile。
 
 ## 视觉结论与边界
 

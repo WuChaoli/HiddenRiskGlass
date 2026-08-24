@@ -17,8 +17,9 @@ class RokidFrameSourceTest {
         assertEquals(1920, business.width)
         assertEquals(1080, business.height)
         assertEquals(3, business.zoomLevel)
-        assertEquals(3024, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.width)
-        assertEquals(4032, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.height)
+        assertEquals(1200, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.width)
+        assertEquals(1600, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.height)
+        assertEquals(15, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.targetFps)
         assertEquals(3f / 4f, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.aspectRatio, 0f)
     }
 

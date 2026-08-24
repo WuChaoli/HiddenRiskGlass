@@ -29,7 +29,7 @@ data class CameraStreamProfile(
     companion object {
         fun businessDefault(zoomLevel: Int) = CameraStreamProfile(1920, 1080, 15, zoomLevel)
 
-        val FULL_FRAME_OVERLAY_TEST = CameraStreamProfile(3024, 4032, 15, 1)
+        val FULL_FRAME_OVERLAY_TEST = CameraStreamProfile(1200, 1600, 15, 1)
     }
 }
 

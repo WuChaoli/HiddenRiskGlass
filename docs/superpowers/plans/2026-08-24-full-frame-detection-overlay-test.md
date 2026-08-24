@@ -1,5 +1,7 @@
 # Full Frame Detection Overlay Test Implementation Plan
 
+> **2026-08-24 真机修订（覆盖下文旧尺寸步骤）：** 最终实现改用 SDK 支持的 `1200×1600@15fps` NV21，原尺寸直传 `/auto`；BBox 直接在 `1200×1600` 坐标系应用归一化 1m 投影，不再缩放为 `960×1280`，也不再恢复到 `3024×4032`。原因与实测证据见 `test/integration/hiddenrisk/evidence/2026-08-24_full_frame_detection_overlay/README.md`。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 新建一个 ADB 隔离测试页，使用 Camera SDK 实际返回的原始 `3:4` NV21 帧，等比例缩小为 `960×1280` 调用真实 `/auto`，将返回 BBox 恢复到原始帧坐标后应用固定 1m 标定投影，并在 `480×640` 眼镜屏幕上只绘制框和 Label。

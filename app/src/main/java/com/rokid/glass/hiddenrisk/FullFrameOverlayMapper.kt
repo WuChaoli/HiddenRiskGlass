@@ -30,8 +30,8 @@ internal object FullFrameOverlayMapper {
         overlaySize: FrameSize,
         calibration: AlignmentCalibrationState,
     ): MappedOverlayFrame {
-        require(requestSize == FrameSize(REQUEST_WIDTH, REQUEST_HEIGHT)) {
-            "request must be ${REQUEST_WIDTH}x$REQUEST_HEIGHT"
+        require(requestSize.width * 4 == requestSize.height * 3) {
+            "request must use a 3:4 portrait aspect ratio"
         }
         require(sourceSize.width * 4 == sourceSize.height * 3) {
             "source must use a 3:4 portrait aspect ratio"
@@ -81,7 +81,4 @@ internal object FullFrameOverlayMapper {
         )
         return intersection.takeIf { it.width > 0f && it.height > 0f }
     }
-
-    private const val REQUEST_WIDTH = 960
-    private const val REQUEST_HEIGHT = 1280
 }

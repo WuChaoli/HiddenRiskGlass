@@ -132,7 +132,7 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
             return
         }
         cameraAcquiring = true
-        renderStatus("opening requested=3024x4032")
+        renderStatus("opening requested=${REQUEST_WIDTH}x${REQUEST_HEIGHT}")
         InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.FULL_FRAME_OVERLAY_TEST,
             needPreview = true,
@@ -141,7 +141,7 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
         ) { success ->
             cameraAcquiring = false
             cameraReady = success
-            Log.i(TAG, "camera ready=$success requested=3024x4032")
+            Log.i(TAG, "camera ready=$success requested=${REQUEST_WIDTH}x${REQUEST_HEIGHT}")
             if (success) {
                 applyCalibration()
                 scheduleNextDetection(0L)
@@ -165,7 +165,7 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
             scheduleNextDetection(RETRY_POLL_MS)
             return
         }
-        if (frame.width * 4 != frame.height * 3) {
+        if (frame.width != REQUEST_WIDTH || frame.height != REQUEST_HEIGHT) {
             requestState.acceptFailure(requestId)
             terminalSourceError = true
             val message = "unsupported_source_size=${frame.width}x${frame.height}"
@@ -176,23 +176,24 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
         sourceSize = FrameSize(frame.width, frame.height)
         Log.i(
             TAG,
-            "nv21 actual=${frame.width}x${frame.height} aspect=3:4 requested=3024x4032",
+            "nv21 actual=${frame.width}x${frame.height} aspect=3:4 " +
+                "requested=${REQUEST_WIDTH}x${REQUEST_HEIGHT}",
         )
         encodingExecutor.execute { encodeAndSubmit(frame, requestId) }
     }
 
     private fun encodeAndSubmit(frame: RokidFrameSource.Nv21Frame, requestId: Long) {
         val jpegBytes = runCatching {
-            val source = checkNotNull(BitmapUtils.nv21ToBitmap(frame.data, frame.width, frame.height))
-            val scaled = Bitmap.createScaledBitmap(source, REQUEST_WIDTH, REQUEST_HEIGHT, true)
+            val requestBitmap = checkNotNull(
+                BitmapUtils.nv21ToBitmap(frame.data, frame.width, frame.height),
+            )
             try {
                 ByteArrayOutputStream().use { output ->
-                    check(scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output))
+                    check(requestBitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output))
                     output.toByteArray()
                 }
             } finally {
-                if (scaled !== source) scaled.recycle()
-                source.recycle()
+                requestBitmap.recycle()
             }
         }.getOrNull()
         uiHandler.post {
@@ -256,7 +257,8 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
                 "mappedBBoxCount=${mapped.detections.size}",
         )
         renderStatus(
-            "source=${actualSourceSize.width}x${actualSourceSize.height} request=960x1280 " +
+            "source=${actualSourceSize.width}x${actualSourceSize.height} " +
+                "request=${REQUEST_WIDTH}x${REQUEST_HEIGHT} " +
                 "bbox=${response.detections.size}/${mapped.detections.size}",
         )
     }
@@ -293,8 +295,8 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
     companion object {
         private const val TAG = "FullFrameOverlayTest"
         private const val REQUEST_CAMERA_PERMISSION = 6104
-        private const val REQUEST_WIDTH = 960
-        private const val REQUEST_HEIGHT = 1280
+        private const val REQUEST_WIDTH = 1200
+        private const val REQUEST_HEIGHT = 1600
         private const val OVERLAY_WIDTH = 480
         private const val OVERLAY_HEIGHT = 640
         private const val JPEG_QUALITY = 82
