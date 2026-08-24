@@ -14,6 +14,25 @@ import com.rokid.security.glass3.open.sdk.GlassSdk
 import com.rokid.security.glass3.open.sdk.camera.CameraShareHelper
 import com.rokid.security.glass3.sdk.base.data.media.CameraShareConfig
 
+data class CameraStreamProfile(
+    val width: Int,
+    val height: Int,
+    val targetFps: Int,
+    val zoomLevel: Int,
+) {
+    init {
+        require(width > 0 && height > 0 && targetFps > 0 && zoomLevel > 0)
+    }
+
+    val aspectRatio: Float get() = width.toFloat() / height.toFloat()
+
+    companion object {
+        fun businessDefault(zoomLevel: Int) = CameraStreamProfile(1920, 1080, 15, zoomLevel)
+
+        val FULL_FRAME_OVERLAY_TEST = CameraStreamProfile(3024, 4032, 15, 1)
+    }
+}
+
 /**
  * 基于 Rokid CameraShareHelper 的统一 NV21 帧源。
  * 只保留最近一帧原始 NV21，业务侧按需裁切，避免每帧预处理和排队。
@@ -88,10 +107,6 @@ object RokidFrameSource {
     private const val TAG = "RokidFrameSource"
     private const val CROPPED_TARGET_SIZE = 640
     private const val FRAME_STREAM_RESTART_RELEASE_DELAY_MS = 500L
-    private const val SHARED_PREVIEW_WIDTH = 1920
-    private const val SHARED_PREVIEW_HEIGHT = 1080
-    private const val SHARED_PREVIEW_TARGET_FPS = 15
-
     private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val lock = Any()
     private val frameReadyCallbacks = mutableListOf<(Boolean) -> Unit>()
@@ -103,6 +118,9 @@ object RokidFrameSource {
     private var reuseRestartPending = false
     private var supportedPreviewSizesRead = false
     private var supportedPreviewSizes: List<String> = emptyList()
+
+    @Volatile
+    private var activeStreamProfile: CameraStreamProfile? = null
 
     @Volatile
     private var frameStreamOpened = false
@@ -138,7 +156,15 @@ object RokidFrameSource {
     @Volatile
     private var currentZoomRatio = 1.0f
 
-    fun startFrameStream(onReady: (Boolean) -> Unit = {}) {
+    fun startFrameStream(
+        profile: CameraStreamProfile? = null,
+        onReady: (Boolean) -> Unit = {},
+    ) {
+        val requestedProfile = profile ?: businessProfile()
+        if (nv21Helper != null && activeStreamProfile != requestedProfile) {
+            AppFileLogger.i(TAG, "profile switch old=$activeStreamProfile new=$requestedProfile")
+            stopFrameStream()
+        }
         synchronized(lock) {
             if (!GlassSdk.isReady()) {
                 AppFileLogger.w(TAG, "startFrameStream skipped sdkNotReady")
@@ -159,6 +185,7 @@ object RokidFrameSource {
             AppFileLogger.i(TAG, "startFrameStream create helper")
             frameReadyCallbacks += onReady
             latestFrame = null
+            activeStreamProfile = requestedProfile
             val helperGeneration = ++helperGenerationCounter
             activeHelperGeneration = helperGeneration
             val callback = object : CameraShareHelper.Nv21Callback {
@@ -301,7 +328,7 @@ object RokidFrameSource {
             nv21Callback = callback
             nv21Helper = CameraShareHelper().apply {
                 readSupportedPreviewSizesOnce(this)
-                initNv21ExportWithConfig(false, sharedCameraConfig(), callback)
+                initNv21ExportWithConfig(false, sharedCameraConfig(requestedProfile), callback)
             }
         }
     }
@@ -324,6 +351,7 @@ object RokidFrameSource {
             reuseRestartPending = false
             nv21Callback = null
             activeHelperGeneration = 0L
+            activeStreamProfile = null
             nv21Helper.also { nv21Helper = null }
         }
         helper?.releaseNv21Export()
@@ -354,7 +382,11 @@ object RokidFrameSource {
                 frameReadyCallbacks += onReady
             }
             runCatching {
-                helper.restartNv21ExportWithConfig(false, sharedCameraConfig(), callback)
+                helper.restartNv21ExportWithConfig(
+                    false,
+                    sharedCameraConfig(activeStreamProfile ?: businessProfile()),
+                    callback,
+                )
             }.onFailure { error ->
                 AppFileLogger.w(TAG, "reuse restart threw ${error.message}; rebuild helper")
                 rebuildAfterReuseFailure()
@@ -524,23 +556,30 @@ object RokidFrameSource {
             nv21Helper
         } ?: return false
         return runCatching {
-            helper.initSurfaceWithConfig(sharedCameraConfig(), callback)
+            helper.initSurfaceWithConfig(
+                sharedCameraConfig(activeStreamProfile ?: businessProfile()),
+                callback,
+            )
             true
         }.onFailure { error ->
             Log.e(TAG, "startSurfacePreview failed: ${error.message}", error)
         }.getOrDefault(false)
     }
 
-    private fun sharedCameraConfig(): CameraShareConfig {
+    private fun businessProfile(): CameraStreamProfile {
         val zoomRatio = runCatching {
             InspectionConfigRepository.get().aiInspection.sharedCameraZoomRatio
         }.getOrDefault(1.0f)
+        return CameraStreamProfile.businessDefault(sdkZoomLevelFor(zoomRatio))
+    }
+
+    private fun sharedCameraConfig(profile: CameraStreamProfile): CameraShareConfig {
         return CameraShareConfig(
-            previewWidth = SHARED_PREVIEW_WIDTH,
-            previewHeight = SHARED_PREVIEW_HEIGHT,
-            previewTargetFps = SHARED_PREVIEW_TARGET_FPS,
+            previewWidth = profile.width,
+            previewHeight = profile.height,
+            previewTargetFps = profile.targetFps,
             enableVideoStabilization = false,
-            zoomLevel = sdkZoomLevelFor(zoomRatio),
+            zoomLevel = profile.zoomLevel,
         )
     }
 
@@ -595,10 +634,12 @@ object RokidFrameSource {
 
     fun getPreferredPreviewZoomRatio(): Float = currentZoomRatio
 
+    fun isUsingProfile(profile: CameraStreamProfile): Boolean = activeStreamProfile == profile
+
     fun getFrameSize(): Size? = frameSize
 
     fun diagnosticsSnapshot(): DiagnosticsSnapshot {
-        val config = sharedCameraConfig()
+        val config = sharedCameraConfig(activeStreamProfile ?: businessProfile())
         val helper = synchronized(lock) { nv21Helper }
         return DiagnosticsSnapshot(
             nv21Active = helper?.let { runCatching { it.isNv21Active() }.getOrNull() },

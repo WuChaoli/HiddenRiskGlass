@@ -291,4 +291,24 @@ class InspectionCameraCoordinatorStateMachineTest {
         val second = stateMachine.forceRelease()
         assertEquals(first.generation + 1L, second.generation)
     }
+
+    @Test
+    fun `full frame overlay test owner releases without affecting next owner`() {
+        val stateMachine = InspectionCameraCoordinator.StateMachine()
+        val acquired = stateMachine.beginAcquire(
+            CameraOwner.FULL_FRAME_OVERLAY_TEST,
+            readyNow = false,
+            needPreview = true,
+        )
+
+        assertTrue(
+            stateMachine.finishReady(
+                CameraOwner.FULL_FRAME_OVERLAY_TEST,
+                acquired.generation,
+                needPreview = true,
+            ),
+        )
+        assertNotNull(stateMachine.beginRelease(CameraOwner.FULL_FRAME_OVERLAY_TEST))
+        assertNull(stateMachine.snapshot().owner)
+    }
 }

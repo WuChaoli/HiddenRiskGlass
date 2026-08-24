@@ -11,6 +11,18 @@ import org.junit.Test
 class RokidFrameSourceTest {
 
     @Test
+    fun `business and overlay profiles keep their requested aspect ratios`() {
+        val business = CameraStreamProfile.businessDefault(zoomLevel = 3)
+
+        assertEquals(1920, business.width)
+        assertEquals(1080, business.height)
+        assertEquals(3, business.zoomLevel)
+        assertEquals(3024, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.width)
+        assertEquals(4032, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.height)
+        assertEquals(3f / 4f, CameraStreamProfile.FULL_FRAME_OVERLAY_TEST.aspectRatio, 0f)
+    }
+
+    @Test
     fun `sdk zoom level one maps to lowest zoom`() {
         assertEquals(1, RokidFrameSource.sdkZoomLevelFor(1.0f))
     }

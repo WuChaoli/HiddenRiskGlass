@@ -3,6 +3,7 @@ package com.rokid.glass.hiddenrisk
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.rokid.glass.camera.CameraStreamProfile
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.component.RokidCameraPreviewView
 
@@ -19,6 +20,7 @@ object InspectionCameraCoordinator {
         DEVICE_GUIDE,
         HAZARD_RECORD,
         RAW_CAMERA_DEBUG,
+        FULL_FRAME_OVERLAY_TEST,
     }
 
     enum class CameraSessionState {
@@ -231,10 +233,12 @@ object InspectionCameraCoordinator {
         owner: CameraOwner,
         needPreview: Boolean,
         previewView: RokidCameraPreviewView? = null,
+        streamProfile: CameraStreamProfile? = null,
         enableRecovery: Boolean = false,
         onReady: (Boolean) -> Unit = {},
     ): Long {
-        val readyNow = isFrameStreamReady() || RokidFrameSource.isFrameStreamOpen()
+        val readyNow = (isFrameStreamReady() || RokidFrameSource.isFrameStreamOpen()) &&
+            (streamProfile == null || RokidFrameSource.isUsingProfile(streamProfile))
         val snapshot = synchronized(lock) {
             activeNeedPreview = needPreview
             if (needPreview) {
@@ -264,7 +268,7 @@ object InspectionCameraCoordinator {
             }
             return snapshot.generation
         }
-        RokidFrameSource.startFrameStream { success ->
+        RokidFrameSource.startFrameStream(streamProfile) { success ->
             mainHandler.post {
                 handleStreamReady(
                     owner = owner,
@@ -290,6 +294,7 @@ object InspectionCameraCoordinator {
         owner: CameraOwner,
         needPreview: Boolean,
         previewView: RokidCameraPreviewView? = null,
+        streamProfile: CameraStreamProfile? = null,
         enableRecovery: Boolean = false,
         onReady: (Boolean) -> Unit = {},
     ): Long {
@@ -305,6 +310,7 @@ object InspectionCameraCoordinator {
             owner = owner,
             needPreview = needPreview,
             previewView = previewView,
+            streamProfile = streamProfile,
             enableRecovery = enableRecovery,
             attempt = 1,
             maxAttempts = 4,
@@ -463,6 +469,7 @@ object InspectionCameraCoordinator {
         owner: CameraOwner,
         needPreview: Boolean,
         previewView: RokidCameraPreviewView?,
+        streamProfile: CameraStreamProfile?,
         enableRecovery: Boolean,
         attempt: Int,
         maxAttempts: Int,
@@ -474,6 +481,7 @@ object InspectionCameraCoordinator {
             owner = owner,
             needPreview = needPreview,
             previewView = previewView,
+            streamProfile = streamProfile,
             enableRecovery = enableRecovery,
         ) { success ->
             // 检查当前请求是否已被取消（releaseForNavigation 会将 currentRequestToken 置为 -1）
@@ -502,6 +510,7 @@ object InspectionCameraCoordinator {
                     owner = owner,
                     needPreview = needPreview,
                     previewView = previewView,
+                    streamProfile = streamProfile,
                     enableRecovery = enableRecovery,
                     attempt = attempt + 1,
                     maxAttempts = maxAttempts,
