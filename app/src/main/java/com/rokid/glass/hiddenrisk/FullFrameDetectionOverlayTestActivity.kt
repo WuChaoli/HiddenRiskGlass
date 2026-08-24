@@ -174,6 +174,10 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
             return
         }
         sourceSize = FrameSize(frame.width, frame.height)
+        Log.i(
+            TAG,
+            "nv21 actual=${frame.width}x${frame.height} aspect=3:4 requested=3024x4032",
+        )
         encodingExecutor.execute { encodeAndSubmit(frame, requestId) }
     }
 
@@ -205,6 +209,11 @@ class FullFrameDetectionOverlayTestActivity : BaseGlassActivity(), RokidSdkManag
     }
 
     private fun submitRequest(jpegBytes: ByteArray, requestId: Long, width: Int, height: Int) {
+        Log.i(
+            TAG,
+            "auto requestId=$requestId source=${width}x$height request=${REQUEST_WIDTH}x$REQUEST_HEIGHT " +
+                "jpegBytes=${jpegBytes.size}",
+        )
         renderStatus("source=${width}x$height request=${REQUEST_WIDTH}x$REQUEST_HEIGHT ${jpegBytes.size / 1024}KB")
         activeCall = detectionClient.detect(jpegBytes, object : AlignmentAutoDetectionClient.ResultCallback {
             override fun onSuccess(response: AlignmentDetectionResponse) {
