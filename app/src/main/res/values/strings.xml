@@ -271,4 +271,5 @@
     <string name="ai_entry_menu_analysis_pinyin">shi shi fen xi</string>
     <string name="ai_entry_menu_guide_pinyin">she bei zhi yin</string>
     <string name="ai_entry_menu_record_pinyin">yin huan pai zhao</string>
+    <string name="full_frame_detection_overlay_test_title">完整画幅实时打框测试</string>
 </resources>

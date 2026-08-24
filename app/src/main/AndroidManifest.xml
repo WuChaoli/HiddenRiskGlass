@@ -197,6 +197,11 @@
             android:exported="true"
             android:label="@string/depth_overlay_simulation_title"
             android:theme="@style/Theme.Glessedemo" />
+        <activity
+            android:name="com.rokid.glass.hiddenrisk.FullFrameDetectionOverlayTestActivity"
+            android:exported="true"
+            android:label="@string/full_frame_detection_overlay_test_title"
+            android:theme="@style/Theme.Glessedemo" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
