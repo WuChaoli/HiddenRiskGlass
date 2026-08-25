@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>隐患框与详情卡视觉样例</title>
+  <style>
+    :root {
+      --green: #00ff66;
+      --panel-green: rgb(0 255 102 / 50%);
+      --line: rgb(0 255 102 / 86%);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      min-height: 100%;
+      margin: 0;
+      background: #101512;
+      font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      padding: 28px;
+    }
+
+    .device {
+      position: relative;
+      width: 480px;
+      height: 640px;
+      overflow: hidden;
+      color: var(--green);
+      background:
+        linear-gradient(rgb(0 0 0 / 35%), rgb(0 0 0 / 35%)),
+        url("../../app/src/main/assets/gonglu.png") center / cover;
+      box-shadow: 0 18px 70px rgb(0 0 0 / 55%);
+    }
+
+    .bbox {
+      position: absolute;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .bbox-layer {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      /* 详情卡区域不绘制 bbox，避免半透明背景下出现同色线框穿透。 */
+      -webkit-mask:
+        linear-gradient(#000 0 0) top / 100% 174px no-repeat,
+        linear-gradient(#000 0 0) bottom / 100% 66px no-repeat,
+        linear-gradient(#000 0 0) left 174px / 28px 400px no-repeat,
+        linear-gradient(#000 0 0) right 174px / 28px 400px no-repeat;
+      mask:
+        linear-gradient(#000 0 0) top / 100% 174px no-repeat,
+        linear-gradient(#000 0 0) bottom / 100% 66px no-repeat,
+        linear-gradient(#000 0 0) left 174px / 28px 400px no-repeat,
+        linear-gradient(#000 0 0) right 174px / 28px 400px no-repeat;
+    }
+
+    .bbox.secondary {
+      left: 44px;
+      top: 91px;
+      width: 136px;
+      height: 116px;
+      opacity: .78;
+    }
+
+    .bbox.focused {
+      left: 252px;
+      top: 74px;
+      width: 176px;
+      height: 142px;
+      transform: scale(1.1);
+      transform-origin: center;
+    }
+
+    .bbox .thin {
+      position: absolute;
+      background: var(--green);
+    }
+
+    .bbox .top, .bbox .bottom {
+      left: 25px;
+      right: 25px;
+      height: 1px;
+    }
+
+    .bbox .top { top: 1.5px; }
+    .bbox .bottom { bottom: 1.5px; }
+
+    .bbox .left, .bbox .right {
+      top: 25px;
+      bottom: 25px;
+      width: 1px;
+    }
+
+    .bbox .left { left: 1.5px; }
+    .bbox .right { right: 1.5px; }
+
+    .corner {
+      position: absolute;
+      width: 27px;
+      height: 27px;
+      border-color: var(--green);
+      border-style: solid;
+      border-width: 0;
+    }
+
+    .corner.tl {
+      left: 0;
+      top: 0;
+      border-left-width: 4px;
+      border-top-width: 4px;
+    }
+
+    .corner.tr {
+      right: 0;
+      top: 0;
+      border-top-width: 4px;
+      border-right-width: 4px;
+      border-top-right-radius: 16px;
+    }
+
+    .corner.br {
+      right: 0;
+      bottom: 0;
+      border-right-width: 4px;
+      border-bottom-width: 4px;
+      border-bottom-right-radius: 16px;
+    }
+
+    .corner.bl {
+      left: 0;
+      bottom: 0;
+      border-left-width: 4px;
+      border-bottom-width: 4px;
+      border-bottom-left-radius: 16px;
+    }
+
+    .dots {
+      position: absolute;
+      left: -1px;
+      bottom: 31px;
+      display: grid;
+      gap: 3px;
+    }
+
+    .dots i {
+      display: block;
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
+    .bbox-label {
+      position: absolute;
+      left: 6px;
+      top: 7px;
+      display: grid;
+      gap: 1px;
+      padding: 4px 6px;
+      border-radius: 0 7px 7px 7px;
+      background: rgb(0 55 23 / 76%);
+      color: var(--green);
+      line-height: 1.15;
+      white-space: nowrap;
+    }
+
+    .bbox-label strong { font-size: 11px; }
+    .bbox-label span { font-size: 9px; font-weight: 650; }
+
+    .hazard-card {
+      position: absolute;
+      z-index: 3;
+      left: 50%;
+      top: 54%;
+      width: 424px;
+      max-height: 476px;
+      padding: 20px 18px 17px;
+      transform: translate(-50%, -50%);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--panel-green);
+      box-shadow: inset 0 0 0 1px rgb(0 45 19 / 20%);
+      text-shadow: 0 1px 2px rgb(0 35 15 / 65%);
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+
+    h1 {
+      margin: 0 0 5px;
+      font-size: 30px;
+      line-height: 1.15;
+      font-weight: 800;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 17px;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .content-box {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .column {
+      min-width: 0;
+      padding: 13px 14px 15px;
+    }
+
+    .column + .column {
+      border-left: 1px solid var(--line);
+    }
+
+    .column h2, .law h2 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .column p {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 0;
+      font-size: 16px;
+      font-weight: 620;
+      line-height: 1.55;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 5;
+    }
+
+    .law {
+      margin-top: 16px;
+    }
+
+    .law p {
+      display: -webkit-box;
+      overflow: hidden;
+      margin: 0;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.5;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+    }
+
+    .page {
+      position: absolute;
+      right: 17px;
+      bottom: 12px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .status {
+      position: absolute;
+      z-index: 4;
+      right: 17px;
+      bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 7px;
+      border-radius: 7px;
+      background: rgb(0 0 0 / 30%);
+      font-size: 14px;
+      font-weight: 750;
+    }
+
+    .battery {
+      width: 25px;
+      height: 11px;
+      border: 1px solid currentColor;
+      border-radius: 2px;
+      box-shadow: inset 0 0 0 2px rgb(0 255 102 / 30%);
+    }
+  </style>
+</head>
+<body>
+  <main class="device" aria-label="480乘640眼镜端隐患详情视觉样例">
+    <div class="bbox-layer" aria-hidden="true">
+      <div class="bbox secondary">
+        <span class="thin top"></span><span class="thin right"></span>
+        <span class="thin bottom"></span><span class="thin left"></span>
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner br"></span><span class="corner bl"></span>
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="bbox-label"><strong>道路边缘</strong><span>一般隐患</span></span>
+      </div>
+
+      <div class="bbox focused">
+        <span class="thin top"></span><span class="thin right"></span>
+        <span class="thin bottom"></span><span class="thin left"></span>
+        <span class="corner tl"></span><span class="corner tr"></span>
+        <span class="corner br"></span><span class="corner bl"></span>
+        <span class="dots"><i></i><i></i><i></i></span>
+        <span class="bbox-label"><strong>道路落叶堆积</strong><span>一般隐患</span></span>
+      </div>
+    </div>
+
+    <section class="hazard-card">
+      <p class="eyebrow">隐患详情</p>
+      <h1>道路落叶堆积</h1>
+      <div class="meta">
+        <span>隐患编号&nbsp; YH-2026-0825-001</span>
+        <span>隐患等级&nbsp; 一般隐患</span>
+      </div>
+
+      <div class="content-box">
+        <article class="column">
+          <h2>隐患描述</h2>
+          <p>道路转弯区域存在大面积落叶堆积，雨天可能降低路面附着力，并遮挡道路边缘及排水位置。</p>
+        </article>
+        <article class="column">
+          <h2>整改建议</h2>
+          <p>及时清扫道路和排水区域，弯道处设置临时警示；建立高频巡查与清理记录，避免再次堆积。</p>
+        </article>
+      </div>
+
+      <div class="law">
+        <h2>法律依据</h2>
+        <p>《中华人民共和国安全生产法》相关规定：生产经营场所应保持安全、畅通，并及时消除事故隐患。</p>
+      </div>
+      <span class="page">1 / 2</span>
+    </section>
+
+    <div class="status"><span>▥</span><span>9:41</span><span class="battery"></span></div>
+  </main>
+</body>
+</html>
