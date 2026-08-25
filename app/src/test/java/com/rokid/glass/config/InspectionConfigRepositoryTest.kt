@@ -50,6 +50,33 @@ class InspectionConfigRepositoryTest {
     }
 
     @Test
+    fun `general deep v2 and gm v2 endpoints are independently configurable`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "network": {
+                    "aiGeneralDeepV2Api": { "url": "http://example.test/ai/general_deep/v2" },
+                    "aiGmV2Api": { "url": "http://example.test/ai/gm/v2" }
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = """
+                {
+                  "network": {
+                    "aiGmV2Api": { "url": "http://127.0.0.1:18080/ai/gm/v2" }
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals(
+            "http://example.test/ai/general_deep/v2",
+            config.network.aiGeneralDeepV2Api.url,
+        )
+        assertEquals("http://127.0.0.1:18080/ai/gm/v2", config.network.aiGmV2Api.url)
+    }
+
+    @Test
     fun `business mock enables fixed scene and disables uploads`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = """

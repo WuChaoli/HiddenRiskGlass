@@ -99,8 +99,16 @@ data class NetworkConfig(
         url = "http://183.147.142.133:10010/ai/deep/v2",
         detectTimeoutMs = 45_000L,
     ),
+    val aiGeneralDeepV2Api: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10010/ai/general_deep/v2",
+        detectTimeoutMs = 45_000L,
+    ),
     val aiGmApi: AiArApiConfig = AiArApiConfig(
         url = "http://183.147.142.133:10012/ai/gm",
+    ),
+    val aiGmV2Api: AiArApiConfig = AiArApiConfig(
+        url = "http://183.147.142.133:10012/ai/gm/v2",
+        detectTimeoutMs = 45_000L,
     ),
     val aiGeneralApi: AiArApiConfig = AiArApiConfig(
         url = "http://183.147.142.133:10010/ai/general",
@@ -289,7 +297,9 @@ data class NetworkConfigOverride(
     val aiAutoApi: AiArApiConfigOverride? = null,
     val aiDeepApi: AiArApiConfigOverride? = null,
     val aiDeepV2Api: AiArApiConfigOverride? = null,
+    val aiGeneralDeepV2Api: AiArApiConfigOverride? = null,
     val aiGmApi: AiArApiConfigOverride? = null,
+    val aiGmV2Api: AiArApiConfigOverride? = null,
     val aiGeneralApi: AiArApiConfigOverride? = null,
     val aiGeneralDeepApi: AiArApiConfigOverride? = null,
     val aiDeviceApi: AiArApiConfigOverride? = null,

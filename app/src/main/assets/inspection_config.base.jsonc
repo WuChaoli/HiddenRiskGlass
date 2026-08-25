@@ -136,6 +136,14 @@
       "writeTimeoutMs": 30000,
       "detectTimeoutMs": 45000
     },
+    "aiGeneralDeepV2Api": {
+      // 环境隐患结构化深度分析接口地址。
+      "url": "http://183.147.142.133:10010/ai/general_deep/v2",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 45000
+    },
     "aiGmApi": {
       // 缺少 placeCode 时，手动深度分析和隐患录入页使用的兼容接口地址。
       "url": "http://183.147.142.133:10012/ai/gm",
@@ -143,6 +151,14 @@
       "readTimeoutMs": 45000,
       "writeTimeoutMs": 30000,
       "detectTimeoutMs": 1500
+    },
+    "aiGmV2Api": {
+      // 缺少 placeCode 时使用的结构化工贸隐患分析接口地址。
+      "url": "http://183.147.142.133:10012/ai/gm/v2",
+      "connectTimeoutMs": 15000,
+      "readTimeoutMs": 45000,
+      "writeTimeoutMs": 30000,
+      "detectTimeoutMs": 45000
     },
     "aiGeneralApi": {
       // 环境隐患识别接口地址。
