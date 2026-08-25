@@ -451,6 +451,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var fullFrameAutoTimeoutRunnable: Runnable? = null
     private val deepV2Client by lazy { DeepV2Client.create() }
     private val deepV2AutoCoordinator = DeepV2AutoCoordinator()
+    private val labelCooldownRegistry by lazy { LabelCooldownRegistry(LOCAL_LABEL_COOLDOWN_MS) }
+    private val deepV2LabelCooldownCoordinator by lazy {
+        DeepV2LabelCooldownCoordinator(labelCooldownRegistry)
+    }
     private val deepAnalysisAudioCoordinator = DeepAnalysisAudioCoordinator()
     private val deepV2ResultNormalizer = DeepV2ResultNormalizer()
     private var deepV2RequestHandle: DeepV2Client.RequestHandle? = null
@@ -536,7 +540,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var adviceCardAnimating = false
     private var pendingUploadSuccessToast = false
     private var pendingAutoHazardPresentation: PendingAutoHazardPresentation? = null
-    private val localLabelCooldownUntilMs = linkedMapOf<String, Long>()
     private val localHazardInfoByItem: Map<String, List<LocalHazardInfo>> by lazy {
         buildLocalHazardInfoByItem(loadLocalHazardInfos())
     }
@@ -1319,6 +1322,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideStatusAlertOverlay()
         cameraRecoveryController.resetRecoveryAttempts()
         showPage(PageState.DETECTING)
+        deepV2LabelCooldownCoordinator.onReturnedToAuto(SystemClock.elapsedRealtime())
         showPendingUploadSuccessToastIfNeeded()
         applyDefaultDetectionStatus()
         initFrameStreamAndTransition()
@@ -1348,6 +1352,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         hideStatusAlertOverlay()
         cameraRecoveryController.resetRecoveryAttempts()
         showPage(PageState.DETECTING)
+        deepV2LabelCooldownCoordinator.onReturnedToAuto(SystemClock.elapsedRealtime())
         showPendingUploadSuccessToastIfNeeded()
         applyDefaultDetectionStatus()
         refreshInputActions()
@@ -1387,7 +1392,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         stopAutoInferencePipelines("return_home")
         clearLocalHazardResultState()
         activeStreamRequestId++
-        localLabelCooldownUntilMs.clear()
+        deepV2LabelCooldownCoordinator.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionCameraCoordinator.releaseForNavigation(CameraOwner.AI_INSPECTION, reason = "ai_nav_menu")
@@ -1410,7 +1415,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         clearPendingAutoHazardPresentation()
         stopAutoInferencePipelines("finish_inspection")
         activeStreamRequestId++
-        localLabelCooldownUntilMs.clear()
+        deepV2LabelCooldownCoordinator.clear()
         hideStatusAlertOverlay()
         refreshInputActions()
         InspectionWorkflowSession.recordAnalysis(lastAnalysisText, sessionId)
@@ -2055,13 +2060,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             calibration = FullFrameOverlayCalibrationState().calibration,
         )
         autoDetectionOverlay.showDetections(mapped.detections)
-        val shouldTriggerDeep = AutoDeepTriggerDecider.shouldTrigger(
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        val deepTriggerLabels = AutoDeepTriggerDecider.qualifyingLabels(
             visibleDetections = mapped.detections,
             screenSize = FrameSize(AUTO_OVERLAY_WIDTH, AUTO_OVERLAY_HEIGHT),
+            isCooling = { label -> labelCooldownRegistry.isCooling(label, nowElapsedMs) },
         )
+        val shouldTriggerDeep = deepTriggerLabels.isNotEmpty()
         AppFileLogger.i(
             TAG,
-            "full-frame auto response requestId=$requestId bbox=${response.detections.size}/${mapped.detections.size} triggerDeep=$shouldTriggerDeep",
+            "full-frame auto response requestId=$requestId bbox=${response.detections.size}/${mapped.detections.size} triggerDeep=$shouldTriggerDeep activeLabels=${deepTriggerLabels.joinToString()}",
         )
         if (shouldTriggerDeep) {
             val lifecycleGeneration = activityLifecycleGeneration
@@ -2081,6 +2089,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         return@post
                     }
                     val placeCode = InspectionWorkflowSession.enterpriseInfo?.placeCode.orEmpty()
+                    deepV2LabelCooldownCoordinator.onRequestStarted(deepTriggerLabels)
                     playDeepAnalysisCue(
                         deepAnalysisAudioCoordinator.begin(
                             deepV2AudioToken(deepRequestId, epoch),
@@ -2180,6 +2189,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         deepV2RequestHandle = null
         val presentation = deepV2ResultNormalizer.normalize(response)
         if (!presentation.hasDisplayableHazards) {
+            deepV2LabelCooldownCoordinator.onNoHazardReturnedToAuto(SystemClock.elapsedRealtime())
             playDeepAnalysisCue(
                 deepAnalysisAudioCoordinator.complete(
                     deepV2AudioToken(requestId, epoch),
@@ -2202,6 +2212,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         deepV2Presentation = presentation
         deepV2ResultImage = image
+        deepV2LabelCooldownCoordinator.onHazardReturned()
         stopAutoInferencePipelines("deep_v2_success")
         presentDeepV2Result(image, presentation)
     }
@@ -2221,6 +2232,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         deepV2RequestHandle = null
+        deepV2LabelCooldownCoordinator.onRequestFailedOrCancelled()
         deepAnalysisAudioCoordinator.cancel(deepV2AudioToken(requestId, epoch))
         AppFileLogger.w(TAG, "deep v2 failed requestId=$requestId error=$error keep auto")
         showDeepV2TransientMessage(getString(R.string.deep_v2_request_failed))
@@ -2385,6 +2397,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         deepV2RequestHandle?.cancel()
         deepV2RequestHandle = null
         deepV2AutoCoordinator.cancel()
+        deepV2LabelCooldownCoordinator.onRequestFailedOrCancelled()
         deepAnalysisAudioCoordinator.cancelAll()
     }
 
@@ -3930,23 +3943,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun pruneExpiredLocalCooldowns(nowElapsedMs: Long) {
-        val iterator = localLabelCooldownUntilMs.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.value <= nowElapsedMs) {
-                iterator.remove()
-            }
-        }
-    }
-
     private fun isLocalLabelCooling(label: String, nowElapsedMs: Long): Boolean {
-        val normalizedLabel = label.trim()
-        if (normalizedLabel.isBlank()) {
-            return false
-        }
-        val cooldownUntilMs = localLabelCooldownUntilMs[normalizedLabel] ?: return false
-        return cooldownUntilMs > nowElapsedMs
+        return labelCooldownRegistry.isCooling(label, nowElapsedMs)
     }
 
     private fun filterLocalMatchesByCooldown(
@@ -3956,7 +3954,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (localMatches.isEmpty()) {
             return emptyList()
         }
-        pruneExpiredLocalCooldowns(nowElapsedMs)
         return localMatches.filterNot { match ->
             isLocalLabelCooling(match.cooldownLabel, nowElapsedMs)
         }
@@ -3979,15 +3976,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (labels.isEmpty()) {
             return
         }
-        pruneExpiredLocalCooldowns(nowElapsedMs)
-        val cooldownUntilMs = nowElapsedMs + LOCAL_LABEL_COOLDOWN_MS
-        labels
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .distinct()
-            .forEach { label ->
-                localLabelCooldownUntilMs[label] = cooldownUntilMs
-            }
+        labelCooldownRegistry.mark(labels, nowElapsedMs)
     }
 
     private fun handleOnlineDetailSuccess(

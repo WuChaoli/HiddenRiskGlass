@@ -1,6 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,10 +43,41 @@ class AutoDeepTriggerDeciderTest {
         assertFalse(AutoDeepTriggerDecider.shouldTrigger(emptyList(), FrameSize(480, 640)))
     }
 
+    @Test
+    fun `qualifying labels exclude cooling labels without changing source detections`() {
+        val detections = listOf(
+            detection(label = "燃气灶", right = 241f, bottom = 160f),
+            detection(label = "热水器", left = 80f, top = 80f, right = 321f, bottom = 241f),
+        )
+
+        val labels = AutoDeepTriggerDecider.qualifyingLabels(
+            visibleDetections = detections,
+            screenSize = FrameSize(480, 640),
+            isCooling = { it == "燃气灶" },
+        )
+
+        assertEquals(listOf("热水器"), labels)
+        assertEquals(2, detections.size)
+    }
+
+    @Test
+    fun `qualifying labels are trimmed and deduplicated`() {
+        val detections = listOf(
+            detection(label = " 燃气灶 ", right = 241f, bottom = 160f),
+            detection(label = "燃气灶", left = 80f, top = 80f, right = 321f, bottom = 241f),
+        )
+
+        assertEquals(
+            listOf("燃气灶"),
+            AutoDeepTriggerDecider.qualifyingLabels(detections, FrameSize(480, 640)) { false },
+        )
+    }
+
     private fun detection(
+        label: String = "test",
         left: Float = 0f,
         top: Float = 0f,
         right: Float,
         bottom: Float,
-    ) = AlignmentDetection("test", 0.9f, left, top, right, bottom)
+    ) = AlignmentDetection(label, 0.9f, left, top, right, bottom)
 }

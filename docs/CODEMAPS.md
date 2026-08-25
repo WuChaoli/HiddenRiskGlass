@@ -205,13 +205,15 @@ sequenceDiagram
         Remote-->>SSE: detections
     end
     SSE-->>ODS: 自动检测结果
-    AI->>AI: 持续画框；任一可见 bbox 面积 > 1/8
+    AI->>AI: 持续画全部框；筛选未处于共享 15 秒冷却的 label
+    AI->>AI: 任一未冷却 bbox 面积 > 1/8
     AI->>AI: 同帧按固定 1m 校准裁成真实世界对齐 3:4 JPEG
     AI->>V2: 单飞 request(aligned 3:4 JPEG)
     V2->>Remote: POST /ai/deep/v2
     Remote-->>V2: JSON detections + hazards + check_items
     V2-->>AI: label_id 关联并归一化
     AI->>AI: 结构化结果页浏览、确认保存或取消重检
+    AI->>AI: 无隐患立即、有隐患则回到 /auto 时启动 label 冷却
 ```
 
 ### 3.3 核心链路：本地 NCNN 推理（fallback / localTriger 主链路）

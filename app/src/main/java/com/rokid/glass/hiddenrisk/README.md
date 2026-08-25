@@ -123,8 +123,10 @@ DeviceGuideActivity:
 | `AutoInferenceLoopDecider.kt` | 自动推理循环决策 | |
 | `OnlineHazardCompetitionDecider.kt` | 在线识别竞争决策 | |
 | `SharedInferenceFrameDecider.kt` | 共享推理帧决策器，判断在线链路是否复用本地推理缓存 | `decide()` |
-| `AutoDeepTriggerDecider.kt` | 判断可见 bbox 面积是否严格大于屏幕面积 `1/8` | `shouldTrigger()` |
+| `AutoDeepTriggerDecider.kt` | 筛选可见 bbox 面积严格大于屏幕面积 `1/8` 且不在冷却中的 label | `shouldTrigger()`, `qualifyingLabels()` |
 | `DeepV2AutoCoordinator.kt` | `/deep/v2` 单飞、请求代际和失败释放协调 | `onAutoResponse()`, `onSuccess()`, `onFailure()` |
+| `LabelCooldownRegistry.kt` | 在线 `/auto` 与本地 NCNN 共享的 label 冷却表，默认使用配置的 15 秒窗口 | `isCooling()`, `mark()` |
+| `DeepV2LabelCooldownCoordinator.kt` | 暂存本次深度分析 label，并在真正回到 `/auto` 时启动冷却 | `onNoHazardReturnedToAuto()`, `onHazardReturned()`, `onReturnedToAuto()` |
 
 ### 会话与会话管理（4 个）
 
@@ -212,10 +214,11 @@ AiInspectionMenuActivity (点击"实时分析")
 AiInspectionActivity (DETECTING)
   → OnlineHazardDetectionService.submitDetection()
     → AiArSseService.identifyItemHazard() → POST /ai/auto (复用 HttpClientProvider 单例)
-    → bbox 投影到 480x640，任一框面积严格大于 1/8?
+    → bbox 投影到 480x640，持续画全部框；任一未冷却 label 的框面积严格大于 1/8?
       → YES: 同帧裁切为对齐的 3:4 JPEG，单飞调用 DeepV2Client → POST /ai/deep/v2
         → DeepV2Protocol + DeepV2ResultNormalizer 关联 label_id
         → 全屏底图+bbox浏览；确认后复用现有上传并进入 /ai/sug_checks
+        → 无隐患立即、存在隐患则真正回到 /auto 时，为本次触发 label 启动 15 秒共享冷却
       → NO/请求失败/未发现隐患: 保持自动检测和画框，不暂停、不重复触发活动请求
   → Activity 退出: aiArSseService.releaseConnections() + onlineHazardDetectionService.shutdown()
 ```
