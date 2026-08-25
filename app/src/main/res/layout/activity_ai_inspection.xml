@@ -275,6 +275,7 @@
             android:id="@+id/ivDeepV2ResultImage"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:alpha="0.5"
             android:contentDescription="@null"
             android:scaleType="fitXY" />
 

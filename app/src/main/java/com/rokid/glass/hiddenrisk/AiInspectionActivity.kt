@@ -2280,9 +2280,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 add(
                     DeepV2DisplayTarget(
                         labelId = target.labelId,
-                        title = listOf(target.label, target.highestLevel)
-                            .filter(String::isNotBlank)
-                            .joinToString("  "),
+                        title = DeepV2ResultInteractionPolicy.cardTitle(target.label),
                         hazards = target.hazards,
                     ),
                 )
@@ -2291,9 +2289,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 add(
                     DeepV2DisplayTarget(
                         labelId = null,
-                        title = listOf(getString(R.string.deep_v2_global_hazard_title), global.highestLevel)
-                            .filter(String::isNotBlank)
-                            .joinToString("  "),
+                        title = DeepV2ResultInteractionPolicy.cardTitle(
+                            getString(R.string.deep_v2_global_hazard_title),
+                        ),
                         hazards = global.hazards,
                     ),
                 )
@@ -4127,7 +4125,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Next,
                 label = "下一个",
                 triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
+                    UnifiedInputSession.InputTrigger.Touch(DeepV2ResultInteractionPolicy.forwardTouchKey),
                     UnifiedInputSession.InputTrigger.Voice("下一个", "xia yi ge"),
                 ),
                 enabled = { canHandleDeepV2Input() },
@@ -4145,7 +4143,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 id = UnifiedInputSession.InputActionId.Previous,
                 label = "上一个",
                 triggers = listOf(
-                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
+                    UnifiedInputSession.InputTrigger.Touch(DeepV2ResultInteractionPolicy.backwardTouchKey),
                     UnifiedInputSession.InputTrigger.Voice("上一个", "shang yi ge"),
                 ),
                 enabled = { canHandleDeepV2Input() },

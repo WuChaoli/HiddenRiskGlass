@@ -1,0 +1,21 @@
+package com.rokid.glass.hiddenrisk
+
+import com.rokid.glass.input.UnifiedInputSession
+
+internal enum class DeepV2NavigationDirection {
+    FORWARD,
+    BACKWARD,
+}
+
+internal object DeepV2ResultInteractionPolicy {
+    const val forwardTouchKey: Int = UnifiedInputSession.InputKey.BEHIND
+    const val backwardTouchKey: Int = UnifiedInputSession.InputKey.FRONT
+
+    fun directionForTouchKey(keyCode: Int): DeepV2NavigationDirection? = when (keyCode) {
+        forwardTouchKey -> DeepV2NavigationDirection.FORWARD
+        backwardTouchKey -> DeepV2NavigationDirection.BACKWARD
+        else -> null
+    }
+
+    fun cardTitle(label: String): String = label.trim()
+}
