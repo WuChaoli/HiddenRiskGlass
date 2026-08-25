@@ -454,6 +454,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var deepV2RequestHandle: DeepV2Client.RequestHandle? = null
     private var deepV2Presentation: DeepV2Presentation? = null
     private var deepV2ResultImage: DeepV2ImagePayload? = null
+    private var structuredHazardResultSession: StructuredHazardResultSession? = null
     private var deepV2ResultBitmap: Bitmap? = null
     private var deepV2DisplayTargets: List<DeepV2DisplayTarget> = emptyList()
     private var deepV2Pages: List<List<DeepV2PresentationHazard>> = emptyList()
@@ -567,6 +568,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     // 手动分析流相关
     private var currentManualAnalysisHandle: AiArSseService.RequestHandle? = null
+    private var currentManualV2Handle: DeepV2Client.RequestHandle? = null
     private var currentSuggestionChecksHandle: AiArSseService.RequestHandle? = null
     private var debugSnapshotState: String? = null
 
@@ -1019,6 +1021,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
+        currentManualV2Handle?.cancel()
+        currentManualV2Handle = null
         frameStreamInitializing = false
         frameStreamReady = false
         frameStreamReadyAtElapsedMs = 0L
@@ -1041,6 +1045,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
+        currentManualV2Handle?.cancel()
+        currentManualV2Handle = null
         super.onStop()
     }
 
@@ -1088,6 +1094,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 关闭当前 SSE 连接
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
+        currentManualV2Handle?.cancel()
+        currentManualV2Handle = null
         clearStreamThumbnailState()
         clearDeepV2ResultState()
         statusBarUpdater.stop()
@@ -2206,6 +2214,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         deepV2Presentation = presentation
         deepV2ResultImage = image
+        structuredHazardResultSession = StructuredHazardResultSession(
+            source = StructuredHazardSource.AUTO_ITEM,
+            imagePayload = image,
+            presentation = presentation,
+            requestId = requestId,
+            epoch = epoch,
+        )
         deepV2LabelCooldownCoordinator.onHazardReturned()
         stopAutoInferencePipelines("deep_v2_success")
         presentDeepV2Result(image, presentation)
@@ -2320,6 +2335,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cancelDeepV2Request()
         deepV2Presentation = null
         deepV2ResultImage = null
+        structuredHazardResultSession = null
         deepV2DisplayTargets = emptyList()
         deepV2Pages = emptyList()
         deepV2NavigationMachine = null
@@ -4279,14 +4295,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun submitDeepV2Hazards() {
-        val presentation = deepV2Presentation
-        val image = deepV2ResultImage
-        if (presentation == null || image == null || presentation.uploadHazards.isEmpty()) {
+        val session = structuredHazardResultSession
+        if (session == null || session.presentation.uploadHazards.isEmpty()) {
             showDeepV2TransientMessage(getString(R.string.deep_v2_no_savable_hazard))
             returnToDetecting()
             return
         }
-        val content = DeepV2ResolvedHazardAdapter.adapt(presentation, image)
+        val content = session.toResolvedHazardContent()
         activeHazardContent = content
         localResultStage = LocalResultStage.DESCRIPTION
         streamingInProgress = false
@@ -4303,6 +4318,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun queueAutoDetectedOnlineHazardPresentation(
         request: OnlineHazardDetectionService.DetectionRequest,
     ) {
+        if (request.lane == OnlineHazardDetectionService.DetectionLane.SCENE) {
+            requestSceneStructuredHazardResult(request)
+            return
+        }
         logAudioPressureSnapshot(
             stage = "queue_online_hazard_presentation:start",
             extra = "requestId=${request.requestId} jpegBytes=${request.jpegBytes.size}",
@@ -4655,6 +4674,84 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         if (played) {
             ttsState = TtsState.ALERT_PLAYED
+        }
+    }
+
+    private fun requestSceneStructuredHazardResult(
+        request: OnlineHazardDetectionService.DetectionRequest,
+    ) {
+        val route = StructuredHazardRequestPolicy.route(
+            StructuredHazardSource.SCENE,
+            InspectionWorkflowSession.enterpriseInfo?.placeCode,
+        ) ?: return
+        if (deepV2RequestHandle != null || structuredHazardResultSession != null) return
+        val lifecycleGeneration = activityLifecycleGeneration
+        imageEncodeExecutor.execute {
+            val image = encodeAlignedDeepImage(request.jpegBytes)
+            uiHandler.post {
+                if (
+                    image == null ||
+                    destroyed ||
+                    !isActivityResumed ||
+                    lifecycleGeneration != activityLifecycleGeneration ||
+                    request.epoch != autoInferenceEpoch ||
+                    pageState != PageState.DETECTING
+                ) return@post
+                val audioToken = legacyDeepAudioToken(
+                    OnlineHazardDetectionService.DetailRequest(
+                        epoch = request.epoch,
+                        requestId = request.requestId,
+                        jpegBytes = image.jpegBytes,
+                        lane = request.lane,
+                    ),
+                )
+                playDeepAnalysisCue(
+                    deepAnalysisAudioCoordinator.begin(audioToken, DeepAnalysisEndpoint.GENERAL_DEEP),
+                )
+                deepV2RequestHandle = deepV2Client.request(
+                    requestId = request.requestId,
+                    route = route,
+                    imageBytes = image.jpegBytes,
+                    callback = object : DeepV2Client.Callback {
+                        override fun onSuccess(requestId: Long, response: DeepV2Response) {
+                            if (
+                                destroyed ||
+                                !isActivityResumed ||
+                                lifecycleGeneration != activityLifecycleGeneration ||
+                                request.epoch != autoInferenceEpoch
+                            ) return
+                            deepV2RequestHandle = null
+                            val presentation = deepV2ResultNormalizer.normalize(response)
+                            if (!presentation.hasDisplayableHazards) {
+                                deepAnalysisAudioCoordinator.complete(audioToken, hasHazard = false)
+                                showDeepV2TransientMessage(getString(R.string.deep_v2_no_hazard))
+                                return
+                            }
+                            deepAnalysisAudioCoordinator.complete(audioToken, hasHazard = true)
+                            val session = StructuredHazardResultSession(
+                                source = StructuredHazardSource.SCENE,
+                                imagePayload = image,
+                                presentation = presentation,
+                                requestId = requestId,
+                                epoch = request.epoch,
+                            )
+                            structuredHazardResultSession = session
+                            deepV2Presentation = session.presentation
+                            deepV2ResultImage = session.imagePayload
+                            stopAutoInferencePipelines("scene_deep_v2_success")
+                            presentDeepV2Result(session.imagePayload, session.presentation)
+                        }
+
+                        override fun onFailure(requestId: Long, error: DeepV2ClientError) {
+                            if (lifecycleGeneration != activityLifecycleGeneration) return
+                            deepV2RequestHandle = null
+                            deepAnalysisAudioCoordinator.cancel(audioToken)
+                            AppFileLogger.w(TAG, "scene deep v2 failed requestId=$requestId error=$error")
+                            showDeepV2TransientMessage(getString(R.string.deep_v2_request_failed))
+                        }
+                    },
+                )
+            }
         }
     }
 
@@ -5178,7 +5275,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
                     return@execute
                 }
-                encodePayloadToBase64AndSend(requestId, payload)
+                val alignedImage = encodeAlignedDeepImage(payload.jpegBytes)
+                if (alignedImage == null) {
+                    handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
+                    return@execute
+                }
+                uiHandler.post {
+                    if (shouldDeliverStreamRequest(requestId)) {
+                        sendImageToAiAr(alignedImage)
+                    }
+                }
             }
         } catch (error: RejectedExecutionException) {
             Log.w(TAG, "image encode task rejected", error)
@@ -5240,37 +5346,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         stopAutoInferencePipelines("start_streaming")
         captureAndSendToSSE()
         return true
-    }
-
-    private fun encodePayloadToBase64AndSend(requestId: Long, payload: CapturedFramePayload) {
-        runCatching {
-            Base64.encodeToString(payload.jpegBytes, Base64.NO_WRAP)
-        }.onSuccess { base64Image ->
-            uiHandler.post {
-                if (!shouldDeliverStreamRequest(requestId)) {
-                    return@post
-                }
-                val frozenJpeg = payload.jpegBytes.copyOf()
-                activeHazardContent = ResolvedHazardContent(
-                    source = HazardSource.ONLINE,
-                    description = "",
-                    advice = "",
-                    hidLevel = "",
-                    hidNum = "",
-                    lawBasis = "",
-                    displayTitle = getString(R.string.ai_inspection_online_display_title),
-                    jpegBytes = frozenJpeg,
-                )
-                sendImageToAiAr(base64Image)
-            }
-        }.onFailure { error ->
-            Log.e(
-                TAG,
-                "JPEG Base64 编码失败 width=${payload.width} height=${payload.height} ts=${payload.timestamp}",
-                error,
-            )
-            handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
-        }
     }
 
     // ==================== 流式结果缩略图 ====================
@@ -5394,6 +5469,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun beginStreamingRequest() {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
+        currentManualV2Handle?.cancel()
+        currentManualV2Handle = null
         deepAnalysisAudioCoordinator.cancel(manualDeepAudioToken(activeStreamRequestId))
         manualDeepAnalysisInProgress = true
         refreshDetectionStatus()
@@ -5419,40 +5496,62 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     /**
      * 通过在线识别接口发送图像数据。
      */
-    private fun sendImageToAiAr(base64Image: String) {
-        currentManualAnalysisHandle?.cancel()
+    private fun sendImageToAiAr(image: DeepV2ImagePayload) {
+        currentManualV2Handle?.cancel()
         val audioToken = manualDeepAudioToken(activeStreamRequestId)
         playDeepAnalysisCue(
-            deepAnalysisAudioCoordinator.begin(audioToken, DeepAnalysisEndpoint.DEEP),
+            deepAnalysisAudioCoordinator.begin(audioToken, DeepAnalysisEndpoint.DEEP_V2),
         )
-        currentManualAnalysisHandle = aiArSseService.requestDeepAnalysis(
-            base64Image = base64Image,
-            onChunk = { partialText ->
-                Log.d(TAG, "manual ai/ar chunk length=${partialText.length}")
-            },
-            callback = object : AiArSseService.DetailCallback {
-                override fun onOpened(handle: AiArSseService.RequestHandle) {
-                    Log.d(TAG, "manual ai/ar opened taskId=${handle.taskId}")
-                }
-
-                override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
-                    Log.d(TAG, "manual ai/ar closed taskId=${handle.taskId}")
-                    uiHandler.post {
-                        if (currentManualAnalysisHandle != handle) {
-                            return@post
-                        }
-                        currentManualAnalysisHandle = null
-                        handleManualStreamingSuccess(fullText)
+        val requestId = activeStreamRequestId
+        val lifecycleGeneration = activityLifecycleGeneration
+        val route = StructuredHazardRequestPolicy.route(
+            StructuredHazardSource.MANUAL,
+            InspectionWorkflowSession.enterpriseInfo?.placeCode,
+        ) ?: return
+        currentManualV2Handle = deepV2Client.request(
+            requestId = requestId,
+            route = route,
+            imageBytes = image.jpegBytes,
+            callback = object : DeepV2Client.Callback {
+                override fun onSuccess(requestId: Long, response: DeepV2Response) {
+                    if (
+                        lifecycleGeneration != activityLifecycleGeneration ||
+                        !shouldDeliverStreamRequest(requestId)
+                    ) return
+                    currentManualV2Handle = null
+                    streamingInProgress = false
+                    streamCallbackActive = false
+                    manualDeepAnalysisInProgress = false
+                    val presentation = deepV2ResultNormalizer.normalize(response)
+                    if (!presentation.hasDisplayableHazards) {
+                        deepAnalysisAudioCoordinator.complete(audioToken, hasHazard = false)
+                        showDeepV2TransientMessage(getString(R.string.deep_v2_no_hazard))
+                        returnToDetecting()
+                        return
                     }
+                    deepAnalysisAudioCoordinator.complete(audioToken, hasHazard = true)
+                    val session = StructuredHazardResultSession(
+                        source = StructuredHazardSource.MANUAL,
+                        imagePayload = image,
+                        presentation = presentation,
+                        requestId = requestId,
+                        epoch = autoInferenceEpoch,
+                    )
+                    structuredHazardResultSession = session
+                    deepV2Presentation = session.presentation
+                    deepV2ResultImage = session.imagePayload
+                    presentDeepV2Result(session.imagePayload, session.presentation)
                 }
 
-                override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
-                    Log.e(TAG, "manual ai/ar failed taskId=${handle.taskId} message=$message")
+                override fun onFailure(requestId: Long, error: DeepV2ClientError) {
+                    if (lifecycleGeneration != activityLifecycleGeneration || requestId != activeStreamRequestId) return
+                    currentManualV2Handle = null
                     deepAnalysisAudioCoordinator.cancel(audioToken)
-                    if (currentManualAnalysisHandle == handle) {
-                        currentManualAnalysisHandle = null
-                    }
-                    handleSSEError(message)
+                    streamingInProgress = false
+                    streamCallbackActive = false
+                    manualDeepAnalysisInProgress = false
+                    showDeepV2TransientMessage(getString(R.string.deep_v2_request_failed))
+                    returnToDetecting()
                 }
             },
         )

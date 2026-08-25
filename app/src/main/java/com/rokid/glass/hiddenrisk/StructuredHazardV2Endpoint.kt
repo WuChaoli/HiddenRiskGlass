@@ -31,3 +31,15 @@ internal object StructuredHazardV2EndpointRouter {
 
     private fun String?.normalizedScene(): String? = this?.trim()?.takeIf(String::isNotEmpty)
 }
+
+internal object StructuredHazardRequestPolicy {
+    fun route(source: StructuredHazardSource, placeCode: String?): StructuredHazardV2Route? {
+        return when (source) {
+            StructuredHazardSource.SCENE -> StructuredHazardV2EndpointRouter.forScene(placeCode)
+            StructuredHazardSource.AUTO_ITEM,
+            StructuredHazardSource.MANUAL,
+            StructuredHazardSource.HAZARD_RECORD,
+            -> StructuredHazardV2EndpointRouter.forItem(placeCode)
+        }
+    }
+}
