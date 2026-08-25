@@ -220,6 +220,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private enum class PageState {
         DETECTING,        // 自动取景识别中
         STREAM_RESPONSE,  // 深度识别隐患，流式回答 + 保存确认
+        STRUCTURED_RESULT, // 自动 deep v2 结构化结果
     }
 
     private data class LocalHazardInfo(
@@ -413,10 +414,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var tvUploadSuccessToast: TextView
     private lateinit var operationGuideDetecting: FunctionMenuView
     private lateinit var operationGuideStream: FunctionMenuView
+    private lateinit var layoutDeepV2Result: FrameLayout
+    private lateinit var ivDeepV2ResultImage: ImageView
+    private lateinit var viewDeepV2ResultOverlay: DeepV2ResultOverlayView
+    private lateinit var layoutDeepV2HazardCard: LinearLayout
+    private lateinit var layoutDeepV2SaveDialog: LinearLayout
+    private lateinit var tvDeepV2HazardTitle: TextView
+    private lateinit var tvDeepV2HazardText: TextView
+    private lateinit var tvDeepV2PageIndicator: TextView
+    private lateinit var tvDeepV2SaveConfirm: TextView
+    private lateinit var tvDeepV2SaveCancel: TextView
     private var currentStreamThumbnail: Bitmap? = null
     // 检测状态UI
     private lateinit var statusBarDetecting: GlassStatusBar
     private lateinit var statusBarStream: GlassStatusBar
+    private lateinit var statusBarDeepV2: GlassStatusBar
     private lateinit var autoDetectionOverlay: FullFrameDetectionOverlayView
 
     private val uiHandler = Handler(Looper.getMainLooper())
@@ -427,7 +439,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var fullFrameAutoLoopRunning = false
     private var fullFrameAutoCall: Call? = null
     private var fullFrameAutoTimeoutRunnable: Runnable? = null
-    private var fullFrameAutoDeepRequestId: Long? = null
+    private val deepV2Client by lazy { DeepV2Client.create() }
+    private val deepV2RequestState = DeepV2AutoRequestState()
+    private val deepV2ResultNormalizer = DeepV2ResultNormalizer()
+    private var deepV2RequestHandle: DeepV2Client.RequestHandle? = null
+    private var deepV2Presentation: DeepV2Presentation? = null
+    private var deepV2ResultImage: DeepV2ImagePayload? = null
+    private var deepV2ResultBitmap: Bitmap? = null
+    private var activityLifecycleGeneration = 0L
     private var fullFrameAutoLastTimestamp = 0L
     private val fullFrameAutoLoopRunnable = Runnable { runFullFrameAutoLoop() }
     private val frameCaptureService by lazy {
@@ -816,10 +835,21 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         tvUploadSuccessToast = findViewById(R.id.tvUploadSuccessToast)
         operationGuideDetecting = findViewById(R.id.operationGuideDetecting)
         operationGuideStream = findViewById(R.id.operationGuideStream)
+        layoutDeepV2Result = findViewById(R.id.layoutDeepV2Result)
+        ivDeepV2ResultImage = findViewById(R.id.ivDeepV2ResultImage)
+        viewDeepV2ResultOverlay = findViewById(R.id.viewDeepV2ResultOverlay)
+        layoutDeepV2HazardCard = findViewById(R.id.layoutDeepV2HazardCard)
+        layoutDeepV2SaveDialog = findViewById(R.id.layoutDeepV2SaveDialog)
+        tvDeepV2HazardTitle = findViewById(R.id.tvDeepV2HazardTitle)
+        tvDeepV2HazardText = findViewById(R.id.tvDeepV2HazardText)
+        tvDeepV2PageIndicator = findViewById(R.id.tvDeepV2PageIndicator)
+        tvDeepV2SaveConfirm = findViewById(R.id.tvDeepV2SaveConfirm)
+        tvDeepV2SaveCancel = findViewById(R.id.tvDeepV2SaveCancel)
         // 流式结果卡片高度限制在 onMessage / applyDebugSnapshotState 中动态处理
         // 检测状态 UI 初始化
         statusBarDetecting = findViewById(R.id.statusBarDetecting)
         statusBarStream = findViewById(R.id.statusBarStream)
+        statusBarDeepV2 = findViewById(R.id.statusBarDeepV2)
         autoDetectionOverlay = findViewById(R.id.viewAutoDetectionOverlay)
 
         setupFunctionMenus()
@@ -867,7 +897,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun onSessionReady() {
         showPage(PageState.DETECTING)
         applyDefaultDetectionStatus()
-        statusBarUpdater.refreshNow(statusBarDetecting, statusBarStream)
+        statusBarUpdater.refreshNow(statusBarDetecting, statusBarStream, statusBarDeepV2)
         OfflineTtsPlayer.play(
             context = this,
             ownerTag = TAG,
@@ -913,13 +943,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     override fun onResume() {
         super.onResume()
+        activityLifecycleGeneration += 1L
         isActivityResumed = true
         Log.i(
             TAG,
             "onResume pageState=$pageState active=$isWorkflowActive pendingDetectionStart=$pendingDetectionStart frameReady=$frameStreamReady frameOpen=${RokidFrameSource.isFrameStreamOpen()}",
         )
         inputSession.attach()
-        statusBarUpdater.start(statusBarDetecting, statusBarStream)
+        statusBarUpdater.start(statusBarDetecting, statusBarStream, statusBarDeepV2)
         if (debugSnapshotState != null) {
             refreshInputActions()
             return
@@ -954,6 +985,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     override fun onPause() {
+        activityLifecycleGeneration += 1L
         isActivityResumed = false
         statusBarUpdater.stop()
         inputSession.detach()
@@ -1045,6 +1077,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
         clearStreamThumbnailState()
+        clearDeepV2ResultState()
         statusBarUpdater.stop()
         // 释放 OkHttp 空闲连接，避免服务器端残留 ESTABLISHED 连接
         aiArSseService.releaseConnections()
@@ -1264,6 +1297,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         manualDeepAnalysisInProgress = false
         cancelSimulatedStreamRendering()
         clearPendingAutoHazardPresentation()
+        clearDeepV2ResultState()
         stopAutoInferencePipelines("return_to_detecting")
         clearLocalHazardResultState(clearPendingUploadToast = false)
         activeStreamRequestId++
@@ -2014,42 +2048,62 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             TAG,
             "full-frame auto response requestId=$requestId bbox=${response.detections.size}/${mapped.detections.size} triggerDeep=$shouldTriggerDeep",
         )
-        if (shouldTriggerDeep && fullFrameAutoDeepRequestId == null) {
-            val deepRequestId = nextOnlineRequestId()
-            fullFrameAutoDeepRequestId = deepRequestId
+        if (shouldTriggerDeep) {
+            val deepRequestId = deepV2RequestState.begin(epoch) ?: return
+            val lifecycleGeneration = activityLifecycleGeneration
             imageEncodeExecutor.execute {
-                val alignedJpegBytes = encodeAlignedDeepJpeg(jpegBytes)
+                val alignedImage = encodeAlignedDeepImage(jpegBytes)
                 uiHandler.post {
                     if (
                         !fullFrameAutoLoopRunning ||
                         epoch != autoInferenceEpoch ||
-                        fullFrameAutoDeepRequestId != deepRequestId
+                        lifecycleGeneration != activityLifecycleGeneration ||
+                        !isActivityResumed
                     ) {
+                        deepV2RequestState.fail(deepRequestId, epoch)
                         return@post
                     }
-                    if (alignedJpegBytes == null) {
-                        fullFrameAutoDeepRequestId = null
-                        AppFileLogger.w(TAG, "full-frame deep crop failed deepRequestId=$deepRequestId")
+                    if (alignedImage == null) {
+                        deepV2RequestState.fail(deepRequestId, epoch)
+                        AppFileLogger.w(TAG, "deep v2 crop failed requestId=$deepRequestId")
                         return@post
                     }
-                    onlineHazardDetectionService.requestDeepAnalysis(
-                        OnlineHazardDetectionService.DetailRequest(
-                            epoch = epoch,
-                            requestId = deepRequestId,
-                            jpegBytes = alignedJpegBytes,
-                            lane = OnlineHazardDetectionService.DetectionLane.ITEM,
-                        ),
+                    if (!deepV2RequestState.attachImage(deepRequestId, epoch, alignedImage)) return@post
+                    val placeCode = InspectionWorkflowSession.enterpriseInfo?.placeCode.orEmpty()
+                    deepV2RequestHandle = deepV2Client.request(
+                        requestId = deepRequestId,
+                        imageBytes = alignedImage.jpegBytes,
+                        scene = placeCode,
+                        callback = object : DeepV2Client.Callback {
+                            override fun onSuccess(requestId: Long, response: DeepV2Response) {
+                                handleDeepV2Success(
+                                    requestId = requestId,
+                                    epoch = epoch,
+                                    lifecycleGeneration = lifecycleGeneration,
+                                    response = response,
+                                )
+                            }
+
+                            override fun onFailure(requestId: Long, error: DeepV2ClientError) {
+                                handleDeepV2Failure(
+                                    requestId = requestId,
+                                    epoch = epoch,
+                                    lifecycleGeneration = lifecycleGeneration,
+                                    error = error,
+                                )
+                            }
+                        },
                     )
                     AppFileLogger.i(
                         TAG,
-                        "full-frame deep requested autoRequestId=$requestId deepRequestId=$deepRequestId jpegBytes=${alignedJpegBytes.size}",
+                        "deep v2 requested autoRequestId=$requestId requestId=$deepRequestId epoch=$epoch image=${alignedImage.width}x${alignedImage.height} jpegBytes=${alignedImage.jpegBytes.size}",
                     )
                 }
             }
         }
     }
 
-    private fun encodeAlignedDeepJpeg(fullFrameJpegBytes: ByteArray): ByteArray? {
+    private fun encodeAlignedDeepImage(fullFrameJpegBytes: ByteArray): DeepV2ImagePayload? {
         return runCatching {
             val source = checkNotNull(
                 BitmapFactory.decodeByteArray(fullFrameJpegBytes, 0, fullFrameJpegBytes.size),
@@ -2068,10 +2122,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             try {
                 ByteArrayOutputStream().use { output ->
                     check(aligned.compress(Bitmap.CompressFormat.JPEG, AUTO_JPEG_QUALITY, output))
-                    output.toByteArray().also { bytes ->
+                    DeepV2ImagePayload(
+                        jpegBytes = output.toByteArray(),
+                        width = aligned.width,
+                        height = aligned.height,
+                    ).also { image ->
                         AppFileLogger.i(
                             TAG,
-                            "full-frame deep crop source=${source.width}x${source.height} rect=${crop.left},${crop.top},${crop.right},${crop.bottom} output=${aligned.width}x${aligned.height} jpegBytes=${bytes.size}",
+                            "deep v2 crop source=${source.width}x${source.height} rect=${crop.left},${crop.top},${crop.right},${crop.bottom} output=${image.width}x${image.height} jpegBytes=${image.jpegBytes.size}",
                         )
                     }
                 }
@@ -2080,8 +2138,121 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 source.recycle()
             }
         }.onFailure { error ->
-            AppFileLogger.w(TAG, "full-frame deep encode failed message=${error.message}")
+            AppFileLogger.w(TAG, "deep v2 encode failed message=${error.message}")
         }.getOrNull()
+    }
+
+    private fun handleDeepV2Success(
+        requestId: Long,
+        epoch: Long,
+        lifecycleGeneration: Long,
+        response: DeepV2Response,
+    ) {
+        if (
+            destroyed ||
+            !isActivityResumed ||
+            lifecycleGeneration != activityLifecycleGeneration ||
+            epoch != autoInferenceEpoch
+        ) {
+            return
+        }
+        val image = deepV2RequestState.acceptTerminal(requestId, epoch) ?: return
+        deepV2RequestHandle = null
+        val presentation = deepV2ResultNormalizer.normalize(response)
+        if (!presentation.hasDisplayableHazards) {
+            AppFileLogger.i(TAG, "deep v2 no hazard requestId=$requestId keep auto")
+            showDeepV2TransientMessage(getString(R.string.deep_v2_no_hazard))
+            return
+        }
+        AppFileLogger.i(
+            TAG,
+            "deep v2 success requestId=$requestId targets=${presentation.targets.size} others=${presentation.others != null} uploads=${presentation.uploadHazards.size}",
+        )
+        deepV2Presentation = presentation
+        deepV2ResultImage = image
+        stopAutoInferencePipelines("deep_v2_success")
+        presentDeepV2Result(image, presentation)
+    }
+
+    private fun handleDeepV2Failure(
+        requestId: Long,
+        epoch: Long,
+        lifecycleGeneration: Long,
+        error: DeepV2ClientError,
+    ) {
+        if (
+            destroyed ||
+            lifecycleGeneration != activityLifecycleGeneration ||
+            epoch != autoInferenceEpoch ||
+            !deepV2RequestState.fail(requestId, epoch)
+        ) {
+            return
+        }
+        deepV2RequestHandle = null
+        AppFileLogger.w(TAG, "deep v2 failed requestId=$requestId error=$error keep auto")
+        showDeepV2TransientMessage(getString(R.string.deep_v2_request_failed))
+    }
+
+    private fun showDeepV2TransientMessage(message: String) {
+        SpriteToastUtil.showSpriteToastOld(
+            this,
+            message,
+            R.drawable.ic_warning_triangle,
+            LOCAL_SAVE_SUCCESS_TOAST_MS,
+            false,
+        )
+    }
+
+    private fun presentDeepV2Result(
+        image: DeepV2ImagePayload,
+        presentation: DeepV2Presentation,
+    ) {
+        clearDeepV2ResultBitmap()
+        deepV2ResultBitmap = BitmapFactory.decodeByteArray(
+            image.jpegBytes,
+            0,
+            image.jpegBytes.size,
+        )
+        ivDeepV2ResultImage.setImageBitmap(deepV2ResultBitmap)
+        viewDeepV2ResultOverlay.post {
+            val boxes = presentation.targets.mapNotNull { target ->
+                DeepV2OverlayGeometry.map(
+                    bbox = target.bbox,
+                    sourceWidth = image.width,
+                    sourceHeight = image.height,
+                    destinationWidth = viewDeepV2ResultOverlay.width,
+                    destinationHeight = viewDeepV2ResultOverlay.height,
+                )?.let { rect ->
+                    DeepV2OverlayBox(
+                        labelId = target.labelId,
+                        label = target.label,
+                        highestLevel = target.highestLevel,
+                        rect = rect,
+                    )
+                }
+            }
+            viewDeepV2ResultOverlay.setBoxes(boxes)
+            viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = false)
+        }
+        layoutDeepV2HazardCard.visibility = View.GONE
+        layoutDeepV2SaveDialog.visibility = View.GONE
+        showPage(PageState.STRUCTURED_RESULT)
+    }
+
+    private fun clearDeepV2ResultBitmap() {
+        ivDeepV2ResultImage.setImageDrawable(null)
+        deepV2ResultBitmap?.recycle()
+        deepV2ResultBitmap = null
+    }
+
+    private fun clearDeepV2ResultState() {
+        cancelDeepV2Request()
+        deepV2Presentation = null
+        deepV2ResultImage = null
+        if (::viewDeepV2ResultOverlay.isInitialized) viewDeepV2ResultOverlay.clear()
+        if (::layoutDeepV2HazardCard.isInitialized) layoutDeepV2HazardCard.visibility = View.GONE
+        if (::layoutDeepV2SaveDialog.isInitialized) layoutDeepV2SaveDialog.visibility = View.GONE
+        if (::ivDeepV2ResultImage.isInitialized) clearDeepV2ResultBitmap()
     }
 
     private fun stopFullFrameAutoLoop(reason: String) {
@@ -2095,8 +2266,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         fullFrameAutoCall?.cancel()
         fullFrameAutoCall = null
         fullFrameAutoRequestState.cancel()
-        fullFrameAutoDeepRequestId = null
+        cancelDeepV2Request()
         if (::autoDetectionOverlay.isInitialized) autoDetectionOverlay.clearDetections()
+    }
+
+    private fun cancelDeepV2Request() {
+        deepV2RequestHandle?.cancel()
+        deepV2RequestHandle = null
+        deepV2RequestState.cancel()
     }
 
     private fun advanceOnlineInferenceLoop(
@@ -2801,6 +2978,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutDetection.visibility = if (state == PageState.DETECTING) View.VISIBLE else View.GONE
         layoutStreamResponse.visibility =
             if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
+        layoutDeepV2Result.visibility =
+            if (state == PageState.STRUCTURED_RESULT) View.VISIBLE else View.GONE
         val shouldShowLivePreview = false
         val shouldKeepPreviewRunning = shouldKeepDetectionPreviewRunning()
         AppFileLogger.i(
@@ -3707,10 +3886,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != autoInferenceEpoch) {
             return
         }
-        if (fullFrameAutoDeepRequestId == request.requestId) {
-            handleFullFrameDeepSuccess(request, fullText)
-            return
-        }
         val jpegBytes = request.jpegBytes
         val parseStartElapsedMs = SystemClock.elapsedRealtime()
         logAudioPressureSnapshot(
@@ -3769,7 +3944,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != autoInferenceEpoch) {
             return
         }
-        if (fullFrameAutoDeepRequestId == request.requestId) return
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
         if (pending.requestId != request.requestId) {
             return
@@ -3796,11 +3970,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != autoInferenceEpoch) {
             return
         }
-        if (fullFrameAutoDeepRequestId == request.requestId) {
-            fullFrameAutoDeepRequestId = null
-            AppFileLogger.w(TAG, "full-frame deep failed requestId=${request.requestId} keep overlay message=$message")
-            return
-        }
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
         if (pending.requestId != request.requestId) {
             return
@@ -3820,24 +3989,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             LOCAL_SAVE_SUCCESS_TOAST_MS,
             false,
         )
-    }
-
-    private fun handleFullFrameDeepSuccess(
-        request: OnlineHazardDetectionService.DetailRequest,
-        fullText: String,
-    ) {
-        fullFrameAutoDeepRequestId = null
-        val resolved = runCatching {
-            AiArHazardDetailParser.parse(fullText, request.jpegBytes)
-        }.onFailure { error ->
-            AppFileLogger.w(TAG, "full-frame deep parse failed requestId=${request.requestId} keep overlay message=${error.message}")
-        }.getOrNull() ?: return
-        if (!resolved.hasStructuredFields() || resolved.isOnlineNoHazardResult()) {
-            AppFileLogger.i(TAG, "full-frame deep no hazard requestId=${request.requestId} keep overlay")
-            return
-        }
-        AppFileLogger.i(TAG, "full-frame deep hazard requestId=${request.requestId} present stream")
-        presentOnlineHazardWithSimulatedStream(resolved)
     }
 
     private fun queueAutoDetectedOnlineHazardPresentation(
