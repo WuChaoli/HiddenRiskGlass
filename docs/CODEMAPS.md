@@ -288,10 +288,11 @@ sequenceDiagram
     HR->>HR: COUNTDOWN -> 截帧并直接显示视野裁切底图
     HR->>V2: request() /ai/deep/v2 或 /ai/gm/v2
     V2-->>HR: detections + hazards + check_items
-    HR->>HR: 倒计时后直接显示视野裁切底图；有隐患时叠加 bbox/hazard 翻页展示
+    HR->>HR: 有隐患时播放提示语音并叠加 bbox/hazard 翻页展示
     User->>HR: 确认
     HR->>Push: pushLocalHazard()
-    Push-->>HR: 成功 -> 返回 IDLE
+    HR->>HR: 保存请求发起后立即返回 IDLE
+    Push-->>HR: 成功 -> 显示保存成功提示
 ```
 
 ### 3.6 辅助链路：设备指引判定

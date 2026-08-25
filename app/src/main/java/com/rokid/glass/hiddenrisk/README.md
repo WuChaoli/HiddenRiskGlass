@@ -264,9 +264,9 @@ HazardRecordActivity (IDLE)
   → COUNTDOWN → 截帧并立即显示视野裁切底图
   → DeepV2Client.request()
     → 有 placeCode: /ai/deep/v2；无 placeCode: /ai/gm/v2
-    → 与当前眼镜视野一致的裁切底图 + bbox + 前后滑动 + hazard 详情框
+    → 有隐患时播放提示语音，并显示视野裁切底图 + bbox + hazard 详情框
   → 确认 → LocalHazardPushService.pushLocalHazard()
-  → 成功 → 返回 IDLE
+  → 保存请求发起后立即返回 IDLE；后台成功时显示保存成功提示
 ```
 
 ### 链路 6：设备指引

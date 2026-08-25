@@ -23,4 +23,18 @@ class HazardRecordPresentationPolicyTest {
             HazardRecordPresentationPolicy.afterResponse(hasHazards = true),
         )
     }
+
+    @Test
+    fun `hazard v2 result plays alert before presenting result`() {
+        assertEquals(true, HazardRecordPresentationPolicy.shouldPlayHazardAlert(hasHazards = true))
+        assertEquals(false, HazardRecordPresentationPolicy.shouldPlayHazardAlert(hasHazards = false))
+    }
+
+    @Test
+    fun `accepted save returns immediately to photo waiting page`() {
+        assertEquals(
+            HazardRecordPresentation.IDLE,
+            HazardRecordPresentationPolicy.afterSaveAccepted(),
+        )
+    }
 }

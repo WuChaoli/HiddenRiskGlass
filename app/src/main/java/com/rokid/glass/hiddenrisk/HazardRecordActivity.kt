@@ -561,6 +561,13 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         returnToIdle(showSuccess = false)
                         return
                     }
+                    if (HazardRecordPresentationPolicy.shouldPlayHazardAlert(presentation.hasDisplayableHazards)) {
+                        OfflineTtsPlayer.play(
+                            context = this@HazardRecordActivity,
+                            ownerTag = TAG,
+                            audioResId = R.raw.hazard_alert,
+                        )
+                    }
                     val session = StructuredHazardResultSession(
                         source = StructuredHazardSource.HAZARD_RECORD,
                         imagePayload = image,
@@ -778,8 +785,8 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             else -> null
         }
         if (failureMessage != null) {
-            updateAnalysisText(failureMessage)
-            tvAnalysisHint.visibility = View.VISIBLE
+            returnToIdle(showSuccess = false)
+            tvIdleHint.text = failureMessage
             return
         }
 
@@ -812,29 +819,28 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             callback = object : LocalHazardPushService.Callback {
                 override fun onSuccess() {
                     if (isFinishing || isDestroyed) return
-                    localHazardUploadHandle = null
-                    saveSubmitting = false
                     InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
                         recordKey = recordKey,
                         saveOutcome = InspectionWorkflowSession.SaveOutcome.SUCCESS,
                     )
-                    returnToIdle(showSuccess = true)
+                    if (pageState == PageState.IDLE) showSuccessToast()
                 }
 
                 override fun onFailure(message: String) {
                     if (isFinishing || isDestroyed) return
-                    localHazardUploadHandle = null
-                    saveSubmitting = false
                     InspectionWorkflowSession.updateSavedHazardAttemptOutcome(
                         recordKey = recordKey,
                         saveOutcome = InspectionWorkflowSession.SaveOutcome.FAILED,
                     )
-                    updateAnalysisText(message.ifBlank { getString(R.string.ai_inspection_local_save_failed) })
-                    tvAnalysisHint.visibility = View.VISIBLE
-                    refreshInputActions()
+                    if (pageState == PageState.IDLE) {
+                        tvIdleHint.text = message.ifBlank { getString(R.string.ai_inspection_local_save_failed) }
+                    }
                 }
             },
         )
+        check(HazardRecordPresentationPolicy.afterSaveAccepted() == HazardRecordPresentation.IDLE)
+        localHazardUploadHandle = null
+        returnToIdle(showSuccess = false)
     }
 
     private fun buildRecordKey(hazardContent: ResolvedHazardContent): String {

@@ -14,4 +14,8 @@ internal object HazardRecordPresentationPolicy {
     } else {
         HazardRecordPresentation.IDLE
     }
+
+    fun shouldPlayHazardAlert(hasHazards: Boolean): Boolean = hasHazards
+
+    fun afterSaveAccepted(): HazardRecordPresentation = HazardRecordPresentation.IDLE
 }
