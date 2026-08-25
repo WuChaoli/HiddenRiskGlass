@@ -10,6 +10,8 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.text.Layout
+import android.text.StaticLayout
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -104,6 +106,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val AUTO_OVERLAY_WIDTH = 480
         private const val AUTO_OVERLAY_HEIGHT = 640
         private const val AUTO_JPEG_QUALITY = 82
+        private const val DEEP_V2_BOX_ANIMATION_MS = 220L
+        private const val DEEP_V2_CARD_FADE_MS = 100L
 
         private val CAPTURE_WARMUP_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.captureWarmupMs }
 
@@ -384,6 +388,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
     }
 
+    private data class DeepV2DisplayTarget(
+        val labelId: String?,
+        val title: String,
+        val hazards: List<DeepV2PresentationHazard>,
+    )
+
     private val onlineSceneDetectIntervalMs: Long by lazy { InspectionConfigRepository.get().aiInspection.onlineSceneDetectIntervalMs }
 
     private val remoteFailureFallbackThreshold: Int by lazy { InspectionConfigRepository.get().aiInspection.remoteFailureFallbackThreshold }
@@ -446,6 +456,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var deepV2Presentation: DeepV2Presentation? = null
     private var deepV2ResultImage: DeepV2ImagePayload? = null
     private var deepV2ResultBitmap: Bitmap? = null
+    private var deepV2DisplayTargets: List<DeepV2DisplayTarget> = emptyList()
+    private var deepV2Pages: List<List<CharSequence>> = emptyList()
+    private var deepV2NavigationMachine: DeepV2PresentationStateMachine? = null
+    private var deepV2RenderGeneration = 0L
     private var activityLifecycleGeneration = 0L
     private var fullFrameAutoLastTimestamp = 0L
     private val fullFrameAutoLoopRunnable = Runnable { runFullFrameAutoLoop() }
@@ -2214,6 +2228,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             image.jpegBytes.size,
         )
         ivDeepV2ResultImage.setImageBitmap(deepV2ResultBitmap)
+        layoutDeepV2HazardCard.visibility = View.INVISIBLE
+        layoutDeepV2HazardCard.alpha = 0f
+        layoutDeepV2SaveDialog.visibility = View.GONE
+        showPage(PageState.STRUCTURED_RESULT)
         viewDeepV2ResultOverlay.post {
             val boxes = presentation.targets.mapNotNull { target ->
                 DeepV2OverlayGeometry.map(
@@ -2233,10 +2251,81 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             viewDeepV2ResultOverlay.setBoxes(boxes)
             viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = false)
+            prepareDeepV2Navigation(presentation)
         }
+    }
+
+    private fun prepareDeepV2Navigation(presentation: DeepV2Presentation) {
+        deepV2DisplayTargets = buildList {
+            presentation.targets.forEach { target ->
+                add(
+                    DeepV2DisplayTarget(
+                        labelId = target.labelId,
+                        title = listOf(target.label, target.highestLevel)
+                            .filter(String::isNotBlank)
+                            .joinToString("  "),
+                        hazards = target.hazards,
+                    ),
+                )
+            }
+            presentation.others?.let { global ->
+                add(
+                    DeepV2DisplayTarget(
+                        labelId = null,
+                        title = listOf(getString(R.string.deep_v2_global_hazard_title), global.highestLevel)
+                            .filter(String::isNotBlank)
+                            .joinToString("  "),
+                        hazards = global.hazards,
+                    ),
+                )
+            }
+        }
+        deepV2Pages = deepV2DisplayTargets.map { target ->
+            paginateDeepV2Text(DeepV2HazardTextFormatter.formatGroup(target.hazards))
+        }
+        deepV2NavigationMachine = DeepV2PresentationStateMachine(
+            deepV2Pages.map { pages -> pages.size }.toIntArray(),
+        )
+        deepV2RenderGeneration += 1L
         layoutDeepV2HazardCard.visibility = View.GONE
+        layoutDeepV2HazardCard.alpha = 1f
         layoutDeepV2SaveDialog.visibility = View.GONE
-        showPage(PageState.STRUCTURED_RESULT)
+        refreshInputActions()
+    }
+
+    private fun paginateDeepV2Text(text: String): List<CharSequence> {
+        if (text.isBlank()) return listOf("")
+        val availableWidth = (
+            tvDeepV2HazardText.width -
+                tvDeepV2HazardText.compoundPaddingLeft -
+                tvDeepV2HazardText.compoundPaddingRight
+            ).coerceAtLeast(1)
+        val availableHeight = (
+            tvDeepV2HazardText.height -
+                tvDeepV2HazardText.compoundPaddingTop -
+                tvDeepV2HazardText.compoundPaddingBottom
+            ).coerceAtLeast(1)
+        val layout = StaticLayout.Builder.obtain(
+            text,
+            0,
+            text.length,
+            tvDeepV2HazardText.paint,
+            availableWidth,
+        )
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setIncludePad(false)
+            .setLineSpacing(tvDeepV2HazardText.lineSpacingExtra, tvDeepV2HazardText.lineSpacingMultiplier)
+            .build()
+        val lines = (0 until layout.lineCount).map { lineIndex ->
+            DeepV2MeasuredTextLine(
+                start = layout.getLineStart(lineIndex),
+                end = layout.getLineEnd(lineIndex),
+                bottom = layout.getLineBottom(lineIndex),
+            )
+        }
+        val ranges = DeepV2MeasuredPagePlanner.plan(lines, availableHeight)
+        return DeepV2MeasuredPagePlanner.slice(text, lines, ranges)
+            .ifEmpty { listOf(text) }
     }
 
     private fun clearDeepV2ResultBitmap() {
@@ -2249,6 +2338,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cancelDeepV2Request()
         deepV2Presentation = null
         deepV2ResultImage = null
+        deepV2DisplayTargets = emptyList()
+        deepV2Pages = emptyList()
+        deepV2NavigationMachine = null
+        deepV2RenderGeneration += 1L
+        if (::layoutDeepV2HazardCard.isInitialized) layoutDeepV2HazardCard.animate().cancel()
         if (::viewDeepV2ResultOverlay.isInitialized) viewDeepV2ResultOverlay.clear()
         if (::layoutDeepV2HazardCard.isInitialized) layoutDeepV2HazardCard.visibility = View.GONE
         if (::layoutDeepV2SaveDialog.isInitialized) layoutDeepV2SaveDialog.visibility = View.GONE
@@ -3043,7 +3137,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun buildInputActions(): List<UnifiedInputSession.InputActionSpec> {
-        return listOf(
+        return buildDeepV2InputActions() + listOf(
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId("ai_detecting_stream_analysis"),
                 label = getString(R.string.ai_inspection_input_label_detecting_analysis),
@@ -3989,6 +4083,236 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             LOCAL_SAVE_SUCCESS_TOAST_MS,
             false,
         )
+    }
+
+    private fun buildDeepV2InputActions(): List<UnifiedInputSession.InputActionSpec> {
+        return listOf(
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Next,
+                label = "下一个",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
+                    UnifiedInputSession.InputTrigger.Voice("下一个", "xia yi ge"),
+                ),
+                enabled = { canHandleDeepV2Input() },
+            ) {
+                val machine = deepV2NavigationMachine ?: return@InputActionSpec
+                val previous = machine.state
+                val transition = if (previous is DeepV2NavigationState.SaveDialog) {
+                    machine.selectPreviousDialogChoice()
+                } else {
+                    machine.forward()
+                }
+                renderDeepV2Transition(previous, transition)
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Previous,
+                label = "上一个",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
+                    UnifiedInputSession.InputTrigger.Voice("上一个", "shang yi ge"),
+                ),
+                enabled = { canHandleDeepV2Input() },
+            ) {
+                val machine = deepV2NavigationMachine ?: return@InputActionSpec
+                val previous = machine.state
+                val transition = if (previous is DeepV2NavigationState.SaveDialog) {
+                    machine.selectNextDialogChoice()
+                } else {
+                    machine.backward()
+                }
+                renderDeepV2Transition(previous, transition)
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.CLICK),
+                ),
+                enabled = { canHandleDeepV2Input() },
+            ) {
+                val machine = deepV2NavigationMachine ?: return@InputActionSpec
+                val previous = machine.state
+                renderDeepV2Transition(previous, machine.confirm())
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Confirm,
+                label = getString(R.string.ai_inspection_input_label_confirm),
+                triggers = buildConfirmTriggers().filterIsInstance<UnifiedInputSession.InputTrigger.Voice>(),
+                enabled = { canHandleDeepV2Input() },
+            ) {
+                val machine = deepV2NavigationMachine ?: return@InputActionSpec
+                val previous = machine.state
+                renderDeepV2Transition(previous, machine.voiceConfirm())
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId.Cancel,
+                label = getString(R.string.ai_inspection_input_label_return),
+                triggers = listOf(
+                    voiceTrigger(R.string.ai_inspection_voice_cancel_alias, "qu xiao"),
+                ),
+                enabled = {
+                    canHandleDeepV2Input() &&
+                        deepV2NavigationMachine?.state is DeepV2NavigationState.SaveDialog
+                },
+            ) {
+                val machine = deepV2NavigationMachine ?: return@InputActionSpec
+                val previous = machine.state
+                renderDeepV2Transition(previous, machine.voiceCancel())
+            },
+        )
+    }
+
+    private fun canHandleDeepV2Input(): Boolean {
+        return pageState == PageState.STRUCTURED_RESULT &&
+            !isWearInteractionBlocked() &&
+            deepV2NavigationMachine?.state != DeepV2NavigationState.Submitting
+    }
+
+    private fun renderDeepV2Transition(
+        previous: DeepV2NavigationState,
+        transition: DeepV2Transition,
+    ) {
+        deepV2RenderGeneration += 1L
+        val renderGeneration = deepV2RenderGeneration
+        when (transition.effect) {
+            DeepV2NavigationEffect.SubmitSave -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                submitDeepV2Hazards()
+                return
+            }
+            DeepV2NavigationEffect.DiscardResult -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                returnToDetecting()
+                return
+            }
+            DeepV2NavigationEffect.None -> Unit
+        }
+
+        when (val state = transition.state) {
+            DeepV2NavigationState.Defocused -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = true)
+                layoutDeepV2HazardCard.animate().cancel()
+                layoutDeepV2HazardCard.animate()
+                    .alpha(0f)
+                    .setDuration(DEEP_V2_CARD_FADE_MS)
+                    .withEndAction {
+                        if (renderGeneration == deepV2RenderGeneration) {
+                            layoutDeepV2HazardCard.visibility = View.GONE
+                            layoutDeepV2HazardCard.alpha = 1f
+                        }
+                    }
+                    .start()
+            }
+            is DeepV2NavigationState.Focused -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                val previousFocused = previous as? DeepV2NavigationState.Focused
+                val targetChanged = previousFocused?.targetIndex != state.targetIndex
+                if (targetChanged) {
+                    animateDeepV2TargetChange(state, renderGeneration)
+                } else {
+                    showDeepV2Page(state)
+                }
+            }
+            is DeepV2NavigationState.SaveDialog -> {
+                layoutDeepV2HazardCard.visibility = View.GONE
+                layoutDeepV2SaveDialog.visibility = View.VISIBLE
+                renderDeepV2SaveChoice(state.selected)
+            }
+            DeepV2NavigationState.Submitting -> Unit
+        }
+        refreshInputActions()
+    }
+
+    private fun animateDeepV2TargetChange(
+        focused: DeepV2NavigationState.Focused,
+        renderGeneration: Long,
+    ) {
+        val target = deepV2DisplayTargets.getOrNull(focused.targetIndex) ?: return
+        layoutDeepV2HazardCard.animate().cancel()
+        val startSelection = {
+            if (renderGeneration == deepV2RenderGeneration) {
+                layoutDeepV2HazardCard.visibility = View.GONE
+                layoutDeepV2HazardCard.alpha = 0f
+                viewDeepV2ResultOverlay.setSelectedLabelId(target.labelId, animate = true)
+                uiHandler.postDelayed(
+                    {
+                        if (
+                            renderGeneration == deepV2RenderGeneration &&
+                            pageState == PageState.STRUCTURED_RESULT &&
+                            deepV2NavigationMachine?.state == focused
+                        ) {
+                            showDeepV2Page(focused)
+                            layoutDeepV2HazardCard.alpha = 0f
+                            layoutDeepV2HazardCard.animate()
+                                .alpha(1f)
+                                .setDuration(DEEP_V2_CARD_FADE_MS)
+                                .start()
+                        }
+                    },
+                    DEEP_V2_BOX_ANIMATION_MS,
+                )
+            }
+        }
+        if (layoutDeepV2HazardCard.visibility == View.VISIBLE) {
+            layoutDeepV2HazardCard.animate()
+                .alpha(0f)
+                .setDuration(DEEP_V2_CARD_FADE_MS)
+                .withEndAction(startSelection)
+                .start()
+        } else {
+            startSelection()
+        }
+    }
+
+    private fun showDeepV2Page(focused: DeepV2NavigationState.Focused) {
+        val target = deepV2DisplayTargets.getOrNull(focused.targetIndex) ?: return
+        val pages = deepV2Pages.getOrNull(focused.targetIndex).orEmpty()
+        val page = pages.getOrNull(focused.pageIndex) ?: ""
+        tvDeepV2HazardTitle.text = target.title
+        tvDeepV2HazardText.text = page
+        tvDeepV2PageIndicator.text = "${focused.pageIndex + 1}/${pages.size.coerceAtLeast(1)}"
+        layoutDeepV2HazardCard.visibility = View.VISIBLE
+    }
+
+    private fun renderDeepV2SaveChoice(choice: DeepV2SaveChoice) {
+        tvDeepV2SaveConfirm.setBackgroundResource(
+            if (choice == DeepV2SaveChoice.CONFIRM) {
+                R.drawable.glass_card_outline_selected
+            } else {
+                R.drawable.glass_card_outline
+            },
+        )
+        tvDeepV2SaveCancel.setBackgroundResource(
+            if (choice == DeepV2SaveChoice.CANCEL) {
+                R.drawable.glass_card_outline_selected
+            } else {
+                R.drawable.glass_card_outline
+            },
+        )
+    }
+
+    private fun submitDeepV2Hazards() {
+        val presentation = deepV2Presentation
+        val image = deepV2ResultImage
+        if (presentation == null || image == null || presentation.uploadHazards.isEmpty()) {
+            showDeepV2TransientMessage(getString(R.string.deep_v2_no_savable_hazard))
+            returnToDetecting()
+            return
+        }
+        val content = DeepV2ResolvedHazardAdapter.adapt(presentation, image)
+        activeHazardContent = content
+        localResultStage = LocalResultStage.DESCRIPTION
+        streamingInProgress = false
+        streamCallbackActive = false
+        pendingStreamStart = false
+        clearDeepV2ResultState()
+        showPage(PageState.STREAM_RESPONSE)
+        clearStreamResponseUiState()
+        setStreamThumbnail(content.jpegBytes)
+        setStreamContentAndResetViewport(getString(R.string.ai_inspection_online_fetching_advice))
+        submitLocalHazardAndShowAdvice()
     }
 
     private fun queueAutoDetectedOnlineHazardPresentation(
