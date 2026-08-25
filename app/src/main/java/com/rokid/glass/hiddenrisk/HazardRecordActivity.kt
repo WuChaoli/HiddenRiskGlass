@@ -561,11 +561,11 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         returnToIdle(showSuccess = false)
                         return
                     }
-                    if (HazardRecordPresentationPolicy.shouldPlayHazardAlert(presentation.hasDisplayableHazards)) {
+                    if (HazardRecordPresentationPolicy.audioCueAfterResponse(presentation.hasDisplayableHazards) == HazardRecordAudioCue.HAS_HAZARD) {
                         OfflineTtsPlayer.play(
                             context = this@HazardRecordActivity,
                             ownerTag = TAG,
-                            audioResId = R.raw.hazard_alert,
+                            audioResId = R.raw.has_hazard,
                         )
                     }
                     val session = StructuredHazardResultSession(

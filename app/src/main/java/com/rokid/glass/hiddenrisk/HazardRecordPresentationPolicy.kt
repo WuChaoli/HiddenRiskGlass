@@ -6,6 +6,11 @@ internal enum class HazardRecordPresentation {
     RESULT_WITH_HAZARDS,
 }
 
+internal enum class HazardRecordAudioCue {
+    NONE,
+    HAS_HAZARD,
+}
+
 internal object HazardRecordPresentationPolicy {
     fun afterCapture(): HazardRecordPresentation = HazardRecordPresentation.RESULT_BACKGROUND
 
@@ -15,7 +20,11 @@ internal object HazardRecordPresentationPolicy {
         HazardRecordPresentation.IDLE
     }
 
-    fun shouldPlayHazardAlert(hasHazards: Boolean): Boolean = hasHazards
+    fun audioCueAfterResponse(hasHazards: Boolean): HazardRecordAudioCue = if (hasHazards) {
+        HazardRecordAudioCue.HAS_HAZARD
+    } else {
+        HazardRecordAudioCue.NONE
+    }
 
     fun afterSaveAccepted(): HazardRecordPresentation = HazardRecordPresentation.IDLE
 }

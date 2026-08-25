@@ -26,8 +26,14 @@ class HazardRecordPresentationPolicyTest {
 
     @Test
     fun `hazard v2 result plays alert before presenting result`() {
-        assertEquals(true, HazardRecordPresentationPolicy.shouldPlayHazardAlert(hasHazards = true))
-        assertEquals(false, HazardRecordPresentationPolicy.shouldPlayHazardAlert(hasHazards = false))
+        assertEquals(
+            HazardRecordAudioCue.HAS_HAZARD,
+            HazardRecordPresentationPolicy.audioCueAfterResponse(hasHazards = true),
+        )
+        assertEquals(
+            HazardRecordAudioCue.NONE,
+            HazardRecordPresentationPolicy.audioCueAfterResponse(hasHazards = false),
+        )
     }
 
     @Test
