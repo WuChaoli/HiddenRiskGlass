@@ -23,6 +23,7 @@ import com.rokid.glass.InspectionEndReportReturnDestination
 import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.camera.CameraStreamProfile
 import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.GlassStatusBarUpdater
@@ -82,6 +83,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val shutterSound by lazy { MediaActionSound() }
     private val frameCaptureService by lazy {
         InspectionFrameCaptureService(
+            frameProvider = RokidFullFrameProvider,
             staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
             selectWindowMs = SELECT_WINDOW_MS,
             selectMaxFrames = SELECT_MAX_FRAMES,
@@ -111,6 +113,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var resultSession: StructuredHazardResultSession? = null
     private var resultTargets: List<Pair<String?, List<DeepV2PresentationHazard>>> = emptyList()
     private var resultNavigation: DeepV2PresentationStateMachine? = null
+    private var resultRenderGeneration = 0L
     private var isActivityResumed = false
     private var navigatingToDeviceGuide = false
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
@@ -407,6 +410,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         cameraRequestToken = InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.HAZARD_RECORD,
             needPreview = false,
+            streamProfile = CameraStreamProfile.FULL_FRAME_OVERLAY_TEST,
         ) { success ->
             uiHandler.post {
                 frameStreamInitializing = false
@@ -513,15 +517,22 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val requestId = activeRequestId
         val jpegBytes = payload.jpegBytes.copyOf()
         InspectionWorkflowSession.recordCapture(jpegBytes)
-        setThumbnail(jpegBytes)
-        lastStreamText = ""
-        tvAnalysisContent.setText(R.string.hazard_record_analyzing)
-        tvAnalysisHint.visibility = View.GONE
-        showPage(PageState.ANALYSIS)
-        sendImageToAiAr(
-            requestId = requestId,
-            image = DeepV2ImagePayload(jpegBytes, payload.width, payload.height),
-        )
+        val image = DeepV2ImagePayload(jpegBytes, payload.width, payload.height)
+        showCapturedResultBackground(image)
+        sendImageToAiAr(requestId = requestId, image = image)
+    }
+
+    private fun showCapturedResultBackground(image: DeepV2ImagePayload) {
+        check(HazardRecordPresentationPolicy.afterCapture() == HazardRecordPresentation.RESULT_BACKGROUND)
+        resultBitmap?.takeIf { !it.isRecycled }?.recycle()
+        resultBitmap = BitmapFactory.decodeByteArray(image.jpegBytes, 0, image.jpegBytes.size)
+        ivDeepV2ResultImage.setImageBitmap(resultBitmap)
+        resultTargets = emptyList()
+        resultNavigation = null
+        viewDeepV2ResultOverlay.clear()
+        viewDeepV2HazardDetail.clear()
+        layoutDeepV2SaveDialog.visibility = View.GONE
+        showPage(PageState.STRUCTURED_RESULT)
     }
 
     private fun sendImageToAiAr(requestId: Long, image: DeepV2ImagePayload) {
@@ -543,7 +554,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     activeAnalysisHandle = null
                     streamingInProgress = false
                     val presentation = deepV2Normalizer.normalize(response)
-                    if (!presentation.hasDisplayableHazards) {
+                    if (HazardRecordPresentationPolicy.afterResponse(presentation.hasDisplayableHazards) == HazardRecordPresentation.IDLE) {
                         returnToIdle(showSuccess = false)
                         return
                     }
@@ -566,14 +577,16 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 override fun onFailure(requestId: Long, error: DeepV2ClientError) {
                     if (!deepV2Coordinator.complete(requestId)) return
                     activeAnalysisHandle = null
-                    handleAnalysisFailure(error.toString())
+                    streamingInProgress = false
+                    returnToIdle(showSuccess = false)
+                    tvIdleHint.text = error.toString().ifBlank { getString(R.string.hazard_record_stream_failed) }
                 }
             },
         )
     }
 
     private fun shouldDeliverAnalysis(requestId: Long): Boolean {
-        return pageState == PageState.ANALYSIS &&
+        return pageState == PageState.STRUCTURED_RESULT &&
             streamingInProgress &&
             requestId == activeRequestId &&
             !isFinishing &&
@@ -679,6 +692,8 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         previous: DeepV2NavigationState,
         transition: DeepV2Transition,
     ) {
+        resultRenderGeneration += 1L
+        val renderGeneration = resultRenderGeneration
         when (transition.effect) {
             DeepV2NavigationEffect.SubmitSave -> {
                 layoutDeepV2SaveDialog.visibility = View.GONE
@@ -694,7 +709,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         when (val state = transition.state) {
             DeepV2NavigationState.Defocused -> {
                 layoutDeepV2SaveDialog.visibility = View.GONE
-                viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = false)
+                viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = true)
                 viewDeepV2HazardDetail.clear()
             }
             is DeepV2NavigationState.Focused -> {
@@ -703,16 +718,30 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val previousLabel = (previous as? DeepV2NavigationState.Focused)
                     ?.let { resultTargets.getOrNull(it.targetIndex)?.first }
                 val nextLabel = target.first
-                viewDeepV2ResultOverlay.setSelectedLabelId(
-                    nextLabel,
-                    animate = DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(previousLabel, nextLabel),
-                )
-                val hazard = target.second.getOrNull(state.pageIndex) ?: return
-                viewDeepV2HazardDetail.render(
-                    HazardDetailDisplayModel.from(hazard),
-                    state.pageIndex,
-                    target.second.size.coerceAtLeast(1),
-                )
+                val transitionType = DeepV2ResultInteractionPolicy.focusTransition(previousLabel, nextLabel)
+                viewDeepV2HazardDetail.clear()
+                val showDetail = Runnable {
+                    if (renderGeneration != resultRenderGeneration || resultNavigation?.state != state) return@Runnable
+                    val hazard = target.second.getOrNull(state.pageIndex) ?: return@Runnable
+                    viewDeepV2HazardDetail.render(
+                        HazardDetailDisplayModel.from(hazard),
+                        state.pageIndex,
+                        target.second.size.coerceAtLeast(1),
+                    )
+                }
+                when (transitionType) {
+                    DeepV2FocusTransition.FOCUS_THEN_SHOW_DETAIL,
+                    DeepV2FocusTransition.SWITCH_BOX_THEN_SHOW_DETAIL,
+                    -> {
+                        viewDeepV2ResultOverlay.setSelectedLabelId(nextLabel, animate = true)
+                        uiHandler.postDelayed(showDetail, DEEP_V2_BOX_ANIMATION_MS)
+                    }
+                    DeepV2FocusTransition.DEFOCUS_THEN_SHOW_DETAIL -> {
+                        viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = true)
+                        uiHandler.postDelayed(showDetail, DEEP_V2_BOX_ANIMATION_MS)
+                    }
+                    DeepV2FocusTransition.SHOW_DETAIL_IMMEDIATELY -> showDetail.run()
+                }
             }
             is DeepV2NavigationState.SaveDialog -> {
                 viewDeepV2HazardDetail.clear()
@@ -986,5 +1015,6 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val JPEG_QUALITY = 97
         private const val THUMBNAIL_TARGET_PX = 160
         private const val SUCCESS_TOAST_VISIBLE_MS = 1800L
+        private const val DEEP_V2_BOX_ANIMATION_MS = 220L
     }
 }

@@ -256,6 +256,23 @@ object RokidSquareFrameProvider : InspectionFrameCaptureService.FrameProvider {
     }
 }
 
+/** 为 V2 结构化分析保留相机输出的完整画幅，不进行 ROI 裁切。 */
+object RokidFullFrameProvider : InspectionFrameCaptureService.FrameProvider {
+    override fun copyLatestSquareFrame(): InspectionFrameCaptureService.SourceSquareFrame? {
+        val frame = RokidFrameSource.copyLatestRawFrame() ?: return null
+        return InspectionFrameCaptureService.SourceSquareFrame(
+            data = frame.data,
+            width = frame.width,
+            height = frame.height,
+            sourceWidth = frame.width,
+            sourceHeight = frame.height,
+            cropRect = Rect(0, 0, frame.width, frame.height),
+            timestamp = frame.timestamp,
+            receivedAtElapsedMs = frame.receivedAtElapsedMs,
+        )
+    }
+}
+
 object Nv21JpegEncoder : InspectionFrameCaptureService.JpegEncoder {
     override fun encode(
         nv21: ByteArray,

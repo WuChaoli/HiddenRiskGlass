@@ -476,6 +476,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private val autoHazardPresentationCoordinator = AutoHazardPresentationCoordinator(
         delayMs = AUTO_HAZARD_PRESENT_DELAY_MS,
     )
+    private val fullFrameCaptureService by lazy {
+        InspectionFrameCaptureService(
+            frameProvider = RokidFullFrameProvider,
+            staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
+            selectWindowMs = ONLINE_SELECT_WINDOW_MS,
+            selectMaxFrames = ONLINE_SELECT_MAX_FRAMES,
+            selectPollIntervalMs = ONLINE_SELECT_POLL_INTERVAL_MS,
+            jpegQuality = ONLINE_JPEG_QUALITY,
+            logger = ::logAudioPressureSnapshot,
+        )
+    }
     private val inferenceRunning = AtomicBoolean(false)
     private var wearSnapshot: GlassesWearStateMachine.Snapshot? = null
 
@@ -2095,8 +2106,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val decision = deepV2AutoCoordinator.onAutoResponse(
                     epoch = epoch,
                     shouldTrigger = true,
-                    buildImage = { encodeAlignedDeepImage(jpegBytes) },
-                ) { deepRequestId, alignedImage -> uiHandler.post {
+                    buildImage = { encodeFullDeepImage(jpegBytes) },
+                ) { deepRequestId, fullImage -> uiHandler.post {
                     if (
                         !fullFrameAutoLoopRunning ||
                         epoch != autoInferenceEpoch ||
@@ -2116,7 +2127,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     )
                     deepV2RequestHandle = deepV2Client.request(
                         requestId = deepRequestId,
-                        imageBytes = alignedImage.jpegBytes,
+                        imageBytes = fullImage.jpegBytes,
                         scene = placeCode,
                         callback = object : DeepV2Client.Callback {
                             override fun onSuccess(requestId: Long, response: DeepV2Response) {
@@ -2140,49 +2151,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     )
                     AppFileLogger.i(
                         TAG,
-                        "deep v2 requested autoRequestId=$requestId requestId=$deepRequestId epoch=$epoch image=${alignedImage.width}x${alignedImage.height} jpegBytes=${alignedImage.jpegBytes.size}",
+                        "deep v2 requested autoRequestId=$requestId requestId=$deepRequestId epoch=$epoch image=${fullImage.width}x${fullImage.height} jpegBytes=${fullImage.jpegBytes.size}",
                     )
                 } }
                 if (decision == DeepV2AutoDecision.IMAGE_UNAVAILABLE) {
-                    AppFileLogger.w(TAG, "deep v2 crop failed autoRequestId=$requestId epoch=$epoch")
+                    AppFileLogger.w(TAG, "deep v2 full image unavailable autoRequestId=$requestId epoch=$epoch")
                 }
             }
         }
     }
 
-    private fun encodeAlignedDeepImage(fullFrameJpegBytes: ByteArray): DeepV2ImagePayload? {
+    private fun encodeFullDeepImage(fullFrameJpegBytes: ByteArray): DeepV2ImagePayload? {
         return runCatching {
-            val source = checkNotNull(
-                BitmapFactory.decodeByteArray(fullFrameJpegBytes, 0, fullFrameJpegBytes.size),
-            )
-            val crop = AlignedDeepImageCropPlanner.plan(
-                sourceSize = FrameSize(source.width, source.height),
-                calibration = FullFrameOverlayCalibrationState().calibration,
-            )
-            val aligned = Bitmap.createBitmap(
-                source,
-                crop.left,
-                crop.top,
-                crop.width,
-                crop.height,
-            )
-            try {
-                ByteArrayOutputStream().use { output ->
-                    check(aligned.compress(Bitmap.CompressFormat.JPEG, AUTO_JPEG_QUALITY, output))
-                    DeepV2ImagePayload(
-                        jpegBytes = output.toByteArray(),
-                        width = aligned.width,
-                        height = aligned.height,
-                    ).also { image ->
-                        AppFileLogger.i(
-                            TAG,
-                            "deep v2 crop source=${source.width}x${source.height} rect=${crop.left},${crop.top},${crop.right},${crop.bottom} output=${image.width}x${image.height} jpegBytes=${image.jpegBytes.size}",
-                        )
-                    }
-                }
-            } finally {
-                if (aligned !== source) aligned.recycle()
-                source.recycle()
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(fullFrameJpegBytes, 0, fullFrameJpegBytes.size, bounds)
+            check(bounds.outWidth > 0 && bounds.outHeight > 0)
+            DeepV2ImagePayload(fullFrameJpegBytes, bounds.outWidth, bounds.outHeight).also { image ->
+                AppFileLogger.i(
+                    TAG,
+                    "deep v2 full image=${image.width}x${image.height} jpegBytes=${image.jpegBytes.size}",
+                )
             }
         }.onFailure { error ->
             AppFileLogger.w(TAG, "deep v2 encode failed message=${error.message}")
@@ -2272,7 +2260,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             false,
         )
     }
-
     private fun presentDeepV2Result(
         image: DeepV2ImagePayload,
         presentation: DeepV2Presentation,
@@ -2755,8 +2742,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         lane: OnlineHazardDetectionService.DetectionLane,
         lastTimestampExclusive: Long,
     ): CapturedFramePayload? {
-        val frame = frameCaptureService.copyLatestSquareFrameOrNull(lastTimestampExclusive) ?: return null
-        val payload = buildCapturedFramePayload(frame)
+        val frame = fullFrameCaptureService.copyLatestSquareFrameOrNull(lastTimestampExclusive) ?: return null
+        val payload = fullFrameCaptureService.buildCapturedFramePayload(frame)
         payload?.let {
             Log.i(
                 TAG,
@@ -3809,7 +3796,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         try {
             imageEncodeExecutor.execute {
-                val payload = buildCapturedFramePayload(frame)
+                val payload = buildOnlineDetectionPayloadOrNull(
+                    lane = OnlineHazardDetectionService.DetectionLane.ITEM,
+                    lastTimestampExclusive = Long.MIN_VALUE,
+                )
                 if (payload == null || payload.jpegBytes.isEmpty()) {
                     uiHandler.post {
                         handleAutoHazardRouteFailure(
@@ -4219,16 +4209,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val targetChanged = previousFocused?.targetIndex != state.targetIndex
                 val previousLabelId = previousFocused
                     ?.let { focused -> deepV2DisplayTargets.getOrNull(focused.targetIndex)?.labelId }
-                val nextLabelId = deepV2DisplayTargets.getOrNull(state.targetIndex)?.labelId
-                if (
-                    targetChanged &&
-                    DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(previousLabelId, nextLabelId)
-                ) {
-                    animateDeepV2TargetChange(state, renderGeneration)
+                if (targetChanged) {
+                    animateDeepV2TargetChange(
+                        focused = state,
+                        previousLabelId = previousLabelId,
+                        renderGeneration = renderGeneration,
+                    )
                 } else {
-                    if (targetChanged) {
-                        viewDeepV2ResultOverlay.setSelectedLabelId(nextLabelId, animate = false)
-                    }
                     showDeepV2Page(state)
                 }
             }
@@ -4244,43 +4231,40 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun animateDeepV2TargetChange(
         focused: DeepV2NavigationState.Focused,
+        previousLabelId: String?,
         renderGeneration: Long,
     ) {
         val target = deepV2DisplayTargets.getOrNull(focused.targetIndex) ?: return
         viewDeepV2HazardDetail.animate().cancel()
-        val startSelection = {
-            if (renderGeneration == deepV2RenderGeneration) {
-                viewDeepV2HazardDetail.clear()
-                viewDeepV2HazardDetail.alpha = 0f
-                viewDeepV2ResultOverlay.setSelectedLabelId(target.labelId, animate = true)
-                uiHandler.postDelayed(
-                    {
-                        if (
-                            renderGeneration == deepV2RenderGeneration &&
-                            pageState == PageState.STRUCTURED_RESULT &&
-                            deepV2NavigationMachine?.state == focused
-                        ) {
-                            showDeepV2Page(focused)
-                            viewDeepV2HazardDetail.alpha = 0f
-                            viewDeepV2HazardDetail.animate()
-                                .alpha(1f)
-                                .setDuration(DEEP_V2_CARD_FADE_MS)
-                                .start()
-                        }
-                    },
-                    DEEP_V2_BOX_ANIMATION_MS,
-                )
+        viewDeepV2HazardDetail.clear()
+        viewDeepV2HazardDetail.alpha = 0f
+        val transition = DeepV2ResultInteractionPolicy.focusTransition(previousLabelId, target.labelId)
+        when (transition) {
+            DeepV2FocusTransition.FOCUS_THEN_SHOW_DETAIL,
+            DeepV2FocusTransition.SWITCH_BOX_THEN_SHOW_DETAIL,
+            -> viewDeepV2ResultOverlay.setSelectedLabelId(target.labelId, animate = true)
+            DeepV2FocusTransition.DEFOCUS_THEN_SHOW_DETAIL -> {
+                viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = true)
             }
+            DeepV2FocusTransition.SHOW_DETAIL_IMMEDIATELY -> Unit
         }
-        if (viewDeepV2HazardDetail.visibility == View.VISIBLE) {
-            viewDeepV2HazardDetail.animate()
-                .alpha(0f)
-                .setDuration(DEEP_V2_CARD_FADE_MS)
-                .withEndAction(startSelection)
-                .start()
-        } else {
-            startSelection()
-        }
+        val delayMs = if (transition == DeepV2FocusTransition.SHOW_DETAIL_IMMEDIATELY) 0L else DEEP_V2_BOX_ANIMATION_MS
+        uiHandler.postDelayed(
+            {
+                if (
+                    renderGeneration == deepV2RenderGeneration &&
+                    pageState == PageState.STRUCTURED_RESULT &&
+                    deepV2NavigationMachine?.state == focused
+                ) {
+                    showDeepV2Page(focused)
+                    viewDeepV2HazardDetail.animate()
+                        .alpha(1f)
+                        .setDuration(DEEP_V2_CARD_FADE_MS)
+                        .start()
+                }
+            },
+            delayMs,
+        )
     }
 
     private fun showDeepV2Page(focused: DeepV2NavigationState.Focused) {
@@ -4625,7 +4609,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (deepV2RequestHandle != null || structuredHazardResultSession != null) return
         val lifecycleGeneration = activityLifecycleGeneration
         imageEncodeExecutor.execute {
-            val image = encodeAlignedDeepImage(request.jpegBytes)
+            val image = encodeFullDeepImage(request.jpegBytes)
             uiHandler.post {
                 if (
                     image == null ||
@@ -5220,14 +5204,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
                     return@execute
                 }
-                val alignedImage = encodeAlignedDeepImage(payload.jpegBytes)
-                if (alignedImage == null) {
+                val fullImage = encodeFullDeepImage(payload.jpegBytes)
+                if (fullImage == null) {
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
                     return@execute
                 }
                 uiHandler.post {
                     if (shouldDeliverStreamRequest(requestId)) {
-                        sendImageToAiAr(alignedImage)
+                        sendImageToAiAr(fullImage)
                     }
                 }
             }

@@ -216,7 +216,7 @@ AiInspectionActivity (DETECTING)
   → OnlineHazardDetectionService.submitDetection()
     → AiArSseService.identifyItemHazard() → POST /ai/auto (复用 HttpClientProvider 单例)
     → bbox 投影到 480x640，持续画全部框；任一未冷却 label 的框面积严格大于 1/8?
-      → YES: 同帧裁切为对齐的 3:4 JPEG，单飞调用 DeepV2Client → POST /ai/deep/v2
+      → YES: 同一份完整 1200x1600 JPEG，单飞调用 DeepV2Client → POST /ai/deep/v2
         → DeepV2Protocol + DeepV2ResultNormalizer 关联 label_id
         → 全屏底图+bbox浏览；确认后复用现有上传并进入 /ai/sug_checks
         → 无隐患立即、存在隐患则真正回到 /auto 时，为本次触发 label 启动 15 秒共享冷却
@@ -264,7 +264,7 @@ HazardRecordActivity (IDLE)
   → COUNTDOWN → 截帧
   → ANALYSIS → DeepV2Client.request()
     → 有 placeCode: /ai/deep/v2；无 placeCode: /ai/gm/v2
-    → 底图 + bbox + 前后滑动 + hazard 详情框
+    → 完整 1200x1600 底图 + bbox + 前后滑动 + hazard 详情框
   → 确认 → LocalHazardPushService.pushLocalHazard()
   → 成功 → 返回 IDLE
 ```

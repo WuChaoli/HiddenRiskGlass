@@ -34,4 +34,32 @@ class DeepV2ResultInteractionPolicyTest {
         assertEquals(false, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(null, "det-1"))
         assertEquals(false, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(null, null))
     }
+
+    @Test
+    fun `detail waits for initial bbox focus animation`() {
+        assertEquals(
+            DeepV2FocusTransition.FOCUS_THEN_SHOW_DETAIL,
+            DeepV2ResultInteractionPolicy.focusTransition(null, "det-1"),
+        )
+    }
+
+    @Test
+    fun `switching focus hides detail until bbox transition completes`() {
+        assertEquals(
+            DeepV2FocusTransition.SWITCH_BOX_THEN_SHOW_DETAIL,
+            DeepV2ResultInteractionPolicy.focusTransition("det-1", "det-2"),
+        )
+    }
+
+    @Test
+    fun `hazard without bbox waits for previous bbox to shrink`() {
+        assertEquals(
+            DeepV2FocusTransition.DEFOCUS_THEN_SHOW_DETAIL,
+            DeepV2ResultInteractionPolicy.focusTransition("det-1", null),
+        )
+        assertEquals(
+            DeepV2FocusTransition.SHOW_DETAIL_IMMEDIATELY,
+            DeepV2ResultInteractionPolicy.focusTransition(null, null),
+        )
+    }
 }
