@@ -26,7 +26,5 @@
     <dimen name="inspection_bottom_prompt_status_spacing">8dp</dimen>
     <dimen name="inspection_status_bar_padding_horizontal">16dp</dimen>
     <dimen name="inspection_status_bar_padding_bottom">10dp</dimen>
-    <dimen name="deep_v2_hazard_card_horizontal_margin">8dp</dimen>
-    <dimen name="deep_v2_hazard_card_height">156dp</dimen>
     <integer name="frame_duration">20</integer>
 </resources>

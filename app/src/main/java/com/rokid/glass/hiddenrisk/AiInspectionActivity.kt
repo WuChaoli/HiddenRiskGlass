@@ -10,8 +10,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.text.Layout
-import android.text.StaticLayout
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -390,7 +388,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private data class DeepV2DisplayTarget(
         val labelId: String?,
-        val title: String,
         val hazards: List<DeepV2PresentationHazard>,
     )
 
@@ -427,11 +424,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var layoutDeepV2Result: FrameLayout
     private lateinit var ivDeepV2ResultImage: ImageView
     private lateinit var viewDeepV2ResultOverlay: DeepV2ResultOverlayView
-    private lateinit var layoutDeepV2HazardCard: LinearLayout
+    private lateinit var viewDeepV2HazardDetail: HazardDetailOverlayView
     private lateinit var layoutDeepV2SaveDialog: LinearLayout
-    private lateinit var tvDeepV2HazardTitle: TextView
-    private lateinit var tvDeepV2HazardText: TextView
-    private lateinit var tvDeepV2PageIndicator: TextView
     private lateinit var tvDeepV2SaveConfirm: TextView
     private lateinit var tvDeepV2SaveCancel: TextView
     private var currentStreamThumbnail: Bitmap? = null
@@ -462,7 +456,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var deepV2ResultImage: DeepV2ImagePayload? = null
     private var deepV2ResultBitmap: Bitmap? = null
     private var deepV2DisplayTargets: List<DeepV2DisplayTarget> = emptyList()
-    private var deepV2Pages: List<List<CharSequence>> = emptyList()
+    private var deepV2Pages: List<List<DeepV2PresentationHazard>> = emptyList()
     private var deepV2NavigationMachine: DeepV2PresentationStateMachine? = null
     private var deepV2RenderGeneration = 0L
     private var activityLifecycleGeneration = 0L
@@ -856,11 +850,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutDeepV2Result = findViewById(R.id.layoutDeepV2Result)
         ivDeepV2ResultImage = findViewById(R.id.ivDeepV2ResultImage)
         viewDeepV2ResultOverlay = findViewById(R.id.viewDeepV2ResultOverlay)
-        layoutDeepV2HazardCard = findViewById(R.id.layoutDeepV2HazardCard)
+        viewDeepV2HazardDetail = findViewById(R.id.viewDeepV2HazardDetail)
+        viewDeepV2HazardDetail.setOnCardBoundsChangedListener { rect ->
+            viewDeepV2ResultOverlay.setExcludedCardRect(rect)
+        }
         layoutDeepV2SaveDialog = findViewById(R.id.layoutDeepV2SaveDialog)
-        tvDeepV2HazardTitle = findViewById(R.id.tvDeepV2HazardTitle)
-        tvDeepV2HazardText = findViewById(R.id.tvDeepV2HazardText)
-        tvDeepV2PageIndicator = findViewById(R.id.tvDeepV2PageIndicator)
         tvDeepV2SaveConfirm = findViewById(R.id.tvDeepV2SaveConfirm)
         tvDeepV2SaveCancel = findViewById(R.id.tvDeepV2SaveCancel)
         // 流式结果卡片高度限制在 onMessage / applyDebugSnapshotState 中动态处理
@@ -2259,8 +2253,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             image.jpegBytes.size,
         )
         ivDeepV2ResultImage.setImageBitmap(deepV2ResultBitmap)
-        layoutDeepV2HazardCard.visibility = View.INVISIBLE
-        layoutDeepV2HazardCard.alpha = 0f
+        viewDeepV2HazardDetail.clear()
+        viewDeepV2HazardDetail.alpha = 0f
         layoutDeepV2SaveDialog.visibility = View.GONE
         showPage(PageState.STRUCTURED_RESULT)
         viewDeepV2ResultOverlay.post {
@@ -2292,7 +2286,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 add(
                     DeepV2DisplayTarget(
                         labelId = target.labelId,
-                        title = DeepV2ResultInteractionPolicy.cardTitle(target.label),
                         hazards = target.hazards,
                     ),
                 )
@@ -2301,60 +2294,20 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 add(
                     DeepV2DisplayTarget(
                         labelId = null,
-                        title = DeepV2ResultInteractionPolicy.cardTitle(
-                            getString(R.string.deep_v2_global_hazard_title),
-                        ),
                         hazards = global.hazards,
                     ),
                 )
             }
         }
-        deepV2Pages = deepV2DisplayTargets.map { target ->
-            paginateDeepV2Text(DeepV2HazardTextFormatter.formatGroup(target.hazards))
-        }
+        deepV2Pages = deepV2DisplayTargets.map(DeepV2DisplayTarget::hazards)
         deepV2NavigationMachine = DeepV2PresentationStateMachine(
             deepV2Pages.map { pages -> pages.size }.toIntArray(),
         )
         deepV2RenderGeneration += 1L
-        layoutDeepV2HazardCard.visibility = View.GONE
-        layoutDeepV2HazardCard.alpha = 1f
+        viewDeepV2HazardDetail.clear()
+        viewDeepV2HazardDetail.alpha = 1f
         layoutDeepV2SaveDialog.visibility = View.GONE
         refreshInputActions()
-    }
-
-    private fun paginateDeepV2Text(text: String): List<CharSequence> {
-        if (text.isBlank()) return listOf("")
-        val availableWidth = (
-            tvDeepV2HazardText.width -
-                tvDeepV2HazardText.compoundPaddingLeft -
-                tvDeepV2HazardText.compoundPaddingRight
-            ).coerceAtLeast(1)
-        val availableHeight = (
-            tvDeepV2HazardText.height -
-                tvDeepV2HazardText.compoundPaddingTop -
-                tvDeepV2HazardText.compoundPaddingBottom
-            ).coerceAtLeast(1)
-        val layout = StaticLayout.Builder.obtain(
-            text,
-            0,
-            text.length,
-            tvDeepV2HazardText.paint,
-            availableWidth,
-        )
-            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-            .setIncludePad(false)
-            .setLineSpacing(tvDeepV2HazardText.lineSpacingExtra, tvDeepV2HazardText.lineSpacingMultiplier)
-            .build()
-        val lines = (0 until layout.lineCount).map { lineIndex ->
-            DeepV2MeasuredTextLine(
-                start = layout.getLineStart(lineIndex),
-                end = layout.getLineEnd(lineIndex),
-                bottom = layout.getLineBottom(lineIndex),
-            )
-        }
-        val ranges = DeepV2MeasuredPagePlanner.plan(lines, availableHeight)
-        return DeepV2MeasuredPagePlanner.slice(text, lines, ranges)
-            .ifEmpty { listOf(text) }
     }
 
     private fun clearDeepV2ResultBitmap() {
@@ -2371,9 +2324,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         deepV2Pages = emptyList()
         deepV2NavigationMachine = null
         deepV2RenderGeneration += 1L
-        if (::layoutDeepV2HazardCard.isInitialized) layoutDeepV2HazardCard.animate().cancel()
+        if (::viewDeepV2HazardDetail.isInitialized) viewDeepV2HazardDetail.animate().cancel()
         if (::viewDeepV2ResultOverlay.isInitialized) viewDeepV2ResultOverlay.clear()
-        if (::layoutDeepV2HazardCard.isInitialized) layoutDeepV2HazardCard.visibility = View.GONE
+        if (::viewDeepV2HazardDetail.isInitialized) viewDeepV2HazardDetail.clear()
         if (::layoutDeepV2SaveDialog.isInitialized) layoutDeepV2SaveDialog.visibility = View.GONE
         if (::ivDeepV2ResultImage.isInitialized) clearDeepV2ResultBitmap()
     }
@@ -4216,14 +4169,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             DeepV2NavigationState.Defocused -> {
                 layoutDeepV2SaveDialog.visibility = View.GONE
                 viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = true)
-                layoutDeepV2HazardCard.animate().cancel()
-                layoutDeepV2HazardCard.animate()
+                viewDeepV2HazardDetail.animate().cancel()
+                viewDeepV2HazardDetail.animate()
                     .alpha(0f)
                     .setDuration(DEEP_V2_CARD_FADE_MS)
                     .withEndAction {
                         if (renderGeneration == deepV2RenderGeneration) {
-                            layoutDeepV2HazardCard.visibility = View.GONE
-                            layoutDeepV2HazardCard.alpha = 1f
+                            viewDeepV2HazardDetail.clear()
+                            viewDeepV2HazardDetail.alpha = 1f
                         }
                     }
                     .start()
@@ -4239,7 +4192,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 }
             }
             is DeepV2NavigationState.SaveDialog -> {
-                layoutDeepV2HazardCard.visibility = View.GONE
+                viewDeepV2HazardDetail.clear()
                 layoutDeepV2SaveDialog.visibility = View.VISIBLE
                 renderDeepV2SaveChoice(state.selected)
             }
@@ -4253,11 +4206,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         renderGeneration: Long,
     ) {
         val target = deepV2DisplayTargets.getOrNull(focused.targetIndex) ?: return
-        layoutDeepV2HazardCard.animate().cancel()
+        viewDeepV2HazardDetail.animate().cancel()
         val startSelection = {
             if (renderGeneration == deepV2RenderGeneration) {
-                layoutDeepV2HazardCard.visibility = View.GONE
-                layoutDeepV2HazardCard.alpha = 0f
+                viewDeepV2HazardDetail.clear()
+                viewDeepV2HazardDetail.alpha = 0f
                 viewDeepV2ResultOverlay.setSelectedLabelId(target.labelId, animate = true)
                 uiHandler.postDelayed(
                     {
@@ -4267,8 +4220,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             deepV2NavigationMachine?.state == focused
                         ) {
                             showDeepV2Page(focused)
-                            layoutDeepV2HazardCard.alpha = 0f
-                            layoutDeepV2HazardCard.animate()
+                            viewDeepV2HazardDetail.alpha = 0f
+                            viewDeepV2HazardDetail.animate()
                                 .alpha(1f)
                                 .setDuration(DEEP_V2_CARD_FADE_MS)
                                 .start()
@@ -4278,8 +4231,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 )
             }
         }
-        if (layoutDeepV2HazardCard.visibility == View.VISIBLE) {
-            layoutDeepV2HazardCard.animate()
+        if (viewDeepV2HazardDetail.visibility == View.VISIBLE) {
+            viewDeepV2HazardDetail.animate()
                 .alpha(0f)
                 .setDuration(DEEP_V2_CARD_FADE_MS)
                 .withEndAction(startSelection)
@@ -4290,13 +4243,13 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     }
 
     private fun showDeepV2Page(focused: DeepV2NavigationState.Focused) {
-        val target = deepV2DisplayTargets.getOrNull(focused.targetIndex) ?: return
         val pages = deepV2Pages.getOrNull(focused.targetIndex).orEmpty()
-        val page = pages.getOrNull(focused.pageIndex) ?: ""
-        tvDeepV2HazardTitle.text = target.title
-        tvDeepV2HazardText.text = page
-        tvDeepV2PageIndicator.text = "${focused.pageIndex + 1}/${pages.size.coerceAtLeast(1)}"
-        layoutDeepV2HazardCard.visibility = View.VISIBLE
+        val hazard = pages.getOrNull(focused.pageIndex) ?: return
+        viewDeepV2HazardDetail.render(
+            model = HazardDetailDisplayModel.from(hazard),
+            pageIndex = focused.pageIndex,
+            pageCount = pages.size.coerceAtLeast(1),
+        )
     }
 
     private fun renderDeepV2SaveChoice(choice: DeepV2SaveChoice) {
