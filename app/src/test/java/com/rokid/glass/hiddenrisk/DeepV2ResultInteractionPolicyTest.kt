@@ -25,4 +25,13 @@ class DeepV2ResultInteractionPolicyTest {
         assertEquals("燃气灶", title)
         assertFalse(title.contains("一般隐患"))
     }
+
+    @Test
+    fun `bbox animation runs only between two different real boxes`() {
+        assertEquals(true, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange("det-1", "det-2"))
+        assertEquals(false, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange("det-1", "det-1"))
+        assertEquals(false, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange("det-1", null))
+        assertEquals(false, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(null, "det-1"))
+        assertEquals(false, DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(null, null))
+    }
 }

@@ -18,4 +18,10 @@ internal object DeepV2ResultInteractionPolicy {
     }
 
     fun cardTitle(label: String): String = label.trim()
+
+    fun shouldAnimateBoxChange(previousLabelId: String?, nextLabelId: String?): Boolean {
+        return previousLabelId != null &&
+            nextLabelId != null &&
+            previousLabelId != nextLabelId
+    }
 }

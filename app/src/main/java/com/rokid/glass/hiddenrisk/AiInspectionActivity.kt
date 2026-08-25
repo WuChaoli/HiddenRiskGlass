@@ -4185,9 +4185,18 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 layoutDeepV2SaveDialog.visibility = View.GONE
                 val previousFocused = previous as? DeepV2NavigationState.Focused
                 val targetChanged = previousFocused?.targetIndex != state.targetIndex
-                if (targetChanged) {
+                val previousLabelId = previousFocused
+                    ?.let { focused -> deepV2DisplayTargets.getOrNull(focused.targetIndex)?.labelId }
+                val nextLabelId = deepV2DisplayTargets.getOrNull(state.targetIndex)?.labelId
+                if (
+                    targetChanged &&
+                    DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(previousLabelId, nextLabelId)
+                ) {
                     animateDeepV2TargetChange(state, renderGeneration)
                 } else {
+                    if (targetChanged) {
+                        viewDeepV2ResultOverlay.setSelectedLabelId(nextLabelId, animate = false)
+                    }
                     showDeepV2Page(state)
                 }
             }
