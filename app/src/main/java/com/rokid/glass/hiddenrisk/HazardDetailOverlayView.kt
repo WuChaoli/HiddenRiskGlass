@@ -29,7 +29,7 @@ internal class HazardDetailOverlayView @JvmOverloads constructor(
     init {
         orientation = VERTICAL
         setPadding(dp(14), dp(13), dp(14), dp(12))
-        background = roundedBackground(Color.argb(128, 0, 255, 102), 16f)
+        background = roundedBackground(Color.argb(166, 0, 0, 0), 16f)
         addView(textView(10f, bold = true, maxLines = 1).apply { text = "隐患详情" })
         addView(labelView, matchWrap(top = 3))
         addView(

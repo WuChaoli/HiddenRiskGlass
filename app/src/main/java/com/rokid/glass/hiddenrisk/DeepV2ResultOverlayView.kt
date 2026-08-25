@@ -219,9 +219,9 @@ internal class DeepV2ResultOverlayView @JvmOverloads constructor(
         const val SELECTION_ANIMATION_MS = 220L
         const val SELECTED_SCALE_DELTA = 0.10f
         const val THIN_STROKE_DP = 1f
-        const val CORNER_STROKE_DP = 4f
-        const val CORNER_LENGTH_DP = 18f
-        const val CORNER_RADIUS_DP = 10f
+        const val CORNER_STROKE_DP = 3f
+        const val CORNER_LENGTH_DP = 14f
+        const val CORNER_RADIUS_DP = 8f
         const val DOT_DIAMETER_DP = 2f
         const val DOT_GAP_DP = 2f
         const val CARD_RADIUS_DP = 16f
