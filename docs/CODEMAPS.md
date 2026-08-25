@@ -186,13 +186,13 @@ sequenceDiagram
 
 ### 3.2 核心链路：在线自动识别与结构化深度分析
 
-> 自动触发链路固定使用普通 JSON `/ai/deep/v2`；旧有手动/其他链路仍保留 `/ai/deep`、`/ai/gm` SSE 路由。该规则不适用于 `localTriger`，本地触发不发送业务网络请求。
+> 自动、手动、隐患拍照与环境检测统一使用 V2 结构化 JSON：按 `placeCode` 和来源路由到 `/ai/deep/v2`、`/ai/general_deep/v2` 或 `/ai/gm/v2`。`localTriger` 仍为完全离线，不发送业务网络请求。
 
 ```mermaid
 sequenceDiagram
     participant AI as AiInspectionActivity
     participant ODS as OnlineHazardDetectionService
-    participant SSE as AiArSseService
+    participant SSE as AiArSseService(/auto)
     participant V2 as DeepV2Client
     participant Remote as 远端 /ai/auto + /ai/deep/v2
 
@@ -279,15 +279,16 @@ sequenceDiagram
     actor User as 用户
     participant HR as HazardRecordActivity
     participant Camera as QuickCameraManager
-    participant SSE as AiArSseService
+    participant V2 as DeepV2Client
     participant Push as LocalHazardPushService
 
     User->>HR: 单击/语音"拍照"
     HR->>Camera: takePicture()
     Camera-->>HR: JPEG 图片
     HR->>HR: COUNTDOWN -> ANALYSIS
-    HR->>SSE: requestDeepAnalysis() /ai/deep
-    SSE-->>HR: ResolvedHazardContent
+    HR->>V2: request() /ai/deep/v2 或 /ai/gm/v2
+    V2-->>HR: detections + hazards + check_items
+    HR->>HR: 底图+bbox/hazard 翻页展示
     User->>HR: 确认
     HR->>Push: pushLocalHazard()
     Push-->>HR: 成功 -> 返回 IDLE

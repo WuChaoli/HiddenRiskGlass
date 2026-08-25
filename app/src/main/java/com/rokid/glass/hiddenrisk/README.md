@@ -7,7 +7,7 @@
 
 **双轨推理架构：**
 - **本地 NCNN 推理**（YOLOv8）— 始终可用，作为 fallback
-- **在线 SSE 推理** — 通过 OkHttp SSE 连接远端 `/ai/auto`、`/ai/deep`、`/ai/device`、`/ai/general` 端点
+- **在线推理** — `/ai/auto` 等识别接口保留 SSE，隐患结果统一使用 V2 结构化 JSON
 
 `AutoHazardPipelineDecider` 负责调度：网络可用时优先远端，远端连续失败达阈值后切换本地 fallback。
 
@@ -60,8 +60,9 @@ DeviceGuideActivity:
 | 接口 | 地址 | 用途 |
 |------|------|------|
 | `/ai/auto` | `http://183.147.142.133:10010/ai/auto` | 物品识别判定（是否"存在隐患"）|
-| `/ai/deep/v2` | `http://183.147.142.133:10010/ai/deep/v2` | 自动触发链路深度分析（普通 JSON，返回 detections/hazards/check_items）|
-| `/ai/deep` | SSE | 旧有手动/非自动链路深度分析（流式返回描述文本）|
+| `/ai/deep/v2` | `http://183.147.142.133:10010/ai/deep/v2` | 自动、有 `placeCode` 的手动分析与隐患拍照 |
+| `/ai/general_deep/v2` | 配置项 `aiGeneralDeepV2Api` | 环境检测结构化分析 |
+| `/ai/gm/v2` | 配置项 `aiGmV2Api` | 无 `placeCode` 的手动分析与隐患拍照 |
 | `/ai/device` | SSE | 设备指引详情 / 在线建议 |
 | `/ai/general` | | 环境隐患识别 |
 | `pushHidDanger` | `<QR baseUrl>/pushHidDanger` | 手机端同步/隐患保存 |
@@ -98,7 +99,7 @@ DeviceGuideActivity:
 | `AiArSseService.kt` | **SSE 通信核心**，封装 OkHttp SSE 请求；复用 `HttpClientProvider` 单例，Activity 退出时调用 `releaseConnections()` 释放空闲连接。通过 `DetectionRouteContext` 统一执行端点路由决策 | `identifyItemHazard()`, `requestDeepAnalysis()`, `fetchInspectionGuide()`, `RequestHandle`, `releaseConnections()` |
 | `DetectionRouteContext.kt` | **检测路由上下文**，根据 placeCode 有无决定各接口调用策略（跳过检测/降级端点）。业务页面无需感知路由逻辑变更 | `itemDetectionEndpoint()`, `sceneDetectionEndpoint()`, `deepAnalysisEndpoint()`, `sceneParam()` |
 | `OnlineHazardDetectionService.kt` | **在线检测调度**，管理检测请求队列+超时；支持 `cancelAll()` 和 `cancelActiveDetection()` 两种取消粒度 | `submitDetection()`, `requestDeepAnalysis()`, `cancelAll()`, `cancelActiveDetection()` |
-| `DeepV2Client.kt` | 自动触发链路 `/ai/deep/v2` 普通 JSON 客户端，支持取消和错误分类 | `request()` |
+| `DeepV2Client.kt` | 统一 V2 结构化 JSON 客户端，按业务路由 `/ai/deep/v2`、`/ai/general_deep/v2`、`/ai/gm/v2` | `request()` |
 | `DeepV2Protocol.kt` | 解析并局部容错结构化 detections/hazards/check_items | `parse()` |
 | `AiArEventAggregator.kt` | 聚合 SSE 事件流 | |
 | `AiArHazardDetailParser.kt` | 解析远端隐患详情 → `ResolvedHazardContent` | `parse()` |
@@ -261,8 +262,9 @@ AiInspectionActivity (DESCRIPTION, 确认)
 HazardRecordActivity (IDLE)
   → 单击/语音"拍照"
   → COUNTDOWN → 截帧
-  → ANALYSIS → AiArSseService.requestDeepAnalysis() → SSE /ai/deep
-    → AiArHazardDetailParser.parse()
+  → ANALYSIS → DeepV2Client.request()
+    → 有 placeCode: /ai/deep/v2；无 placeCode: /ai/gm/v2
+    → 底图 + bbox + 前后滑动 + hazard 详情框
   → 确认 → LocalHazardPushService.pushLocalHazard()
   → 成功 → 返回 IDLE
 ```

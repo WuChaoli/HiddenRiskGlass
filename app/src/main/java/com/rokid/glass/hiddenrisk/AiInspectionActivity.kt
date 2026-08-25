@@ -1889,9 +1889,25 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun postPendingLocalHazardPresentation(resolved: ResolvedHazardContent) {
         val detectedAtElapsedMs = SystemClock.elapsedRealtime()
-        pendingAutoHazardPresentation = buildPendingLocalHazardPresentation(
+        if (forceOnlineDetailForLocalHazard && SystemStateUtils.isNetworkAvailable(this)) {
+            requestDetectedStructuredHazardResult(
+                OnlineHazardDetectionService.DetectionRequest(
+                    epoch = autoInferenceEpoch,
+                    requestId = nextOnlineRequestId(),
+                    jpegBytes = resolved.jpegBytes,
+                    cooldownLabels = listOf(resolved.displayTitle),
+                ),
+                StructuredHazardSource.AUTO_ITEM,
+            )
+            return
+        }
+        pendingAutoHazardPresentation = PendingAutoHazardPresentation.Local(
             detectedAtElapsedMs = detectedAtElapsedMs,
-            resolved = resolved,
+            resolved = if (forceOnlineDetailForLocalHazard) {
+                resolved.copy(remoteSaveAllowed = false)
+            } else {
+                resolved
+            },
         )
         logAudioPressureSnapshot(
             stage = "queue_local_hazard_presentation:posted",
@@ -4319,7 +4335,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         request: OnlineHazardDetectionService.DetectionRequest,
     ) {
         if (request.lane == OnlineHazardDetectionService.DetectionLane.SCENE) {
-            requestSceneStructuredHazardResult(request)
+            requestDetectedStructuredHazardResult(request, StructuredHazardSource.SCENE)
             return
         }
         logAudioPressureSnapshot(
@@ -4335,7 +4351,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             )
             return
         }
-        val detectedAtElapsedMs = SystemClock.elapsedRealtime()
         val localFallback = if (
             request.lane == OnlineHazardDetectionService.DetectionLane.ITEM &&
             InspectionConfigRepository.get().aiInspection.autoDetectProvider == AutoDetectProvider.LOCAL_TRIGGER
@@ -4370,85 +4385,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             }
             LocalHazardDetailRouteDecider.InitialRoute.REMOTE -> Unit
         }
-        // JPEG 在生成后按只读数据传递，自动流式展示和详情请求复用同一份数组，避免额外 LOS 拷贝。
-        val sharedJpegBytes = jpegBytes
-        pendingAutoHazardPresentation = PendingAutoHazardPresentation.Online(
-            detectedAtElapsedMs = detectedAtElapsedMs,
-            requestId = request.requestId,
-            jpegBytes = sharedJpegBytes,
-            cooldownLabels = request.cooldownLabels,
-            baseResolved = localFallback,
-        )
-        streamingInProgress = true
-        logAudioPressureSnapshot(
-            stage = "queue_online_hazard_presentation:pending_ready",
-            extra = "requestId=${request.requestId} detectedAtElapsedMs=$detectedAtElapsedMs jpegBytes=${sharedJpegBytes.size}",
-        )
-        refreshPendingHazardAlertOverlay()
-        schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
-        refreshInputActions()
-        val detailRequest = OnlineHazardDetectionService.DetailRequest(
-            epoch = autoInferenceEpoch,
-            requestId = request.requestId,
-            jpegBytes = sharedJpegBytes,
-            lane = request.lane,
-        )
-        playDeepAnalysisCue(
-            deepAnalysisAudioCoordinator.begin(
-                legacyDeepAudioToken(detailRequest),
-                request.lane.toDeepAnalysisEndpoint(),
-            ),
-        )
-        onlineHazardDetectionService.requestDeepAnalysis(detailRequest)
-        logAudioPressureSnapshot(
-            stage = "queue_online_hazard_presentation:details_requested",
-            extra = "requestId=${request.requestId}",
-        )
-    }
-
-    private fun buildPendingLocalHazardPresentation(
-        detectedAtElapsedMs: Long,
-        resolved: ResolvedHazardContent,
-    ): PendingAutoHazardPresentation {
-        if (!forceOnlineDetailForLocalHazard) {
-            return PendingAutoHazardPresentation.Local(
-                detectedAtElapsedMs = detectedAtElapsedMs,
-                resolved = resolved,
-            )
-        }
-        if (!SystemStateUtils.isNetworkAvailable(this)) {
-            return PendingAutoHazardPresentation.Local(
-                detectedAtElapsedMs = detectedAtElapsedMs,
-                resolved = resolved.copy(remoteSaveAllowed = false),
-            )
-        }
-        val requestId = nextOnlineRequestId()
-        val sharedJpegBytes = resolved.jpegBytes.copyOf()
-        streamingInProgress = true
-        val detailRequest = OnlineHazardDetectionService.DetailRequest(
-            epoch = autoInferenceEpoch,
-            requestId = requestId,
-            jpegBytes = sharedJpegBytes,
-        )
-        playDeepAnalysisCue(
-            deepAnalysisAudioCoordinator.begin(
-                legacyDeepAudioToken(detailRequest),
-                detailRequest.lane.toDeepAnalysisEndpoint(),
-            ),
-        )
-        onlineHazardDetectionService.requestDeepAnalysis(
-            detailRequest,
-        )
-        logAudioPressureSnapshot(
-            stage = "queue_local_hazard_presentation:details_requested",
-            extra = "requestId=$requestId title=${resolved.displayTitle} jpegBytes=${sharedJpegBytes.size}",
-        )
-        return PendingAutoHazardPresentation.Online(
-            detectedAtElapsedMs = detectedAtElapsedMs,
-            requestId = requestId,
-            jpegBytes = sharedJpegBytes,
-            baseResolved = resolved.copy(remoteSaveAllowed = false),
-        )
+        requestDetectedStructuredHazardResult(request, StructuredHazardSource.AUTO_ITEM)
     }
 
     private fun handleOnlineNoHazardResult(requestId: Long) {
@@ -4677,11 +4614,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun requestSceneStructuredHazardResult(
+    private fun requestDetectedStructuredHazardResult(
         request: OnlineHazardDetectionService.DetectionRequest,
+        source: StructuredHazardSource,
     ) {
         val route = StructuredHazardRequestPolicy.route(
-            StructuredHazardSource.SCENE,
+            source,
             InspectionWorkflowSession.enterpriseInfo?.placeCode,
         ) ?: return
         if (deepV2RequestHandle != null || structuredHazardResultSession != null) return
@@ -4706,7 +4644,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     ),
                 )
                 playDeepAnalysisCue(
-                    deepAnalysisAudioCoordinator.begin(audioToken, DeepAnalysisEndpoint.GENERAL_DEEP),
+                    deepAnalysisAudioCoordinator.begin(
+                        audioToken,
+                        if (source == StructuredHazardSource.SCENE) {
+                            DeepAnalysisEndpoint.GENERAL_DEEP
+                        } else {
+                            DeepAnalysisEndpoint.DEEP_V2
+                        },
+                    ),
                 )
                 deepV2RequestHandle = deepV2Client.request(
                     requestId = request.requestId,
@@ -4729,7 +4674,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             }
                             deepAnalysisAudioCoordinator.complete(audioToken, hasHazard = true)
                             val session = StructuredHazardResultSession(
-                                source = StructuredHazardSource.SCENE,
+                                source = source,
                                 imagePayload = image,
                                 presentation = presentation,
                                 requestId = requestId,
@@ -4738,7 +4683,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                             structuredHazardResultSession = session
                             deepV2Presentation = session.presentation
                             deepV2ResultImage = session.imagePayload
-                            stopAutoInferencePipelines("scene_deep_v2_success")
+                            stopAutoInferencePipelines("${source.name.lowercase()}_deep_v2_success")
                             presentDeepV2Result(session.imagePayload, session.presentation)
                         }
 

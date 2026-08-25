@@ -81,15 +81,15 @@
 }
 ```
 
-#### 2. 自动链路隐患深度分析 V2（结构化 JSON）
+#### 2. 统一隐患深度分析 V2（结构化 JSON）
 
 | 属性 | 值 |
 |------|-----|
 | 方法 | `POST` |
-| URL | `{{ai_base_url}}/ai/deep/v2` |
+| URL | `/ai/deep/v2` · `/ai/general_deep/v2` · `/ai/gm/v2` |
 | 响应类型 | JSON |
 
-请求沿用 `task_id`、`stream=false`、Base64 `image`、`text`、`scene` 字段。仅自动触发链路使用：`/auto` 的可见 bbox 面积严格大于屏幕 `1/8` 时，上传同帧裁切后的 3:4 JPEG。响应的 `detections[].label_id` 与 `hazards[].label_id` 关联；`label_id=others` 表示无框的全局隐患。客户端保留 `check_items`，展示和保存使用 `hazards`。
+请求沿用 `task_id`、`stream=false`、Base64 `image`、`text`、`scene` 字段。自动和有 `placeCode` 的手动/拍照走 `/deep/v2`，环境检测走 `/general_deep/v2`，无 `placeCode` 的手动/拍照走 `/gm/v2`。响应的 `detections[].label_id` 与 `hazards[].label_id` 关联；`label_id=others` 表示无框的全局隐患。客户端保留 `check_items`，展示和保存使用 `hazards`。
 
 ```json
 {
@@ -368,6 +368,7 @@ Collection 中每个请求都配置了 Tests 脚本，运行后可在 **Test Res
 
 | 接口 | 源码文件 |
 |------|---------|
+| `/ai/deep/v2` · `/ai/general_deep/v2` · `/ai/gm/v2` | [`DeepV2Client.kt`](../../app/src/main/java/com/rokid/glass/hiddenrisk/DeepV2Client.kt) |
 | `/ai/auto` · `/ai/deep` · `/ai/gm` · `/ai/general` · `/ai/general_deep` · `/ai/device` · `/ai/sug_checks` | [`AiArSseService.kt`](../../app/src/main/java/com/rokid/glass/hiddenrisk/AiArSseService.kt) |
 | `pushHidDanger` | [`LocalHazardPushService.kt`](../../app/src/main/java/com/rokid/glass/hiddenrisk/LocalHazardPushService.kt) |
 | `pushHidDangerEnd` | [`InspectionFinishService.kt`](../../app/src/main/java/com/rokid/glass/hiddenrisk/InspectionFinishService.kt) |
