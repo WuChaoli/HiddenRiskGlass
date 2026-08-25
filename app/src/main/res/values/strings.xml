@@ -272,4 +272,11 @@
     <string name="ai_entry_menu_guide_pinyin">she bei zhi yin</string>
     <string name="ai_entry_menu_record_pinyin">yin huan pai zhao</string>
     <string name="full_frame_detection_overlay_test_title">完整画幅实时打框测试</string>
+    <string name="deep_v2_global_hazard_title">全局隐患</string>
+    <string name="deep_v2_save_prompt">是否保存本次隐患？</string>
+    <string name="deep_v2_save_confirm">确认</string>
+    <string name="deep_v2_save_cancel">取消</string>
+    <string name="deep_v2_no_hazard">未发现隐患</string>
+    <string name="deep_v2_no_savable_hazard">无可保存隐患</string>
+    <string name="deep_v2_request_failed">深度分析失败，继续检测</string>
 </resources>
