@@ -34,4 +34,15 @@ class InspectionFinishUploadPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun businessMockBlocksFinishUploadEvenWhileOnline() {
+        assertFalse(
+            InspectionFinishUploadPolicy.canEnqueue(
+                networkAvailable = true,
+                businessNetworkAllowed = true,
+                businessUploadAllowed = false,
+            ),
+        )
+    }
 }

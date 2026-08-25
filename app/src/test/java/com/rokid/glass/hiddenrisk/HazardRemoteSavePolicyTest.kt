@@ -17,6 +17,17 @@ class HazardRemoteSavePolicyTest {
         assertTrue(HazardRemoteSavePolicy.canUpload(hazard(remoteSaveAllowed = true), networkAvailable = true))
     }
 
+    @Test
+    fun businessMockBlocksHazardUploadEvenWhileOnline() {
+        assertFalse(
+            HazardRemoteSavePolicy.canUpload(
+                content = hazard(remoteSaveAllowed = true),
+                networkAvailable = true,
+                businessUploadAllowed = false,
+            ),
+        )
+    }
+
     private fun hazard(remoteSaveAllowed: Boolean) = ResolvedHazardContent(
         source = HazardSource.LOCAL,
         description = "隐患",

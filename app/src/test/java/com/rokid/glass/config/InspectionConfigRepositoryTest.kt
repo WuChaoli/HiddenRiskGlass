@@ -8,6 +8,28 @@ import org.junit.Test
 class InspectionConfigRepositoryTest {
 
     @Test
+    fun `business mock enables fixed scene and disables uploads`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "businessMock": {
+                    "enabled": true,
+                    "placeCode": "XFAQ-JXCS-001",
+                    "allowHazardUpload": false,
+                    "allowFinishUpload": false
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = null,
+        )
+
+        assertTrue(config.businessMock.enabled)
+        assertEquals("XFAQ-JXCS-001", config.businessMock.placeCode)
+        assertFalse(config.businessMock.allowHazardUpload)
+        assertFalse(config.businessMock.allowFinishUpload)
+    }
+
+    @Test
     fun `network access defaults to online`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = null,

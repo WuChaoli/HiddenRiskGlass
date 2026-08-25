@@ -6,7 +6,10 @@ internal object EntryGuardPolicy {
 
     fun allowsAutoUpdate(offlineLocal: Boolean): Boolean = !offlineLocal
 
-    fun requiresEnterpriseContext(offlineLocal: Boolean): Boolean = !offlineLocal
+    fun requiresEnterpriseContext(
+        offlineLocal: Boolean,
+        businessMockEnabled: Boolean = false,
+    ): Boolean = !offlineLocal && !businessMockEnabled
 
     fun sessionNetworkAvailable(
         offlineLocal: Boolean,

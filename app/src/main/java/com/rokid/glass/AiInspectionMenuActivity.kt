@@ -147,8 +147,16 @@ class AiInspectionMenuActivity : BaseGlassActivity() {
     private fun runEntryGuards() {
         if (entryGuardNavigating || exitConfirmDialogVisible) return
 
+        val businessMock = InspectionConfigRepository.get().businessMock
+        BusinessMockEnterpriseInfoFactory.create(businessMock)?.let { mockInfo ->
+            InspectionWorkflowSession.enterpriseInfo = mockInfo
+            android.util.Log.i(TAG, "business mock enterprise applied placeCode=${mockInfo.placeCode}")
+        }
         val requiresEnterpriseContext =
-            EntryGuardPolicy.requiresEnterpriseContext(InspectionFeatureFlags.isOfflineLocalMode())
+            EntryGuardPolicy.requiresEnterpriseContext(
+                offlineLocal = InspectionFeatureFlags.isOfflineLocalMode(),
+                businessMockEnabled = businessMock.enabled,
+            )
         if (
             requiresEnterpriseContext &&
             (

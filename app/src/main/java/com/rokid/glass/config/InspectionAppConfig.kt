@@ -6,6 +6,7 @@ package com.rokid.glass.config
  */
 data class InspectionAppConfig(
     val featureFlags: FeatureFlagsConfig = FeatureFlagsConfig(),
+    val businessMock: BusinessMockConfig = BusinessMockConfig(),
     val enterpriseScan: EnterpriseScanConfig = EnterpriseScanConfig(),
     val enterpriseInfo: EnterpriseInfoConfig = EnterpriseInfoConfig(),
     val aiInspection: AiInspectionConfig = AiInspectionConfig(),
@@ -16,6 +17,13 @@ data class InspectionAppConfig(
 data class FeatureFlagsConfig(
     val enableEnterpriseInspectionFlow: Boolean = true,
     val networkAccessMode: NetworkAccessMode = NetworkAccessMode.ONLINE,
+)
+
+data class BusinessMockConfig(
+    val enabled: Boolean = false,
+    val placeCode: String = "",
+    val allowHazardUpload: Boolean = true,
+    val allowFinishUpload: Boolean = true,
 )
 
 enum class NetworkAccessMode {
@@ -204,6 +212,7 @@ enum class GpuProfile(val code: Int) {
  */
 data class InspectionAppConfigOverride(
     val featureFlags: FeatureFlagsConfigOverride? = null,
+    val businessMock: BusinessMockConfigOverride? = null,
     val enterpriseScan: EnterpriseScanConfigOverride? = null,
     val enterpriseInfo: EnterpriseInfoConfigOverride? = null,
     val aiInspection: AiInspectionConfigOverride? = null,
@@ -214,6 +223,13 @@ data class InspectionAppConfigOverride(
 data class FeatureFlagsConfigOverride(
     val enableEnterpriseInspectionFlow: Boolean? = null,
     val networkAccessMode: NetworkAccessMode? = null,
+)
+
+data class BusinessMockConfigOverride(
+    val enabled: Boolean? = null,
+    val placeCode: String? = null,
+    val allowHazardUpload: Boolean? = null,
+    val allowFinishUpload: Boolean? = null,
 )
 
 data class EnterpriseScanConfigOverride(

@@ -43,4 +43,14 @@ class EntryGuardPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun businessMockSkipsEnterpriseContextGuardInOnlineMode() {
+        assertFalse(
+            EntryGuardPolicy.requiresEnterpriseContext(
+                offlineLocal = false,
+                businessMockEnabled = true,
+            ),
+        )
+    }
 }

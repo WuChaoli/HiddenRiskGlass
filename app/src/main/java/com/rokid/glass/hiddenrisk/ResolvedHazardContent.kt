@@ -162,8 +162,12 @@ data class ResolvedHazardContent(
 
 /** 远程保存权限在详情生成时固定，网络恢复不得改变离线结果的权限。 */
 object HazardRemoteSavePolicy {
-    fun canUpload(content: ResolvedHazardContent, networkAvailable: Boolean): Boolean {
-        return content.remoteSaveAllowed && networkAvailable
+    fun canUpload(
+        content: ResolvedHazardContent,
+        networkAvailable: Boolean,
+        businessUploadAllowed: Boolean = true,
+    ): Boolean {
+        return content.remoteSaveAllowed && networkAvailable && businessUploadAllowed
     }
 }
 

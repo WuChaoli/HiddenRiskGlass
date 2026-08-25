@@ -4237,8 +4237,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             AppFileLogger.w(TAG, "local hazard submit skipped because active content is null")
             return
         }
-        if (!HazardRemoteSavePolicy.canUpload(hazardContent, SystemStateUtils.isNetworkAvailable(this))) {
-            AppFileLogger.i(TAG, "offline local hazard skips pushHidDanger title=${hazardContent.displayTitle}")
+        val businessMock = InspectionConfigRepository.get().businessMock
+        if (!HazardRemoteSavePolicy.canUpload(
+                content = hazardContent,
+                networkAvailable = SystemStateUtils.isNetworkAvailable(this),
+                businessUploadAllowed = !businessMock.enabled || businessMock.allowHazardUpload,
+            )
+        ) {
+            val reason = if (businessMock.enabled && !businessMock.allowHazardUpload) {
+                "business_mock_skip"
+            } else {
+                "offline_or_content_policy"
+            }
+            AppFileLogger.i(TAG, "$reason skips pushHidDanger title=${hazardContent.displayTitle}")
             val localAdvice = hazardContent.primaryHazard()?.let { hazard ->
                 hazard.advice.ifBlank { hazard.uploadAdvice }
             }.orEmpty()

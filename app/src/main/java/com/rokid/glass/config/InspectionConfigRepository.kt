@@ -105,11 +105,24 @@ object InspectionConfigRepository {
     ): InspectionAppConfig {
         return InspectionAppConfig(
             featureFlags = merge(base.featureFlags, override.featureFlags),
+            businessMock = merge(base.businessMock, override.businessMock),
             enterpriseScan = merge(base.enterpriseScan, override.enterpriseScan),
             enterpriseInfo = merge(base.enterpriseInfo, override.enterpriseInfo),
             aiInspection = merge(base.aiInspection, override.aiInspection),
             network = merge(base.network, override.network),
             appVisibility = merge(base.appVisibility, override.appVisibility),
+        )
+    }
+
+    private fun merge(
+        base: BusinessMockConfig,
+        override: BusinessMockConfigOverride?,
+    ): BusinessMockConfig {
+        return BusinessMockConfig(
+            enabled = override?.enabled ?: base.enabled,
+            placeCode = override?.placeCode ?: base.placeCode,
+            allowHazardUpload = override?.allowHazardUpload ?: base.allowHazardUpload,
+            allowFinishUpload = override?.allowFinishUpload ?: base.allowFinishUpload,
         )
     }
 

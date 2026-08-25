@@ -23,6 +23,7 @@ import com.rokid.glass.hiddenrisk.InspectionCameraCoordinator
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadQueue
 import com.rokid.glass.hiddenrisk.InspectionBackgroundUploadService
 import com.rokid.glass.hiddenrisk.InspectionFinishUploadPolicy
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.input.UnifiedInputSession
 import com.rokid.glass.utils.OfflineTtsPlayer
 import com.rokid.glass.utils.SystemStateUtils
@@ -193,12 +194,19 @@ class InspectionEndReportActivity : BaseGlassActivity() {
             returnToMainMenuAfterFinish()
             return
         }
+        val businessMock = InspectionConfigRepository.get().businessMock
         if (!InspectionFinishUploadPolicy.canEnqueue(
                 networkAvailable = SystemStateUtils.isNetworkAvailable(this),
                 businessNetworkAllowed = InspectionFeatureFlags.isBusinessNetworkAllowed(),
+                businessUploadAllowed = !businessMock.enabled || businessMock.allowFinishUpload,
             )
         ) {
-            android.util.Log.w(TAG, "skip finish background upload: network unavailable")
+            val reason = if (businessMock.enabled && !businessMock.allowFinishUpload) {
+                "business_mock_skip"
+            } else {
+                "network_or_business_policy"
+            }
+            android.util.Log.w(TAG, "skip finish background upload: $reason")
             returnToMainMenuAfterFinish()
             return
         }

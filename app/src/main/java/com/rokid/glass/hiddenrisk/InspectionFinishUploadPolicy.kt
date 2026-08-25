@@ -5,5 +5,6 @@ object InspectionFinishUploadPolicy {
     fun canEnqueue(
         networkAvailable: Boolean,
         businessNetworkAllowed: Boolean,
-    ): Boolean = networkAvailable && businessNetworkAllowed
+        businessUploadAllowed: Boolean = true,
+    ): Boolean = networkAvailable && businessNetworkAllowed && businessUploadAllowed
 }
