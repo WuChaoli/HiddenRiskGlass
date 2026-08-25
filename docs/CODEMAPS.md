@@ -166,6 +166,9 @@ sequenceDiagram
     MainMenu->>Menu: 跳转二级菜单
     alt localTriger 完全离线模式
         Menu->>Loading: 跳过企业上下文并进入统一加载页
+    else standard 业务 Mock 开启
+        Menu->>Menu: 注入固定 placeCode，跳过企业扫码
+        Menu->>Loading: 进入统一加载页
     else 企业信息为空
         Menu->>QrScan: 跳转企业扫码
         QrScan->>Enterprise: 解析并确认企业信息
@@ -183,7 +186,7 @@ sequenceDiagram
 
 ### 3.2 核心链路：在线 SSE 推理（主链路）
 
-> **在线路由上下文**：`DetectionRouteContext` 根据 `placeCode` 有无决定在线调用策略——placeCode 缺失时跳过在线物品/环境检测，深度分析降级到 `/ai/gm`。该规则不适用于 `localTriger`；本地触发不再依赖 `placeCode`。
+> **在线路由上下文**：`DetectionRouteContext` 根据 `placeCode` 有无决定在线调用策略——placeCode 缺失时跳过在线物品/环境检测，深度分析降级到 `/ai/gm`。standard 联调阶段可由 `businessMock` 注入固定 `placeCode`，保持 `/auto -> /ai/deep` 路由；该规则不适用于 `localTriger`，本地触发不依赖 `placeCode`。
 
 ```mermaid
 sequenceDiagram
@@ -195,7 +198,7 @@ sequenceDiagram
     participant Parser as AiArHazardDetailParser
     participant Agg as AiArEventAggregator
 
-    AI->>ODS: submitDetection(frame)
+    AI->>ODS: /auto 上传完整 1200x1600 frame
     ODS->>SSE: identifyItemHazard()
     SSE->>Route: itemDetectionEndpoint()
     alt placeCode 缺失
@@ -206,7 +209,9 @@ sequenceDiagram
         Remote-->>SSE: hasHazard=true
     end
     SSE-->>ODS: 命中
-    ODS->>SSE: requestDeepAnalysis()
+    AI->>AI: bbox 投影到 480x640，任一框面积 >= 1/8
+    AI->>AI: 同帧按固定 1m 校准裁成真实世界对齐 3:4 JPEG
+    ODS->>SSE: requestDeepAnalysis(aligned 3:4 frame)
     SSE->>Route: deepAnalysisEndpoint()
     Route-->>SSE: /ai/deep 或 /ai/gm
     SSE->>Remote: SSE (路由端点)
@@ -245,7 +250,8 @@ sequenceDiagram
 ### 3.4 核心链路：隐患上传 -> 手机端同步
 
 > `localTriger` 不进入本链路：企业巡检开关和业务网络总闸同时禁止
-> `pushHidDanger` 与 `pushHidDangerEnd`，网络恢复也不会改变该权限。
+> `pushHidDanger` 与 `pushHidDangerEnd`，网络恢复也不会改变该权限。standard 的
+> `businessMock` 联调开关开启时，两类上传也由独立策略门禁禁止，不依赖伪造企业数据。
 
 ```mermaid
 sequenceDiagram
@@ -351,6 +357,7 @@ sequenceDiagram
 | R7 | **上传前必须按 hidNum 去重，跳过空 hidNum** | `LocalHazardUploadItemBuilder.build()` 的职责，防止重复推送和空数据浪费带宽 |
 | R8 | **Launcher 可见性配置必须可重复提交，不能只在 SDK 首次就绪时执行一次** | 重新佩戴亮屏后 Launcher 与手机侧会重新下发默认配置，需由亮屏延迟任务覆盖 |
 | R9 | **`localTriger` 必须保持 `OFFLINE_LOCAL + LOCAL_ONLY`，空 placeCode 仍执行本地识别** | 跳过企业扫码后没有场景码；统一网络总闸保证 Wi-Fi 状态不能改变离线语义 |
+| R10 | **`businessMock` 只能由风味配置显式开启，Mock 企业上下文不能生成可上传的 EnterpriseQrPayload** | 保证联调可调用 `/auto` 和 `/ai/deep`，同时从数据与策略两层阻断真实业务上传 |
 
 ---
 
@@ -370,6 +377,7 @@ sequenceDiagram
 | 隐患白名单 | 16 类预定义隐患类别（燃气灶、灭火器、消火栓、电动车等） | hiddenrisk, jni |
 | Dedup 去重 | 本地推理结果基于类别+位置消重，避免同一物体重复报警 | hiddenrisk |
 | 风味覆盖 | Gradle flavor 机制，不同构建变体可覆盖配置项 | config |
+| businessMock | standard 联调模式；固定 placeCode、跳过企业扫码并禁止隐患与结束上传 | config, workflow, hiddenrisk |
 | OFFLINE_LOCAL | 应用业务完全离线策略；跳过 Wi-Fi/企业入口并阻断所有 HTTP/SSE | config, network, hiddenrisk |
 | Vulkan | Android GPU 计算 API，NCNN 使用 Vulkan 后端进行端侧推理加速 | jni |
 
