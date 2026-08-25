@@ -277,6 +277,7 @@
     <string name="deep_v2_save_confirm">确认</string>
     <string name="deep_v2_save_cancel">取消</string>
     <string name="deep_v2_no_hazard">未发现隐患</string>
+    <string name="hazard_record_mock_upload_skipped">模拟模式，已跳过上传</string>
     <string name="deep_v2_no_savable_hazard">无可保存隐患</string>
     <string name="deep_v2_request_failed">深度分析失败，继续检测</string>
 </resources>

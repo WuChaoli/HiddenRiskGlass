@@ -1,5 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
+import com.rokid.glass.config.BusinessMockConfig
+
 internal data class StructuredHazardSavePolicy(
     val upload: Boolean,
     val requestSuggestionChecks: Boolean,
@@ -12,6 +14,16 @@ internal enum class StructuredHazardSource(
     MANUAL(StructuredHazardSavePolicy(upload = true, requestSuggestionChecks = true)),
     SCENE(StructuredHazardSavePolicy(upload = true, requestSuggestionChecks = true)),
     HAZARD_RECORD(StructuredHazardSavePolicy(upload = true, requestSuggestionChecks = false)),
+}
+
+internal object StructuredHazardUploadPolicy {
+    fun canUpload(source: StructuredHazardSource, businessMock: BusinessMockConfig): Boolean = when (source) {
+        StructuredHazardSource.AUTO_ITEM,
+        StructuredHazardSource.MANUAL,
+        StructuredHazardSource.SCENE,
+        StructuredHazardSource.HAZARD_RECORD,
+        -> !businessMock.enabled || businessMock.allowHazardUpload
+    }
 }
 
 internal class StructuredHazardResultSession(

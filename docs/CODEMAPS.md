@@ -246,7 +246,7 @@ sequenceDiagram
 
 > `localTriger` 不进入本链路：企业巡检开关和业务网络总闸同时禁止
 > `pushHidDanger` 与 `pushHidDangerEnd`，网络恢复也不会改变该权限。standard 的
-> `businessMock` 联调开关开启时，两类上传也由独立策略门禁禁止，不依赖伪造企业数据。
+> `businessMock` 联调开关开启且 `allowHazardUpload=false` 时，手动深度分析、环境检测和隐患拍照统一跳过隐患上传；结束上传继续由 `allowFinishUpload` 独立控制，不依赖伪造企业数据。
 
 ```mermaid
 sequenceDiagram

@@ -4752,10 +4752,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         val businessMock = InspectionConfigRepository.get().businessMock
+        val structuredSource = structuredHazardResultSession?.source ?: StructuredHazardSource.MANUAL
         if (!HazardRemoteSavePolicy.canUpload(
                 content = hazardContent,
                 networkAvailable = SystemStateUtils.isNetworkAvailable(this),
-                businessUploadAllowed = !businessMock.enabled || businessMock.allowHazardUpload,
+                businessUploadAllowed = StructuredHazardUploadPolicy.canUpload(structuredSource, businessMock),
             )
         ) {
             val reason = if (businessMock.enabled && !businessMock.allowHazardUpload) {

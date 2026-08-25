@@ -24,6 +24,7 @@ import com.rokid.glass.InspectionEndReportActivity
 import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.camera.RokidFrameSource
 import com.rokid.glass.camera.CameraStreamProfile
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.component.FunctionMenuView
 import com.rokid.glass.component.GlassStatusBar
 import com.rokid.glass.component.GlassStatusBarUpdater
@@ -771,6 +772,13 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun submitLocalHazard() {
         if (saveSubmitting) return
         val hazardContent = activeHazardContent ?: return
+        val businessMock = InspectionConfigRepository.get().businessMock
+        if (!StructuredHazardUploadPolicy.canUpload(StructuredHazardSource.HAZARD_RECORD, businessMock)) {
+            Log.i(TAG, "business_mock_skip skips hazard record pushHidDanger")
+            returnToIdle(showSuccess = false)
+            tvIdleHint.setText(R.string.hazard_record_mock_upload_skipped)
+            return
+        }
         val enterprisePayload = InspectionWorkflowSession.enterpriseQrPayload
         val jpegBytes = hazardContent.jpegBytes.takeIf { it.isNotEmpty() }
         val uploadItems = LocalHazardUploadItemBuilder.build(hazardContent)

@@ -266,6 +266,7 @@ HazardRecordActivity (IDLE)
     → 有 placeCode: /ai/deep/v2；无 placeCode: /ai/gm/v2
     → 有隐患时播放提示语音，并显示视野裁切底图 + bbox + hazard 详情框
   → 确认 → LocalHazardPushService.pushLocalHazard()
+    → businessMock.enabled=true 且 allowHazardUpload=false：跳过上传并返回 IDLE
   → 保存请求发起后立即返回 IDLE；后台成功时显示保存成功提示
 ```
 
