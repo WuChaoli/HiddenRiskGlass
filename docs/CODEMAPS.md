@@ -184,41 +184,34 @@ sequenceDiagram
     AI->>AI: DETECTING 态，开始自动检测循环
 ```
 
-### 3.2 核心链路：在线 SSE 推理（主链路）
+### 3.2 核心链路：在线自动识别与结构化深度分析
 
-> **在线路由上下文**：`DetectionRouteContext` 根据 `placeCode` 有无决定在线调用策略——placeCode 缺失时跳过在线物品/环境检测，深度分析降级到 `/ai/gm`。standard 联调阶段可由 `businessMock` 注入固定 `placeCode`，保持 `/auto -> /ai/deep` 路由；该规则不适用于 `localTriger`，本地触发不依赖 `placeCode`。
+> 自动触发链路固定使用普通 JSON `/ai/deep/v2`；旧有手动/其他链路仍保留 `/ai/deep`、`/ai/gm` SSE 路由。该规则不适用于 `localTriger`，本地触发不发送业务网络请求。
 
 ```mermaid
 sequenceDiagram
     participant AI as AiInspectionActivity
     participant ODS as OnlineHazardDetectionService
-    participant Route as DetectionRouteContext
     participant SSE as AiArSseService
-    participant Remote as 远端 /ai/auto + /ai/deep(/ai/gm)
-    participant Parser as AiArHazardDetailParser
-    participant Agg as AiArEventAggregator
+    participant V2 as DeepV2Client
+    participant Remote as 远端 /ai/auto + /ai/deep/v2
 
     AI->>ODS: /auto 上传完整 1200x1600 frame
     ODS->>SSE: identifyItemHazard()
-    SSE->>Route: itemDetectionEndpoint()
     alt placeCode 缺失
-        Route-->>SSE: null → skipHazardDetection(hasHazard=false)
+        SSE-->>AI: skipHazardDetection(hasHazard=false)
     else placeCode 存在
-        Route-->>SSE: /ai/auto
         SSE->>Remote: HTTP POST (NV21帧)
-        Remote-->>SSE: hasHazard=true
+        Remote-->>SSE: detections
     end
-    SSE-->>ODS: 命中
-    AI->>AI: bbox 投影到 480x640，任一框面积 >= 1/8
+    SSE-->>ODS: 自动检测结果
+    AI->>AI: 持续画框；任一可见 bbox 面积 > 1/8
     AI->>AI: 同帧按固定 1m 校准裁成真实世界对齐 3:4 JPEG
-    ODS->>SSE: requestDeepAnalysis(aligned 3:4 frame)
-    SSE->>Route: deepAnalysisEndpoint()
-    Route-->>SSE: /ai/deep 或 /ai/gm
-    SSE->>Remote: SSE (路由端点)
-    Remote-->>Agg: SSE事件流
-    Agg->>Parser: parse(raw) -> ResolvedHazardContent
-    Parser-->>AI: 分类+描述+建议
-    AI->>AI: 进入 STREAM_RESPONSE(DESCRIPTION)
+    AI->>V2: 单飞 request(aligned 3:4 JPEG)
+    V2->>Remote: POST /ai/deep/v2
+    Remote-->>V2: JSON detections + hazards + check_items
+    V2-->>AI: label_id 关联并归一化
+    AI->>AI: 结构化结果页浏览、确认保存或取消重检
 ```
 
 ### 3.3 核心链路：本地 NCNN 推理（fallback / localTriger 主链路）

@@ -60,7 +60,8 @@ DeviceGuideActivity:
 | 接口 | 地址 | 用途 |
 |------|------|------|
 | `/ai/auto` | `http://183.147.142.133:10010/ai/auto` | 物品识别判定（是否"存在隐患"）|
-| `/ai/deep` | SSE | 深度分析（流式返回描述文本）|
+| `/ai/deep/v2` | `http://183.147.142.133:10010/ai/deep/v2` | 自动触发链路深度分析（普通 JSON，返回 detections/hazards/check_items）|
+| `/ai/deep` | SSE | 旧有手动/非自动链路深度分析（流式返回描述文本）|
 | `/ai/device` | SSE | 设备指引详情 / 在线建议 |
 | `/ai/general` | | 环境隐患识别 |
 | `pushHidDanger` | `<QR baseUrl>/pushHidDanger` | 手机端同步/隐患保存 |
@@ -97,6 +98,8 @@ DeviceGuideActivity:
 | `AiArSseService.kt` | **SSE 通信核心**，封装 OkHttp SSE 请求；复用 `HttpClientProvider` 单例，Activity 退出时调用 `releaseConnections()` 释放空闲连接。通过 `DetectionRouteContext` 统一执行端点路由决策 | `identifyItemHazard()`, `requestDeepAnalysis()`, `fetchInspectionGuide()`, `RequestHandle`, `releaseConnections()` |
 | `DetectionRouteContext.kt` | **检测路由上下文**，根据 placeCode 有无决定各接口调用策略（跳过检测/降级端点）。业务页面无需感知路由逻辑变更 | `itemDetectionEndpoint()`, `sceneDetectionEndpoint()`, `deepAnalysisEndpoint()`, `sceneParam()` |
 | `OnlineHazardDetectionService.kt` | **在线检测调度**，管理检测请求队列+超时；支持 `cancelAll()` 和 `cancelActiveDetection()` 两种取消粒度 | `submitDetection()`, `requestDeepAnalysis()`, `cancelAll()`, `cancelActiveDetection()` |
+| `DeepV2Client.kt` | 自动触发链路 `/ai/deep/v2` 普通 JSON 客户端，支持取消和错误分类 | `request()` |
+| `DeepV2Protocol.kt` | 解析并局部容错结构化 detections/hazards/check_items | `parse()` |
 | `AiArEventAggregator.kt` | 聚合 SSE 事件流 | |
 | `AiArHazardDetailParser.kt` | 解析远端隐患详情 → `ResolvedHazardContent` | `parse()` |
 | `OnlineHazardAdviceFormatter.kt` | 格式化在线建议文案 | |
@@ -112,7 +115,7 @@ DeviceGuideActivity:
 | `DetectionResult.java` | 检测结果数据模型 | |
 | `NativeInferenceStats.java` | 原生推理统计 | |
 
-### 自动链路决策（4 个）
+### 自动链路决策
 
 | 文件 | 职责 | 关键入口 |
 |------|------|----------|
@@ -120,6 +123,8 @@ DeviceGuideActivity:
 | `AutoInferenceLoopDecider.kt` | 自动推理循环决策 | |
 | `OnlineHazardCompetitionDecider.kt` | 在线识别竞争决策 | |
 | `SharedInferenceFrameDecider.kt` | 共享推理帧决策器，判断在线链路是否复用本地推理缓存 | `decide()` |
+| `AutoDeepTriggerDecider.kt` | 判断可见 bbox 面积是否严格大于屏幕面积 `1/8` | `shouldTrigger()` |
+| `DeepV2AutoCoordinator.kt` | `/deep/v2` 单飞、请求代际和失败释放协调 | `onAutoResponse()`, `onSuccess()`, `onFailure()` |
 
 ### 会话与会话管理（4 个）
 
@@ -207,11 +212,11 @@ AiInspectionMenuActivity (点击"实时分析")
 AiInspectionActivity (DETECTING)
   → OnlineHazardDetectionService.submitDetection()
     → AiArSseService.identifyItemHazard() → POST /ai/auto (复用 HttpClientProvider 单例)
-    → 返回 hasHazard=true?
-      → YES: 停止在线检测 (cancelActiveDetection() 只取消检测，保留深度分析)
-      → AiArSseService.requestDeepAnalysis() → SSE /ai/deep
-        → AiArHazardDetailParser.parse() → ResolvedHazardContent
-        → 进入 STREAM_RESPONSE / DESCRIPTION
+    → bbox 投影到 480x640，任一框面积严格大于 1/8?
+      → YES: 同帧裁切为对齐的 3:4 JPEG，单飞调用 DeepV2Client → POST /ai/deep/v2
+        → DeepV2Protocol + DeepV2ResultNormalizer 关联 label_id
+        → 全屏底图+bbox浏览；确认后复用现有上传并进入 /ai/sug_checks
+      → NO/请求失败/未发现隐患: 保持自动检测和画框，不暂停、不重复触发活动请求
   → Activity 退出: aiArSseService.releaseConnections() + onlineHazardDetectionService.shutdown()
 ```
 
