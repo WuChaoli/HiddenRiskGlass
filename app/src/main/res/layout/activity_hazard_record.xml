@@ -207,4 +207,86 @@
                 android:paddingBottom="@dimen/inspection_status_bar_padding_bottom" />
         </LinearLayout>
     </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/layoutDeepV2Result"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <ImageView
+            android:id="@+id/ivDeepV2ResultImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.5"
+            android:contentDescription="@null"
+            android:scaleType="fitXY" />
+
+        <com.rokid.glass.hiddenrisk.DeepV2ResultOverlayView
+            android:id="@+id/viewDeepV2ResultOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.rokid.glass.hiddenrisk.HazardDetailOverlayView
+            android:id="@+id/viewDeepV2HazardDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginHorizontal="28dp"
+            android:layout_marginBottom="36dp"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/layoutDeepV2SaveDialog"
+            android:layout_width="280dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_deep_v2_save_dialog"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:text="@string/deep_v2_save_prompt"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvDeepV2SaveConfirm"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/glass_card_outline_selected"
+                    android:gravity="center"
+                    android:text="@string/deep_v2_save_confirm"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvDeepV2SaveCancel"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/glass_card_outline"
+                    android:gravity="center"
+                    android:text="@string/deep_v2_save_cancel"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </LinearLayout>
+    </FrameLayout>
 </FrameLayout>

@@ -45,6 +45,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         IDLE,
         COUNTDOWN,
         ANALYSIS,
+        STRUCTURED_RESULT,
     }
 
     private lateinit var layoutIdle: FrameLayout
@@ -62,10 +63,20 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private lateinit var scrollAnalysis: ScrollView
     private lateinit var tvAnalysisContent: TextView
     private lateinit var tvAnalysisHint: TextView
+    private lateinit var layoutDeepV2Result: FrameLayout
+    private lateinit var ivDeepV2ResultImage: ImageView
+    private lateinit var viewDeepV2ResultOverlay: DeepV2ResultOverlayView
+    private lateinit var viewDeepV2HazardDetail: HazardDetailOverlayView
+    private lateinit var layoutDeepV2SaveDialog: View
+    private lateinit var tvDeepV2SaveConfirm: TextView
+    private lateinit var tvDeepV2SaveCancel: TextView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val inputSession by lazy { UnifiedInputSession(this, TAG) }
     private val aiArSseService by lazy { AiArSseService() }
+    private val deepV2Client by lazy { DeepV2Client.create() }
+    private val deepV2Normalizer = DeepV2ResultNormalizer()
+    private val deepV2Coordinator = HazardRecordV2Coordinator()
     private val localHazardPushService by lazy { LocalHazardPushService() }
     private val imageExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val shutterSound by lazy { MediaActionSound() }
@@ -91,11 +102,15 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var streamingInProgress = false
     private var saveSubmitting = false
     private var activeRequestId = 0L
-    private var activeAnalysisHandle: AiArSseService.RequestHandle? = null
+    private var activeAnalysisHandle: DeepV2Client.RequestHandle? = null
     private var localHazardUploadHandle: RetryRequestHandle? = null
     private var activeHazardContent: ResolvedHazardContent? = null
     private var lastStreamText = ""
     private var currentThumbnail: Bitmap? = null
+    private var resultBitmap: Bitmap? = null
+    private var resultSession: StructuredHazardResultSession? = null
+    private var resultTargets: List<Pair<String?, List<DeepV2PresentationHazard>>> = emptyList()
+    private var resultNavigation: DeepV2PresentationStateMachine? = null
     private var isActivityResumed = false
     private var navigatingToDeviceGuide = false
     private val statusBarUpdater by lazy { GlassStatusBarUpdater(this) }
@@ -212,6 +227,13 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         scrollAnalysis = findViewById(R.id.scrollAnalysis)
         tvAnalysisContent = findViewById(R.id.tvAnalysisContent)
         tvAnalysisHint = findViewById(R.id.tvAnalysisHint)
+        layoutDeepV2Result = findViewById(R.id.layoutDeepV2Result)
+        ivDeepV2ResultImage = findViewById(R.id.ivDeepV2ResultImage)
+        viewDeepV2ResultOverlay = findViewById(R.id.viewDeepV2ResultOverlay)
+        viewDeepV2HazardDetail = findViewById(R.id.viewDeepV2HazardDetail)
+        layoutDeepV2SaveDialog = findViewById(R.id.layoutDeepV2SaveDialog)
+        tvDeepV2SaveConfirm = findViewById(R.id.tvDeepV2SaveConfirm)
+        tvDeepV2SaveCancel = findViewById(R.id.tvDeepV2SaveCancel)
         val menuContent = getString(R.string.hazard_record_function_menu_content)
         functionMenuIdle.setMenu(content = menuContent)
         functionMenuCountdown.setMenu(content = menuContent)
@@ -265,12 +287,50 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 )
             },
             UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("hazard_record_result_forward"),
+                label = "下一个",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.BEHIND),
+                    UnifiedInputSession.InputTrigger.Voice("下一个", "xia yi ge"),
+                ),
+                enabled = { pageState == PageState.STRUCTURED_RESULT && !saveSubmitting },
+            ) {
+                resultNavigation?.let { machine ->
+                    val previous = machine.state
+                    renderResultTransition(previous, if (previous is DeepV2NavigationState.SaveDialog) machine.selectNextDialogChoice() else machine.forward())
+                }
+            },
+            UnifiedInputSession.InputActionSpec(
+                id = UnifiedInputSession.InputActionId("hazard_record_result_backward"),
+                label = "上一个",
+                triggers = listOf(
+                    UnifiedInputSession.InputTrigger.Touch(UnifiedInputSession.InputKey.FRONT),
+                    UnifiedInputSession.InputTrigger.Voice("上一个", "shang yi ge"),
+                ),
+                enabled = { pageState == PageState.STRUCTURED_RESULT && !saveSubmitting },
+            ) {
+                resultNavigation?.let { machine ->
+                    val previous = machine.state
+                    renderResultTransition(previous, if (previous is DeepV2NavigationState.SaveDialog) machine.selectPreviousDialogChoice() else machine.backward())
+                }
+            },
+            UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Confirm,
                 label = "确认",
                 triggers = buildConfirmTriggers(),
-                enabled = { pageState == PageState.ANALYSIS && !streamingInProgress && !saveSubmitting },
+                enabled = {
+                    (pageState == PageState.ANALYSIS || pageState == PageState.STRUCTURED_RESULT) &&
+                        !streamingInProgress && !saveSubmitting
+                },
             ) {
-                handleAnalysisConfirm()
+                if (pageState == PageState.STRUCTURED_RESULT) {
+                    resultNavigation?.let { machine ->
+                        val previous = machine.state
+                        renderResultTransition(previous, machine.confirm())
+                    }
+                } else {
+                    handleAnalysisConfirm()
+                }
             },
             UnifiedInputSession.InputActionSpec(
                 id = UnifiedInputSession.InputActionId.Cancel,
@@ -448,59 +508,61 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         activeRequestId += 1
         val requestId = activeRequestId
         val jpegBytes = payload.jpegBytes.copyOf()
-        activeHazardContent = ResolvedHazardContent(
-            source = HazardSource.ONLINE,
-            description = "",
-            advice = "",
-            hidLevel = "",
-            hidNum = "",
-            lawBasis = "",
-            displayTitle = getString(R.string.hazard_record_title),
-            jpegBytes = jpegBytes,
-        )
         InspectionWorkflowSession.recordCapture(jpegBytes)
         setThumbnail(jpegBytes)
         lastStreamText = ""
         tvAnalysisContent.setText(R.string.hazard_record_analyzing)
         tvAnalysisHint.visibility = View.GONE
         showPage(PageState.ANALYSIS)
-        sendImageToAiAr(requestId, jpegBytes)
+        sendImageToAiAr(
+            requestId = requestId,
+            image = DeepV2ImagePayload(jpegBytes, payload.width, payload.height),
+        )
     }
 
-    private fun sendImageToAiAr(requestId: Long, jpegBytes: ByteArray) {
-        val base64Image = Base64.encodeToString(jpegBytes, Base64.NO_WRAP)
+    private fun sendImageToAiAr(requestId: Long, image: DeepV2ImagePayload) {
         streamingInProgress = true
         refreshInputActions()
         activeAnalysisHandle?.cancel()
-        activeAnalysisHandle = aiArSseService.requestDeepAnalysis(
-            base64Image = base64Image,
-            onChunk = { partialText ->
-                uiHandler.post {
-                    if (!shouldDeliverAnalysis(requestId)) return@post
-                    lastStreamText = partialText
-                    updateAnalysisText(partialText.ifBlank { getString(R.string.hazard_record_analyzing) })
-                }
-            },
-            callback = object : AiArSseService.DetailCallback {
-                override fun onOpened(handle: AiArSseService.RequestHandle) = Unit
-
-                override fun onSuccess(handle: AiArSseService.RequestHandle, fullText: String) {
-                    uiHandler.post {
-                        if (activeAnalysisHandle != handle || requestId != activeRequestId) {
-                            return@post
-                        }
-                        activeAnalysisHandle = null
-                        handleAnalysisSuccess(fullText, jpegBytes)
+        deepV2Coordinator.begin(requestId)
+        val route = StructuredHazardRequestPolicy.route(
+            StructuredHazardSource.HAZARD_RECORD,
+            InspectionWorkflowSession.enterpriseInfo?.placeCode,
+        ) ?: return
+        activeAnalysisHandle = deepV2Client.request(
+            requestId = requestId,
+            route = route,
+            imageBytes = image.jpegBytes,
+            callback = object : DeepV2Client.Callback {
+                override fun onSuccess(requestId: Long, response: DeepV2Response) {
+                    if (!deepV2Coordinator.complete(requestId) || !shouldDeliverAnalysis(requestId)) return
+                    activeAnalysisHandle = null
+                    streamingInProgress = false
+                    val presentation = deepV2Normalizer.normalize(response)
+                    if (!presentation.hasDisplayableHazards) {
+                        returnToIdle(showSuccess = false)
+                        return
                     }
+                    val session = StructuredHazardResultSession(
+                        source = StructuredHazardSource.HAZARD_RECORD,
+                        imagePayload = image,
+                        presentation = presentation,
+                        requestId = requestId,
+                        epoch = requestId,
+                    )
+                    resultSession = session
+                    activeHazardContent = session.toResolvedHazardContent()
+                    InspectionWorkflowSession.recordDetection(
+                        activeHazardContent?.displayTitle.orEmpty(),
+                        activeHazardContent?.descriptionPageText().orEmpty(),
+                    )
+                    presentStructuredResult(session)
                 }
 
-                override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
-                    uiHandler.post {
-                        if (activeAnalysisHandle == handle) {
-                            activeAnalysisHandle = null
-                        }
-                        handleAnalysisFailure(message)
-                    }
+                override fun onFailure(requestId: Long, error: DeepV2ClientError) {
+                    if (!deepV2Coordinator.complete(requestId)) return
+                    activeAnalysisHandle = null
+                    handleAnalysisFailure(error.toString())
                 }
             },
         )
@@ -573,6 +635,94 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         submitLocalHazard()
+    }
+
+    private fun presentStructuredResult(session: StructuredHazardResultSession) {
+        resultBitmap?.takeIf { !it.isRecycled }?.recycle()
+        resultBitmap = BitmapFactory.decodeByteArray(
+            session.imagePayload.jpegBytes,
+            0,
+            session.imagePayload.jpegBytes.size,
+        )
+        ivDeepV2ResultImage.setImageBitmap(resultBitmap)
+        resultTargets = buildList {
+            session.presentation.targets.forEach { target -> add(target.labelId to target.hazards) }
+            session.presentation.others?.let { others -> add(null to others.hazards) }
+        }
+        resultNavigation = DeepV2PresentationStateMachine(session.pageCounts())
+        viewDeepV2HazardDetail.clear()
+        layoutDeepV2SaveDialog.visibility = View.GONE
+        showPage(PageState.STRUCTURED_RESULT)
+        viewDeepV2ResultOverlay.post {
+            val boxes = session.presentation.targets.mapNotNull { target ->
+                DeepV2OverlayGeometry.map(
+                    bbox = target.bbox,
+                    sourceWidth = session.imagePayload.width,
+                    sourceHeight = session.imagePayload.height,
+                    destinationWidth = viewDeepV2ResultOverlay.width,
+                    destinationHeight = viewDeepV2ResultOverlay.height,
+                )?.let { rect ->
+                    DeepV2OverlayBox(target.labelId, target.label, target.highestLevel, rect)
+                }
+            }
+            viewDeepV2ResultOverlay.setBoxes(boxes)
+            viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = false)
+        }
+        refreshInputActions()
+    }
+
+    private fun renderResultTransition(
+        previous: DeepV2NavigationState,
+        transition: DeepV2Transition,
+    ) {
+        when (transition.effect) {
+            DeepV2NavigationEffect.SubmitSave -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                submitLocalHazard()
+                return
+            }
+            DeepV2NavigationEffect.DiscardResult -> {
+                returnToIdle(showSuccess = false)
+                return
+            }
+            DeepV2NavigationEffect.None -> Unit
+        }
+        when (val state = transition.state) {
+            DeepV2NavigationState.Defocused -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                viewDeepV2ResultOverlay.setSelectedLabelId(null, animate = false)
+                viewDeepV2HazardDetail.clear()
+            }
+            is DeepV2NavigationState.Focused -> {
+                layoutDeepV2SaveDialog.visibility = View.GONE
+                val target = resultTargets.getOrNull(state.targetIndex) ?: return
+                val previousLabel = (previous as? DeepV2NavigationState.Focused)
+                    ?.let { resultTargets.getOrNull(it.targetIndex)?.first }
+                val nextLabel = target.first
+                viewDeepV2ResultOverlay.setSelectedLabelId(
+                    nextLabel,
+                    animate = DeepV2ResultInteractionPolicy.shouldAnimateBoxChange(previousLabel, nextLabel),
+                )
+                val hazard = target.second.getOrNull(state.pageIndex) ?: return
+                viewDeepV2HazardDetail.render(
+                    HazardDetailDisplayModel.from(hazard),
+                    state.pageIndex,
+                    target.second.size.coerceAtLeast(1),
+                )
+            }
+            is DeepV2NavigationState.SaveDialog -> {
+                viewDeepV2HazardDetail.clear()
+                layoutDeepV2SaveDialog.visibility = View.VISIBLE
+                tvDeepV2SaveConfirm.setBackgroundResource(
+                    if (state.selected == DeepV2SaveChoice.CONFIRM) R.drawable.glass_card_outline_selected else R.drawable.glass_card_outline,
+                )
+                tvDeepV2SaveCancel.setBackgroundResource(
+                    if (state.selected == DeepV2SaveChoice.CANCEL) R.drawable.glass_card_outline_selected else R.drawable.glass_card_outline,
+                )
+            }
+            DeepV2NavigationState.Submitting -> Unit
+        }
+        refreshInputActions()
     }
 
     private fun submitLocalHazard() {
@@ -744,6 +894,15 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         captureInProgress = false
         streamingInProgress = false
         saveSubmitting = false
+        resultSession = null
+        resultTargets = emptyList()
+        resultNavigation = null
+        viewDeepV2ResultOverlay.clear()
+        viewDeepV2HazardDetail.clear()
+        layoutDeepV2SaveDialog.visibility = View.GONE
+        ivDeepV2ResultImage.setImageDrawable(null)
+        resultBitmap?.takeIf { !it.isRecycled }?.recycle()
+        resultBitmap = null
         tvIdleHint.setText(R.string.hazard_record_photo_prompt)
         showPage(PageState.IDLE)
         if (showSuccess) {
@@ -758,6 +917,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         )
         activeAnalysisHandle?.cancel()
         activeAnalysisHandle = null
+        deepV2Coordinator.cancel()
         localHazardUploadHandle?.cancel()
         localHazardUploadHandle = null
         uiHandler.removeCallbacks(hideSuccessToastRunnable)
@@ -775,6 +935,7 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutIdle.visibility = if (state == PageState.IDLE) View.VISIBLE else View.GONE
         layoutCountdown.visibility = if (state == PageState.COUNTDOWN) View.VISIBLE else View.GONE
         layoutAnalysis.visibility = if (state == PageState.ANALYSIS) View.VISIBLE else View.GONE
+        layoutDeepV2Result.visibility = if (state == PageState.STRUCTURED_RESULT) View.VISIBLE else View.GONE
         if (state == PageState.ANALYSIS) {
             scrollAnalysis.post {
                 scrollAnalysis.scrollTo(0, 0)
