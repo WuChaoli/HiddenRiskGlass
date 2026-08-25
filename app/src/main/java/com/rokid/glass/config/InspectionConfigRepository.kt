@@ -231,6 +231,7 @@ object InspectionConfigRepository {
             enterpriseObjectApi = merge(base.enterpriseObjectApi, override?.enterpriseObjectApi),
             aiAutoApi = merge(base.aiAutoApi, override?.aiAutoApi),
             aiDeepApi = merge(base.aiDeepApi, override?.aiDeepApi),
+            aiDeepV2Api = merge(base.aiDeepV2Api, override?.aiDeepV2Api),
             aiGmApi = merge(base.aiGmApi, override?.aiGmApi),
             aiGeneralApi = merge(base.aiGeneralApi, override?.aiGeneralApi),
             aiGeneralDeepApi = merge(base.aiGeneralDeepApi, override?.aiGeneralDeepApi),

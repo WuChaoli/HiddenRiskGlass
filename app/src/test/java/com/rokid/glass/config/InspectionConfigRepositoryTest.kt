@@ -8,6 +8,48 @@ import org.junit.Test
 class InspectionConfigRepositoryTest {
 
     @Test
+    fun `deep v2 endpoint is independent from legacy deep endpoint`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "network": {
+                    "aiDeepApi": { "url": "http://example.test/ai/deep" },
+                    "aiDeepV2Api": { "url": "http://example.test/ai/deep/v2" }
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = null,
+        )
+
+        assertEquals("http://example.test/ai/deep", config.network.aiDeepApi.url)
+        assertEquals("http://example.test/ai/deep/v2", config.network.aiDeepV2Api.url)
+    }
+
+    @Test
+    fun `deep v2 override does not change legacy deep endpoint`() {
+        val config = InspectionConfigRepository.buildConfig(
+            baseJsonc = """
+                {
+                  "network": {
+                    "aiDeepApi": { "url": "http://example.test/ai/deep" },
+                    "aiDeepV2Api": { "url": "http://example.test/ai/deep/v2" }
+                  }
+                }
+            """.trimIndent(),
+            overlayJsonc = """
+                {
+                  "network": {
+                    "aiDeepV2Api": { "url": "http://127.0.0.1:18080/ai/deep/v2" }
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        assertEquals("http://example.test/ai/deep", config.network.aiDeepApi.url)
+        assertEquals("http://127.0.0.1:18080/ai/deep/v2", config.network.aiDeepV2Api.url)
+    }
+
+    @Test
     fun `business mock enables fixed scene and disables uploads`() {
         val config = InspectionConfigRepository.buildConfig(
             baseJsonc = """
