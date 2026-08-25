@@ -38,6 +38,22 @@ class InspectionNetworkAccessPolicyTest {
     }
 
     @Test
+    fun offlineLocalBlocksEveryStructuredHazardEndpoint() {
+        listOf(
+            "http://example.test/ai/deep/v2",
+            "http://example.test/ai/general_deep/v2",
+            "http://example.test/ai/gm/v2",
+            "http://example.test/ai/sug_checks",
+        ).forEach { url ->
+            val error = runCatching {
+                InspectionNetworkAccessPolicy.ensureAllowed(requestUrl = url, allowed = false)
+            }.exceptionOrNull()
+
+            assertEquals("offline_local_blocked:$url", (error as IOException).message)
+        }
+    }
+
+    @Test
     fun sharedClientBlocksOfflineRequestWithStableError() {
         InspectionConfigRepository.reloadForTest(
             baseJsonc = "{}",

@@ -158,6 +158,10 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         frameStreamInitializing = false
         frameStreamReady = false
         cameraSessionGeneration = 0L
+        activeAnalysisHandle?.cancel()
+        activeAnalysisHandle = null
+        deepV2Coordinator.cancel()
+        streamingInProgress = false
         InspectionCameraCoordinator.pauseTemporarily(CameraOwner.HAZARD_RECORD, reason = "hazard_record_on_pause")
         statusBarUpdater.stop()
         inputSession.detach()
