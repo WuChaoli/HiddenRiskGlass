@@ -31,6 +31,7 @@ import com.rokid.glass.InspectionFeatureFlags
 import com.rokid.glass.OfflineLocalUiPolicy
 import com.rokid.glass.camera.RokidCameraRecoveryController
 import com.rokid.glass.camera.RokidFrameSource
+import com.rokid.glass.camera.CameraStreamProfile
 import com.rokid.glass.config.AutoDetectProvider
 import com.rokid.glass.config.AutoHazardRoutingMode as ConfigAutoHazardRoutingMode
 import com.rokid.glass.config.InspectionConfigRepository
@@ -58,11 +59,13 @@ import com.rokid.glass.utils.SystemStateUtils
 import com.rokid.glass.workflow.InspectionWorkflowSession
 import com.rokid.glesse.R
 import java.io.InputStreamReader
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import okhttp3.Call
 
 /**
  * AI 巡检页面。
@@ -96,6 +99,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         private const val SIMULATED_STREAM_CHUNK_DELAY_MS = 35L
         private const val DETECTION_PREVIEW_DRAW_CHECK_DELAY_MS = 700L
         private const val MAX_DETAIL_BODY_LOG_CHARS = 4096
+        private const val AUTO_FRAME_WIDTH = 1200
+        private const val AUTO_FRAME_HEIGHT = 1600
+        private const val AUTO_OVERLAY_WIDTH = 480
+        private const val AUTO_OVERLAY_HEIGHT = 640
+        private const val AUTO_JPEG_QUALITY = 82
 
         private val CAPTURE_WARMUP_MS: Long by lazy { InspectionConfigRepository.get().aiInspection.captureWarmupMs }
 
@@ -409,10 +417,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     // 检测状态UI
     private lateinit var statusBarDetecting: GlassStatusBar
     private lateinit var statusBarStream: GlassStatusBar
+    private lateinit var autoDetectionOverlay: FullFrameDetectionOverlayView
 
     private val uiHandler = Handler(Looper.getMainLooper())
     private val nativeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
     private val imageEncodeExecutor: ExecutorService = Executors.newSingleThreadExecutor()
+    private val fullFrameAutoClient by lazy { AlignmentAutoDetectionClient() }
+    private val fullFrameAutoRequestState = FullFrameDetectionRequestState()
+    private var fullFrameAutoLoopRunning = false
+    private var fullFrameAutoCall: Call? = null
+    private var fullFrameAutoTimeoutRunnable: Runnable? = null
+    private var fullFrameAutoDeepRequestId: Long? = null
+    private var fullFrameAutoLastTimestamp = 0L
+    private val fullFrameAutoLoopRunnable = Runnable { runFullFrameAutoLoop() }
     private val frameCaptureService by lazy {
         InspectionFrameCaptureService(
             staleFrameThresholdMs = STALE_FRAME_THRESHOLD_MS,
@@ -557,8 +574,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 cameraSessionGeneration = InspectionCameraCoordinator.restart(
                     owner = CameraOwner.AI_INSPECTION,
                     reason = issue.name,
-                    needPreview = shouldKeepDetectionPreviewRunning(),
-                    previewView = viewLivePreview,
+                    needPreview = false,
+                    previewView = null,
                     onReady = onReady,
                 )
             },
@@ -803,6 +820,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         // 检测状态 UI 初始化
         statusBarDetecting = findViewById(R.id.statusBarDetecting)
         statusBarStream = findViewById(R.id.statusBarStream)
+        autoDetectionOverlay = findViewById(R.id.viewAutoDetectionOverlay)
 
         setupFunctionMenus()
         hideActionPrompts()
@@ -914,7 +932,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         updateWearMonitoringEnabled()
         cameraRecoveryController.start()
         refreshInputActions()
-        if (pageState == PageState.DETECTING || shouldKeepDetectionPreviewRunning(pageState)) {
+        if (pageState == PageState.DETECTING || shouldKeepDetectionPreviewRunning()) {
             cameraRecoveryController.setRecoveryEnabled(true)
             if (pendingDetectionStart) {
                 startDetectionImmediately()
@@ -1167,11 +1185,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (frameStreamInitializing) return
 
         frameStreamInitializing = true
-        val needPreview = shouldKeepDetectionPreviewRunning(pageState)
         cameraRequestToken = InspectionCameraCoordinator.acquireForActivity(
             owner = CameraOwner.AI_INSPECTION,
-            needPreview = needPreview,
-            previewView = viewLivePreview,
+            needPreview = false,
+            previewView = null,
+            streamProfile = CameraStreamProfile.FULL_FRAME_OVERLAY_TEST,
             enableRecovery = pageState == PageState.DETECTING,
         ) { success ->
             frameStreamInitializing = false
@@ -1204,13 +1222,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 TAG,
                 "diagnostic frame_stream_ready generation=$cameraSessionGeneration localLoopRunning=$localLoopRunning localRetryPosted=$localRetryPosted inferenceRunning=${inferenceRunning.get()} autoInferenceStartRequested=$autoInferenceStartRequested frameStreamReady=$frameStreamReady cameraSessionGeneration=$cameraSessionGeneration",
             )
-            if (!viewLivePreview.isPreviewStarted() && !previewRecreateAttempted) {
-                recreateDetectionPreviewView(reason = "frame_stream_ready_preview_not_started")
-                return@acquireForActivity
-            }
-            if (pageState == PageState.DETECTING || pageState == PageState.STREAM_RESPONSE) {
-                startDetectionPreviewIfNeeded()
-            }
             if (autoInferenceStartRequested) {
                 startAutoInferencePipelinesIfNeeded(reason = "frame_stream_ready", preferImmediate = true)
             } else if (pageState == PageState.DETECTING) {
@@ -1413,11 +1424,15 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             scheduleLocalNetworkProbe()
         }
         if (startDecision.startOnline) {
-            startOnlineDetectionLaneIfNeeded(
-                lane = OnlineHazardDetectionService.DetectionLane.ITEM,
-                delayMs = initialDelayMs,
-                reason = reason,
-            )
+            if (InspectionConfigRepository.get().aiInspection.autoDetectProvider == AutoDetectProvider.HTTP) {
+                startFullFrameAutoLoop(initialDelayMs, reason)
+            } else {
+                startOnlineDetectionLaneIfNeeded(
+                    lane = OnlineHazardDetectionService.DetectionLane.ITEM,
+                    delayMs = initialDelayMs,
+                    reason = reason,
+                )
+            }
             if (enableOnlineSceneHazardDetection) {
                 startOnlineDetectionLaneIfNeeded(
                     lane = OnlineHazardDetectionService.DetectionLane.SCENE,
@@ -1507,6 +1522,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
     private fun stopOnlinePipelineForFallback(reason: String) {
         AppFileLogger.i(TAG, "stop online pipeline for local fallback reason=$reason")
+        stopFullFrameAutoLoop(reason)
         resetOnlineLaneRuntime(itemOnlineLaneRuntime)
         resetOnlineLaneRuntime(sceneOnlineLaneRuntime)
         uiHandler.removeCallbacks(onlineLoopRunnable)
@@ -1562,6 +1578,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         captureDelayScheduled = false
         localRetryPosted = false
         localLoopRunning = false
+        stopFullFrameAutoLoop(reason)
         resetOnlineLaneRuntime(itemOnlineLaneRuntime)
         resetOnlineLaneRuntime(sceneOnlineLaneRuntime)
         localNetworkProbePosted = false
@@ -1855,6 +1872,231 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         Log.d(TAG, "post online inference loop lane=${lane.logName} delayMs=$delayMs reason=$reason")
         runtime.loopPosted = true
         uiHandler.postDelayed(onlineLaneRunnable(lane), delayMs.coerceAtLeast(0L))
+    }
+
+    private fun startFullFrameAutoLoop(delayMs: Long, reason: String) {
+        if (fullFrameAutoLoopRunning) return
+        fullFrameAutoLoopRunning = true
+        fullFrameAutoLastTimestamp = 0L
+        AppFileLogger.i(TAG, "start full-frame auto loop reason=$reason delayMs=$delayMs")
+        scheduleFullFrameAutoLoop(delayMs)
+    }
+
+    private fun scheduleFullFrameAutoLoop(delayMs: Long = 0L) {
+        uiHandler.removeCallbacks(fullFrameAutoLoopRunnable)
+        if (fullFrameAutoLoopRunning && !destroyed && pageState == PageState.DETECTING) {
+            uiHandler.postDelayed(fullFrameAutoLoopRunnable, delayMs.coerceAtLeast(0L))
+        }
+    }
+
+    private fun runFullFrameAutoLoop() {
+        if (!fullFrameAutoLoopRunning) return
+        if (!shouldRunAutoInferencePipelines()) {
+            scheduleFullFrameAutoLoop(AUTO_INFERENCE_RETRY_DELAY_MS)
+            return
+        }
+        val placeCode = InspectionWorkflowSession.enterpriseInfo?.placeCode
+        if (!FullFrameAutoRequestPolicy.canRequest(placeCode)) {
+            AppFileLogger.i(TAG, "full-frame auto skipped missing placeCode")
+            scheduleFullFrameAutoLoop(AlignmentDetectionCadence.REQUEST_TIMEOUT_MS)
+            return
+        }
+        val requestId = fullFrameAutoRequestState.begin(SystemClock.elapsedRealtime()) ?: return
+        val requestEpoch = autoInferenceEpoch
+        val frame = RokidFrameSource.copyLatestRawFrame()
+        if (frame == null || frame.timestamp <= fullFrameAutoLastTimestamp) {
+            fullFrameAutoRequestState.acceptFailure(requestId)
+            scheduleFullFrameAutoLoop(AUTO_INFERENCE_RETRY_DELAY_MS)
+            return
+        }
+        if (frame.width != AUTO_FRAME_WIDTH || frame.height != AUTO_FRAME_HEIGHT) {
+            fullFrameAutoRequestState.acceptFailure(requestId)
+            AppFileLogger.e(
+                TAG,
+                "full-frame auto source mismatch actual=${frame.width}x${frame.height} expected=${AUTO_FRAME_WIDTH}x$AUTO_FRAME_HEIGHT",
+            )
+            scheduleFullFrameAutoLoop(AUTO_INFERENCE_RETRY_DELAY_MS)
+            return
+        }
+        fullFrameAutoLastTimestamp = frame.timestamp
+        imageEncodeExecutor.execute {
+            val jpegBytes = encodeFullFrameAutoJpeg(frame)
+            uiHandler.post {
+                if (!fullFrameAutoLoopRunning || requestEpoch != autoInferenceEpoch || jpegBytes == null) {
+                    fullFrameAutoRequestState.acceptFailure(requestId)
+                    if (fullFrameAutoLoopRunning) scheduleFullFrameAutoLoop(AUTO_INFERENCE_RETRY_DELAY_MS)
+                    return@post
+                }
+                submitFullFrameAutoRequest(requestId, requestEpoch, jpegBytes)
+            }
+        }
+    }
+
+    private fun encodeFullFrameAutoJpeg(frame: RokidFrameSource.Nv21Frame): ByteArray? {
+        return runCatching {
+            val bitmap = checkNotNull(BitmapUtils.nv21ToBitmap(frame.data, frame.width, frame.height))
+            try {
+                ByteArrayOutputStream().use { output ->
+                    check(bitmap.compress(Bitmap.CompressFormat.JPEG, AUTO_JPEG_QUALITY, output))
+                    output.toByteArray()
+                }
+            } finally {
+                bitmap.recycle()
+            }
+        }.onFailure { error ->
+            AppFileLogger.w(TAG, "full-frame auto encode failed message=${error.message}")
+        }.getOrNull()
+    }
+
+    private fun submitFullFrameAutoRequest(requestId: Long, epoch: Long, jpegBytes: ByteArray) {
+        val timeout = Runnable {
+            if (!fullFrameAutoRequestState.acceptFailure(requestId)) return@Runnable
+            AppFileLogger.w(TAG, "full-frame auto timeout requestId=$requestId timeoutMs=${AlignmentDetectionCadence.REQUEST_TIMEOUT_MS}")
+            fullFrameAutoCall?.cancel()
+            fullFrameAutoCall = null
+            fullFrameAutoTimeoutRunnable = null
+            if (!handleRemoteDetectionFailureForFallback(reason = "full_frame_timeout")) {
+                scheduleFullFrameAutoLoop()
+            }
+        }
+        fullFrameAutoTimeoutRunnable = timeout
+        uiHandler.postDelayed(timeout, AlignmentDetectionCadence.REQUEST_TIMEOUT_MS)
+        AppFileLogger.i(TAG, "full-frame auto request requestId=$requestId source=${AUTO_FRAME_WIDTH}x$AUTO_FRAME_HEIGHT jpegBytes=${jpegBytes.size}")
+        fullFrameAutoCall = fullFrameAutoClient.detect(jpegBytes, object : AlignmentAutoDetectionClient.ResultCallback {
+            override fun onSuccess(response: AlignmentDetectionResponse) {
+                uiHandler.post {
+                    if (!fullFrameAutoRequestState.acceptSuccess(requestId) || epoch != autoInferenceEpoch) return@post
+                    finishFullFrameAutoRequest()
+                    remoteFailureCount = 0
+                    handleFullFrameAutoResponse(requestId, epoch, jpegBytes, response)
+                    scheduleFullFrameAutoLoop()
+                }
+            }
+
+            override fun onFailure(message: String) {
+                uiHandler.post {
+                    if (!fullFrameAutoRequestState.acceptFailure(requestId) || epoch != autoInferenceEpoch) return@post
+                    finishFullFrameAutoRequest()
+                    AppFileLogger.w(TAG, "full-frame auto failed requestId=$requestId message=$message")
+                    if (!handleRemoteDetectionFailureForFallback(reason = "full_frame_failure:$message")) {
+                        scheduleFullFrameAutoLoop()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun finishFullFrameAutoRequest() {
+        fullFrameAutoTimeoutRunnable?.let(uiHandler::removeCallbacks)
+        fullFrameAutoTimeoutRunnable = null
+        fullFrameAutoCall = null
+    }
+
+    private fun handleFullFrameAutoResponse(
+        requestId: Long,
+        epoch: Long,
+        jpegBytes: ByteArray,
+        response: AlignmentDetectionResponse,
+    ) {
+        val mapped = FullFrameOverlayMapper.map(
+            responseDetections = response.detections,
+            requestSize = FrameSize(AUTO_FRAME_WIDTH, AUTO_FRAME_HEIGHT),
+            sourceSize = FrameSize(AUTO_FRAME_WIDTH, AUTO_FRAME_HEIGHT),
+            overlaySize = FrameSize(AUTO_OVERLAY_WIDTH, AUTO_OVERLAY_HEIGHT),
+            calibration = FullFrameOverlayCalibrationState().calibration,
+        )
+        autoDetectionOverlay.showDetections(mapped.detections)
+        val shouldTriggerDeep = AutoDeepTriggerDecider.shouldTrigger(
+            visibleDetections = mapped.detections,
+            screenSize = FrameSize(AUTO_OVERLAY_WIDTH, AUTO_OVERLAY_HEIGHT),
+        )
+        AppFileLogger.i(
+            TAG,
+            "full-frame auto response requestId=$requestId bbox=${response.detections.size}/${mapped.detections.size} triggerDeep=$shouldTriggerDeep",
+        )
+        if (shouldTriggerDeep && fullFrameAutoDeepRequestId == null) {
+            val deepRequestId = nextOnlineRequestId()
+            fullFrameAutoDeepRequestId = deepRequestId
+            imageEncodeExecutor.execute {
+                val alignedJpegBytes = encodeAlignedDeepJpeg(jpegBytes)
+                uiHandler.post {
+                    if (
+                        !fullFrameAutoLoopRunning ||
+                        epoch != autoInferenceEpoch ||
+                        fullFrameAutoDeepRequestId != deepRequestId
+                    ) {
+                        return@post
+                    }
+                    if (alignedJpegBytes == null) {
+                        fullFrameAutoDeepRequestId = null
+                        AppFileLogger.w(TAG, "full-frame deep crop failed deepRequestId=$deepRequestId")
+                        return@post
+                    }
+                    onlineHazardDetectionService.requestDeepAnalysis(
+                        OnlineHazardDetectionService.DetailRequest(
+                            epoch = epoch,
+                            requestId = deepRequestId,
+                            jpegBytes = alignedJpegBytes,
+                            lane = OnlineHazardDetectionService.DetectionLane.ITEM,
+                        ),
+                    )
+                    AppFileLogger.i(
+                        TAG,
+                        "full-frame deep requested autoRequestId=$requestId deepRequestId=$deepRequestId jpegBytes=${alignedJpegBytes.size}",
+                    )
+                }
+            }
+        }
+    }
+
+    private fun encodeAlignedDeepJpeg(fullFrameJpegBytes: ByteArray): ByteArray? {
+        return runCatching {
+            val source = checkNotNull(
+                BitmapFactory.decodeByteArray(fullFrameJpegBytes, 0, fullFrameJpegBytes.size),
+            )
+            val crop = AlignedDeepImageCropPlanner.plan(
+                sourceSize = FrameSize(source.width, source.height),
+                calibration = FullFrameOverlayCalibrationState().calibration,
+            )
+            val aligned = Bitmap.createBitmap(
+                source,
+                crop.left,
+                crop.top,
+                crop.width,
+                crop.height,
+            )
+            try {
+                ByteArrayOutputStream().use { output ->
+                    check(aligned.compress(Bitmap.CompressFormat.JPEG, AUTO_JPEG_QUALITY, output))
+                    output.toByteArray().also { bytes ->
+                        AppFileLogger.i(
+                            TAG,
+                            "full-frame deep crop source=${source.width}x${source.height} rect=${crop.left},${crop.top},${crop.right},${crop.bottom} output=${aligned.width}x${aligned.height} jpegBytes=${bytes.size}",
+                        )
+                    }
+                }
+            } finally {
+                if (aligned !== source) aligned.recycle()
+                source.recycle()
+            }
+        }.onFailure { error ->
+            AppFileLogger.w(TAG, "full-frame deep encode failed message=${error.message}")
+        }.getOrNull()
+    }
+
+    private fun stopFullFrameAutoLoop(reason: String) {
+        if (fullFrameAutoLoopRunning || fullFrameAutoCall != null) {
+            AppFileLogger.i(TAG, "stop full-frame auto loop reason=$reason")
+        }
+        fullFrameAutoLoopRunning = false
+        uiHandler.removeCallbacks(fullFrameAutoLoopRunnable)
+        fullFrameAutoTimeoutRunnable?.let(uiHandler::removeCallbacks)
+        fullFrameAutoTimeoutRunnable = null
+        fullFrameAutoCall?.cancel()
+        fullFrameAutoCall = null
+        fullFrameAutoRequestState.cancel()
+        fullFrameAutoDeepRequestId = null
+        if (::autoDetectionOverlay.isInitialized) autoDetectionOverlay.clearDetections()
     }
 
     private fun advanceOnlineInferenceLoop(
@@ -2512,14 +2754,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun shouldKeepDetectionPreviewRunning(state: PageState = pageState): Boolean {
-        return state == PageState.DETECTING ||
-            (state == PageState.STREAM_RESPONSE && !isFixedResultPanelMode())
+    private fun shouldKeepDetectionPreviewRunning(): Boolean {
+        return false
     }
 
-    private fun shouldShowDetectionPreviewCard(state: PageState = pageState): Boolean {
-        return state == PageState.DETECTING ||
-            (state == PageState.STREAM_RESPONSE && !isFixedResultPanelMode())
+    private fun shouldShowDetectionPreviewCard(): Boolean {
+        return false
     }
 
     private fun applyDetectionPreviewVisibility() {
@@ -2561,9 +2801,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         layoutDetection.visibility = if (state == PageState.DETECTING) View.VISIBLE else View.GONE
         layoutStreamResponse.visibility =
             if (state == PageState.STREAM_RESPONSE) View.VISIBLE else View.GONE
-        val shouldShowLivePreview =
-            state == PageState.DETECTING || state == PageState.STREAM_RESPONSE
-        val shouldKeepPreviewRunning = shouldKeepDetectionPreviewRunning(state)
+        val shouldShowLivePreview = false
+        val shouldKeepPreviewRunning = shouldKeepDetectionPreviewRunning()
         AppFileLogger.i(
             TAG,
             "showPage state=$state shouldShowLivePreview=$shouldShowLivePreview shouldKeepPreviewRunning=$shouldKeepPreviewRunning resumed=$isActivityResumed workflowActive=$isWorkflowActive",
@@ -3468,6 +3707,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != autoInferenceEpoch) {
             return
         }
+        if (fullFrameAutoDeepRequestId == request.requestId) {
+            handleFullFrameDeepSuccess(request, fullText)
+            return
+        }
         val jpegBytes = request.jpegBytes
         val parseStartElapsedMs = SystemClock.elapsedRealtime()
         logAudioPressureSnapshot(
@@ -3526,6 +3769,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != autoInferenceEpoch) {
             return
         }
+        if (fullFrameAutoDeepRequestId == request.requestId) return
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
         if (pending.requestId != request.requestId) {
             return
@@ -3552,6 +3796,11 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (request.epoch != autoInferenceEpoch) {
             return
         }
+        if (fullFrameAutoDeepRequestId == request.requestId) {
+            fullFrameAutoDeepRequestId = null
+            AppFileLogger.w(TAG, "full-frame deep failed requestId=${request.requestId} keep overlay message=$message")
+            return
+        }
         val pending = pendingAutoHazardPresentation as? PendingAutoHazardPresentation.Online ?: return
         if (pending.requestId != request.requestId) {
             return
@@ -3571,6 +3820,24 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             LOCAL_SAVE_SUCCESS_TOAST_MS,
             false,
         )
+    }
+
+    private fun handleFullFrameDeepSuccess(
+        request: OnlineHazardDetectionService.DetailRequest,
+        fullText: String,
+    ) {
+        fullFrameAutoDeepRequestId = null
+        val resolved = runCatching {
+            AiArHazardDetailParser.parse(fullText, request.jpegBytes)
+        }.onFailure { error ->
+            AppFileLogger.w(TAG, "full-frame deep parse failed requestId=${request.requestId} keep overlay message=${error.message}")
+        }.getOrNull() ?: return
+        if (!resolved.hasStructuredFields() || resolved.isOnlineNoHazardResult()) {
+            AppFileLogger.i(TAG, "full-frame deep no hazard requestId=${request.requestId} keep overlay")
+            return
+        }
+        AppFileLogger.i(TAG, "full-frame deep hazard requestId=${request.requestId} present stream")
+        presentOnlineHazardWithSimulatedStream(resolved)
     }
 
     private fun queueAutoDetectedOnlineHazardPresentation(

@@ -1,7 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 internal class FullFrameDetectionRequestState(
-    private val cadenceMs: Long = AlignmentDetectionCadence.REQUEST_INTERVAL_MS,
+    private val cadenceMs: Long = 0L,
 ) {
     private var nextRequestId = 1L
     private var activeRequestId: Long? = null

@@ -51,12 +51,11 @@ class FullFrameDetectionRequestStateTest {
     }
 
     @Test
-    fun `cadence blocks a new request until 500 milliseconds elapsed`() {
+    fun `success allows the next serial request immediately`() {
         val state = FullFrameDetectionRequestState()
         val request = state.begin(100L)!!
         assertTrue(state.acceptSuccess(request))
 
-        assertNull(state.begin(599L))
-        assertNotNull(state.begin(600L))
+        assertNotNull(state.begin(100L))
     }
 }

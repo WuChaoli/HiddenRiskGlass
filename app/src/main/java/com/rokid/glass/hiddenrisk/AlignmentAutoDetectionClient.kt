@@ -1,6 +1,7 @@
 package com.rokid.glass.hiddenrisk
 
 import android.util.Base64
+import com.rokid.glass.config.InspectionConfigRepository
 import com.rokid.glass.network.HttpClientProvider
 import okhttp3.Call
 import okhttp3.Callback
@@ -12,7 +13,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 internal class AlignmentAutoDetectionClient(
-    private val endpoint: String = DEFAULT_ENDPOINT,
+    private val endpoint: String = InspectionConfigRepository.get().network.aiAutoApi.url,
 ) {
     private val client = HttpClientProvider.inspectionClient.newBuilder()
         .callTimeout(AlignmentDetectionCadence.REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS)
@@ -52,7 +53,6 @@ internal class AlignmentAutoDetectionClient(
     }
 
     companion object {
-        const val DEFAULT_ENDPOINT = "http://183.147.142.133:10010/ai/auto"
         private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
     }
 }
