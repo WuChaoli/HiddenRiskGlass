@@ -209,7 +209,7 @@ sequenceDiagram
     AI->>AI: 任一未冷却 bbox 面积 > 1/8
     AI->>AI: 同帧按固定 1m 校准裁成真实世界对齐 3:4 JPEG
     AI->>V2: 单飞 request(aligned 3:4 JPEG)
-    V2->>Remote: POST /ai/deep/v2（完整 1200x1600 JPEG，不裁切）
+    V2->>Remote: POST /ai/deep/v2（1200x1600 原图按当前眼镜视野校准裁切）
     Remote-->>V2: JSON detections + hazards + check_items
     V2-->>AI: label_id 关联并归一化
     AI->>AI: 结构化结果页浏览、确认保存或取消重检
@@ -285,10 +285,10 @@ sequenceDiagram
     User->>HR: 单击/语音"拍照"
     HR->>Camera: takePicture()
     Camera-->>HR: JPEG 图片
-    HR->>HR: COUNTDOWN -> ANALYSIS
+    HR->>HR: COUNTDOWN -> 截帧并直接显示视野裁切底图
     HR->>V2: request() /ai/deep/v2 或 /ai/gm/v2
     V2-->>HR: detections + hazards + check_items
-    HR->>HR: 倒计时后直接显示完整底图；有隐患时叠加 bbox/hazard 翻页展示
+    HR->>HR: 倒计时后直接显示视野裁切底图；有隐患时叠加 bbox/hazard 翻页展示
     User->>HR: 确认
     HR->>Push: pushLocalHazard()
     Push-->>HR: 成功 -> 返回 IDLE

@@ -492,15 +492,18 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         try {
             imageExecutor.execute {
                 val payload = frameCaptureService.selectBestFramePayload(Long.MIN_VALUE)
+                val alignedImage = payload?.let {
+                    AlignedDeepImagePayloadEncoder.encode(it.jpegBytes, JPEG_QUALITY)
+                }
                 uiHandler.post {
                     captureInProgress = false
-                    if (payload == null || payload.jpegBytes.isEmpty()) {
+                    if (alignedImage == null || alignedImage.jpegBytes.isEmpty()) {
                         showPage(PageState.IDLE)
                         tvIdleHint.setText(R.string.hazard_record_capture_failed)
                         refreshInputActions()
                         return@post
                     }
-                    beginAnalysis(payload)
+                    beginAnalysis(alignedImage)
                 }
             }
         } catch (error: RejectedExecutionException) {
@@ -512,14 +515,14 @@ class HazardRecordActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         }
     }
 
-    private fun beginAnalysis(payload: InspectionFrameCaptureService.CapturedFramePayload) {
+    private fun beginAnalysis(image: DeepV2ImagePayload) {
         activeRequestId += 1
         val requestId = activeRequestId
-        val jpegBytes = payload.jpegBytes.copyOf()
+        val jpegBytes = image.jpegBytes.copyOf()
         InspectionWorkflowSession.recordCapture(jpegBytes)
-        val image = DeepV2ImagePayload(jpegBytes, payload.width, payload.height)
-        showCapturedResultBackground(image)
-        sendImageToAiAr(requestId = requestId, image = image)
+        val ownedImage = image.copy(jpegBytes = jpegBytes)
+        showCapturedResultBackground(ownedImage)
+        sendImageToAiAr(requestId = requestId, image = ownedImage)
     }
 
     private fun showCapturedResultBackground(image: DeepV2ImagePayload) {

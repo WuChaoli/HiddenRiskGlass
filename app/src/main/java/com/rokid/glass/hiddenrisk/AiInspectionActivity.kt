@@ -2106,8 +2106,8 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 val decision = deepV2AutoCoordinator.onAutoResponse(
                     epoch = epoch,
                     shouldTrigger = true,
-                    buildImage = { encodeFullDeepImage(jpegBytes) },
-                ) { deepRequestId, fullImage -> uiHandler.post {
+                    buildImage = { encodeAlignedDeepImage(jpegBytes) },
+                ) { deepRequestId, alignedImage -> uiHandler.post {
                     if (
                         !fullFrameAutoLoopRunning ||
                         epoch != autoInferenceEpoch ||
@@ -2127,7 +2127,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     )
                     deepV2RequestHandle = deepV2Client.request(
                         requestId = deepRequestId,
-                        imageBytes = fullImage.jpegBytes,
+                        imageBytes = alignedImage.jpegBytes,
                         scene = placeCode,
                         callback = object : DeepV2Client.Callback {
                             override fun onSuccess(requestId: Long, response: DeepV2Response) {
@@ -2151,30 +2151,26 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     )
                     AppFileLogger.i(
                         TAG,
-                        "deep v2 requested autoRequestId=$requestId requestId=$deepRequestId epoch=$epoch image=${fullImage.width}x${fullImage.height} jpegBytes=${fullImage.jpegBytes.size}",
+                        "deep v2 requested autoRequestId=$requestId requestId=$deepRequestId epoch=$epoch image=${alignedImage.width}x${alignedImage.height} jpegBytes=${alignedImage.jpegBytes.size}",
                     )
                 } }
                 if (decision == DeepV2AutoDecision.IMAGE_UNAVAILABLE) {
-                    AppFileLogger.w(TAG, "deep v2 full image unavailable autoRequestId=$requestId epoch=$epoch")
+                    AppFileLogger.w(TAG, "deep v2 aligned image unavailable autoRequestId=$requestId epoch=$epoch")
                 }
             }
         }
     }
 
-    private fun encodeFullDeepImage(fullFrameJpegBytes: ByteArray): DeepV2ImagePayload? {
-        return runCatching {
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(fullFrameJpegBytes, 0, fullFrameJpegBytes.size, bounds)
-            check(bounds.outWidth > 0 && bounds.outHeight > 0)
-            DeepV2ImagePayload(fullFrameJpegBytes, bounds.outWidth, bounds.outHeight).also { image ->
-                AppFileLogger.i(
-                    TAG,
-                    "deep v2 full image=${image.width}x${image.height} jpegBytes=${image.jpegBytes.size}",
-                )
-            }
-        }.onFailure { error ->
-            AppFileLogger.w(TAG, "deep v2 encode failed message=${error.message}")
-        }.getOrNull()
+    private fun encodeAlignedDeepImage(fullFrameJpegBytes: ByteArray): DeepV2ImagePayload? {
+        return AlignedDeepImagePayloadEncoder.encode(fullFrameJpegBytes, AUTO_JPEG_QUALITY)?.also { image ->
+            AppFileLogger.i(
+                TAG,
+                "deep v2 aligned image=${image.width}x${image.height} jpegBytes=${image.jpegBytes.size}",
+            )
+        } ?: run {
+            AppFileLogger.w(TAG, "deep v2 aligned image encode failed")
+            null
+        }
     }
 
     private fun handleDeepV2Success(
@@ -4609,7 +4605,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         if (deepV2RequestHandle != null || structuredHazardResultSession != null) return
         val lifecycleGeneration = activityLifecycleGeneration
         imageEncodeExecutor.execute {
-            val image = encodeFullDeepImage(request.jpegBytes)
+            val image = encodeAlignedDeepImage(request.jpegBytes)
             uiHandler.post {
                 if (
                     image == null ||
@@ -5204,14 +5200,14 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
                     return@execute
                 }
-                val fullImage = encodeFullDeepImage(payload.jpegBytes)
-                if (fullImage == null) {
+                val alignedImage = encodeAlignedDeepImage(payload.jpegBytes)
+                if (alignedImage == null) {
                     handleSSEError(getString(R.string.ai_inspection_online_image_encode_failed))
                     return@execute
                 }
                 uiHandler.post {
                     if (shouldDeliverStreamRequest(requestId)) {
-                        sendImageToAiAr(fullImage)
+                        sendImageToAiAr(alignedImage)
                     }
                 }
             }
