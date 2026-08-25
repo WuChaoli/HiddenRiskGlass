@@ -11,7 +11,7 @@ internal object AutoDeepTriggerDecider {
         return visibleDetections.any { detection ->
             detection.right > detection.left &&
                 detection.bottom > detection.top &&
-                (detection.right - detection.left) * (detection.bottom - detection.top) >= minimumArea
+                (detection.right - detection.left) * (detection.bottom - detection.top) > minimumArea
         }
     }
 }

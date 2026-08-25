@@ -450,7 +450,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var fullFrameAutoCall: Call? = null
     private var fullFrameAutoTimeoutRunnable: Runnable? = null
     private val deepV2Client by lazy { DeepV2Client.create() }
-    private val deepV2RequestState = DeepV2AutoRequestState()
+    private val deepV2AutoCoordinator = DeepV2AutoCoordinator()
     private val deepV2ResultNormalizer = DeepV2ResultNormalizer()
     private var deepV2RequestHandle: DeepV2Client.RequestHandle? = null
     private var deepV2Presentation: DeepV2Presentation? = null
@@ -2063,26 +2063,22 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             "full-frame auto response requestId=$requestId bbox=${response.detections.size}/${mapped.detections.size} triggerDeep=$shouldTriggerDeep",
         )
         if (shouldTriggerDeep) {
-            val deepRequestId = deepV2RequestState.begin(epoch) ?: return
             val lifecycleGeneration = activityLifecycleGeneration
             imageEncodeExecutor.execute {
-                val alignedImage = encodeAlignedDeepImage(jpegBytes)
-                uiHandler.post {
+                val decision = deepV2AutoCoordinator.onAutoResponse(
+                    epoch = epoch,
+                    shouldTrigger = true,
+                    buildImage = { encodeAlignedDeepImage(jpegBytes) },
+                ) { deepRequestId, alignedImage -> uiHandler.post {
                     if (
                         !fullFrameAutoLoopRunning ||
                         epoch != autoInferenceEpoch ||
                         lifecycleGeneration != activityLifecycleGeneration ||
                         !isActivityResumed
                     ) {
-                        deepV2RequestState.fail(deepRequestId, epoch)
+                        deepV2AutoCoordinator.onFailure(deepRequestId, epoch)
                         return@post
                     }
-                    if (alignedImage == null) {
-                        deepV2RequestState.fail(deepRequestId, epoch)
-                        AppFileLogger.w(TAG, "deep v2 crop failed requestId=$deepRequestId")
-                        return@post
-                    }
-                    if (!deepV2RequestState.attachImage(deepRequestId, epoch, alignedImage)) return@post
                     val placeCode = InspectionWorkflowSession.enterpriseInfo?.placeCode.orEmpty()
                     deepV2RequestHandle = deepV2Client.request(
                         requestId = deepRequestId,
@@ -2112,6 +2108,9 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         TAG,
                         "deep v2 requested autoRequestId=$requestId requestId=$deepRequestId epoch=$epoch image=${alignedImage.width}x${alignedImage.height} jpegBytes=${alignedImage.jpegBytes.size}",
                     )
+                } }
+                if (decision == DeepV2AutoDecision.IMAGE_UNAVAILABLE) {
+                    AppFileLogger.w(TAG, "deep v2 crop failed autoRequestId=$requestId epoch=$epoch")
                 }
             }
         }
@@ -2170,7 +2169,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         ) {
             return
         }
-        val image = deepV2RequestState.acceptTerminal(requestId, epoch) ?: return
+        val image = deepV2AutoCoordinator.onSuccess(requestId, epoch) ?: return
         deepV2RequestHandle = null
         val presentation = deepV2ResultNormalizer.normalize(response)
         if (!presentation.hasDisplayableHazards) {
@@ -2198,7 +2197,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             destroyed ||
             lifecycleGeneration != activityLifecycleGeneration ||
             epoch != autoInferenceEpoch ||
-            !deepV2RequestState.fail(requestId, epoch)
+            !deepV2AutoCoordinator.onFailure(requestId, epoch)
         ) {
             return
         }
@@ -2367,7 +2366,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun cancelDeepV2Request() {
         deepV2RequestHandle?.cancel()
         deepV2RequestHandle = null
-        deepV2RequestState.cancel()
+        deepV2AutoCoordinator.cancel()
     }
 
     private fun advanceOnlineInferenceLoop(

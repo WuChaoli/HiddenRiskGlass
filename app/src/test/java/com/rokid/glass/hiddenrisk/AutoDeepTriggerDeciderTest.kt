@@ -14,8 +14,15 @@ class AutoDeepTriggerDeciderTest {
     }
 
     @Test
-    fun `box exactly one eighth of visible screen triggers deep`() {
+    fun `box exactly one eighth of visible screen does not trigger deep`() {
         val detection = detection(right = 240f, bottom = 160f)
+
+        assertFalse(AutoDeepTriggerDecider.shouldTrigger(listOf(detection), FrameSize(480, 640)))
+    }
+
+    @Test
+    fun `box larger than one eighth of visible screen triggers deep`() {
+        val detection = detection(right = 241f, bottom = 160f)
 
         assertTrue(AutoDeepTriggerDecider.shouldTrigger(listOf(detection), FrameSize(480, 640)))
     }
@@ -24,7 +31,7 @@ class AutoDeepTriggerDeciderTest {
     fun `any qualifying visible box triggers deep`() {
         val detections = listOf(
             detection(right = 10f, bottom = 10f),
-            detection(left = 80f, top = 80f, right = 320f, bottom = 240f),
+            detection(left = 80f, top = 80f, right = 320f, bottom = 241f),
         )
 
         assertTrue(AutoDeepTriggerDecider.shouldTrigger(detections, FrameSize(480, 640)))
