@@ -26,18 +26,25 @@ internal sealed interface DeepV2ClientError {
 }
 
 internal class DeepV2Client(
-    private val apiConfig: AiArApiConfig,
-    httpClient: OkHttpClient,
+    private val apiConfigProvider: (StructuredHazardV2Endpoint) -> AiArApiConfig,
+    private val httpClient: OkHttpClient,
     private val taskIdFactory: () -> String,
     private val base64Encoder: (ByteArray) -> String,
     private val callbackExecutor: Executor,
 ) {
-    private val client = httpClient.newBuilder()
-        .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
-        .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
-        .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
-        .callTimeout(apiConfig.detectTimeoutMs, TimeUnit.MILLISECONDS)
-        .build()
+    constructor(
+        apiConfig: AiArApiConfig,
+        httpClient: OkHttpClient,
+        taskIdFactory: () -> String,
+        base64Encoder: (ByteArray) -> String,
+        callbackExecutor: Executor,
+    ) : this(
+        apiConfigProvider = { apiConfig },
+        httpClient = httpClient,
+        taskIdFactory = taskIdFactory,
+        base64Encoder = base64Encoder,
+        callbackExecutor = callbackExecutor,
+    )
 
     interface Callback {
         fun onSuccess(requestId: Long, response: DeepV2Response)
@@ -54,11 +61,32 @@ internal class DeepV2Client(
         scene: String,
         callback: Callback,
     ): RequestHandle {
+        return request(
+            requestId = requestId,
+            route = StructuredHazardV2Route(StructuredHazardV2Endpoint.DEEP_V2, scene),
+            imageBytes = imageBytes,
+            callback = callback,
+        )
+    }
+
+    fun request(
+        requestId: Long,
+        route: StructuredHazardV2Route,
+        imageBytes: ByteArray,
+        callback: Callback,
+    ): RequestHandle {
         val cancelled = AtomicBoolean(false)
+        val apiConfig = apiConfigProvider(route.endpoint)
+        val client = httpClient.newBuilder()
+            .connectTimeout(apiConfig.connectTimeoutMs, TimeUnit.MILLISECONDS)
+            .readTimeout(apiConfig.readTimeoutMs, TimeUnit.MILLISECONDS)
+            .writeTimeout(apiConfig.writeTimeoutMs, TimeUnit.MILLISECONDS)
+            .callTimeout(apiConfig.detectTimeoutMs, TimeUnit.MILLISECONDS)
+            .build()
         val requestBody = DeepV2Protocol.buildRequestJson(
             DeepV2Request(
                 taskId = taskIdFactory(),
-                scene = scene,
+                scene = route.scene.takeIf { route.endpoint.supportsScene },
                 temp = DEFAULT_TEMPERATURE,
                 image = base64Encoder(imageBytes),
             ),
@@ -80,7 +108,10 @@ internal class DeepV2Client(
                     }
                     val body = response.body?.string().orEmpty()
                     try {
-                        val parsed = DeepV2Protocol.parseResponse(body)
+                        val parsed = DeepV2Protocol.parseResponse(
+                            body = body,
+                            expectedType = route.endpoint.expectedResponseType,
+                        )
                         deliver(cancelled) { callback.onSuccess(requestId, parsed) }
                     } catch (error: DeepV2ProtocolException) {
                         deliver(cancelled) {
@@ -118,7 +149,14 @@ internal class DeepV2Client(
         fun create(): DeepV2Client {
             val mainHandler = Handler(Looper.getMainLooper())
             return DeepV2Client(
-                apiConfig = InspectionConfigRepository.get().network.aiDeepV2Api,
+                apiConfigProvider = { endpoint ->
+                    val network = InspectionConfigRepository.get().network
+                    when (endpoint) {
+                        StructuredHazardV2Endpoint.DEEP_V2 -> network.aiDeepV2Api
+                        StructuredHazardV2Endpoint.GENERAL_DEEP_V2 -> network.aiGeneralDeepV2Api
+                        StructuredHazardV2Endpoint.GM_V2 -> network.aiGmV2Api
+                    }
+                },
                 httpClient = HttpClientProvider.inspectionClient,
                 taskIdFactory = { UUID.randomUUID().toString() },
                 base64Encoder = { bytes -> Base64.encodeToString(bytes, Base64.NO_WRAP) },

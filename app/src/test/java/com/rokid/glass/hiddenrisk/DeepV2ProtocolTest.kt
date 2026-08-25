@@ -10,6 +10,46 @@ import org.junit.Test
 class DeepV2ProtocolTest {
 
     @Test
+    fun `request omits scene when route does not support it`() {
+        val json = JsonParser.parseString(
+            DeepV2Protocol.buildRequestJson(
+                DeepV2Request("task-001", null, 0.3, "base64-image"),
+            ),
+        ).asJsonObject
+
+        assertFalse(json.has("scene"))
+    }
+
+    @Test
+    fun `response accepts the endpoint expected type`() {
+        val response = DeepV2Protocol.parseResponse(
+            successResponse(type = "general_deep_v2", detections = "[]"),
+            expectedType = "general_deep_v2",
+        )
+
+        assertEquals("general_deep_v2", response.type)
+        try {
+            DeepV2Protocol.parseResponse(
+                successResponse(type = "general_deep_v2", detections = "[]"),
+                expectedType = "deep_v2",
+            )
+            fail("Expected DeepV2ProtocolException")
+        } catch (expected: DeepV2ProtocolException) {
+            assertTrue(expected.message.orEmpty().contains("type"))
+        }
+    }
+
+    @Test
+    fun `response preserves string check items from gm v2`() {
+        val response = DeepV2Protocol.parseResponse(
+            successResponse(type = "gm_v2", detections = "[]", checkItems = "[\"检查燃气阀门\"]"),
+            expectedType = "gm_v2",
+        )
+
+        assertEquals("检查燃气阀门", response.checkItems.single().asString)
+    }
+
+    @Test
     fun `request contains only v2 fields`() {
         val json = JsonParser.parseString(
             DeepV2Protocol.buildRequestJson(
@@ -64,7 +104,7 @@ class DeepV2ProtocolTest {
         assertEquals("建议", response.hazards.single().advice)
         assertEquals("HZ-001", response.hazards.single().hazardCode)
         assertEquals(1, response.checkItems.size)
-        assertEquals("CHECK-001", response.checkItems.single()["检查编码"].asString)
+        assertEquals("CHECK-001", response.checkItems.single().asJsonObject["检查编码"].asString)
         assertEquals(5.181, response.timeSeconds ?: 0.0, 0.0)
     }
 
@@ -128,6 +168,7 @@ class DeepV2ProtocolTest {
     }
 
     private fun successResponse(
+        type: String = "deep_v2",
         detections: String = """
             [
               {"label":"燃气灶","bbox":[10,20,110,220],"score":0.9,"inter":0,"label_id":"det_001"}
@@ -138,16 +179,17 @@ class DeepV2ProtocolTest {
               {"label_id":"det_001","隐患描述":"描述","隐患等级":"一般隐患","主要依据":"依据","整改建议":"建议","隐患编号":"HZ-001"}
             ]
         """.trimIndent(),
+        checkItems: String = """[{"检查编码":"CHECK-001"}]""",
     ): String {
         return """
             {
               "code": 0,
               "msg": "success",
               "task_id": "task-001",
-              "type": "deep_v2",
+              "type": "$type",
               "detections": $detections,
               "hazards": $hazards,
-              "check_items": [{"检查编码":"CHECK-001"}],
+              "check_items": $checkItems,
               "time": 5.181
             }
         """.trimIndent()

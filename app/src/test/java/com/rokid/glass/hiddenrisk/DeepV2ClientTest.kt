@@ -31,7 +31,7 @@ class DeepV2ClientTest {
 
     @Test
     fun `request posts v2 json to configured endpoint`() {
-        server.enqueue(MockResponse().setResponseCode(200).setBody(successResponse))
+        server.enqueue(MockResponse().setResponseCode(200).setBody(successResponse()))
         val callback = RecordingCallback()
 
         newClient().request(
@@ -51,6 +51,44 @@ class DeepV2ClientTest {
         assertEquals("PLACE-001", json["scene"].asString)
         assertEquals("AQID", json["image"].asString)
         assertEquals(41L, callback.successRequestId)
+    }
+
+    @Test
+    fun `general deep request selects endpoint and validates response type`() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(successResponse("general_deep_v2")))
+        val callback = RecordingCallback()
+
+        newRoutedClient().request(
+            requestId = 45L,
+            route = StructuredHazardV2Route(
+                StructuredHazardV2Endpoint.GENERAL_DEEP_V2,
+                "PLACE-001",
+            ),
+            imageBytes = byteArrayOf(1),
+            callback = callback,
+        )
+
+        assertTrue(callback.await())
+        assertEquals("/ai/general_deep/v2", server.takeRequest().path)
+        assertEquals(45L, callback.successRequestId)
+    }
+
+    @Test
+    fun `gm request omits scene`() {
+        server.enqueue(MockResponse().setResponseCode(200).setBody(successResponse("gm_v2")))
+        val callback = RecordingCallback()
+
+        newRoutedClient().request(
+            requestId = 46L,
+            route = StructuredHazardV2Route(StructuredHazardV2Endpoint.GM_V2, null),
+            imageBytes = byteArrayOf(1),
+            callback = callback,
+        )
+
+        assertTrue(callback.await())
+        val request = server.takeRequest()
+        assertEquals("/ai/gm/v2", request.path)
+        assertFalse(JsonParser.parseString(request.body.readUtf8()).asJsonObject.has("scene"))
     }
 
     @Test
@@ -81,7 +119,7 @@ class DeepV2ClientTest {
             MockResponse()
                 .setHeadersDelay(600, TimeUnit.MILLISECONDS)
                 .setResponseCode(200)
-                .setBody(successResponse),
+                .setBody(successResponse()),
         )
         val callback = RecordingCallback()
 
@@ -100,6 +138,29 @@ class DeepV2ClientTest {
                 writeTimeoutMs = 2_000L,
                 detectTimeoutMs = 2_000L,
             ),
+            httpClient = OkHttpClient(),
+            taskIdFactory = { "task-fixed" },
+            base64Encoder = Base64.getEncoder()::encodeToString,
+            callbackExecutor = Runnable::run,
+        )
+    }
+
+    private fun newRoutedClient(): DeepV2Client {
+        return DeepV2Client(
+            apiConfigProvider = { endpoint ->
+                val path = when (endpoint) {
+                    StructuredHazardV2Endpoint.DEEP_V2 -> "/ai/deep/v2"
+                    StructuredHazardV2Endpoint.GENERAL_DEEP_V2 -> "/ai/general_deep/v2"
+                    StructuredHazardV2Endpoint.GM_V2 -> "/ai/gm/v2"
+                }
+                AiArApiConfig(
+                    url = server.url(path).toString(),
+                    connectTimeoutMs = 2_000L,
+                    readTimeoutMs = 2_000L,
+                    writeTimeoutMs = 2_000L,
+                    detectTimeoutMs = 2_000L,
+                )
+            },
             httpClient = OkHttpClient(),
             taskIdFactory = { "task-fixed" },
             base64Encoder = Base64.getEncoder()::encodeToString,
@@ -127,12 +188,12 @@ class DeepV2ClientTest {
         }
     }
 
-    private val successResponse = """
+    private fun successResponse(type: String = "deep_v2") = """
         {
           "code": 0,
           "msg": "success",
           "task_id": "task-fixed",
-          "type": "deep_v2",
+          "type": "$type",
           "detections": [],
           "hazards": [],
           "check_items": [],

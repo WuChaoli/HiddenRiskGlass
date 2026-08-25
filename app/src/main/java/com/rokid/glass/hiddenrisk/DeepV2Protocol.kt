@@ -7,7 +7,7 @@ import com.google.gson.JsonParser
 
 internal data class DeepV2Request(
     val taskId: String,
-    val scene: String,
+    val scene: String?,
     val temp: Double,
     val image: String,
 )
@@ -43,7 +43,7 @@ internal data class DeepV2Response(
     val type: String,
     val detections: List<DeepV2Detection>,
     val hazards: List<DeepV2Hazard>,
-    val checkItems: List<JsonObject>,
+    val checkItems: List<JsonElement>,
     val timeSeconds: Double?,
 )
 
@@ -58,14 +58,16 @@ internal object DeepV2Protocol {
     fun buildRequestJson(request: DeepV2Request): String {
         val json = JsonObject().apply {
             addProperty("task_id", request.taskId)
-            addProperty("scene", request.scene)
+            request.scene?.trim()?.takeIf(String::isNotEmpty)?.let { scene ->
+                addProperty("scene", scene)
+            }
             addProperty("temp", request.temp)
             addProperty("image", request.image)
         }
         return gson.toJson(json)
     }
 
-    fun parseResponse(body: String): DeepV2Response {
+    fun parseResponse(body: String, expectedType: String = "deep_v2"): DeepV2Response {
         try {
             val root = JsonParser.parseString(body)
             if (!root.isJsonObject) {
@@ -79,8 +81,8 @@ internal object DeepV2Protocol {
                 )
             }
             val type = json.requiredString("type")
-            if (type != "deep_v2") {
-                throw DeepV2ProtocolException("unexpected deep v2 response type=$type")
+            if (type != expectedType) {
+                throw DeepV2ProtocolException("unexpected response type=$type expected=$expectedType")
             }
             val detectionsJson = json.get("detections")
             val hazardsJson = json.get("hazards")
@@ -102,9 +104,7 @@ internal object DeepV2Protocol {
                 type = type,
                 detections = detectionsJson.asJsonArray.mapIndexedNotNull(::parseDetection),
                 hazards = hazardsJson.asJsonArray.mapIndexedNotNull(::parseHazard),
-                checkItems = checkItemsJson.asJsonArray.mapNotNull { element ->
-                    element.takeIf(JsonElement::isJsonObject)?.asJsonObject
-                },
+                checkItems = checkItemsJson.asJsonArray.toList(),
                 timeSeconds = json.finiteDoubleOrNull("time"),
             )
         } catch (error: DeepV2ProtocolException) {
