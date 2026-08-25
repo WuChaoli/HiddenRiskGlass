@@ -451,6 +451,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private var fullFrameAutoTimeoutRunnable: Runnable? = null
     private val deepV2Client by lazy { DeepV2Client.create() }
     private val deepV2AutoCoordinator = DeepV2AutoCoordinator()
+    private val deepAnalysisAudioCoordinator = DeepAnalysisAudioCoordinator()
     private val deepV2ResultNormalizer = DeepV2ResultNormalizer()
     private var deepV2RequestHandle: DeepV2Client.RequestHandle? = null
     private var deepV2Presentation: DeepV2Presentation? = null
@@ -2080,6 +2081,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                         return@post
                     }
                     val placeCode = InspectionWorkflowSession.enterpriseInfo?.placeCode.orEmpty()
+                    playDeepAnalysisCue(
+                        deepAnalysisAudioCoordinator.begin(
+                            deepV2AudioToken(deepRequestId, epoch),
+                            DeepAnalysisEndpoint.DEEP_V2,
+                        ),
+                    )
                     deepV2RequestHandle = deepV2Client.request(
                         requestId = deepRequestId,
                         imageBytes = alignedImage.jpegBytes,
@@ -2173,6 +2180,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         deepV2RequestHandle = null
         val presentation = deepV2ResultNormalizer.normalize(response)
         if (!presentation.hasDisplayableHazards) {
+            playDeepAnalysisCue(
+                deepAnalysisAudioCoordinator.complete(
+                    deepV2AudioToken(requestId, epoch),
+                    hasHazard = false,
+                ),
+            )
             AppFileLogger.i(TAG, "deep v2 no hazard requestId=$requestId keep auto")
             showDeepV2TransientMessage(getString(R.string.deep_v2_no_hazard))
             return
@@ -2180,6 +2193,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         AppFileLogger.i(
             TAG,
             "deep v2 success requestId=$requestId targets=${presentation.targets.size} others=${presentation.others != null} uploads=${presentation.uploadHazards.size}",
+        )
+        playDeepAnalysisCue(
+            deepAnalysisAudioCoordinator.complete(
+                deepV2AudioToken(requestId, epoch),
+                hasHazard = true,
+            ),
         )
         deepV2Presentation = presentation
         deepV2ResultImage = image
@@ -2202,6 +2221,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         deepV2RequestHandle = null
+        deepAnalysisAudioCoordinator.cancel(deepV2AudioToken(requestId, epoch))
         AppFileLogger.w(TAG, "deep v2 failed requestId=$requestId error=$error keep auto")
         showDeepV2TransientMessage(getString(R.string.deep_v2_request_failed))
     }
@@ -2367,6 +2387,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         deepV2RequestHandle?.cancel()
         deepV2RequestHandle = null
         deepV2AutoCoordinator.cancel()
+        deepAnalysisAudioCoordinator.cancelAll()
     }
 
     private fun advanceOnlineInferenceLoop(
@@ -2875,7 +2896,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 ),
             ),
         )
-        playHazardAlertIfNeeded()
     }
 
     private fun updateDetectingBottomHintVisibility() {
@@ -4011,6 +4031,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         if (!resolved.hasStructuredFields() || resolved.isOnlineNoHazardResult()) {
+            if (
+                deepAnalysisAudioCoordinator.complete(
+                    legacyDeepAudioToken(request),
+                    hasHazard = false,
+                ) != DeepAnalysisAudioCue.NO_HAZARD
+            ) return
             Log.i(
                 TAG,
                 "online detail ignored because result is no hazard requestId=${request.requestId} structured=${resolved.hasStructuredFields()} noHazard=${resolved.isOnlineNoHazardResult()}",
@@ -4026,6 +4052,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 localCooldownLabels = localResolved.localCooldownLabels,
             )
         } ?: resolved.copy(localCooldownLabels = pending.cooldownLabels)
+        if (
+            deepAnalysisAudioCoordinator.complete(
+                legacyDeepAudioToken(request),
+                hasHazard = true,
+            ) != DeepAnalysisAudioCue.HAS_HAZARD
+        ) return
         clearPendingAutoHazardPresentation()
         presentOnlineHazardWithSimulatedStream(finalResolved)
     }
@@ -4068,11 +4100,16 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             return
         }
         if (LocalHazardDetailRouteDecider.shouldFallback(message, pending.baseResolved != null)) {
+            deepAnalysisAudioCoordinator.complete(
+                legacyDeepAudioToken(request),
+                hasHazard = true,
+            )
             AppFileLogger.w(TAG, "online detail network failure, use local fallback requestId=${request.requestId}")
             clearPendingAutoHazardPresentation()
             presentOnlineHazardWithSimulatedStream(requireNotNull(pending.baseResolved))
             return
         }
+        deepAnalysisAudioCoordinator.cancel(legacyDeepAudioToken(request))
         AppFileLogger.e(TAG, "online detail failed requestId=${request.requestId} message=$message")
         returnToDetecting()
         SpriteToastUtil.showSpriteToastOld(
@@ -4382,14 +4419,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         refreshPendingHazardAlertOverlay()
         schedulePendingAutoHazardPresentationCheck(detectedAtElapsedMs)
         refreshInputActions()
-        onlineHazardDetectionService.requestDeepAnalysis(
-            OnlineHazardDetectionService.DetailRequest(
-                epoch = autoInferenceEpoch,
-                requestId = request.requestId,
-                jpegBytes = sharedJpegBytes,
-                lane = request.lane,
+        val detailRequest = OnlineHazardDetectionService.DetailRequest(
+            epoch = autoInferenceEpoch,
+            requestId = request.requestId,
+            jpegBytes = sharedJpegBytes,
+            lane = request.lane,
+        )
+        playDeepAnalysisCue(
+            deepAnalysisAudioCoordinator.begin(
+                legacyDeepAudioToken(detailRequest),
+                request.lane.toDeepAnalysisEndpoint(),
             ),
         )
+        onlineHazardDetectionService.requestDeepAnalysis(detailRequest)
         logAudioPressureSnapshot(
             stage = "queue_online_hazard_presentation:details_requested",
             extra = "requestId=${request.requestId}",
@@ -4415,12 +4457,19 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
         val requestId = nextOnlineRequestId()
         val sharedJpegBytes = resolved.jpegBytes.copyOf()
         streamingInProgress = true
-        onlineHazardDetectionService.requestDeepAnalysis(
-            OnlineHazardDetectionService.DetailRequest(
-                epoch = autoInferenceEpoch,
-                requestId = requestId,
-                jpegBytes = sharedJpegBytes,
+        val detailRequest = OnlineHazardDetectionService.DetailRequest(
+            epoch = autoInferenceEpoch,
+            requestId = requestId,
+            jpegBytes = sharedJpegBytes,
+        )
+        playDeepAnalysisCue(
+            deepAnalysisAudioCoordinator.begin(
+                legacyDeepAudioToken(detailRequest),
+                detailRequest.lane.toDeepAnalysisEndpoint(),
             ),
+        )
+        onlineHazardDetectionService.requestDeepAnalysis(
+            detailRequest,
         )
         logAudioPressureSnapshot(
             stage = "queue_local_hazard_presentation:details_requested",
@@ -4649,9 +4698,6 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             stage = "play_hazard_alert_if_needed:enter",
             extra = "ttsState=$ttsState",
         )
-        if (ttsState != TtsState.IDLE) {
-            return
-        }
         ttsState = TtsState.PLAYING_ALERT
         val played = OfflineTtsPlayer.play(
             context = this,
@@ -4662,6 +4708,29 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             ttsState = TtsState.ALERT_PLAYED
         }
     }
+
+    private fun playDeepAnalysisCue(cue: DeepAnalysisAudioCue?) {
+        when (cue) {
+            DeepAnalysisAudioCue.ANALYZING -> playHazardAlertIfNeeded()
+            DeepAnalysisAudioCue.NO_HAZARD -> OfflineTtsPlayer.play(this, TAG, R.raw.no_hazard)
+            DeepAnalysisAudioCue.HAS_HAZARD -> OfflineTtsPlayer.play(this, TAG, R.raw.has_hazard)
+            null -> Unit
+        }
+    }
+
+    private fun deepV2AudioToken(requestId: Long, epoch: Long): String =
+        "deep_v2:$epoch:$requestId"
+
+    private fun legacyDeepAudioToken(request: OnlineHazardDetectionService.DetailRequest): String =
+        "${request.lane.logName}:${request.epoch}:${request.requestId}"
+
+    private fun manualDeepAudioToken(requestId: Long): String = "manual_deep:$requestId"
+
+    private fun OnlineHazardDetectionService.DetectionLane.toDeepAnalysisEndpoint(): DeepAnalysisEndpoint =
+        when (this) {
+            OnlineHazardDetectionService.DetectionLane.ITEM -> DeepAnalysisEndpoint.DEEP
+            OnlineHazardDetectionService.DetectionLane.SCENE -> DeepAnalysisEndpoint.GENERAL_DEEP
+        }
 
     private fun handleStreamConfirmAction() {
         AppFileLogger.i(
@@ -5376,14 +5445,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
     private fun beginStreamingRequest() {
         currentManualAnalysisHandle?.cancel()
         currentManualAnalysisHandle = null
+        deepAnalysisAudioCoordinator.cancel(manualDeepAudioToken(activeStreamRequestId))
         manualDeepAnalysisInProgress = true
         refreshDetectionStatus()
         activeStreamRequestId += 1
-        OfflineTtsPlayer.play(
-            context = this,
-            ownerTag = TAG,
-            audioResId = R.raw.manual_deep,
-        )
         streamPanelAnchoredBelowPreview = false
         activeHazardContent = null
         streamingInProgress = true
@@ -5407,6 +5472,10 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
      */
     private fun sendImageToAiAr(base64Image: String) {
         currentManualAnalysisHandle?.cancel()
+        val audioToken = manualDeepAudioToken(activeStreamRequestId)
+        playDeepAnalysisCue(
+            deepAnalysisAudioCoordinator.begin(audioToken, DeepAnalysisEndpoint.DEEP),
+        )
         currentManualAnalysisHandle = aiArSseService.requestDeepAnalysis(
             base64Image = base64Image,
             onChunk = { partialText ->
@@ -5430,6 +5499,7 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
 
                 override fun onFailure(handle: AiArSseService.RequestHandle, message: String) {
                     Log.e(TAG, "manual ai/ar failed taskId=${handle.taskId} message=$message")
+                    deepAnalysisAudioCoordinator.cancel(audioToken)
                     if (currentManualAnalysisHandle == handle) {
                         currentManualAnalysisHandle = null
                     }
@@ -5451,10 +5521,17 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
                 jpegBytes = jpegBytes,
             )
         }.getOrElse { error ->
+            deepAnalysisAudioCoordinator.cancel(manualDeepAudioToken(activeStreamRequestId))
             handleSSEError(error.message ?: getString(R.string.ai_inspection_online_detail_parse_failed))
             return
         }
         if (!resolved.hasStructuredFields() || resolved.isOnlineNoHazardResult()) {
+            if (
+                deepAnalysisAudioCoordinator.complete(
+                    manualDeepAudioToken(activeStreamRequestId),
+                    hasHazard = false,
+                ) != DeepAnalysisAudioCue.NO_HAZARD
+            ) return
             Log.i(
                 TAG,
                 "manual ai/ar ignored because result is no hazard structured=${resolved.hasStructuredFields()} noHazard=${resolved.isOnlineNoHazardResult()} hidNum=${resolved.hidNum} hidLevel=${resolved.hidLevel} lawBasis=${resolved.lawBasis}",
@@ -5462,6 +5539,12 @@ class AiInspectionActivity : BaseGlassActivity(), RokidSdkManager.Listener {
             handleOnlineNoHazardResult(activeStreamRequestId)
             return
         }
+        if (
+            deepAnalysisAudioCoordinator.complete(
+                manualDeepAudioToken(activeStreamRequestId),
+                hasHazard = true,
+            ) != DeepAnalysisAudioCue.HAS_HAZARD
+        ) return
         presentOnlineHazardWithSimulatedStream(resolved)
     }
 
