@@ -3,7 +3,7 @@
    * 如后续需要为正式版单独覆盖字段，可在此处新增。
    */
   "businessMock": {
-    "enabled": true,
+    "enabled": false,
     "placeCode": "XFAQ-JXCS-001",
     "allowHazardUpload": false,
     "allowFinishUpload": false
